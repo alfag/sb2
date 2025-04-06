@@ -5,9 +5,9 @@ SharingBeer2_0 (SB2) è una piattaforma online innovativa progettata per connett
 ## Caratteristiche Principali
 
 - **Architettura a Microservizi**: SB2 è costruita su un'architettura a microservizi per garantire scalabilità e manutenibilità.
-- **Tecnologie Open Source**: Utilizza tecnologie come Node.js, MongoDB, e Docker per un'infrastruttura robusta e sicura.
+- **Tecnologie Open Source**: Utilizza tecnologie come Node.js, MongoDB per un'infrastruttura robusta e sicura.
 - **Interfaccia Utente Responsive**: Sviluppata con Nunjucks per un'esperienza utente fluida su dispositivi diversi.
-- **Sicurezza Avanzata**: Implementa JWT e OAuth2 per la gestione sicura degli accessi, oltre a misure di protezione contro attacchi DDoS.
+- **Sicurezza Avanzata**: Implementa Passport e OAuth2 per la gestione sicura degli accessi, oltre a misure di protezione contro attacchi DDoS.
 - **Geolocalizzazione**: Utilizza Leaflet.js e OpenStreetMap per visualizzare birrifici su una mappa interattiva.
 - **Gestione QRCode**: Integra QRCode per il tracciamento delle BeerBox e facilitare gli inviti.
 
@@ -18,7 +18,6 @@ SharingBeer2_0 (SB2) è una piattaforma online innovativa progettata per connett
 - **public**: Risorse statiche come CSS, JavaScript e immagini.
 - **views**: Template per le pagine dell'applicazione.
 - **.env**: Variabili d'ambiente per la configurazione.
-- **Dockerfile e docker-compose.yml**: Configurazioni per il deployment con Docker.
 - **package.json**: Gestione delle dipendenze e degli script npm.
 
 ## Installazione
