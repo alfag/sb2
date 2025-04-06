@@ -47,4 +47,4 @@ Le contribuzioni sono benvenute! Per favore, apri un issue o invia una pull requ
 
 ## Licenza
 
-Questo progetto è concesso in licenza sotto la Licenza MIT. Vedi il file LICENSE per ulteriori dettagli.
+Questo progetto è concesso in licenza sotto la Licenza MIT. Vedi il file LICENSE per ulteriori dettagli.# sb2
