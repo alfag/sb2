@@ -1,0 +1,11 @@
+{% extends "admin/index.njk" %}
+
+{% block title %}Gestione Birrifici{% endblock %}
+
+{% block content %}
+<h2>Gestione Birrifici</h2>
+<p>In questa sezione, puoi visualizzare, aggiungere, aggiornare ed eliminare birrifici. Utilizza i pulsanti qui sotto per eseguire l'azione desiderata.</p>
+<button onclick="location.href='/admin/breweries'">Visualizza Tutti i Birrifici</button>
+<button onclick="location.href='/admin/breweries/new'">Aggiungi Nuovo Birrificio</button>
+<!-- Add your HTML and Nunjucks code to display and manage breweries here -->
+{% endblock %}

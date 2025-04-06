@@ -1,0 +1,19 @@
+{% extends "layout.njk" %}
+
+{% block title %}Pannello di Amministrazione{% endblock %}
+
+{% block header %}Pannello di Amministrazione{% endblock %}
+
+{% block content %}
+<section>
+    <h2>Gestione Amministrativa</h2>
+    <ul>
+        <li><a href="/admin/users">Utenti</a></li>
+        <li><a href="/admin/breweries">Birrifici</a></li>
+        <li><a href="/admin/orders">Ordini</a></li>
+        <li><a href="/admin/payments">Pagamenti</a></li>
+        <li><a href="/admin/invitations">Inviti</a></li>
+        <li><a href="/admin/config">Configurazioni</a></li>
+    </ul>
+</section>
+{% endblock %}

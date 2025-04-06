@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Utente</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Benvenuto nella tua Dashboard, {{ user.name }}!</h1>
+        <nav>
+            <ul>
+                <li><a href="/orders">I Miei Ordini</a></li>
+                <li><a href="/profile">Profilo</a></li>
+                <li><a href="/logout">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section>
+            <h2>Il Tuo Inventario BeerBox</h2>
+            <ul>
+                {% for beerbox in beerboxes %}
+                    <li>
+                        <h3>{{ beerbox.name }}</h3>
+                        <p>Prezzo: {{ beerbox.price }} €</p>
+                        <p>Stato: {{ beerbox.status }}</p>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+        <section>
+            <h2>Notifiche</h2>
+            <ul>
+                {% for notification in notifications %}
+                    <li>{{ notification.message }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2023 SharingBeer2_0. Tutti i diritti riservati.</p>
+    </footer>
+    <script src="/js/scripts.js"></script>
+</body>
+</html>

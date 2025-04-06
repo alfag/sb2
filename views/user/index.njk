@@ -1,0 +1,16 @@
+{% extends "layout.njk" %}
+
+{% block title %}Dashboard Utente{% endblock %}
+
+{% block header %}Dashboard Utente{% endblock %}
+
+{% block content %}
+<section>
+    <h2>Benvenuto, Utente!</h2>
+    <p>Qui puoi visualizzare i tuoi ordini, gestire il tuo profilo e molto altro.</p>
+    <ul>
+        <li><a href="/user/orders">I miei Ordini</a></li>
+        <li><a href="/user/profile">Il mio Profilo</a></li>
+    </ul>
+</section>
+{% endblock %}
