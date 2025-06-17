@@ -2,11 +2,15 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
+    userID: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        unique: true,
+    },
     username: {
         type: String,
         required: true,
         unique: true,
-        match: /.+\@.+\..+/,
     },
     password: {
         type: String,
@@ -56,12 +60,10 @@ const userSchema = new mongoose.Schema({
             reviewDate: { type: Date, default: Date.now }
         }],
     },
-
     breweryDetails: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Brewery',
     },
-
     administratorDetails: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Administrator',

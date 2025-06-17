@@ -5,6 +5,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginButton = document.getElementById('loginButton');
     const loginForm = document.getElementById('loginForm');
 
+    // Funzione per gestire l'invio del form
+    function submitForm() {
+        loginForm.submit();
+    }
+
+    // Aggiungi un event listener per il click sul pulsante di login
+    if (loginButton) {
+        loginButton.addEventListener('click', function(event) {
+            event.preventDefault(); // Impedisce l'invio predefinito del form
+            submitForm();
+        });
+    }
+
+    // Aggiungi un event listener per il tasto "Invio" nel campo password
+    if (passwordInput) {
+        passwordInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Impedisce l'azione predefinita del tasto "Invio"
+                submitForm();
+            }
+        });
+    }
+
     // Mostra/nascondi password
     if (togglePassword && passwordInput) {
         togglePassword.addEventListener('click', () => {

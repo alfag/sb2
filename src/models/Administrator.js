@@ -1,24 +1,8 @@
 const mongoose = require('mongoose');
 
-const adminConfigSchema = new mongoose.Schema({
-    adminID: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true,
-        unique: true
-    },
-    adminName: {
-        type: String,
-        required: true
-    },
-    adminPermissions: {
-        type: Object,
-        required: true,
-        default: {
-            manageUsers: true,
-            manageBrewery: true,
-            viewReports: true
-        }
-    },
+const administratorSchema = new mongoose.Schema({
+    administratorName: { type: String, required: true },
+    administratorPermission: { type: String, required: true }
 }, { timestamps: true });
 
-module.exports = mongoose.model('AdminConfig', adminConfigSchema);
+module.exports = mongoose.model('Administrator', administratorSchema);

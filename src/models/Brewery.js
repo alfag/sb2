@@ -47,7 +47,6 @@ const brewerySchema = new mongoose.Schema({
             },
             remoteBreweryProducts: [{
                 type: mongoose.Schema.Types.ObjectId,
-                ref: this.breweryProducts.productID,
                 productAvailableQuantity: { type: Number, required: function () { return this.parent().depositType === 'remote'; } },
                 productPrice: { type: Number, required: function () { return this.parent().depositType === 'remote'; } }
             }]

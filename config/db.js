@@ -15,7 +15,15 @@ mongoose.connection
   .on("close", () => logger.info('MONGODB CLOSED'))
   .on("error", (error) => {
     logger.error('MONGODB CONNECTION: ' + error);
-    process.exit();
+    //process.exit();
+    console.error('Errore di connessione a MongoDB:', error);
+    console.log('Riprovo la connessione tra 5 secondi...');
+    setTimeout(() => {
+      mongoose.connect(process.env.MONGODB_URL_SB2, {
+        //useFindAndModify: false,
+        //useCreateIndex: true
+      });
+    }, 5000); // Riprova la connessione dopo 5 secondi
   });
 
 // Funzione per elencare tutte le collezioni

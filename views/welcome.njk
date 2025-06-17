@@ -1,0 +1,18 @@
+{% extends "layout.njk" %}
+
+{% block title %}Benvenuto in SharingBeer{% endblock %}
+
+{% block header %}Benvenuto in SharingBeer{% endblock %}
+
+{% block content %}
+<section>
+    <h2>Benvenuto, {% if user %}{{ user.username }}{% else %}Ospite{% endif %}!</h2>
+    <p>Unisciti alla nostra comunità di amanti della birra artigianale ed esplora una vasta gamma di birre dai birrifici locali.</p>
+</section>
+<section>
+    <h2>Birrifici in Evidenza</h2>
+    <div id="brewery-list">
+        <!-- Il contenuto dinamico dei birrifici sarà inserito qui -->
+    </div>
+</section>
+{% endblock %}

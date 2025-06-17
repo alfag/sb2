@@ -12,6 +12,9 @@ const flash = require('connect-flash');
 const passport = require('../config/passport');
 const logWithFileName = require('./utils/logger');
 
+const baseRoutes = require('./routes/baseRoutes');
+const administratorRoutes = require('./routes/administratorRoutes');
+
 const app = express();
 
 const logger = logWithFileName(__filename); // Crea un logger con il nome del file
@@ -59,26 +62,37 @@ app.use(cookieParser()); // Analizza i cookie nelle richieste
 app.use(express.json({ limit: '50mb' })); // Analizza i dati JSON
 app.use(express.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 })); // Analizza i dati URL-encoded
 
-// Routes
-app.get('/', (req, res) => {
-    logger.info('Renderizzazione della pagina principale'); // Log tradotto
-    res.render('index.njk'); // Renderizza il template index.njk
+// Middleware per la Content Security Policy
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'none'; frame-src 'none'; font-src 'self';"
+  );
+  next();
 });
 
 // Middleware globale per la gestione degli errori
 app.use((err, req, res, next) => {
-    // Log dell'errore con il messaggio e lo stack
     logger.error(`Errore: ${err.message}`);
-    console.error('Stack dell\'errore:', err.stack); // Scrive lo stack dell'errore nella console
+    console.error('Stack dell\'errore:', err.stack);
 
-    // Imposta il messaggio di errore come flashMessage
-    req.flash('error', err.message || 'Si è verificato un errore interno');
-
-    // Ottieni l'URL della pagina precedente dall'header Referer
-    const redirectUrl = req.headers.referer || '/';
-
-    // Mantieni lo status 500 e reindirizza
-    res.status(500).redirect(redirectUrl);
+    if (process.env.NODE_ENV === 'development') {
+        // Invia una pagina di errore dettagliata in sviluppo
+        res.status(500).send(`
+            <h1>Errore del server</h1>
+            <p>${err.message}</p>
+            <pre>${err.stack}</pre>
+        `);
+    } else {
+        // Invia una pagina di errore generica in produzione
+        req.flash('error', 'Si è verificato un errore interno');
+        const redirectUrl = req.headers.referer || '/';
+        res.status(500).redirect(redirectUrl);
+    }
 });
+
+// Routes
+app.use('/', baseRoutes); // Gestisce le rotte di base dell'applicazione
+//app.use('/admin', administratorRoutes); // Gestisce le rotte amministrative
 
 module.exports = app;

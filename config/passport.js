@@ -9,26 +9,26 @@ const logger = logWithFileName(__filename); // Crea un logger con il nome del fi
 
 // Configura la strategia locale
 passport.use(
-    new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
+    new LocalStrategy({ usernameField: 'username' }, async (username, password, done) => {
         try {
-            logger.debug(`Tentativo di login con username: ${email}`); // Logga l'email
+            logger.debug(`Tentativo di login con username: ${username}`); // Logga l'username
 
-            const user = await User.findOne({ username: email });
+            const user = await User.findOne({ username: username });
             if (!user) {
-                logger.debug(`Utente non trovato per username: ${email}`); // Logga se l'utente non è trovato
+                logger.debug(`Utente non trovato per username: ${username}`); // Logga se l'utente non è trovato
                 return done(null, false, { message: 'Utente non riconosciuto' });
             }
 
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
-                logger.debug(`Password errata per username: ${email}`); // Logga se la password è errata
+                logger.debug(`Password errata per username: ${username}`); // Logga se la password è errata
                 return done(null, false, { message: 'Password errata' });
             }
 
-            logger.debug(`Login riuscito per username: ${email}`); // Logga il successo del login
+            logger.debug(`Login riuscito per username: ${username}`); // Logga il successo del login
             return done(null, user);
         } catch (error) {
-            logger.error(`Errore durante il login per username: ${email}`, error); // Logga l'errore
+            logger.error(`Errore durante il login per username: ${username}`, error); // Logga l'errore
             return done(error);
         }
     })
@@ -49,7 +49,7 @@ passport.use(
                 if (!user) {
                     user = new User({
                         googleId: profile.id,
-                        email: profile.emails[0].value,
+                        username: profile.usernames[0].value,
                         name: profile.displayName,
                     });
                     await user.save();
@@ -72,13 +72,14 @@ logger.info(`Serializzazione utente con ID: ${user.id}`);
 passport.deserializeUser(async (id, done) => {
     try {
         const user = await User.findById(id);
-if (!user) {
-            //logger.warn(`Utente non trovato durante la deserializzazione con ID: ${id}`);
+        if (!user) {
+            logger.warn(`Utente non trovato durante la deserializzazione con ID: ${id}`);
             return done(null, false);
         }
-        //logger.info(`Utente deserializzato con successo: ${user.toJSON().email}`);
+        //logger.info(`Utente deserializzato con successo: ${user.toJSON().username}`);
         done(null, user); // Aggiunge l'utente a req.user
     } catch (error) {
+        logger.error(`Errore durante la deserializzazione dell'utente con ID: ${id}`, error);
         done(error, null);
     }
 });
