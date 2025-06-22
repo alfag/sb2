@@ -20,10 +20,22 @@ const app = express();
 const logger = logWithFileName(__filename); // Crea un logger con il nome del file
 
 // Configura Nunjucks
-nunjucks.configure('views', {
+const env = nunjucks.configure('views', {
     autoescape: true,
     express: app,
     noCache: true, // Disabilita il caching durante lo sviluppo
+});
+
+// Filtro custom escapejs
+env.addFilter('escapejs', function(str) {
+    if (typeof str !== 'string') return str;
+    return str
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\r/g, '\\r')
+        .replace(/\n/g, '\\n')
+        .replace(/<\/(script)/gi, '<\\/$1');
 });
 
 // Imposta Nunjucks come motore di template predefinito

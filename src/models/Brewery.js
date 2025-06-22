@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
 const brewerySchema = new mongoose.Schema({
-    breweryID: { type: mongoose.Schema.Types.ObjectId, required: true, unique: true },
     breweryName: { type: String, required: true },
     breweryDescription: { type: String },
     breweryFiscalCode: { type: String, required: true },

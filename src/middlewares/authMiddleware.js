@@ -6,7 +6,8 @@ const logger = logWithFileName(__filename); // Crea un logger con il nome del fi
 const isAuthenticated = (req, res, next) => {
     if (!req.isAuthenticated()) {
         logger.warn('Accesso negato. Utente non autenticato.');
-        return res.status(401).json({ message: 'Accesso negato. Utente non autenticato.' });
+        req.flash('error', 'Accesso negato. Effettua il login per continuare.');
+        return res.redirect('/');
     }
 
     // Aggiungi l'informazione al req
@@ -16,13 +17,20 @@ const isAuthenticated = (req, res, next) => {
 };
 
 const isAdmin = (req, res, next) => {
-    if (!req.user || req.user.role !== 'administrator') {
-        logger.warn('Accesso negato. Solo gli amministratori possono accedere.');
-        return res.status(403).json({ message: 'Accesso negato. Solo gli amministratori possono accedere.' });
-    }
+    // Prima controlla se l'utente è autenticato
+    isAuthenticated(req, res, function () {
+        // Poi controlla se è admin
+        if (!req.user || req.user.role !== 'administrator') {
+            logger.warn('Accesso negato. Solo gli amministratori possono accedere.');
+            req.flash('error', 'Accesso negato. Solo gli amministratori possono accedere.');
+            const redirectUrl = req.headers.referer || '/';
+            return res.redirect(redirectUrl);
+        }
 
-    logger.info(`Accesso amministratore concesso: ${req.user.toJSON().username}`);
-    next();
+        logger.info(`Accesso amministratore concesso: ${req.user.toJSON().username}`);
+        //logger.info(`Prossima rotta (next): ${req.originalUrl}`);
+        next();
+    });
 };
 
 module.exports = {

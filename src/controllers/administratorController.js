@@ -26,6 +26,7 @@ async function createUser({
         });
 
         if (role === 'customer') {
+            logger.info('Creazione di un nuovo cliente'); // Log in italiano
             newUser.customerDetails = {
                 customerName: customerName,
                 customerSurname: customerSurname,
@@ -37,6 +38,7 @@ async function createUser({
                 customerPhoneNumber: customerPhoneNumber
             };
         } else if (role === 'administrator') {
+            logger.info('Creazione di un nuovo amministratore'); // Log in italiano
             const newAdministrator = new Administrator({
                 administratorName: administratorName,
                 administratorPermission: administratorPermission
@@ -44,6 +46,7 @@ async function createUser({
             await newAdministrator.save();
             newUser.administratorDetails = newAdministrator._id;
         } else if (role === 'brewery') {
+            logger.info('Creazione di una nuovo birrificio'); // Log in italiano
             const newBrewery = new Brewery({
                 breweryName: breweryName,
                 breweryDescription: breweryDescription,
@@ -62,19 +65,17 @@ async function createUser({
     } catch (error) {
         logger.error(`Errore durante la creazione dell'utente: ${error.message}`); // Log errore
         req.flash('error', `Errore durante la creazione dell'utente: ${error.message}`);
-        res.redirect('/login');
+        // Modifica: ora reindirizza alla pagina precedente invece che a una rotta fissa
+        const redirectUrl = req.headers.referer || '/';
+        res.redirect(redirectUrl);
     }
 }
 
 // Get all users
 async function getAllUsers(req, res, next) {
     try {
-        if (!res || typeof res.render !== 'function') {
-            throw new TypeError('L\'oggetto res non è definito o non è valido');
-        }
-
-        const users = await User.find({ role: 'user' }); // Filtra solo gli utenti con ruolo 'user'
-        logger.info(`Utenti recuperati con successo: ${users.length} utenti trovati`); // Log con il numero di utenti
+        const users = await User.find();
+        logger.info(`Utenti recuperati con successo: ${users.length} utenti trovati compreso l'utente collegato`); // Log con il numero di utenti
         return users; // Restituisci gli utenti
     } catch (error) {
         logger.error('Errore durante il recupero degli utenti', error);
@@ -82,51 +83,172 @@ async function getAllUsers(req, res, next) {
     }
 }
 
-// Get a single user by ID
-async function getUserById(req, res) {
+// Get a single user by ID (arricchito con populate dettagli in base al ruolo)
+async function getUserById(userId) {
+    logger.info(`Recupero utente con ID: ${userId}`);
     try {
-        const user = await User.findById(req.params.id);
-        if (!user) {
-            logger.warn(`Utente non trovato: ${req.params.id}`);
-            return res.status(404).json({ message: 'Utente non trovato' });
-        }
-        logger.info(`Utente recuperato con successo: ${req.params.id}`);
+        // Recupera l'utente e popola i dettagli in base al ruolo
+        let user = await User.findById(userId)
+            .populate('administratorDetails')
+            .populate('breweryDetails');
 
+        if (!user) {
+            logger.warn(`Utente non trovato: ${userId}`);
+            return null;
+        }
+
+        // Converti una sola volta se necessario
+        const userObj = user.toObject ? user.toObject() : user;
+
+        if (userObj.role === 'customer' && userObj.customerDetails) {
+            userObj.customerName = userObj.customerDetails.customerName;
+            userObj.customerSurname = userObj.customerDetails.customerSurname;
+            userObj.customerFiscalCode = userObj.customerDetails.customerFiscalCode;
+            userObj.customerBillingAddress = userObj.customerDetails.customerAddresses?.billingAddress;
+            userObj.customerShippingAddress = userObj.customerDetails.customerAddresses?.shippingAddress;
+            userObj.customerPhoneNumber = userObj.customerDetails.customerPhoneNumber;
+        }
+        if (userObj.role === 'administrator' && userObj.administratorDetails) {
+            userObj.administratorName = userObj.administratorDetails.administratorName;
+            userObj.administratorPermission = userObj.administratorDetails.administratorPermission;
+        }
+        if (userObj.role === 'brewery' && userObj.breweryDetails) {
+            userObj.breweryName = userObj.breweryDetails.breweryName;
+            userObj.breweryDescription = userObj.breweryDetails.breweryDescription;
+            userObj.breweryFiscalCode = userObj.breweryDetails.breweryFiscalCode;
+        }
+
+        logger.info(`Utente recuperato con successo: ${userId}`);
+        return userObj;
     } catch (error) {
-        logger.error(`Errore durante il recupero dell'utente: ${req.params.id}`, error);        
-        throw error; // Propaga l'errore al middleware di gestione degli errori
+        logger.error(`Errore durante il recupero dell'utente: ${userId}`, error);
+        throw error;
     }
 }
 
-// Update user information
-async function updateUser(req, res) {
+// Update user information (coerente con administratorRoutes)
+async function updateUser(userId, updateData) {
     try {
-        const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
         if (!user) {
-            logger.warn(`Utente non trovato: ${req.params.id}`);
-            return res.status(404).json({ message: 'Utente non trovato' });
+            logger.warn(`Utente non trovato: ${userId}`);
+            return null;
         }
-        logger.info(`Utente aggiornato con successo: ${req.params.id}`);
-        
+        logger.info(`Utente aggiornato con successo: ${userId}`);
+        return user;
     } catch (error) {
-        logger.error(`Errore durante l'aggiornamento dell'utente: ${req.params.id}`, error);
-        throw error; // Propaga l'errore al middleware di gestione degli errori
+        logger.error(`Errore durante l'aggiornamento dell'utente: ${userId}`, error);
+        throw error;
     }
 }
 
-// Delete a user
-async function deleteUser(req, res) {
+// Delete a user (coerente con administratorRoutes)
+async function deleteUser(userId) {
     try {
-        const user = await User.findByIdAndDelete(req.params.id);
+        const user = await User.findByIdAndDelete(userId);
         if (!user) {
-            logger.warn(`Utente non trovato: ${req.params.id}`);
-            return res.status(404).json({ message: 'Utente non trovato' });
+            logger.warn(`Utente non trovato: ${userId}`);
+            return null;
         }
-        logger.info(`Utente eliminato con successo: ${req.params.id}`);
-        
+        logger.info(`Utente eliminato con successo: ${userId}`);
+        return user;
     } catch (error) {
-        logger.error(`Errore durante l'eliminazione dell'utente: ${req.params.id}`, error);
-        throw error; // Propaga l'errore al middleware di gestione degli errori
+        logger.error(`Errore durante l'eliminazione dell'utente: ${userId}`, error);
+        throw error;
+    }
+}
+
+// Brewery management
+async function getBreweryById(breweryId) {
+    logger.info(`Recupero brewery con ID: ${breweryId}`);
+    try {
+        const brewery = await Brewery.findById(breweryId);
+        if (!brewery) {
+            logger.warn(`Brewery non trovato: ${breweryId}`);
+            return null;
+        }
+        logger.info(`Brewery recuperato con successo: ${breweryId}`);
+        return brewery;
+    } catch (error) {
+        logger.error(`Errore durante il recupero del brewery: ${breweryId}`, error);
+        throw error;
+    }
+}
+
+async function updateBrewery(breweryId, updateData) {
+    try {
+        const brewery = await Brewery.findByIdAndUpdate(breweryId, updateData, { new: true });
+        if (!brewery) {
+            logger.warn(`Brewery non trovato: ${breweryId}`);
+            return null;
+        }
+        logger.info(`Brewery aggiornato con successo: ${breweryId}`);
+        return brewery;
+    } catch (error) {
+        logger.error(`Errore durante l'aggiornamento del brewery: ${breweryId}`, error);
+        throw error;
+    }
+}
+
+async function deleteBrewery(breweryId) {
+    try {
+        const brewery = await Brewery.findByIdAndDelete(breweryId);
+        if (!brewery) {
+            logger.warn(`Brewery non trovato: ${breweryId}`);
+            return null;
+        }
+        logger.info(`Brewery eliminato con successo: ${breweryId}`);
+        return brewery;
+    } catch (error) {
+        logger.error(`Errore durante l'eliminazione del brewery: ${breweryId}`, error);
+        throw error;
+    }
+}
+
+// Administrator management
+async function getAdministratorById(administratorId) {
+    logger.info(`Recupero administrator con ID: ${administratorId}`);
+    try {
+        const administrator = await Administrator.findById(administratorId);
+        if (!administrator) {
+            logger.warn(`Administrator non trovato: ${administratorId}`);
+            return null;
+        }
+        logger.info(`Administrator recuperato con successo: ${administratorId}`);
+        return administrator;
+    } catch (error) {
+        logger.error(`Errore durante il recupero dell'administrator: ${administratorId}`, error);
+        throw error;
+    }
+}
+
+async function updateAdministrator(administratorId, updateData) {
+    try {
+        const administrator = await Administrator.findByIdAndUpdate(administratorId, updateData, { new: true });
+        if (!administrator) {
+            logger.warn(`Administrator non trovato: ${administratorId}`);
+            return null;
+        }
+        logger.info(`Administrator aggiornato con successo: ${administratorId}`);
+        return administrator;
+    } catch (error) {
+        logger.error(`Errore durante l'aggiornamento dell'administrator: ${administratorId}`, error);
+        throw error;
+    }
+}
+
+async function deleteAdministrator(administratorId) {
+    try {
+        const administrator = await Administrator.findByIdAndDelete(administratorId);
+        if (!administrator) {
+            logger.warn(`Administrator non trovato: ${administratorId}`);
+            return null;
+        }
+        logger.info(`Administrator eliminato con successo: ${administratorId}`);
+        return administrator;
+    } catch (error) {
+        logger.error(`Errore durante l'eliminazione dell'administrator: ${administratorId}`, error);
+        throw error;
     }
 }
 
@@ -136,4 +258,10 @@ module.exports = {
     updateUser,
     deleteUser,
     createUser,
+    getBreweryById,
+    updateBrewery,
+    deleteBrewery,
+    getAdministratorById,
+    updateAdministrator,
+    deleteAdministrator,
 };

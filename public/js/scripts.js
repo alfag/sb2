@@ -39,3 +39,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }    
 });
+
+document.getElementById('deleteUserBtn').addEventListener('click', function (e) {
+    if (confirm('Sei sicuro di voler cancellare questo utente? L\'operazione è irreversibile.')) {
+        document.getElementById('deleteUserForm').submit();
+    }
+});
+
+window.onerror = function (message, source, lineno, colno, error) {
+    console.error('Errore JavaScript:', message, source, lineno, colno, error);
+};

@@ -19,6 +19,10 @@ passport.use(
                 return done(null, false, { message: 'Utente non riconosciuto' });
             }
 
+            /*console.log('password:', password);
+            console.log('hashed password:', user.password);
+            console.log('password hash:', await bcrypt.hash(password, 10));*/
+
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
                 logger.debug(`Password errata per username: ${username}`); // Logga se la password è errata

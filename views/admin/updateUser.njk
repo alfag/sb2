@@ -1,0 +1,99 @@
+{% extends "../layout.njk" %}
+
+{% block title %}Modifica Utente{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Modifica Utente</h1>
+    {% if not userToEdit %}
+        <form method="get" action="/administrator/users/update">
+            <div class="form-group">
+                <label for="userUpdateId">Seleziona utente:</label>
+                <select id="userUpdateId" name="userUpdateId" required>
+                    <option value="">-- Seleziona --</option>
+                    {% for u in users %}
+                        <option value="{{ u._id }}">{{ u.username }} ({{ u.role }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit">Modifica</button>
+        </form>
+    {% else %}
+        <form id="updateUserForm" method="post" action="/administrator/users/update/{{ userToEdit._id }}">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" value="{{ userToEdit.username }}" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Nuova Password (lascia vuoto per non cambiare):</label>
+                <input type="password" id="password" name="password" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label for="role">Ruolo:</label>
+                <input type="text" id="role" name="role" value="{{ userToEdit.role }}" readonly>
+            </div>
+            {% if userToEdit.role == "customer" %}
+            <div id="customerDetails" class="roleDetails">
+                <h2>Dettagli Customer</h2>
+                <div class="form-group">
+                    <label for="customerName">Nome:</label>
+                    <input type="text" id="customerName" name="customerName" value="{{ userToEdit.customerName }}">
+                </div>
+                <div class="form-group">
+                    <label for="customerSurname">Cognome:</label>
+                    <input type="text" id="customerSurname" name="customerSurname" value="{{ userToEdit.customerSurname }}">
+                </div>
+                <div class="form-group">
+                    <label for="customerFiscalCode">Codice Fiscale:</label>
+                    <input type="text" id="customerFiscalCode" name="customerFiscalCode" value="{{ userToEdit.customerFiscalCode }}">
+                </div>
+                <div class="form-group">
+                    <label for="customerBillingAddress">Indirizzo di Fatturazione:</label>
+                    <input type="text" id="customerBillingAddress" name="customerBillingAddress" value="{{ userToEdit.customerBillingAddress }}">
+                </div>
+                <div class="form-group">
+                    <label for="customerShippingAddress">Indirizzo di Spedizione:</label>
+                    <input type="text" id="customerShippingAddress" name="customerShippingAddress" value="{{ userToEdit.customerShippingAddress }}">
+                </div>
+                <div class="form-group">
+                    <label for="customerPhoneNumber">Numero di Telefono:</label>
+                    <input type="text" id="customerPhoneNumber" name="customerPhoneNumber" value="{{ userToEdit.customerPhoneNumber }}">
+                </div>
+            </div>
+            {% elif userToEdit.role == "administrator" %}
+            <div id="administratorDetails" class="roleDetails">
+                <h2>Dettagli Administrator</h2>
+                <div class="form-group">
+                    <label for="administratorName">Nome Administrator:</label>
+                    <input type="text" id="administratorName" name="administratorName" value="{{ userToEdit.administratorName }}">
+                </div>
+                <div class="form-group">
+                    <label for="administratorPermission">Permessi:</label>
+                    <input type="text" id="administratorPermission" name="administratorPermission" value="{{ userToEdit.administratorPermission }}">
+                </div>
+            </div>
+            {% elif userToEdit.role == "brewery" %}
+            <div id="breweryDetails" class="roleDetails">
+                <h2>Dettagli Brewery</h2>
+                <div class="form-group">
+                    <label for="breweryName">Nome Birrificio:</label>
+                    <input type="text" id="breweryName" name="breweryName" value="{{ userToEdit.breweryName }}">
+                </div>
+                <div class="form-group">
+                    <label for="breweryDescription">Descrizione Birrificio:</label>
+                    <textarea id="breweryDescription" name="breweryDescription">{{ userToEdit.breweryDescription }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="breweryFiscalCode">Codice Fiscale Birrificio:</label>
+                    <input type="text" id="breweryFiscalCode" name="breweryFiscalCode" value="{{ userToEdit.breweryFiscalCode }}">
+                </div>
+            </div>
+            {% endif %}
+            <button type="submit">Salva Modifiche</button>
+        </form>
+        <form id="deleteUserForm" method="post" action="/administrator/users/delete/{{ userToEdit._id }}" style="margin-top: 16px;">
+            <button type="button" id="deleteUserBtn" style="background-color: #c00; color: #fff;">Elimina Utente</button>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}
