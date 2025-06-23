@@ -10,17 +10,55 @@ const logger = logWithFileName(__filename); // Crea un logger con il nome del fi
 
 // Register a new user
 exports.postRegister = async (req, res) => {
-    const { name, surname, email, password } = req.body;
+    // Estrai i dati dal body coerentemente con il model User e i dettagli customerDetails
+    const {
+        username,
+        password,
+        customerName,
+        customerSurname,
+        customerFiscalCode,
+        customerBillingAddress,
+        customerShippingAddress,
+        customerPhoneNumber
+    } = req.body;
 
     try {
+        // Verifica se l'utente esiste già
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            logger.warn(`Tentativo di registrazione con username già esistente: ${username}`);
+            return res.status(400).render('customer/registerUser.njk', {
+                message: { error: 'Username già esistente.' }
+            });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ name, surname, email, password: hashedPassword });
+
+        // Crea il nuovo utente con ruolo customer e dettagli customerDetails
+        const newUser = new User({
+            username,
+            password: hashedPassword,
+            role: 'customer',
+            customerDetails: {
+                name: customerName,
+                surname: customerSurname,
+                fiscalCode: customerFiscalCode,
+                billingAddress: customerBillingAddress,
+                shippingAddress: customerShippingAddress,
+                phoneNumber: customerPhoneNumber
+            }
+        });
+
         await newUser.save();
-        logger.info(`Utente registrato con successo: ${email}`); // Logga il successo della registrazione
-        res.status(201).json({ message: 'Utente registrato con successo' });
+        logger.info(`Utente customer registrato con successo: ${username}`);
+        res.status(201).render('authViews/login.njk', {
+            message: { info: 'Registrazione avvenuta con successo. Ora puoi effettuare il login.' }
+        });
     } catch (error) {
         logger.error(`Errore durante la registrazione: ${error.message}`);
-        res.status(500).json({ message: 'Errore durante la registrazione', error });
+        res.status(500).render('customer/registerUser.njk', {
+            message: { error: 'Errore durante la registrazione. Riprova.' }
+        });
     }
 };
 

@@ -1,9 +1,13 @@
 const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy;
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../src/models/User');
 const bcrypt = require('bcrypt');
 const logWithFileName = require('../src/utils/logger'); // Importa il logger
+const LocalStrategy = require('passport-local').Strategy;
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const FacebookStrategy = require('passport-facebook').Strategy;
+const InstagramStrategy = require('passport-instagram').Strategy;
+const AppleStrategy = require('passport-apple');
+const AmazonStrategy = require('passport-amazon').Strategy;
 
 const logger = logWithFileName(__filename); // Crea un logger con il nome del file
 
@@ -65,6 +69,120 @@ passport.use(
         }
     )
 );
+
+// Facebook
+passport.use(new FacebookStrategy({
+    clientID: process.env.FACEBOOK_CLIENT_ID,
+    clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+    callbackURL: '/auth/facebook/callback',
+    profileFields: ['id', 'displayName', 'emails']
+}, async (accessToken, refreshToken, profile, done) => {
+    try {
+        let user = await User.findOne({ facebookId: profile.id });
+        if (!user) {
+            user = new User({
+                facebookId: profile.id,
+                username: profile.emails?.[0]?.value || profile.displayName,
+                name: profile.displayName,
+            });
+            await user.save();
+        }
+        return done(null, user);
+    } catch (error) {
+        return done(error, null);
+    }
+}));
+
+// Twitter
+passport.use(new TwitterStrategy({
+    consumerKey: process.env.TWITTER_CONSUMER_KEY,
+    consumerSecret: process.env.TWITTER_CONSUMER_SECRET,
+    callbackURL: '/auth/twitter/callback',
+    includeEmail: true
+}, async (token, tokenSecret, profile, done) => {
+    try {
+        let user = await User.findOne({ twitterId: profile.id });
+        if (!user) {
+            user = new User({
+                twitterId: profile.id,
+                username: profile.username,
+                name: profile.displayName,
+            });
+            await user.save();
+        }
+        return done(null, user);
+    } catch (error) {
+        return done(error, null);
+    }
+}));
+
+// Instagram
+passport.use(new InstagramStrategy({
+    clientID: process.env.INSTAGRAM_CLIENT_ID,
+    clientSecret: process.env.INSTAGRAM_CLIENT_SECRET,
+    callbackURL: '/auth/instagram/callback'
+}, async (accessToken, refreshToken, profile, done) => {
+    try {
+        let user = await User.findOne({ instagramId: profile.id });
+        if (!user) {
+            user = new User({
+                instagramId: profile.id,
+                username: profile.username,
+                name: profile.displayName,
+            });
+            await user.save();
+        }
+        return done(null, user);
+    } catch (error) {
+        return done(error, null);
+    }
+}));
+
+// Apple
+passport.use(new AppleStrategy({
+    clientID: process.env.APPLE_CLIENT_ID,
+    teamID: process.env.APPLE_TEAM_ID,
+    keyID: process.env.APPLE_KEY_ID,
+    privateKeyLocation: process.env.APPLE_PRIVATE_KEY_PATH,
+    callbackURL: '/auth/apple/callback'
+}, async (accessToken, refreshToken, idToken, profile, done) => {
+    try {
+        let user = await User.findOne({ appleId: idToken.sub });
+        if (!user) {
+            user = new User({
+                appleId: idToken.sub,
+                username: idToken.email,
+                name: idToken.email,
+            });
+            await user.save();
+        }
+        return done(null, user);
+    } catch (error) {
+        return done(error, null);
+    }
+}));
+
+// Amazon
+passport.use(new AmazonStrategy({
+    clientID: process.env.AMAZON_CLIENT_ID,
+    clientSecret: process.env.AMAZON_CLIENT_SECRET,
+    callbackURL: '/auth/amazon/callback'
+}, async (accessToken, refreshToken, profile, done) => {
+    try {
+        let user = await User.findOne({ amazonId: profile.id });
+        if (!user) {
+            user = new User({
+                amazonId: profile.id,
+                username: profile.emails?.[0]?.value || profile.displayName,
+                name: profile.displayName,
+            });
+            await user.save();
+        }
+        return done(null, user);
+    } catch (error) {
+        return done(error, null);
+    }
+}));
 */
 
 // Serializzazione e deserializzazione dell'utente

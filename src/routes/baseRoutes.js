@@ -12,6 +12,11 @@ router.get('/', (req, res) => {
     res.render('welcome.njk', { user: req.user }); // Renderizza il template index.njk
 });
 
+router.get('/profile', (req, res) => {
+    logger.info('Accesso alla pagina profilo');
+    res.render('customer/userProfile.njk', { user: req.user });
+});
+
 router.use('/', authRoutes); // Usa le rotte di autenticazione
 router.use('/administrator', administratorRoutes); // Usa le rotte amministrative
 

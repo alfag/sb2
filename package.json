@@ -24,7 +24,11 @@
     "mongoose": "^8.11.0",
     "nunjucks": "^3.2.4",
     "passport": "^0.7.0",
+    "passport-amazon": "^1.0.0",
+    "passport-apple": "^2.0.2",
+    "passport-facebook": "^3.0.0",
     "passport-google-oauth20": "^2.0.0",
+    "passport-instagram": "^1.0.0",
     "passport-local": "^1.0.0",
     "path": "^0.12.7",
     "qrcode": "^1.4.4",
@@ -33,12 +37,12 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
-    "eslint": "^7.14.0",
-    "nodemon": "^3.1.9",
-    "typescript": "^5.8.2",
-    "mocha": "^10.2.0",
     "chai": "^4.4.1",
-    "supertest": "^6.3.4"
+    "eslint": "^7.14.0",
+    "mocha": "^10.2.0",
+    "nodemon": "^3.1.9",
+    "supertest": "^6.3.4",
+    "typescript": "^5.8.2"
   },
   "keywords": [
     "beer",

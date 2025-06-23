@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Aggiungi un event listener per il click sul pulsante di login
     if (loginButton) {
-        loginButton.addEventListener('click', function(event) {
+        loginButton.addEventListener('click', function (event) {
             event.preventDefault(); // Impedisce l'invio predefinito del form
             submitForm();
         });
@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Aggiungi un event listener per il tasto "Invio" nel campo password
     if (passwordInput) {
-        passwordInput.addEventListener('keydown', function(event) {
+        passwordInput.addEventListener('keydown', function (event) {
             if (event.key === 'Enter') {
                 event.preventDefault(); // Impedisce l'azione predefinita del tasto "Invio"
                 submitForm();
@@ -37,7 +37,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const iconSrc = type === 'password' ? '/images/visibility.svg' : '/images/visibility_off.svg';
             togglePassword.setAttribute('src', iconSrc);
         });
-    }    
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const toggle = document.getElementById('sandwich-menu-toggle');
+    const menu = document.getElementById('sandwich-menu-content');
+    if (toggle && menu) {
+        toggle.addEventListener('click', function (e) {
+            e.stopPropagation();
+            menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'block' : 'none';
+        });
+        document.addEventListener('click', function (e) {
+            if (!menu.contains(e.target) && e.target !== toggle) {
+                menu.style.display = 'none';
+            }
+        });
+    }
 });
 
 document.getElementById('deleteUserBtn').addEventListener('click', function (e) {

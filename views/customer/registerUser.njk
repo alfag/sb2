@@ -1,0 +1,72 @@
+{% extends "../layout.njk" %}
+
+{% block title %}Registrazione{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Registrazione</h1>
+    <form id="registerForm" method="post" action="/register">
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <div class="password-container">
+                <input type="password" id="password" name="password" required>
+                <img src="/images/visibility.svg" alt="Mostra password" id="togglePassword" class="toggle-password">
+            </div>
+        </div>
+        <!-- Ruolo fisso customer -->
+        <input type="hidden" id="role" name="role" value="customer">
+
+        <div id="customerDetails" class="roleDetails">
+            <h2>Dettagli Customer</h2>
+            <div class="form-group">
+                <label for="customerName">Nome:</label>
+                <input type="text" id="customerName" name="customerName">
+            </div>
+            <div class="form-group">
+                <label for="customerSurname">Cognome:</label>
+                <input type="text" id="customerSurname" name="customerSurname">
+            </div>
+            <div class="form-group">
+                <label for="customerFiscalCode">Codice Fiscale:</label>
+                <input type="text" id="customerFiscalCode" name="customerFiscalCode">
+            </div>
+            <div class="form-group">
+                <label for="customerBillingAddress">Indirizzo di Fatturazione:</label>
+                <input type="text" id="customerBillingAddress" name="customerBillingAddress">
+            </div>
+            <div class="form-group">
+                <label for="customerShippingAddress">Indirizzo di Spedizione:</label>
+                <input type="text" id="customerShippingAddress" name="customerShippingAddress">
+            </div>
+            <div class="form-group">
+                <label for="customerPhoneNumber">Numero di Telefono:</label>
+                <input type="text" id="customerPhoneNumber" name="customerPhoneNumber">
+            </div>
+        </div>
+
+        <button type="submit">Registrati</button>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+
+        // Mostra/nascondi password
+        if (togglePassword && passwordInput) {
+            togglePassword.addEventListener('click', () => {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+
+                const iconSrc = type === 'password' ? '/images/visibility.svg' : '/images/visibility_off.svg';
+                togglePassword.setAttribute('src', iconSrc);
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -37,27 +37,27 @@
                 <h2>Dettagli Customer</h2>
                 <div class="form-group">
                     <label for="customerName">Nome:</label>
-                    <input type="text" id="customerName" name="customerName" value="{{ userToEdit.customerName }}">
+                    <input type="text" id="customerName" name="customerName" value="{{ userToEdit.customerDetails.name }}">
                 </div>
                 <div class="form-group">
                     <label for="customerSurname">Cognome:</label>
-                    <input type="text" id="customerSurname" name="customerSurname" value="{{ userToEdit.customerSurname }}">
+                    <input type="text" id="customerSurname" name="customerSurname" value="{{ userToEdit.customerDetails.surname }}">
                 </div>
                 <div class="form-group">
                     <label for="customerFiscalCode">Codice Fiscale:</label>
-                    <input type="text" id="customerFiscalCode" name="customerFiscalCode" value="{{ userToEdit.customerFiscalCode }}">
+                    <input type="text" id="customerFiscalCode" name="customerFiscalCode" value="{{ userToEdit.customerDetails.fiscalCode }}">
                 </div>
                 <div class="form-group">
                     <label for="customerBillingAddress">Indirizzo di Fatturazione:</label>
-                    <input type="text" id="customerBillingAddress" name="customerBillingAddress" value="{{ userToEdit.customerBillingAddress }}">
+                    <input type="text" id="customerBillingAddress" name="customerBillingAddress" value="{{ userToEdit.customerDetails.billingAddress }}">
                 </div>
                 <div class="form-group">
                     <label for="customerShippingAddress">Indirizzo di Spedizione:</label>
-                    <input type="text" id="customerShippingAddress" name="customerShippingAddress" value="{{ userToEdit.customerShippingAddress }}">
+                    <input type="text" id="customerShippingAddress" name="customerShippingAddress" value="{{ userToEdit.customerDetails.shippingAddress }}">
                 </div>
                 <div class="form-group">
                     <label for="customerPhoneNumber">Numero di Telefono:</label>
-                    <input type="text" id="customerPhoneNumber" name="customerPhoneNumber" value="{{ userToEdit.customerPhoneNumber }}">
+                    <input type="text" id="customerPhoneNumber" name="customerPhoneNumber" value="{{ userToEdit.customerDetails.phoneNumber }}">
                 </div>
             </div>
             {% elif userToEdit.role == "administrator" %}
