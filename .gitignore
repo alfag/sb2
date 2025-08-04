@@ -70,5 +70,7 @@ node_modules
 migliorie.txt
 package.json.bk
 nodemon.json
+.github
 *.mp4
 sharingbeer.geany
+alfag_Gemini_Credentials.json

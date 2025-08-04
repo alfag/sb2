@@ -26,7 +26,7 @@ const sessionMiddleware = session({
     saveUninitialized: false,
     store, // Usa lo store creato sopra
     cookie: {
-        maxAge: 1000 * 60 * 60, // 1 ora, * 24, // Durata del cookie: 1 giorno
+        //maxAge: 1000 * 60 * 60, // 1 ora, * 24, // Durata del cookie: 1 giorno - senza maxAge il cookie durerà fino alla chiusura del browser
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production', // Usa cookie sicuri in produzione
     },

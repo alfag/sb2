@@ -34,18 +34,20 @@ exports.postRegister = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Crea il nuovo utente con ruolo customer e dettagli customerDetails
+        // Crea il nuovo utente con ruolo customer (array) e dettagli customerDetails
         const newUser = new User({
             username,
             password: hashedPassword,
-            role: 'customer',
+            role: ['customer'],
             customerDetails: {
-                name: customerName,
-                surname: customerSurname,
-                fiscalCode: customerFiscalCode,
-                billingAddress: customerBillingAddress,
-                shippingAddress: customerShippingAddress,
-                phoneNumber: customerPhoneNumber
+                customerName,
+                customerSurname,
+                customerFiscalCode,
+                customerAddresses: {
+                    billingAddress: customerBillingAddress,
+                    shippingAddress: customerShippingAddress
+                },
+                customerPhoneNumber
             }
         });
 
@@ -86,7 +88,14 @@ exports.postLogin = (req, res, next) => {
 
         let populatedUser = user;
 
-        if (user.role === 'brewery') {
+        // Scegli il ruolo principale per la sessione (priorità: administrator, brewery, customer)
+        let mainRole = 'customer';
+        if (user.role.includes('administrator')) mainRole = 'administrator';
+        else if (user.role.includes('brewery')) mainRole = 'brewery';
+
+        user.mainRole = mainRole; // aggiungi mainRole all'oggetto utente per le view
+
+        if (user.role.includes('brewery')) {
             User.findById(user._id)
                 .populate('breweryDetails')
                 .then(populatedUserFromDb => {
@@ -101,7 +110,7 @@ exports.postLogin = (req, res, next) => {
                 .catch(err => {
                     return next(err);
                 });
-        } else if (user.role === 'administrator') {
+        } else if (user.role.includes('administrator')) {
             User.findById(user._id)
                 .populate('administratorDetails')
                 .then(populatedUserFromDb => {

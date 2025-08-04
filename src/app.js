@@ -1,13 +1,14 @@
 const express = require('express');
 const mongoose = require('../config/db');
 const helmet = require('helmet');
-const rateLimitMiddleware = require('./middlewares/rateLimitMiddleware');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const nunjucks = require('nunjucks');
 const path = require('path'); // Path fornisce funzionalità per lavorare con i percorsi dei file e delle directory
+const rateLimitMiddleware = require('./middlewares/rateLimitMiddleware');
 const sessionMiddleware = require('./middlewares/sessionMiddleware');
+const disclaimerMiddleware = require('./middlewares/disclaimerMiddleware');
 const flash = require('connect-flash');
 const passport = require('../config/passport');
 const logWithFileName = require('./utils/logger');
@@ -16,6 +17,8 @@ const baseRoutes = require('./routes/baseRoutes');
 const administratorRoutes = require('./routes/administratorRoutes');
 
 const app = express();
+// Necessario per express-rate-limit dietro proxy o in LAN
+app.set('trust proxy', 1);
 
 const logger = logWithFileName(__filename); // Crea un logger con il nome del file
 
@@ -63,8 +66,26 @@ app.use((req, res, next) => {
     next();
 });
 
+// Middleware per rendere activeRole disponibile nelle viste
+app.use((req, res, next) => {
+    if (req.session.activeRole) {
+        res.locals.activeRole = req.session.activeRole;
+    } else if (req.user && req.user.role) {
+        const rolePriority = ['administrator', 'brewery', 'customer'];
+        let userRoles = Array.isArray(req.user.role) ? req.user.role : [req.user.role];
+        const found = rolePriority.find(r => userRoles.includes(r));
+        res.locals.activeRole = found || userRoles[0];
+    } else {
+        res.locals.activeRole = null;
+    }
+    next();
+});
+
 // Middleware per servire file statici
 app.use(express.static(path.join(__dirname, '../public'))); // Serve i file dalla cartella "public"
+
+// Middleware per disclaimer maggiore età
+app.use(disclaimerMiddleware);
 
 // Middleware vari
 app.use(helmet()); // Helmet aiuta a proteggere l'app impostando vari header HTTP
@@ -87,7 +108,6 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
     logger.error(`Errore: ${err.message}`);
     console.error('Stack dell\'errore:', err.stack);
-
     if (process.env.NODE_ENV === 'development') {
         // Invia una pagina di errore dettagliata in sviluppo
         res.status(500).send(`
@@ -102,6 +122,8 @@ app.use((err, req, res, next) => {
         res.status(500).redirect(redirectUrl);
     }
 });
+
+
 
 // Routes
 app.use('/', baseRoutes); // Gestisce le rotte di base dell'applicazione

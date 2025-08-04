@@ -19,7 +19,22 @@ const brewerySchema = new mongoose.Schema({
         instagram: { type: String },
         twitter: { type: String },
         linkedin: { type: String },
+        youtube: { type: String }
     },
+    
+    // Campi AI aggiuntivi
+    foundingYear: String,
+    breweryEmail: String,
+    breweryProductionAddress: String,
+    brewerySize: String, // 'microbirrificio', 'birrificio artigianale', 'industriale'
+    employeeCount: String,
+    productionVolume: String,
+    distributionArea: String,
+    breweryHistory: String,
+    masterBrewer: String,
+    mainProducts: [String],
+    awards: [String],
+    
     breweryProducts: [{
         type: mongoose.Schema.Types.ObjectId,
         productID: { type: mongoose.Schema.Types.ObjectId, required: true },
@@ -51,6 +66,11 @@ const brewerySchema = new mongoose.Schema({
             }]
         }
     }],
+    
+    // Metadati AI
+    aiExtracted: { type: Boolean, default: false },
+    aiConfidence: Number,
+    lastAiUpdate: { type: Date, default: Date.now }
 }, {
     timestamps: true
 });

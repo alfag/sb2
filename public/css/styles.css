@@ -1,3 +1,324 @@
+/* --- MODAL FOTO REVIEW RESPONSIVE UNIFICATO --- */
+.photo-modal-custom {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.85);
+  justify-content: center;
+  align-items: center;
+}
+.photo-modal-content-custom {
+  background: #fff;
+  width: 90vw;
+  max-width: 1100px;
+  height: 80vh;
+  max-height: 85vh;
+  border-radius: 14px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+.photo-preview-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-top: 10px;
+  flex-direction: column;
+  max-width: 600px;
+  max-height: 60vh;
+}
+.photo-preview-img {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  margin: 0 auto 5px auto;
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+.photo-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  border: 2px solid #FFD600;
+  border-radius: 10px;
+  background: #fafafa;
+  object-fit: contain;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  margin: 0 auto 10px auto;
+}
+.close-photo-modal {
+  background: #fff;
+  color: #222;
+  border: 1.5px solid #FFD600;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1.5em;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+}
+.close-photo-modal:hover {
+  background: #FFD600;
+  color: #222;
+  border: 1.5px solid #222;
+}
+.popup-body {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f6f6f6;
+  padding: 0 0 0 0;
+}
+.photo-preview-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.photo-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  border: 2px solid #FFD600;
+  border-radius: 10px;
+  background: #fafafa;
+  object-fit: contain;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+.photo-preview-img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  margin: 0 auto;
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+.popup-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 18px 18px 18px;
+  background: #fafafa;
+  border-top: 1px solid #eee;
+  gap: 10px;
+}
+.crop-note-desktop {
+  font-size: 13px;
+  color: #666;
+  background: #f8f8f8;
+  border-top: 1px solid #e0e0e0;
+  margin-bottom: 6px;
+  padding: 7px 10px 4px 10px;
+  border-radius: 6px;
+  font-family: 'Segoe UI', 'Arial', sans-serif;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  text-align: center;
+}
+.close-photo-modal {
+  position: absolute;
+  top: 14px;
+  right: 20px;
+  z-index: 1001;
+  background: #fff;
+  color: #222;
+  border: 1.5px solid #FFD600;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  font-size: 1.4em;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+}
+.close-photo-modal:hover {
+  background: #FFD600;
+  color: #222;
+  border: 1.5px solid #222;
+}
+.photo-modal-content {
+  background: #fff;
+  padding: 24px 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  max-width: 95vw;
+  max-height: 90vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 900px) {
+  .popup-header, .popup-footer {
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .popup-title {
+    font-size: 1.05em;
+  }
+  .popup-body {
+    padding: 0;
+  }
+  .photo-preview-container {
+    max-width: 100%;
+    max-height: 60vh;
+  }
+  .photo-canvas {
+    max-width: 100%;
+    max-height: 55vh;
+  }
+  .photo-preview-img {
+    max-width: 100%;
+    max-height: 55vh;
+  }
+  .crop-note-desktop {
+    font-size: 12px;
+    padding: 5px 4px 3px 4px;
+  }
+}
+
+#photo-preview-container {
+  margin-top: 10px;
+  display: flex;
+  position: relative;
+  max-width: 80vw;
+  max-height: 65vh;
+  align-items: center;
+  justify-content: center;
+  /* Performance migliorata */
+  will-change: transform;
+  contain: layout style paint;
+  /* Overflow gestito per crop */
+  overflow: hidden;
+}
+
+#photoPreview {
+  max-width: 100%;
+  max-height: 60vh;
+  display: block;
+  margin: 0 auto;
+  border-radius: 6px;
+  /* Performance ottimizzata per immagini */
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* Transizioni smooth */
+  transition: transform 0.2s ease-out;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.10);
+  object-fit: contain;
+}
+
+#photoCanvas {
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: none;
+  cursor: grab;
+  max-width: 100%;
+  max-height: 60vh;
+  height: auto;
+  width: auto;
+  object-fit: contain;
+  transition: opacity 0.15s;
+  background: transparent;
+}
+
+/* Attiva il crop quando la classe viene aggiunta via JS */
+#photoCanvas.active-crop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Nota crop desktop */
+.crop-note-desktop {
+  font-size: 12px;
+  color: #666;
+  background: #f8f8f8;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 14px;
+  padding: 7px 10px 4px 10px;
+  border-radius: 0 0 6px 6px;
+  font-family: 'Segoe UI', 'Arial', sans-serif;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  text-align: center;
+}
+@media (pointer: coarse) {
+  .crop-note-desktop {
+    display: none;
+  }
+}
+/* --- Fix X chiusura sopra immagine preview foto --- */
+#photo-modal {
+    position: fixed;
+    /* ...altre regole esistenti... */
+}
+#closePhotoModal {
+    position: absolute;
+    top: 14px;
+    right: 20px;
+    z-index: 1001;
+    background: #fff;
+    color: #222;
+    border: 1.5px solid #FFD600;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    font-size: 1.4em;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s, border 0.2s;
+}
+#closePhotoModal:hover {
+    background: #FFD600;
+    color: #222;
+    border: 1.5px solid #222;
+}
+#photo-preview-container {
+    position: relative;
+}
 .alert {
     padding: 15px;
     margin-bottom: 20px;
@@ -19,4 +340,175 @@
     color: red;
     font-size: 0.8em;
     margin-top: 5px;
+}
+
+/* Modal disclaimer maggiore età */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background-color: #fff;
+    margin: auto;
+    padding: 30px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    max-width: 400px;
+    text-align: center;
+}
+
+/* Stili per i bottoni del modal foto */
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+.btn-success:disabled {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #004085;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+    border-color: #4e555b;
+}
+
+/* Freccia di ritorno per annullare crop */
+.back-arrow {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 10;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    border: 2px solid transparent;
+    /* Accessibilità */
+    outline: none;
+    /* Touch area più grande su mobile */
+    min-width: 44px;
+    min-height: 44px;
+}
+
+.back-arrow:hover {
+    background-color: rgba(0, 0, 0, 0.9);
+    transform: scale(1.1);
+}
+
+.back-arrow:active {
+    transform: scale(0.95);
+}
+
+.back-arrow:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Responsive design per mobile */
+@media (max-width: 768px) {
+    .back-arrow {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+        top: 10px;
+        left: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .back-arrow {
+        width: 45px;
+        height: 45px;
+        font-size: 18px;
+        top: 8px;
+        left: 8px;
+    }
+    
+    .crop-note-desktop {
+        display: none !important;
+    }
+    
+    .crop-note-mobile {
+        display: block !important;
+        font-size: 14px;
+        color: #666;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+}
+
+/* Suggerimenti crop responsive */
+.crop-note-desktop {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.crop-note-mobile {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    margin-bottom: 10px;
+    display: none;
 }

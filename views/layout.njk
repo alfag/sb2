@@ -38,6 +38,9 @@
     <main style="flex: 1 0 auto;">
         {% block content %}{% endblock %}
     </main>
+    {% if showDisclaimer %}
+      {% include "partials/disclaimer.njk" %}
+    {% endif %}
     <footer style="width: 100%; flex-shrink: 0; position: fixed; left: 0; bottom: 0; background: #fff;">
         <table width="100%" style="border-top: 1px solid black; vertical-align:middle;">
             <tr>
@@ -67,16 +70,24 @@
                                 <span
                                     style="margin-left: 12px; display: flex; align-items: center; height: 36px;">Home</span>
                             </a>
-                            {% if user %}
+                            {% if user and user.role and (user.role | length > 0) %}
                             <hr>
-                            {% if user.role == 'administrator' %}
-                            {% include 'partials/navbar_admin.njk' %}
-                            {% elif user.role == 'brewery' %}
-                            {% include 'partials/navbar_brewery.njk' %}
-                            {% else %}
-                            {% include 'partials/navbar_customer.njk' %}
+                            {% set rolePriority = ['administrator', 'brewery', 'customer'] %}
+                            {% set sortedRoles = ([] ) %}
+                            {% for role in rolePriority %}
+                                {% if user.role is defined and (user.role is iterable and role in user.role or user.role == role) %}
+                                    {% set sortedRoles = sortedRoles.concat([role]) %}
+                                {% endif %}
+                            {% endfor %}
+                            {% set currentRole = (activeRole if activeRole is defined and activeRole else (sortedRoles | first)) %}
+                            {% if currentRole == 'administrator' %}
+                                {% include 'partials/navbar_admin.njk' %}
+                            {% elif currentRole == 'brewery' %}
+                                {% include 'partials/navbar_brewery.njk' %}
+                            {% elif currentRole == 'customer' %}
+                                {% include 'partials/navbar_customer.njk' %}
                             {% endif %}
-                            {% endif %}
+                        {% endif %}
                         </div>
                     </div>
                 </td>

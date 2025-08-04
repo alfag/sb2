@@ -76,12 +76,20 @@ router.get('/users/update', authMiddleware.isAdmin, async (req, res) => {
         }
         logger.info(`Accesso al form di modifica per utente con ID: ${userId}`);
         const user = await adminController.getUserById(userId);
+        
         if (!user) {
             req.flash('error', 'Utente non trovato');
             return res.render('admin/updateUser', { title: 'Modifica Utente', users, userToEdit: null, user: req.user, message: req.flash() });
         }
-        logger.info(`Utente selezionato per modifica: ${user}`); // Log in italiano
-        res.render('admin/updateUser', { title: 'Modifica Utente', userToEdit: user, users: null, user: req.user, message: req.flash() });
+        
+        logger.info(`Utente selezionato per modifica: username=${user.username}`); 
+        res.render('admin/updateUser', {
+            title: 'Modifica Utente',
+            userToEdit: user ? (typeof user.toObject === 'function' ? user.toObject() : user) : null,
+            users: null,
+            user: req.user,
+            message: req.flash()
+        });
     } catch (error) {
         logger.error(`Errore durante la selezione/modifica utente: ${error.message}`);
         logger.error(error.stack); // Log dello stack trace completo
@@ -123,6 +131,7 @@ router.post('/users/update/:id', authMiddleware.isAdmin, async (req, res) => {
                 user.customerDetails.customerAddresses.shippingAddress = updateData.customerShippingAddress;
             }
             user.customerDetails.customerPhoneNumber = updateData.customerPhoneNumber;
+        logger.info(`Aggiornamento dettagli customer per utente: ${JSON.stringify(user)}`);
             await user.save();
         } else if (user.role === 'administrator' && user.administratorDetails) {
             await adminController.updateAdministrator(
@@ -179,6 +188,32 @@ router.post('/users/delete/:id', authMiddleware.isAdmin, async (req, res) => {
         logger.error(error.stack);
         req.flash('error', 'Errore durante la cancellazione dell\'utente');
         res.redirect('/administrator/users/update');
+    }
+});
+
+// Aggiunta ruolo a utente
+router.post('/users/addRole/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { roleToAdd } = req.body;
+        await adminController.addRoleToUser(userId, roleToAdd, req, res);
+    } catch (error) {
+        logger.error(`Errore durante l'aggiunta ruolo: ${error.message}`);
+        req.flash('error', 'Errore durante l\'aggiunta del ruolo');
+        res.redirect(`/administrator/users/update?userUpdateId=${req.params.id}`);
+    }
+});
+
+// Rimozione ruolo da utente
+router.post('/users/removeRole/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { roleToRemove } = req.body;
+        await adminController.removeRoleFromUser(userId, roleToRemove, req, res);
+    } catch (error) {
+        logger.error(`Errore durante la rimozione ruolo: ${error.message}`);
+        req.flash('error', 'Errore durante la rimozione del ruolo');
+        res.redirect(`/administrator/users/update?userUpdateId=${req.params.id}`);
     }
 });
 

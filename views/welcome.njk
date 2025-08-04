@@ -8,6 +8,11 @@
 <section>
     <h2>Benvenuto, {% if user %}{{ user.username }}{% else %}Ospite{% endif %}!</h2>
     <p>Unisciti alla nostra comunità di amanti della birra artigianale ed esplora una vasta gamma di birre dai birrifici locali.</p>
+
+    {% if not user or (user and 'customer' in user.roles) %}
+      <button id="publish-review">Pubblica recensione</button>
+      {% include 'customer/review.njk' %}
+    {% endif %}
 </section>
 <section>
     <h2>Birrifici in Evidenza</h2>
@@ -16,3 +21,6 @@
     </div>
 </section>
 {% endblock %}
+{% if showDisclaimer %}
+  {% include "partials/disclaimer.njk" %}
+{% endif %}

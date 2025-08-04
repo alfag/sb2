@@ -29,63 +29,87 @@
                 <input type="password" id="password" name="password" autocomplete="new-password">
             </div>
             <div class="form-group">
-                <label for="role">Ruolo:</label>
-                <input type="text" id="role" name="role" value="{{ userToEdit.role }}" readonly>
+                <label>Ruoli attuali:</label>
+                <ul>
+                    {% for r in userToEdit.role %}
+                        <li>
+                            {{ r|capitalize }}
+                            <form method="post" action="/administrator/users/removeRole/{{ userToEdit._id }}" style="display:inline;">
+                                <input type="hidden" name="roleToRemove" value="{{ r }}">
+                                <button type="submit" class="remove-role-btn" data-role="{{ r }}">Rimuovi</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
             </div>
-            {% if userToEdit.role == "customer" %}
+            <div class="form-group">
+                <label for="addRole">Aggiungi ruolo:</label>
+                <form method="post" action="/administrator/users/addRole/{{ userToEdit._id }}" style="display:flex; gap:8px;">
+                    <select id="addRole" name="roleToAdd">
+                        <option value="">-- Seleziona --</option>
+                        {% for r in ['customer','brewery','administrator'] if r not in userToEdit.role %}
+                            <option value="{{ r }}">{{ r|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">Aggiungi</button>
+                </form>
+            </div>
+            {% if 'customer' in userToEdit.role %}
             <div id="customerDetails" class="roleDetails">
                 <h2>Dettagli Customer</h2>
                 <div class="form-group">
                     <label for="customerName">Nome:</label>
-                    <input type="text" id="customerName" name="customerName" value="{{ userToEdit.customerDetails.name }}">
+                    <input type="text" id="customerName" name="customerName" value="{{ userToEdit.customerDetails.customerName }}">
                 </div>
                 <div class="form-group">
                     <label for="customerSurname">Cognome:</label>
-                    <input type="text" id="customerSurname" name="customerSurname" value="{{ userToEdit.customerDetails.surname }}">
+                    <input type="text" id="customerSurname" name="customerSurname" value="{{ userToEdit.customerDetails.customerSurname }}">
                 </div>
                 <div class="form-group">
                     <label for="customerFiscalCode">Codice Fiscale:</label>
-                    <input type="text" id="customerFiscalCode" name="customerFiscalCode" value="{{ userToEdit.customerDetails.fiscalCode }}">
+                    <input type="text" id="customerFiscalCode" name="customerFiscalCode" value="{{ userToEdit.customerDetails.customerFiscalCode }}">
                 </div>
                 <div class="form-group">
                     <label for="customerBillingAddress">Indirizzo di Fatturazione:</label>
-                    <input type="text" id="customerBillingAddress" name="customerBillingAddress" value="{{ userToEdit.customerDetails.billingAddress }}">
+                    <input type="text" id="customerBillingAddress" name="customerBillingAddress" value="{{ userToEdit.customerDetails.customerAddresses.billingAddress }}">
                 </div>
                 <div class="form-group">
                     <label for="customerShippingAddress">Indirizzo di Spedizione:</label>
-                    <input type="text" id="customerShippingAddress" name="customerShippingAddress" value="{{ userToEdit.customerDetails.shippingAddress }}">
+                    <input type="text" id="customerShippingAddress" name="customerShippingAddress" value="{{ userToEdit.customerDetails.customerAddresses.shippingAddress }}">
                 </div>
                 <div class="form-group">
                     <label for="customerPhoneNumber">Numero di Telefono:</label>
-                    <input type="text" id="customerPhoneNumber" name="customerPhoneNumber" value="{{ userToEdit.customerDetails.phoneNumber }}">
+                    <input type="text" id="customerPhoneNumber" name="customerPhoneNumber" value="{{ userToEdit.customerDetails.customerPhoneNumber }}">
                 </div>
             </div>
-            {% elif userToEdit.role == "administrator" %}
+            {% endif %}
+            {% if 'administrator' in userToEdit.role %}
             <div id="administratorDetails" class="roleDetails">
                 <h2>Dettagli Administrator</h2>
                 <div class="form-group">
                     <label for="administratorName">Nome Administrator:</label>
-                    <input type="text" id="administratorName" name="administratorName" value="{{ userToEdit.administratorName }}">
+                    <input type="text" id="administratorName" name="administratorName" value="{{ userToEdit.administratorDetails.administratorName }}">
                 </div>
                 <div class="form-group">
                     <label for="administratorPermission">Permessi:</label>
-                    <input type="text" id="administratorPermission" name="administratorPermission" value="{{ userToEdit.administratorPermission }}">
+                    <input type="text" id="administratorPermission" name="administratorPermission" value="{{ userToEdit.administratorDetails.administratorPermission }}">
                 </div>
             </div>
-            {% elif userToEdit.role == "brewery" %}
+            {% endif %}
+            {% if 'brewery' in userToEdit.role %}
             <div id="breweryDetails" class="roleDetails">
                 <h2>Dettagli Brewery</h2>
                 <div class="form-group">
                     <label for="breweryName">Nome Birrificio:</label>
-                    <input type="text" id="breweryName" name="breweryName" value="{{ userToEdit.breweryName }}">
+                    <input type="text" id="breweryName" name="breweryName" value="{{ userToEdit.breweryDetails.breweryName }}">
                 </div>
                 <div class="form-group">
                     <label for="breweryDescription">Descrizione Birrificio:</label>
-                    <textarea id="breweryDescription" name="breweryDescription">{{ userToEdit.breweryDescription }}</textarea>
+                    <textarea id="breweryDescription" name="breweryDescription">{{ userToEdit.breweryDetails.breweryDescription }}</textarea>
                 </div>
                 <div class="form-group">
                     <label for="breweryFiscalCode">Codice Fiscale Birrificio:</label>
-                    <input type="text" id="breweryFiscalCode" name="breweryFiscalCode" value="{{ userToEdit.breweryFiscalCode }}">
+                    <input type="text" id="breweryFiscalCode" name="breweryFiscalCode" value="{{ userToEdit.breweryDetails.breweryFiscalCode }}">
                 </div>
             </div>
             {% endif %}
@@ -97,3 +121,4 @@
     {% endif %}
 </div>
 {% endblock %}
+<script src="/js/updateUser.js"></script>

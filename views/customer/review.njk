@@ -1,0 +1,24 @@
+<div class="review-menu">
+  <a href="#" id="upload-photo">Carica una fotografia</a>
+  <input type="file" id="reviewPhoto" accept="image/*" style="display:none;" />
+  <div id="photo-modal" class="modal photo-modal-custom" style="display:none;">
+    <div class="photo-modal-content-custom">
+      <div class="popup-header">
+        <span class="popup-title">Anteprima fotografia</span>
+        <button id="closePhotoModal" class="close-photo-modal" type="button" aria-label="Chiudi">&times;</button>
+      </div>
+      <div class="popup-body">
+        <div id="photo-preview-container" class="photo-preview-container">
+          <div id="backArrow" class="back-arrow" style="display:none;">←</div>
+          <canvas id="photoCanvas" class="photo-canvas"></canvas>
+          <img id="photoPreview" alt="Anteprima foto" class="photo-preview-img" />
+        </div>
+      </div>
+      <div class="popup-footer">
+        <div id="crop-note" class="crop-note-desktop">Suggerimento: tieni premuto <b>SHIFT</b> e trascina col mouse per selezionare una regione da inviare.</div>
+        <div id="crop-note-mobile" class="crop-note-mobile" style="display:none;">Suggerimento: tocca e trascina per selezionare una regione da inviare.</div>
+        <button id="sendToAI" class="btn btn-success" style="display:none; margin-top:10px;">Invia ad AI</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -16,24 +16,56 @@ const isAuthenticated = (req, res, next) => {
     next(); // Passa al middleware successivo o alla rotta
 };
 
-const isAdmin = (req, res, next) => {
-    // Prima controlla se l'utente è autenticato
-    isAuthenticated(req, res, function () {
-        // Poi controlla se è admin
-        if (!req.user || req.user.role !== 'administrator') {
-            logger.warn('Accesso negato. Solo gli amministratori possono accedere.');
-            req.flash('error', 'Accesso negato. Solo gli amministratori possono accedere.');
-            const redirectUrl = req.headers.referer || '/';
-            return res.redirect(redirectUrl);
-        }
+exports.isAdmin = (req, res, next) => {
+    if (
+        req.isAuthenticated() &&
+        (
+            (req.session.activeRole === 'administrator') ||
+            (Array.isArray(req.user.role) && req.user.role.includes('administrator'))
+        )
+    ) {
+        return next();
+    }
+    res.redirect('/login');
+};
 
-        logger.info(`Accesso amministratore concesso: ${req.user.toJSON().username}`);
-        //logger.info(`Prossima rotta (next): ${req.originalUrl}`);
-        next();
-    });
+exports.isBrewery = (req, res, next) => {
+    if (
+        req.isAuthenticated() &&
+        (
+            (req.session.activeRole === 'brewery') ||
+            (Array.isArray(req.user.role) && req.user.role.includes('brewery'))
+        )
+    ) {
+        return next();
+    }
+    res.redirect('/login');
+};
+
+exports.isCustomer = (req, res, next) => {
+    if (
+        req.isAuthenticated() &&
+        (
+            (req.session.activeRole === 'customer') ||
+            (Array.isArray(req.user.role) && req.user.role.includes('customer'))
+        )
+    ) {
+        return next();
+    }
+    res.redirect('/login');
+};
+
+exports.ensureRole = (roles) => (req, res, next) => {
+  if (!req.user || !req.user.role || !roles.some(r => Array.isArray(req.user.role) ? req.user.role.includes(r) : req.user.role === r)) {
+    return res.status(403).send('Accesso negato');
+  }
+  next();
 };
 
 module.exports = {
     isAuthenticated,
-    isAdmin,
+    isAdmin: exports.isAdmin,
+    isBrewery: exports.isBrewery,
+    isCustomer: exports.isCustomer,
+    ensureRole: exports.ensureRole,
 };

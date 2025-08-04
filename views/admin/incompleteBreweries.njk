@@ -1,0 +1,12 @@
+<h2>Birrifici con dati mancanti</h2>
+<ul>
+  {% for brewery in incomplete %}
+    <li>{{ brewery.name }} - {{ brewery.email || 'Email mancante' }}</li>
+  {% endfor %}
+</ul>
+<h2>Birrifici censiti</h2>
+<ul>
+  {% for brewery in complete %}
+    <li>{{ brewery.name }} - {{ brewery.email }}</li>
+  {% endfor %}
+</ul>

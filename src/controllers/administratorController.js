@@ -7,11 +7,11 @@ const bcrypt = require('bcrypt');
 const logger = logWithFileName(__filename); // Crea un logger con il nome del file
 
 // Crea un nuovo utente
-async function createUser({ 
-    username, password, role, 
+async function createUser({
+    username, password, role,
     customerName, customerSurname, customerFiscalCode, customerBillingAddress, customerShippingAddress, customerPhoneNumber,
     administratorName, administratorPermission,
-    breweryName, breweryDescription, breweryFiscalCode 
+    breweryName, breweryDescription, breweryFiscalCode
 }, req, res) {
     try {
         logger.info('Inizio creazione di un nuovo utente'); // Log in italiano
@@ -21,7 +21,7 @@ async function createUser({
         let newUser = new User({
             username: username,
             password: hashedPassword,
-            role: role,
+            role: [role], // sempre array
             // Inizializza gli altri campi a null o a valori di default appropriati
         });
 
@@ -83,12 +83,13 @@ async function getAllUsers(req, res, next) {
     }
 }
 
-// Get a single user by ID (arricchito con populate dettagli in base al ruolo)
+// Get a single user by ID (popola dettagli in base al ruolo, struttura annidata)
 async function getUserById(userId) {
     logger.info(`Recupero utente con ID: ${userId}`);
     try {
-        // Recupera l'utente e popola i dettagli in base al ruolo
+        // Recupera l'utente e popola i dettagli
         let user = await User.findById(userId)
+            .populate('customerDetails')
             .populate('administratorDetails')
             .populate('breweryDetails');
 
@@ -96,30 +97,8 @@ async function getUserById(userId) {
             logger.warn(`Utente non trovato: ${userId}`);
             return null;
         }
-
-        // Converti una sola volta se necessario
-        const userObj = user.toObject ? user.toObject() : user;
-
-        if (userObj.role === 'customer' && userObj.customerDetails) {
-            userObj.customerName = userObj.customerDetails.customerName;
-            userObj.customerSurname = userObj.customerDetails.customerSurname;
-            userObj.customerFiscalCode = userObj.customerDetails.customerFiscalCode;
-            userObj.customerBillingAddress = userObj.customerDetails.customerAddresses?.billingAddress;
-            userObj.customerShippingAddress = userObj.customerDetails.customerAddresses?.shippingAddress;
-            userObj.customerPhoneNumber = userObj.customerDetails.customerPhoneNumber;
-        }
-        if (userObj.role === 'administrator' && userObj.administratorDetails) {
-            userObj.administratorName = userObj.administratorDetails.administratorName;
-            userObj.administratorPermission = userObj.administratorDetails.administratorPermission;
-        }
-        if (userObj.role === 'brewery' && userObj.breweryDetails) {
-            userObj.breweryName = userObj.breweryDetails.breweryName;
-            userObj.breweryDescription = userObj.breweryDetails.breweryDescription;
-            userObj.breweryFiscalCode = userObj.breweryDetails.breweryFiscalCode;
-        }
-
-        logger.info(`Utente recuperato con successo: ${userId}`);
-        return userObj;
+        // Nessun appiattimento: restituisco la struttura annidata
+        return user.toObject ? user.toObject() : user;
     } catch (error) {
         logger.error(`Errore durante il recupero dell'utente: ${userId}`, error);
         throw error;
@@ -129,6 +108,10 @@ async function getUserById(userId) {
 // Update user information (coerente con administratorRoutes)
 async function updateUser(userId, updateData) {
     try {
+        if (updateData.password) {
+            // Hash della nuova password se presente
+            updateData.password = await bcrypt.hash(updateData.password, 10);
+        }
         const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
         if (!user) {
             logger.warn(`Utente non trovato: ${userId}`);
@@ -142,7 +125,7 @@ async function updateUser(userId, updateData) {
     }
 }
 
-// Delete a user (coerente con administratorRoutes)
+// Delete a user (coerente with administratorRoutes)
 async function deleteUser(userId) {
     try {
         const user = await User.findByIdAndDelete(userId);
@@ -252,6 +235,79 @@ async function deleteAdministrator(administratorId) {
     }
 }
 
+// Aggiungi un ruolo a un utente e popola i dettagli
+async function addRoleToUser(userId, roleToAdd, req, res) {
+    try {
+        const user = await User.findById(userId).populate('administratorDetails').populate('breweryDetails');
+        if (!user) {
+            req.flash('error', 'Utente non trovato');
+            return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+        }
+        if (!user.role.includes(roleToAdd)) {
+            user.role.push(roleToAdd);
+            if (roleToAdd === 'customer') {
+                user.customerDetails = {
+                    customerName: '',
+                    customerSurname: '',
+                    customerFiscalCode: '',
+                    customerAddresses: { billingAddress: '', shippingAddress: '' },
+                    customerPhoneNumber: ''
+                };
+            } else if (roleToAdd === 'administrator') {
+                const newAdmin = new Administrator({ administratorName: '', administratorPermission: '' });
+                await newAdmin.save();
+                user.administratorDetails = newAdmin._id;
+            } else if (roleToAdd === 'brewery') {
+                const newBrewery = new Brewery({
+                    breweryName: '',
+                    breweryDescription: '',
+                    breweryFiscalCode: '',
+                    breweryREAcode: '',
+                    breweryacciseCode: '',
+                    breweryFund: '',
+                    breweryLegalAddress: '',
+                    breweryPhoneNumber: ''
+                });
+                await newBrewery.save();
+                user.breweryDetails = newBrewery._id;
+            }
+            await user.save();
+            req.flash('success', `Ruolo ${roleToAdd} aggiunto con successo. Compila i dettagli e salva.`);
+        }
+        return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+    } catch (error) {
+        req.flash('error', 'Errore durante l\'aggiunta del ruolo');
+        return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+    }
+}
+
+// Rimuovi un ruolo da un utente e cancella i dettagli associati
+async function removeRoleFromUser(userId, roleToRemove, req, res) {
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            req.flash('error', 'Utente non trovato');
+            return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+        }
+        user.role = user.role.filter(r => r !== roleToRemove);
+        if (roleToRemove === 'customer') {
+            user.customerDetails = undefined;
+        } else if (roleToRemove === 'administrator' && user.administratorDetails) {
+            await Administrator.findByIdAndDelete(user.administratorDetails);
+            user.administratorDetails = undefined;
+        } else if (roleToRemove === 'brewery' && user.breweryDetails) {
+            await Brewery.findByIdAndDelete(user.breweryDetails);
+            user.breweryDetails = undefined;
+        }
+        await user.save();
+        req.flash('success', `Ruolo ${roleToRemove} rimosso con successo.`);
+        return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+    } catch (error) {
+        req.flash('error', 'Errore durante la rimozione del ruolo');
+        return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+    }
+}
+
 module.exports = {
     getAllUsers,
     getUserById,
@@ -264,4 +320,6 @@ module.exports = {
     getAdministratorById,
     updateAdministrator,
     deleteAdministrator,
+    addRoleToUser,
+    removeRoleFromUser,
 };

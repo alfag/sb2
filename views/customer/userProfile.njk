@@ -1,0 +1,40 @@
+{% extends "../layout.njk" %}
+
+{% block title %}Profilo Utente{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Gestione Ruolo Attivo</h1>
+    {% if message %}
+        <div class="alert alert-info">{{ message }}</div>
+    {% endif %}
+    {% if user.role is string %}
+        {% set userRoles = [user.role] %}
+    {% else %}
+        {% set userRoles = user.role or [] %}
+    {% endif %}
+    {% set selectedRole = activeRole or (userRoles | first) %}
+
+    <div class="section" style="margin-bottom: 32px;">
+        <h2>Ruoli disponibili per cambio ruolo</h2>
+        {% if userRoles|length > 1 %}
+            <form id="changeRoleForm" method="post" action="/profile">
+                <input type="hidden" name="changeRoleOnly" value="1">
+                <div class="form-group">
+                    <label for="activeRole">Seleziona ruolo attivo:</label>
+                    <select id="activeRole" name="activeRole" required>
+                        {% for r in userRoles %}
+                            <option value="{{ r }}" {% if r == selectedRole %}selected{% endif %}>{{ r|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        {% endif %}
+        {% if userRoles|length == 1 %}
+            <div class="form-group">
+                <span>{{ selectedRole|capitalize }}</span>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

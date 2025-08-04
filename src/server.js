@@ -8,6 +8,15 @@ const logger = logWithFileName(__filename); // Crea un logger con il nome del fi
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-    logger.info(`Il server è in esecuzione sulla porta ${PORT}`); // Log tradotto
+const os = require('os');
+app.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Il server è in esecuzione sulla porta ${PORT}`);
+    const ifaces = os.networkInterfaces();
+    Object.keys(ifaces).forEach((ifname) => {
+        ifaces[ifname].forEach((iface) => {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                logger.info(`Accessibile da rete locale: http://${iface.address}:${PORT}`);
+            }
+        });
+    });
 });
