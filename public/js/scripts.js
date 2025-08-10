@@ -202,10 +202,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (photoCanvas) {
             photoCanvas.style.opacity = '0';
             photoCanvas.style.pointerEvents = 'none';
+            photoCanvas.classList.remove('active-crop');
         }
         // Reset bottoni
-        const cancelCropBtn = document.getElementById('cancelCrop');
-        if (cancelCropBtn) cancelCropBtn.style.display = 'none';
         const sendToAIBtn = document.getElementById('sendToAI');
         if (sendToAIBtn) {
             sendToAIBtn.style.display = 'none';
@@ -247,10 +246,11 @@ document.addEventListener('DOMContentLoaded', function () {
             endY = undefined;
             croppedImageForAI = null; // Reset immagine croppata
             originalImageSrc = null; // Reset immagine originale
-            photoPreview.className = 'photo-preview-img';
+            photoPreview.className = 'photo-preview-image';
             photoPreview.style.width = '';
             photoPreview.style.height = '';
             photoCanvas.style.display = '';
+            photoCanvas.classList.remove('active-crop');
             
             // Reset freccia di ritorno
             const backArrow = document.getElementById('backArrow');
@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     logError('Tipo file non valido', { type: file.type, name: file.name });
                 }
                 
-                // Mostra anche il bottone "Invia ad AI" per immagini senza crop
+                // Mostra il bottone "Invia ad AI" per tutte le immagini valide
                 const sendToAIBtn = document.getElementById('sendToAI');
                 if (sendToAIBtn) sendToAIBtn.style.display = 'block';
                 
@@ -333,46 +333,30 @@ document.addEventListener('DOMContentLoaded', function () {
                                 return;
                             }
                             
-                            photoPreviewContainer.style.display = 'flex';
+                            // Modal sempre pronto con la nuova struttura
                             modalReadyForShow = true;
                             logDebug('Apertura modal per anteprima immagine');
                             openPhotoModal();
                         
-                        // Attiva il canvas interattivo ma mantieni l'immagine visibile
-                        setTimeout(() => {
-                            if (photoModal.style.display === 'flex') {
-                                // Imposta dimensioni reali del canvas
-                                photoCanvas.width = photoPreview.naturalWidth;
-                                photoCanvas.height = photoPreview.naturalHeight;
-                                // Imposta dimensioni CSS proporzionali all'immagine, ma non oltre il max-height
-                                photoCanvas.style.width = 'auto';
-                                photoCanvas.style.height = 'auto';
-                                // Se l'immagine supera il max-height, ridimensiona in scala
-                                const maxH = window.innerHeight * 0.6;
-                                if (photoPreview.naturalHeight > maxH) {
-                                    const scale = maxH / photoPreview.naturalHeight;
-                                    photoCanvas.style.height = maxH + 'px';
-                                    photoCanvas.style.width = (photoPreview.naturalWidth * scale) + 'px';
+                            // Attiva il canvas interattivo con dimensioni fisse
+                            setTimeout(() => {
+                                if (photoModal.style.display === 'flex') {
+                                    if (syncCanvasToPreview()) {
+                                        drawImageOnCanvas();
+                                    } else {
+                                        logError('Sync canvas fallito al caricamento iniziale');
+                                    }
                                 }
-                                photoCanvas.style.opacity = '1';
-                                photoCanvas.style.pointerEvents = 'auto';
-                                drawImageOnCanvas();
-                            }
-                        }, 100);
-                    };
-                    photoPreview.onerror = function () {
-                        alert('La tipologia del file selezionato non è ammessa');
+                            }, 200); // Timeout leggermente aumentato per la nuova struttura
+                        };
+                    photoPreview.onerror = function() {
+                        logError('Errore nel caricamento dell\'immagine');
+                        alert('Errore nel caricamento dell\'immagine. Prova con un altro file.');
                         reviewPhotoInput.value = '';
-                        };
-                        
-                        photoPreview.onerror = function() {
-                            logError('Errore nel caricamento dell\'immagine');
-                            alert('Errore nel caricamento dell\'immagine. Prova con un altro file.');
-                            reviewPhotoInput.value = '';
-                            closeModal();
-                        };
-                        
-                        photoPreview.src = e.target.result;
+                        closeModal();
+                    };
+                    
+                    photoPreview.src = e.target.result;
                     } catch (error) {
                         logError('Errore nel processamento dell\'immagine', error);
                         alert('Errore nel processamento dell\'immagine. Prova con un altro file.');
@@ -397,19 +381,62 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
+        // Funzione centralizzata per sincronizzare canvas con immagine - ora con layout fisso
+        function syncCanvasToPreview() {
+            if (!photoPreview.complete || photoPreview.naturalWidth === 0) {
+                logDebug('Immagine non ancora caricata, sync rinviato');
+                return false;
+            }
+            
+            // Con la nuova struttura, il canvas si sovrappone sempre perfettamente all'immagine
+            const rect = photoPreview.getBoundingClientRect();
+            
+            // Imposta le dimensioni CSS del canvas per una sovrapposizione perfetta
+            photoCanvas.style.width = `${rect.width}px`;
+            photoCanvas.style.height = `${rect.height}px`;
+            
+            // Imposta la risoluzione interna del canvas pari a quella dell'immagine originale
+            photoCanvas.width = photoPreview.naturalWidth;
+            photoCanvas.height = photoPreview.naturalHeight;
+            
+            // Il canvas è già posizionato correttamente via CSS, basta renderlo visibile
+            photoCanvas.style.opacity = '1';
+            photoCanvas.style.pointerEvents = 'auto';
+            photoCanvas.style.display = 'block';
+            
+            logDebug('Canvas sincronizzato con immagine (layout fisso)', {
+                canvasRenderWidth: rect.width,
+                canvasRenderHeight: rect.height,
+                canvasInternalWidth: photoCanvas.width,
+                canvasInternalHeight: photoCanvas.height,
+                imageNaturalWidth: photoPreview.naturalWidth,
+                imageNaturalHeight: photoPreview.naturalHeight
+            });
+            
+            return true;
+        }
+
         // Gestione selezione rettangolo libero sul canvas e drag immagine
         let isDragging = false;
         let startX, startY, endX, endY;
         function drawImageOnCanvas() {
             const ctx = photoCanvas.getContext('2d');
             ctx.clearRect(0, 0, photoCanvas.width, photoCanvas.height);
+            
+            // Se stiamo mostrando un'immagine croppata, non disegnare mai alcun bordo
+            if (croppedImageForAI) {
+                // Quando è mostrata l'immagine croppata, il canvas resta completamente trasparente
+                return;
+            }
+            
             // Canvas trasparente per vedere l'immagine sottostante
             ctx.save();
             ctx.translate(imgOffsetX, imgOffsetY);
             ctx.scale(imgScale, imgScale);
             // Non disegniamo l'immagine sul canvas, usiamo il canvas solo per l'overlay
             ctx.restore();
-            // Se c'è una selezione crop, disegnala
+            
+            // Se c'è una selezione crop attiva, disegnala (solo se non stiamo mostrando immagine croppata)
             if (isDragging || (cropRect && cropRect.w > 0 && cropRect.h > 0)) {
                 ctx.save();
                 ctx.strokeStyle = '#FFD600';
@@ -591,58 +618,98 @@ document.addEventListener('DOMContentLoaded', function () {
                 return false;
             }
             
-            // Converti le coordinate canvas in coordinate immagine reali
-            const imgX = (cropRect.x - imgOffsetX) / imgScale;
-            const imgY = (cropRect.y - imgOffsetY) / imgScale;
-            const imgW = cropRect.w / imgScale;
-            const imgH = cropRect.h / imgScale;
+            // Crea un elemento immagine temporaneo dall'immagine originale per ottenere le dimensioni corrette
+            const tempImg = new Image();
+            tempImg.onload = function() {
+                // Usa le dimensioni dell'immagine originale per i calcoli
+                const originalWidth = tempImg.naturalWidth;
+                const originalHeight = tempImg.naturalHeight;
+                
+                // Ottieni le dimensioni del canvas renderizzato (quello che vede l'utente)
+                const canvasRect = photoCanvas.getBoundingClientRect();
+                const canvasDisplayWidth = canvasRect.width;
+                const canvasDisplayHeight = canvasRect.height;
+                
+                // Calcola il rapporto di scala tra canvas interno e canvas visualizzato
+                const scaleXCanvas = photoCanvas.width / canvasDisplayWidth;
+                const scaleYCanvas = photoCanvas.height / canvasDisplayHeight;
+                
+                // Calcola il rapporto di scala tra immagine originale e canvas interno
+                const scaleXOriginal = originalWidth / photoCanvas.width;
+                const scaleYOriginal = originalHeight / photoCanvas.height;
+                
+                // Converti le coordinate del rettangolo di crop dalle coordinate canvas alle coordinate immagine originale
+                const imgX = cropRect.x * scaleXOriginal;
+                const imgY = cropRect.y * scaleYOriginal;
+                const imgW = cropRect.w * scaleXOriginal;
+                const imgH = cropRect.h * scaleYOriginal;
+                
+                // Assicurati che le coordinate siano entro i limiti dell'immagine originale
+                const clampedX = Math.max(0, Math.min(imgX, originalWidth));
+                const clampedY = Math.max(0, Math.min(imgY, originalHeight));
+                const clampedW = Math.min(imgW, originalWidth - clampedX);
+                const clampedH = Math.min(imgH, originalHeight - clampedY);
+                
+                console.log('Crop coordinates calculation:', { 
+                    cropRect,
+                    canvasSize: { w: photoCanvas.width, h: photoCanvas.height },
+                    canvasDisplay: { w: canvasDisplayWidth, h: canvasDisplayHeight },
+                    originalSize: { w: originalWidth, h: originalHeight },
+                    scaleCanvas: { x: scaleXCanvas, y: scaleYCanvas },
+                    scaleOriginal: { x: scaleXOriginal, y: scaleYOriginal },
+                    imageCoords: { x: imgX, y: imgY, w: imgW, h: imgH },
+                    clampedCoords: { x: clampedX, y: clampedY, w: clampedW, h: clampedH }
+                });
+                
+                // Crea canvas temporaneo per l'area croppata
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = clampedW;
+                tempCanvas.height = clampedH;
+                const tctx = tempCanvas.getContext('2d');
+                tctx.fillStyle = '#f2f2f2';
+                tctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                
+                // Disegna l'area croppata dall'immagine originale pulita (senza bordi)
+                tctx.drawImage(tempImg, 
+                    clampedX, clampedY, clampedW, clampedH,  // area sorgente nell'immagine originale
+                    0, 0, clampedW, clampedH                 // area destinazione (dimensioni reali)
+                );
+                
+                // Salva per invio AI e per display
+                croppedImageForAI = tempCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+                
+                // Reset completo dello stato crop per evitare bordi residui
+                cropRect = null;
+                isDragging = false;
+                startX = undefined;
+                startY = undefined;
+                endX = undefined;
+                endY = undefined;
+                
+                // Nascondi il canvas PRIMA di cambiare l'immagine per evitare sovrapposizioni
+                photoCanvas.style.display = 'none';
+                photoCanvas.style.opacity = '0';
+                photoCanvas.style.pointerEvents = 'none';
+                photoCanvas.classList.remove('active-crop');
+                
+                // Mostra l'immagine zoomata - con la nuova struttura le dimensioni sono gestite dal CSS
+                photoPreview.src = tempCanvas.toDataURL('image/jpeg', 0.92);
+                
+                // Mantieni la classe CSS per il layout responsive fisso
+                photoPreview.className = 'photo-preview-image';
+                
+                // Mostra la freccia di ritorno e il bottone "Invia ad AI"
+                const backArrow = document.getElementById('backArrow');
+                if (backArrow) backArrow.style.display = 'flex';
+                const sendToAIBtn = document.getElementById('sendToAI');
+                if (sendToAIBtn) sendToAIBtn.style.display = 'block';
+                
+                console.log('Crop applicato - dimensioni:', { w: clampedW, h: clampedH });
+            };
             
-            // Assicurati che le coordinate siano entro i limiti dell'immagine
-            const clampedX = Math.max(0, Math.min(imgX, photoPreview.naturalWidth));
-            const clampedY = Math.max(0, Math.min(imgY, photoPreview.naturalHeight));
-            const clampedW = Math.min(imgW, photoPreview.naturalWidth - clampedX);
-            const clampedH = Math.min(imgH, photoPreview.naturalHeight - clampedY);
+            // Usa l'immagine originale senza il canvas sovrapposto
+            tempImg.src = originalImageSrc;
             
-            console.log('Crop coordinates:', { canvas: cropRect, image: { x: clampedX, y: clampedY, w: clampedW, h: clampedH } });
-            
-            // Crea canvas temporaneo per l'area croppata mantenendo le dimensioni del popup
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = clampedW;
-            tempCanvas.height = clampedH;
-            const tctx = tempCanvas.getContext('2d');
-            tctx.fillStyle = '#f2f2f2';
-            tctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-            
-            // Disegna l'area croppata dall'immagine originale
-            tctx.drawImage(photoPreview, 
-                clampedX, clampedY, clampedW, clampedH,  // area sorgente nell'immagine originale
-                0, 0, clampedW, clampedH                 // area destinazione (dimensioni reali)
-            );
-            
-            // Salva per invio AI e per display
-            croppedImageForAI = tempCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
-            
-            // Mostra l'immagine zoomata - il CSS si occuperà del ridimensionamento responsive
-            photoPreview.src = tempCanvas.toDataURL('image/jpeg', 0.92);
-            
-            // Forza il ridimensionamento responsive
-            photoPreview.style.maxWidth = '100%';
-            photoPreview.style.maxHeight = '60vh';
-            photoPreview.style.width = 'auto';
-            photoPreview.style.height = 'auto';
-            photoPreview.style.objectFit = 'contain';
-            
-            // Ripristina la classe e le dimensioni CSS responsive
-            photoPreview.className = 'photo-preview-img';
-            photoCanvas.style.display = 'none';
-            
-            // Mostra la freccia di ritorno e il bottone "Invia ad AI"
-            const backArrow = document.getElementById('backArrow');
-            if (backArrow) backArrow.style.display = 'flex';
-            const sendToAIBtn = document.getElementById('sendToAI');
-            if (sendToAIBtn) sendToAIBtn.style.display = 'inline-block';
-            
-            console.log('Crop applicato - dimensioni:', { w: clampedW, h: clampedH });
             return true;
         }
 
@@ -650,50 +717,62 @@ document.addEventListener('DOMContentLoaded', function () {
         const backArrow = document.getElementById('backArrow');
         if (backArrow) {
             function restoreOriginalImage() {
-                console.log('Freccia di ritorno cliccata - ripristino immagine originale');
-                console.log('originalImageSrc disponibile:', !!originalImageSrc);
-                console.log('photoPreview.src attuale:', photoPreview.src.substring(0, 50) + '...');
-                console.log('originalImageSrc:', originalImageSrc ? originalImageSrc.substring(0, 50) + '...' : 'NULLA');
+                console.log('Freccia di ritorno cliccata - ripristino immagine originale come primo caricamento');
                 
                 if (originalImageSrc) {
-                    // Ripristina l'immagine originale
-                    photoPreview.onload = function() {
-                        console.log('Immagine originale ripristinata nel DOM');
-                        
-                        // Ripristina il canvas per nuove selezioni
-                        if (photoCanvas && photoPreview.complete && photoPreview.naturalWidth > 0) {
-                            photoCanvas.width = photoPreview.naturalWidth;
-                            photoCanvas.height = photoPreview.naturalHeight;
-                            photoCanvas.style.opacity = '1';
-                            photoCanvas.style.pointerEvents = 'auto';
-                            photoCanvas.style.display = '';
-                            drawImageOnCanvas();
-                            console.log('Canvas ripristinato per nuove selezioni');
-                        }
-                    };
-                    
-                    photoPreview.src = originalImageSrc;
-                    croppedImageForAI = null;
-                    console.log('Immagine ripristinata a:', photoPreview.src.substring(0, 50) + '...');
-                    
-                    // Ripristina gli stili CSS dell'immagine
-                    photoPreview.className = 'photo-preview-img';
-                    photoPreview.style.maxWidth = '';
-                    photoPreview.style.maxHeight = '';
-                    photoPreview.style.width = '';
-                    photoPreview.style.height = '';
-                    photoPreview.style.objectFit = '';
-                    
-                    // Reset trasformazioni canvas
+                    // Reset completo dello stato
                     imgOffsetX = 0;
                     imgOffsetY = 0;
                     imgScale = 1;
                     cropRect = null;
+                    croppedImageForAI = null;
+                    isDragging = false;
+                    draggingImg = false;
+                    
+                    // Ripristina l'immagine e ricrea tutto come al primo caricamento
+                    photoPreview.onload = function() {
+                        console.log('Immagine ripristinata - ricreazione canvas con layout fisso');
+                        
+                        // Ripristina la classe CSS dell'immagine per il layout fisso
+                        photoPreview.className = 'photo-preview-image';
+                        photoPreview.style.maxWidth = '';
+                        photoPreview.style.maxHeight = '';
+                        photoPreview.style.width = '';
+                        photoPreview.style.height = '';
+                        photoPreview.style.objectFit = '';
+                        
+                        // Ricrea il canvas con la nuova struttura di layout fisso
+                        setTimeout(() => {
+                            if (photoModal.style.display === 'flex') {
+                                // Canvas con dimensioni fisse gestite dal CSS
+                                const rect = photoPreview.getBoundingClientRect();
+                                
+                                photoCanvas.style.width = `${rect.width}px`;
+                                photoCanvas.style.height = `${rect.height}px`;
+                                photoCanvas.width = photoPreview.naturalWidth;
+                                photoCanvas.height = photoPreview.naturalHeight;
+                                photoCanvas.style.opacity = '1';
+                                photoCanvas.style.pointerEvents = 'auto';
+                                photoCanvas.style.display = 'block';
+                                
+                                console.log('Canvas ricreato dopo restore (layout fisso)', {
+                                    canvasRenderWidth: rect.width,
+                                    canvasRenderHeight: rect.height,
+                                    canvasInternalWidth: photoCanvas.width,
+                                    canvasInternalHeight: photoCanvas.height
+                                });
+
+                                drawImageOnCanvas();
+                            }
+                        }, 200); // Timeout adeguato per la nuova struttura
+                    };
+                    
+                    photoPreview.src = originalImageSrc;
                     
                     // Nascondi la freccia di ritorno
                     backArrow.style.display = 'none';
                     const sendToAIBtn = document.getElementById('sendToAI');
-                    if (sendToAIBtn) sendToAIBtn.style.display = 'inline-block';
+                    if (sendToAIBtn) sendToAIBtn.style.display = 'block';
                 } else {
                     console.log('Nessuna immagine originale salvata');
                 }

@@ -1,23 +1,40 @@
 <div class="review-menu">
   <a href="#" id="upload-photo">Carica una fotografia</a>
   <input type="file" id="reviewPhoto" accept="image/*" style="display:none;" />
-  <div id="photo-modal" class="modal photo-modal-custom" style="display:none;">
-    <div class="photo-modal-content-custom">
-      <div class="popup-header">
-        <span class="popup-title">Anteprima fotografia</span>
-        <button id="closePhotoModal" class="close-photo-modal" type="button" aria-label="Chiudi">&times;</button>
+  <div id="photo-modal" class="photo-modal-overlay" style="display:none;">
+    <div class="photo-modal-container">
+      <!-- Header fisso con controlli -->
+      <div class="photo-modal-header">
+        <div id="backArrow" class="back-arrow-btn" style="display:none;" role="button" tabindex="0" aria-label="Torna all'immagine originale">
+          <span>←</span>
+        </div>
+        <h3 class="photo-modal-title">Anteprima Fotografia</h3>
+        <button id="closePhotoModal" class="close-modal-btn" type="button" aria-label="Chiudi">
+          <span>&times;</span>
+        </button>
       </div>
-      <div class="popup-body">
-        <div id="photo-preview-container" class="photo-preview-container">
-          <div id="backArrow" class="back-arrow" style="display:none;">←</div>
-          <canvas id="photoCanvas" class="photo-canvas"></canvas>
-          <img id="photoPreview" alt="Anteprima foto" class="photo-preview-img" />
+      
+      <!-- Area immagine con dimensioni fisse -->
+      <div class="photo-modal-body">
+        <div id="photo-preview-container" class="photo-preview-area">
+          <img id="photoPreview" alt="Anteprima foto" class="photo-preview-image" />
+          <canvas id="photoCanvas" class="photo-canvas-overlay"></canvas>
         </div>
       </div>
-      <div class="popup-footer">
-        <div id="crop-note" class="crop-note-desktop">Suggerimento: tieni premuto <b>SHIFT</b> e trascina col mouse per selezionare una regione da inviare.</div>
-        <div id="crop-note-mobile" class="crop-note-mobile" style="display:none;">Suggerimento: tocca e trascina per selezionare una regione da inviare.</div>
-        <button id="sendToAI" class="btn btn-success" style="display:none; margin-top:10px;">Invia ad AI</button>
+      
+      <!-- Footer fisso con controlli e note -->
+      <div class="photo-modal-footer">
+        <div class="photo-modal-instructions">
+          <div id="crop-note" class="crop-instructions-desktop">
+            Suggerimento: tieni premuto <strong>SHIFT</strong> e trascina col mouse per selezionare una regione da inviare.
+          </div>
+          <div id="crop-note-mobile" class="crop-instructions-mobile" style="display:none;">
+            Suggerimento: tocca e trascina per selezionare una regione da inviare.
+          </div>
+        </div>
+        <div class="photo-modal-actions">
+          <button id="sendToAI" class="send-to-ai-btn" style="display:none;">Invia ad AI</button>
+        </div>
       </div>
     </div>
   </div>
