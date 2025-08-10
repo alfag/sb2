@@ -5,9 +5,33 @@ const reviewSchema = new mongoose.Schema({
   sessionId: { type: String }, // ID sessione per controllo duplicati
   ratings: [{
     bottleLabel: String,
-    rating: { type: Number, min: 1, max: 5 },
+    rating: { type: Number, min: 1, max: 5 }, // Rating generale (mantenuto per compatibilità)
     brewery: { type: mongoose.Schema.Types.ObjectId, ref: 'Brewery' },
     beer: { type: mongoose.Schema.Types.ObjectId, ref: 'Beer' }, // Riferimento alla birra nel database
+    notes: String, // Note testuali della recensione
+    // Valutazioni dettagliate per le 5 caratteristiche principali
+    detailedRatings: {
+      appearance: {
+        rating: { type: Number, min: 1, max: 5 },
+        notes: String // Note sull'aspetto (colore, limpidezza, schiuma)
+      },
+      aroma: {
+        rating: { type: Number, min: 1, max: 5 },
+        notes: String // Note sull'aroma e profumi
+      },
+      taste: {
+        rating: { type: Number, min: 1, max: 5 },
+        notes: String // Note sul gusto e bilanciamento
+      },
+      mouthfeel: {
+        rating: { type: Number, min: 1, max: 5 },
+        notes: String // Note su corpo, carbonazione, astringenza
+      },
+      overall: {
+        rating: { type: Number, min: 1, max: 5 },
+        notes: String // Impressione generale
+      }
+    },
     // Dati AI aggiuntivi per ogni bottiglia
     aiData: {
       alcoholContent: String,

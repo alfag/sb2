@@ -13,7 +13,7 @@
 <body style="display: flex; flex-direction: column; min-height: 100vh;">
     <!-- Gestione dei message -->
     {% if message %}
-    {% if message.error %}
+    {% if message.error %}  
     <div class="alert alert-danger">
         {{ message.error }}
     </div>
@@ -138,6 +138,20 @@
         </table>
         <div style="text-align: center; font-size: 8px;">&copy; 2023 SharingBeer2_0. Tutti i diritti riservati.</div>
     </footer>
+    
+    <!-- Overlay spinner per AI con bottiglia di birra -->
+    <div id="ai-loading-overlay" class="ai-loading-overlay">
+        <div class="beer-bottle-spinner">
+            <div class="bottle-container">
+                <div class="bottle-neck"></div>
+                <div class="bottle-label">BEER<br>ANALYSIS</div>
+                <div class="beer-liquid"></div>
+                <div class="beer-foam"></div>
+            </div>
+            <h3 class="loading-text">Attendere...</h3>
+        </div>
+    </div>
+    
     <script src="/js/scripts.js"></script>
 </body>
 

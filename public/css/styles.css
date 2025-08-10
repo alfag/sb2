@@ -1,3 +1,157 @@
+/* --- WELCOME PAGE STYLING --- */
+
+.welcome-section {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.welcome-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.welcome-header h2 {
+  color: #2c3e50;
+  font-size: 2.2em;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.welcome-header p {
+  color: #666;
+  font-size: 1.1em;
+  line-height: 1.6;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.review-action-section {
+  margin-bottom: 50px;
+}
+
+.review-call-to-action {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #dee2e6;
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  margin-bottom: 30px;
+  transition: all 0.3s ease;
+}
+
+.review-call-to-action:hover {
+  border-color: #FFD600;
+  box-shadow: 0 4px 15px rgba(255, 214, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.review-call-to-action h3 {
+  color: #2c3e50;
+  font-size: 1.5em;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.review-call-to-action p {
+  color: #666;
+  font-size: 1em;
+  margin-bottom: 25px;
+  line-height: 1.5;
+}
+
+.primary-action-btn {
+  background: linear-gradient(135deg, #FFD600 0%, #FFC107 100%);
+  color: #2c3e50;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 2px 10px rgba(255, 214, 0, 0.3);
+}
+
+.primary-action-btn:hover {
+  background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(255, 214, 0, 0.4);
+}
+
+.primary-action-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 5px rgba(255, 214, 0, 0.3);
+}
+
+.secondary-action-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 6px;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.secondary-action-btn:hover {
+  background: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 12px rgba(40, 167, 69, 0.4);
+}
+
+.secondary-action-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-icon {
+  font-size: 1.2em;
+}
+
+/* Responsive design per mobile */
+@media (max-width: 768px) {
+  .welcome-section {
+    padding: 15px;
+  }
+  
+  .welcome-header h2 {
+    font-size: 1.8em;
+  }
+  
+  .review-call-to-action {
+    padding: 20px;
+  }
+  
+  .review-call-to-action h3 {
+    font-size: 1.3em;
+  }
+  
+  .primary-action-btn {
+    padding: 12px 25px;
+    font-size: 1em;
+  }
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* --- MODAL FOTO REVIEW REFACTORED - DIMENSIONI INDIPENDENTI DALL'IMMAGINE --- */
 
 /* Overlay del modal - copre tutto lo schermo */
@@ -186,6 +340,12 @@
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+  position: relative;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .send-to-ai-btn:hover {
@@ -204,6 +364,168 @@
   transform: none;
   box-shadow: none;
 }
+
+/* Overlay spinner a schermo intero con bottiglia di birra */
+.ai-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.ai-loading-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.beer-bottle-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 2px solid #FFD600;
+}
+
+.bottle-container {
+  position: relative;
+  width: 60px;
+  height: 120px;
+  background: #2d4a2b;
+  border-radius: 5px 5px 15px 15px;
+  overflow: hidden;
+  border: 3px solid #1a2d19;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.bottle-neck {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 20px;
+  background: #2d4a2b;
+  border: 3px solid #1a2d19;
+  border-radius: 3px 3px 0 0;
+}
+
+.bottle-label {
+  position: absolute;
+  top: 25px;
+  left: 8px;
+  right: 8px;
+  height: 40px;
+  background: rgba(255, 214, 0, 0.9);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.beer-liquid {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, #f4a261 0%, #e9c46a 50%, #f4a261 100%);
+  border-radius: 0 0 12px 12px;
+  animation: beer-drain 2s ease-in-out infinite;
+  transition: height 0.3s ease;
+}
+
+@keyframes beer-drain {
+  0% { 
+    height: 85%;
+    opacity: 1;
+  }
+  50% { 
+    height: 20%;
+    opacity: 0.7;
+  }
+  100% { 
+    height: 85%;
+    opacity: 1;
+  }
+}
+
+.beer-foam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6));
+  border-radius: 12px 12px 0 0;
+  animation: foam-bubble 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes foam-bubble {
+  0% { 
+    transform: scaleY(1);
+    opacity: 0.8;
+  }
+  100% { 
+    transform: scaleY(1.2);
+    opacity: 0.6;
+  }
+}
+
+.loading-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+  margin: 0;
+}
+
+.loading-subtext {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  margin: 0;
+  font-style: italic;
+}
+
+/* Responsive per mobile */
+@media (max-width: 768px) {
+  .beer-bottle-spinner {
+    padding: 30px 25px;
+  }
+  
+  .bottle-container {
+    width: 50px;
+    height: 100px;
+  }
+  
+  .loading-text {
+    font-size: 16px;
+  }
+  
+  .loading-subtext {
+    font-size: 13px;
+  }
+}
+
+
 
 /* Responsive per tablet */
 @media (max-width: 768px) {
@@ -303,6 +625,269 @@
     color: #a94442;
     background-color: #f2dede;
     border-color: #ebccd1;
+}
+
+.alert-warning {
+    color: #8a6d3b;
+    background-color: #fcf8e3;
+    border-color: #faebcc;
+}
+
+.alert-info {
+    color: #31708f;
+    background-color: #d9edf7;
+    border-color: #bce8f1;
+}
+
+/* Stili per l'interfaccia di recensione */
+#review-process {
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f9f9f9;
+    display: none;
+}
+
+#ai-feedback {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #e7f3ff;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+}
+
+#ai-feedback h3 {
+    margin-top: 0;
+    color: #007bff;
+}
+
+#ai-feedback ul {
+    margin: 10px 0 0 20px;
+}
+
+#ai-feedback li {
+    margin-bottom: 5px;
+}
+
+.bottle-rating {
+    margin: 15px 0;
+    padding: 15px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.bottle-info {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    gap: 15px;
+}
+
+.bottle-thumbnail {
+    flex-shrink: 0;
+}
+
+.beer-thumbnail {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    object-fit: cover;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.bottle-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.bottle-rating h4 {
+    margin: 0 0 8px 0;
+    color: #333;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.brewery-name {
+    margin: 0 0 4px 0;
+    color: #666;
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+.alcohol-content {
+    margin: 0;
+    color: #888;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.rating-stars {
+    margin: 10px 0;
+    font-size: 24px;
+    color: #ddd;
+    user-select: none;
+}
+
+.rating-stars .star {
+    cursor: pointer;
+    transition: color 0.2s ease;
+    margin: 0 2px;
+}
+
+.rating-stars .star:hover,
+.rating-stars .star.selected {
+    color: #FFD600;
+}
+
+.bottle-rating textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    resize: vertical;
+    margin-top: 10px;
+    box-sizing: border-box;
+}
+
+/* Stili per le valutazioni dettagliate */
+.overall-rating {
+    margin: 15px 0;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #FFD600;
+}
+
+.overall-rating label {
+    display: block;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    font-size: 0.95em;
+}
+
+.detailed-ratings-toggle {
+    margin: 15px 0;
+    text-align: center;
+}
+
+.btn-toggle-detailed {
+    background: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 0.9em;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.btn-toggle-detailed:hover {
+    background: #dee2e6;
+    border-color: #adb5bd;
+}
+
+.btn-toggle-detailed.expanded {
+    background: #FFD600;
+    border-color: #ffc107;
+    color: #212529;
+    font-weight: 600;
+}
+
+.detailed-ratings {
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.rating-category {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.rating-category:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.rating-category label {
+    display: block;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+}
+
+.rating-category .rating-stars {
+    font-size: 20px;
+    margin: 8px 0;
+}
+
+.rating-category textarea {
+    margin-top: 8px;
+    font-size: 0.9em;
+    min-height: 60px;
+}
+
+/* Responsive adjustments for detailed ratings */
+@media (max-width: 768px) {
+    .detailed-ratings {
+        padding: 12px;
+    }
+    
+    .rating-category {
+        margin-bottom: 15px;
+        padding-bottom: 12px;
+    }
+    
+    .rating-category .rating-stars {
+        font-size: 18px;
+    }
+    
+    .btn-toggle-detailed {
+        padding: 10px 16px;
+        font-size: 0.9em;
+        width: 100%;
+    }
+}
+
+#publish-review {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+    display: block;
+    width: 100%;
+    transition: background 0.2s ease;
+}
+
+#publish-review:hover {
+    background: #218838;
+}
+
+/* Animazioni per messaggi dinamici */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-10px); }
 }
 
 .text-danger {

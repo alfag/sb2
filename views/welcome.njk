@@ -5,13 +5,32 @@
 {% block header %}Benvenuto in SharingBeer{% endblock %}
 
 {% block content %}
-<section>
-    <h2>Benvenuto, {% if user %}{{ user.username }}{% else %}Ospite{% endif %}!</h2>
-    <p>Unisciti alla nostra comunità di amanti della birra artigianale ed esplora una vasta gamma di birre dai birrifici locali.</p>
+<section class="welcome-section">
+    <div class="welcome-header">
+        <h2>Benvenuto, {% if user %}{{ user.username }}{% else %}Ospite{% endif %}!</h2>
+        <p>Unisciti alla nostra comunità di amanti della birra artigianale ed esplora una vasta gamma di birre dai birrifici locali.</p>
+    </div>
 
     {% if not user or (user and 'customer' in user.roles) %}
-      <button id="publish-review">Pubblica recensione</button>
-      {% include 'customer/review.njk' %}
+    <div class="review-action-section">
+        <div class="review-call-to-action">
+            <h3>Vuoi condividere la tua esperienza?</h3>
+            <p>Scatta una foto alle tue birre e lascia una recensione per aiutare altri appassionati!</p>
+            <button id="start-review-process" class="primary-action-btn">
+                <span class="btn-icon">📷</span>
+                Pubblica una recensione
+            </button>
+        </div>
+        {% include 'customer/review.njk' %}
+        
+        <!-- Area per il processo di recensione (nascosta inizialmente) -->
+        <div id="review-process" style="display: none;">
+            <div id="ai-feedback"></div>
+            <div id="image-preview"></div>
+            <div id="bottle-ratings"></div>
+            <button id="publish-review" class="secondary-action-btn">Pubblica recensione</button>
+        </div>
+    </div>
     {% endif %}
 </section>
 <section>

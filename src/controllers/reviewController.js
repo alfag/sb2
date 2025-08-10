@@ -24,41 +24,44 @@ exports.firstCheckAI = async (req, res) => {
     // Chiamata AI per analisi immagine
     const aiResult = await GeminiAI.validateImage(image);
     if (!aiResult.success) {
-      logger.warn('[firstCheckAI] Analisi AI fallita', { 
+      logger.warn('[firstCheckAI] Analisi AI fallita - nessuna birra rilevata', { 
         message: aiResult.message,
-        sessionId: req.sessionID 
+        sessionId: req.sessionID,
+        bottles: aiResult.bottles?.length || 0,
+        brewery: !!aiResult.brewery
       });
-      return res.status(400).json(aiResult);
+      
+      // Per "nessuna birra rilevata", restituisci 200 OK con errorType specifico
+      const errorMessage = aiResult.message || 'L\'AI non ha rilevato bottiglie di birra nell\'immagine. Carica un\'immagine contenente chiaramente prodotti birrari.';
+      
+      return res.status(200).json({
+        success: false,
+        message: errorMessage,
+        errorType: 'NO_BEER_DETECTED',
+        bottles: [],
+        brewery: null
+      });
     }
     
-    // CONTROLLO DUPLICATI SESSIONE: Verifica se le birre sono già state recensite
-    if (aiResult.bottles && aiResult.bottles.length > 0) {
-      const duplicateCheck = await checkDuplicateBeersInSession(
-        aiResult.bottles, 
-        req.sessionID, 
-        req.user?._id
-      );
-      
-      if (duplicateCheck.hasDuplicates) {
-        logger.warn('[firstCheckAI] Rilevati duplicati nella sessione', {
-          sessionId: req.sessionID,
-          duplicates: duplicateCheck.duplicates,
-          userId: req.user?._id
-        });
-        
-        return res.status(409).json({
-          success: false,
-          message: 'Alcune birre sono già state recensite in questa sessione',
-          duplicates: duplicateCheck.duplicates,
-          errorType: 'DUPLICATE_REVIEW_IN_SESSION'
-        });
-      }
-    }
+    // NOTA: Rimosso controllo duplicati per permettere multiple recensioni della stessa birra
+    // Questo permette di creare un repository di recensioni multiple per ogni birra
     
     logger.info('[firstCheckAI] Analisi completata con successo', {
       sessionId: req.sessionID,
       bottlesFound: aiResult.bottles?.length || 0,
       breweryFound: !!aiResult.brewery
+    });
+    
+    // Salva i dati AI in sessione per persistenza
+    req.session.aiReviewData = {
+      data: aiResult,
+      timestamp: new Date().toISOString(),
+      completed: false
+    };
+    
+    logger.info('[firstCheckAI] Dati AI salvati in sessione', {
+      sessionId: req.sessionID,
+      bottlesCount: aiResult.bottles?.length || 0
     });
     
     return res.json(aiResult);
@@ -316,5 +319,233 @@ exports.incompleteBreweries = async (req, res) => {
     return res.render('admin/incompleteBreweries.njk', { incomplete, complete });
   } catch (err) {
     return res.status(500).json({ error: 'Errore nel recupero birrifici.' });
+  }
+};
+
+// Crea multiple recensioni da interfaccia AI
+exports.createMultipleReviews = async (req, res) => {
+  try {
+    const { reviews, aiAnalysisData } = req.body;
+    
+    if (!reviews || !Array.isArray(reviews) || reviews.length === 0) {
+      return res.status(400).json({ error: 'Nessuna recensione da salvare.' });
+    }
+
+    logger.info('[createMultipleReviews] Creazione recensioni multiple', {
+      userId: req.user?._id,
+      sessionId: req.sessionID,
+      reviewsCount: reviews.length,
+      reviewsData: reviews.map(r => ({ 
+        beerName: r?.beerName, 
+        rating: r?.rating, 
+        hasAiData: !!r?.aiData 
+      }))
+    });
+
+    const createdReviews = [];
+
+    // Crea una singola review con ratings multipli (seguendo il modello Review esistente)
+    const ratingsArray = [];
+    
+    for (const reviewData of reviews) {
+      // Verifica che reviewData sia definito e abbia le proprietà necessarie
+      if (!reviewData || typeof reviewData !== 'object') {
+        logger.warn('[createMultipleReviews] ReviewData non valido, skipping', {
+          reviewData: reviewData
+        });
+        continue;
+      }
+
+      if (!reviewData.rating || reviewData.rating < 1 || reviewData.rating > 5) {
+        logger.warn('[createMultipleReviews] Rating non valido, skipping', {
+          beerName: reviewData.beerName || 'undefined',
+          rating: reviewData.rating
+        });
+        continue;
+      }
+
+      // Aggiungi alla array ratings
+      ratingsArray.push({
+        bottleLabel: reviewData.beerName || 'Birra sconosciuta',
+        rating: reviewData.rating,
+        notes: reviewData.notes || '', // Note generali
+        beer: reviewData.beerId || null, // ID della birra dal DB se disponibile
+        // Valutazioni dettagliate (se presenti)
+        detailedRatings: reviewData.detailedRatings ? {
+          appearance: reviewData.detailedRatings.appearance ? {
+            rating: reviewData.detailedRatings.appearance.rating || null,
+            notes: reviewData.detailedRatings.appearance.notes || null
+          } : null,
+          aroma: reviewData.detailedRatings.aroma ? {
+            rating: reviewData.detailedRatings.aroma.rating || null,
+            notes: reviewData.detailedRatings.aroma.notes || null
+          } : null,
+          taste: reviewData.detailedRatings.taste ? {
+            rating: reviewData.detailedRatings.taste.rating || null,
+            notes: reviewData.detailedRatings.taste.notes || null
+          } : null,
+          mouthfeel: reviewData.detailedRatings.mouthfeel ? {
+            rating: reviewData.detailedRatings.mouthfeel.rating || null,
+            notes: reviewData.detailedRatings.mouthfeel.notes || null
+          } : null,
+          overall: reviewData.detailedRatings.overall ? {
+            rating: reviewData.detailedRatings.overall.rating || null,
+            notes: reviewData.detailedRatings.overall.notes || null
+          } : null
+        } : null,
+        aiData: {
+          bottleLabel: reviewData.beerName || 'Birra sconosciuta',
+          alcoholContent: reviewData.aiData?.alcoholContent || '',
+          beerType: reviewData.aiData?.beerType || '',
+          beerSubStyle: reviewData.aiData?.beerSubStyle || '',
+          volume: reviewData.aiData?.volume || '',
+          description: reviewData.aiData?.description || '',
+          ingredients: reviewData.aiData?.ingredients || '',
+          tastingNotes: reviewData.notes || '',
+          confidence: reviewData.aiData?.confidence || 0,
+          dataSource: reviewData.aiData?.dataSource || 'label'
+        }
+      });
+      
+      logger.info('[createMultipleReviews] Rating aggiunto', {
+        beerName: reviewData.beerName || 'undefined',
+        rating: reviewData.rating,
+        hasNotes: !!reviewData.notes,
+        hasDetailedRatings: !!reviewData.detailedRatings,
+        detailedCategories: reviewData.detailedRatings ? Object.keys(reviewData.detailedRatings).filter(key => reviewData.detailedRatings[key]) : []
+      });
+    }
+
+    if (ratingsArray.length === 0) {
+      return res.status(400).json({ error: 'Nessuna recensione valida è stata creata.' });
+    }
+
+    // Crea una singola review con tutti i ratings
+    const newReview = new Review({
+      imageUrl: req.body.reviews?.[0]?.thumbnail || 'data:image/jpeg;base64,placeholder', // Usa il thumbnail della prima birra o placeholder
+      user: req.user ? req.user._id : null,
+      sessionId: req.sessionID,
+      ratings: ratingsArray,
+      status: 'completed',
+      date: new Date(),
+      aiAnalysis: {
+        webSearchPerformed: aiAnalysisData?.webSearchPerformed || false,
+        imageQuality: aiAnalysisData?.imageQuality || 'buona',
+        analysisComplete: true,
+        overallConfidence: aiAnalysisData?.overallConfidence || 0.8,
+        processingTime: aiAnalysisData?.processingTime || '2s'
+      }
+    });
+
+    const savedReview = await newReview.save();
+    createdReviews.push(savedReview);
+
+    logger.info('[createMultipleReviews] Recensione salvata', {
+      reviewId: savedReview._id,
+      ratingsCount: ratingsArray.length,
+      sessionId: req.sessionID
+    });
+
+    if (createdReviews.length === 0) {
+      return res.status(400).json({ error: 'Nessuna recensione valida è stata creata.' });
+    }
+
+    logger.info('[createMultipleReviews] Tutte le recensioni salvate', {
+      totalCreated: createdReviews.length,
+      reviewIds: createdReviews.map(r => r._id),
+      userId: req.user?._id,
+      sessionId: req.sessionID
+    });
+
+    // Marca i dati AI come completati in sessione
+    if (req.session.aiReviewData) {
+      req.session.aiReviewData.completed = true;
+      req.session.aiReviewData.completedAt = new Date().toISOString();
+      logger.info('[createMultipleReviews] Dati AI marcati come completati in sessione', {
+        sessionId: req.sessionID
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `${createdReviews.length} recensioni create con successo`,
+      reviews: createdReviews.map(review => ({
+        id: review._id,
+        ratingsCount: review.ratings?.length || 0,
+        ratings: review.ratings?.map(rating => ({
+          beerName: rating.bottleLabel || rating.aiData?.bottleLabel || 'Birra sconosciuta',
+          rating: rating.rating,
+          notes: rating.aiData?.tastingNotes || ''
+        })) || []
+      }))
+    });
+
+  } catch (err) {
+    logger.error('[createMultipleReviews] Errore:', { 
+      error: err.message,
+      userId: req.user?._id,
+      sessionId: req.sessionID
+    });
+    return res.status(500).json({ error: 'Errore nella creazione delle recensioni.' });
+  }
+};
+
+/**
+ * Recupera i dati AI dalla sessione se presenti
+ */
+exports.getAiDataFromSession = async (req, res) => {
+  try {
+    const sessionData = req.session.aiReviewData;
+    
+    if (!sessionData || sessionData.completed) {
+      logger.info('[getAiDataFromSession] Nessun dato AI in sessione o già completato', {
+        sessionId: req.sessionID,
+        hasData: !!sessionData,
+        completed: sessionData?.completed
+      });
+      return res.json({ hasData: false });
+    }
+    
+    logger.info('[getAiDataFromSession] Dati AI recuperati dalla sessione', {
+      sessionId: req.sessionID,
+      timestamp: sessionData.timestamp,
+      bottlesCount: sessionData.data?.bottles?.length || 0
+    });
+    
+    return res.json({ 
+      hasData: true, 
+      data: sessionData.data,
+      timestamp: sessionData.timestamp
+    });
+    
+  } catch (error) {
+    logger.error('[getAiDataFromSession] Errore durante il recupero dei dati dalla sessione', {
+      sessionId: req.sessionID,
+      error: error.message
+    });
+    return res.status(500).json({ error: 'Errore interno del server' });
+  }
+};
+
+/**
+ * Pulisce i dati AI dalla sessione
+ */
+exports.clearAiDataFromSession = async (req, res) => {
+  try {
+    if (req.session.aiReviewData) {
+      delete req.session.aiReviewData;
+      logger.info('[clearAiDataFromSession] Dati AI rimossi dalla sessione', {
+        sessionId: req.sessionID
+      });
+    }
+    
+    return res.json({ success: true, message: 'Dati AI rimossi dalla sessione' });
+    
+  } catch (error) {
+    logger.error('[clearAiDataFromSession] Errore durante la pulizia dei dati dalla sessione', {
+      sessionId: req.sessionID,
+      error: error.message
+    });
+    return res.status(500).json({ error: 'Errore interno del server' });
   }
 };

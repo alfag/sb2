@@ -345,7 +345,8 @@ async function saveAnalysisResults(aiResult, reviewId, userId, sessionId) {
 
     // 2. Gestisci le birre se il birrificio è stato creato/trovato
     if (breweryId && aiResult.bottles && aiResult.bottles.length > 0) {
-      for (const bottle of aiResult.bottles) {
+      for (let i = 0; i < aiResult.bottles.length; i++) {
+        const bottle = aiResult.bottles[i];
         if (bottle.bottleLabel || bottle.aiData?.bottleLabel) {
           const beerData = {
             beerName: bottle.bottleLabel || bottle.aiData?.bottleLabel,
@@ -367,6 +368,10 @@ async function saveAnalysisResults(aiResult, reviewId, userId, sessionId) {
           const beerId = await findOrCreateBeer(beerData, breweryId);
           if (beerId) {
             beerIds.push(beerId);
+            // Aggiungi l'ID della birra alla bottiglia per il frontend
+            aiResult.bottles[i]._id = beerId;
+            aiResult.bottles[i].breweryId = breweryId;
+            
             logger.info('[GeminiAI] Birra gestita', { 
               beerId, 
               beerName: beerData.beerName, 
