@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/administratorController');
+const reviewController = require('../controllers/reviewController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const logWithFileName = require('../utils/logger'); // Importa logWithFileName
 
@@ -216,5 +217,8 @@ router.post('/users/removeRole/:id', authMiddleware.isAdmin, async (req, res) =>
         res.redirect(`/administrator/users/update?userUpdateId=${req.params.id}`);
     }
 });
+
+// Visualizza collegamenti recensioni-birre (debug/admin)
+router.get('/review-beer-connections', authMiddleware.isAdmin, reviewController.viewReviewBeerConnections);
 
 module.exports = router;

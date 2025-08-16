@@ -338,7 +338,8 @@ exports.createMultipleReviews = async (req, res) => {
       reviewsData: reviews.map(r => ({ 
         beerName: r?.beerName, 
         rating: r?.rating, 
-        hasAiData: !!r?.aiData 
+        hasAiData: !!r?.aiData,
+        beerId: r?.beerId
       }))
     });
 
@@ -347,7 +348,11 @@ exports.createMultipleReviews = async (req, res) => {
     // Crea una singola review con ratings multipli (seguendo il modello Review esistente)
     const ratingsArray = [];
     
-    for (const reviewData of reviews) {
+    // Recupera i dati AI dalla sessione per ottenere gli ID delle birre
+    const sessionAiData = req.session.aiReviewData;
+    const beerIds = sessionAiData?.data?.beerIds || [];
+    
+    for (const [index, reviewData] of reviews.entries()) {
       // Verifica che reviewData sia definito e abbia le proprietà necessarie
       if (!reviewData || typeof reviewData !== 'object') {
         logger.warn('[createMultipleReviews] ReviewData non valido, skipping', {
@@ -364,12 +369,19 @@ exports.createMultipleReviews = async (req, res) => {
         continue;
       }
 
+      // Usa l'ID della birra dal database se disponibile
+      const beerId = reviewData.beerId || beerIds[index] || null;
+      
+      // Recupera l'ID del birrificio dalla sessione AI o dai dati della recensione
+      const breweryId = sessionAiData?.data?.brewery?._id || aiAnalysisData?.brewery?._id || null;
+
       // Aggiungi alla array ratings
       ratingsArray.push({
         bottleLabel: reviewData.beerName || 'Birra sconosciuta',
         rating: reviewData.rating,
         notes: reviewData.notes || '', // Note generali
-        beer: reviewData.beerId || null, // ID della birra dal DB se disponibile
+        beer: beerId, // ID della birra dal database
+        brewery: breweryId, // ID del birrificio dal database
         // Valutazioni dettagliate (se presenti)
         detailedRatings: reviewData.detailedRatings ? {
           appearance: reviewData.detailedRatings.appearance ? {
@@ -403,13 +415,19 @@ exports.createMultipleReviews = async (req, res) => {
           ingredients: reviewData.aiData?.ingredients || '',
           tastingNotes: reviewData.notes || '',
           confidence: reviewData.aiData?.confidence || 0,
-          dataSource: reviewData.aiData?.dataSource || 'label'
+          dataSource: reviewData.aiData?.dataSource || 'label',
+          ibu: reviewData.aiData?.ibu || '',
+          nutritionalInfo: reviewData.aiData?.nutritionalInfo || '',
+          price: reviewData.aiData?.price || '',
+          availability: reviewData.aiData?.availability || ''
         }
       });
       
       logger.info('[createMultipleReviews] Rating aggiunto', {
         beerName: reviewData.beerName || 'undefined',
         rating: reviewData.rating,
+        beerId: beerId,
+        breweryId: breweryId,
         hasNotes: !!reviewData.notes,
         hasDetailedRatings: !!reviewData.detailedRatings,
         detailedCategories: reviewData.detailedRatings ? Object.keys(reviewData.detailedRatings).filter(key => reviewData.detailedRatings[key]) : []
@@ -547,5 +565,74 @@ exports.clearAiDataFromSession = async (req, res) => {
       error: error.message
     });
     return res.status(500).json({ error: 'Errore interno del server' });
+  }
+};
+
+/**
+ * Visualizza le recensioni con i collegamenti alle birre (debug/admin)
+ */
+exports.viewReviewBeerConnections = async (req, res) => {
+  try {
+    const reviews = await Review.find({})
+      .populate('user', 'username email')
+      .populate('ratings.brewery', 'breweryName')
+      .populate('ratings.beer', 'beerName alcoholContent beerType')
+      .sort({ date: -1 })
+      .limit(50);
+
+    const reviewConnections = reviews.map(review => ({
+      reviewId: review._id,
+      user: review.user?.username || 'Anonimo',
+      date: review.date,
+      status: review.status,
+      sessionId: review.sessionId,
+      ratingsCount: review.ratings?.length || 0,
+      ratings: review.ratings.map(rating => ({
+        bottleLabel: rating.bottleLabel,
+        rating: rating.rating,
+        brewery: {
+          id: rating.brewery?._id,
+          name: rating.brewery?.breweryName || 'Non collegato'
+        },
+        beer: {
+          id: rating.beer?._id,
+          name: rating.beer?.beerName || 'Non collegato',
+          alcoholContent: rating.beer?.alcoholContent,
+          beerType: rating.beer?.beerType
+        },
+        hasAiData: !!rating.aiData,
+        aiDataBottleLabel: rating.aiData?.bottleLabel
+      }))
+    }));
+
+    logger.info('[viewReviewBeerConnections] Collegamenti recensioni-birre recuperati', {
+      reviewsCount: reviews.length,
+      connectedBeers: reviewConnections.reduce((sum, r) => sum + r.ratings.filter(rt => rt.beer.id).length, 0),
+      totalRatings: reviewConnections.reduce((sum, r) => sum + r.ratingsCount, 0)
+    });
+
+    if (req.headers.accept && req.headers.accept.includes('application/json')) {
+      return res.json({
+        success: true,
+        reviewConnections: reviewConnections,
+        summary: {
+          totalReviews: reviews.length,
+          totalRatings: reviewConnections.reduce((sum, r) => sum + r.ratingsCount, 0),
+          connectedBeers: reviewConnections.reduce((sum, r) => sum + r.ratings.filter(rt => rt.beer.id).length, 0),
+          unconnectedRatings: reviewConnections.reduce((sum, r) => sum + r.ratings.filter(rt => !rt.beer.id).length, 0)
+        }
+      });
+    } else {
+      return res.render('admin/reviewBeerConnections.njk', { 
+        reviewConnections,
+        title: 'Collegamenti Recensioni-Birre'
+      });
+    }
+
+  } catch (error) {
+    logger.error('[viewReviewBeerConnections] Errore nel recupero collegamenti', {
+      error: error.message
+    });
+    return res.status(500).json({ error: 'Errore nel recupero dei collegamenti' });
   }
 };

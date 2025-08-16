@@ -11,7 +11,7 @@
         <p>Unisciti alla nostra comunità di amanti della birra artigianale ed esplora una vasta gamma di birre dai birrifici locali.</p>
     </div>
 
-    {% if not user or (user and 'customer' in user.roles) %}
+    {% if not user or (user and 'customer' in user.role) %}
     <div class="review-action-section">
         <div class="review-call-to-action">
             <h3>Vuoi condividere la tua esperienza?</h3>

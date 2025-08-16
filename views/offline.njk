@@ -1,0 +1,18 @@
+{% extends "layout.njk" %}
+
+{% block title %}Offline - SharingBeer{% endblock %}
+
+{% block header %}SharingBeer{% endblock %}
+
+{% block content %}
+<div class="offline-container">
+    <div class="offline-icon">📶</div>
+    <h1 class="offline-title">Sei Offline</h1>
+    <p class="offline-message">
+        Sembra che tu non sia connesso a Internet. Questa pagina non può essere visualizzata finché non ti riconnetti.
+        <br><br>
+        Controlla la tua connessione e riprova.
+    </p>
+    <a href="/" class="offline-btn">Torna alla Home</a>
+</div>
+{% endblock %}

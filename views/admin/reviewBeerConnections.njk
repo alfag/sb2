@@ -1,0 +1,254 @@
+{% extends "../layout.njk" %}
+
+{% block content %}
+<div class="container">
+    <h1>{{ title }}</h1>
+    
+    <!-- Statistiche riepilogative -->
+    {% set totalReviews = reviewConnections.length %}
+    {% set totalRatings = reviewConnections | map(attribute='ratingsCount') | sum %}
+    {% set connectedBeers = 0 %}
+    {% set unconnectedRatings = 0 %}
+    
+    {% for review in reviewConnections %}
+        {% for rating in review.ratings %}
+            {% if rating.beer.id %}
+                {% set connectedBeers = connectedBeers + 1 %}
+            {% else %}
+                {% set unconnectedRatings = unconnectedRatings + 1 %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+    
+    <div class="stats-summary mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5>{{ totalReviews }}</h5>
+                        <p>Recensioni Totali</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h5>{{ totalRatings }}</h5>
+                        <p>Valutazioni Totali</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5>{{ connectedBeers }}</h5>
+                        <p>Birre Collegate</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h5>{{ unconnectedRatings }}</h5>
+                        <p>Rating Non Collegati</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filtri -->
+    <div class="filter-section mb-4">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="statusFilter">Filtra per Status:</label>
+                <select id="statusFilter" class="form-control">
+                    <option value="">Tutti</option>
+                    <option value="pending">Pending</option>
+                    <option value="validated">Validated</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="connectionFilter">Filtra per Collegamento:</label>
+                <select id="connectionFilter" class="form-control">
+                    <option value="">Tutti</option>
+                    <option value="connected">Solo Collegate</option>
+                    <option value="unconnected">Solo Non Collegate</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="searchInput">Cerca:</label>
+                <input type="text" id="searchInput" class="form-control" placeholder="Nome birra o utente...">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lista recensioni -->
+    <div class="reviews-list">
+        {% for review in reviewConnections %}
+        <div class="review-card mb-4 p-3 border" data-status="{{ review.status }}">
+            <div class="review-header d-flex justify-content-between align-items-center mb-2">
+                <h5>Recensione #{{ review.reviewId }}</h5>
+                <span class="badge badge-{{ 'success' if review.status == 'completed' else 'warning' if review.status == 'validated' else 'secondary' }}">
+                    {{ review.status | upper }}
+                </span>
+            </div>
+            
+            <div class="review-meta mb-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>Utente:</strong> {{ review.user }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Data:</strong> {{ review.date.toLocaleDateString('it-IT') }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Valutazioni:</strong> {{ review.ratingsCount }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Sessione:</strong> {{ review.sessionId[:8] if review.sessionId else 'N/A' }}...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="ratings-list">
+                {% for rating in review.ratings %}
+                <div class="rating-item p-2 mb-2 border-left {% if rating.beer.id %}border-success bg-light{% else %}border-danger bg-warning{% endif %}">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <strong>{{ rating.bottleLabel }}</strong>
+                            {% if rating.rating %}
+                                <div class="rating-stars">
+                                    {% for i in range(1, 6) %}
+                                        <span class="star {% if i <= rating.rating %}filled{% endif %}">★</span>
+                                    {% endfor %}
+                                    ({{ rating.rating }}/5)
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="brewery-info">
+                                <small class="text-muted">Birrificio:</small><br>
+                                {% if rating.brewery.id %}
+                                    <span class="text-success">✓ {{ rating.brewery.name }}</span>
+                                    <br><small class="text-muted">ID: {{ rating.brewery.id }}</small>
+                                {% else %}
+                                    <span class="text-danger">✗ Non collegato</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="beer-info">
+                                <small class="text-muted">Birra nel DB:</small><br>
+                                {% if rating.beer.id %}
+                                    <span class="text-success">✓ {{ rating.beer.name }}</span>
+                                    <br><small class="text-muted">
+                                        ID: {{ rating.beer.id }}<br>
+                                        {% if rating.beer.alcoholContent %}Alc: {{ rating.beer.alcoholContent }}{% endif %}
+                                        {% if rating.beer.beerType %} | Tipo: {{ rating.beer.beerType }}{% endif %}
+                                    </small>
+                                {% else %}
+                                    <span class="text-danger">✗ Non collegato</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <div class="ai-data-info">
+                                <small class="text-muted">Dati AI:</small><br>
+                                {% if rating.hasAiData %}
+                                    <span class="text-info">✓ Presenti</span>
+                                    {% if rating.aiDataBottleLabel %}
+                                        <br><small>{{ rating.aiDataBottleLabel }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">✗ Assenti</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.star {
+    color: #ddd;
+}
+.star.filled {
+    color: #ffa500;
+}
+.stats-summary .card {
+    text-align: center;
+}
+.rating-item {
+    border-left-width: 4px !important;
+}
+.review-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.filter-section {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusFilter = document.getElementById('statusFilter');
+    const connectionFilter = document.getElementById('connectionFilter');
+    const searchInput = document.getElementById('searchInput');
+    const reviewCards = document.querySelectorAll('.review-card');
+    
+    function filterReviews() {
+        const statusValue = statusFilter.value.toLowerCase();
+        const connectionValue = connectionFilter.value;
+        const searchValue = searchInput.value.toLowerCase();
+        
+        reviewCards.forEach(card => {
+            let showCard = true;
+            
+            // Filtro per status
+            if (statusValue && !card.dataset.status.toLowerCase().includes(statusValue)) {
+                showCard = false;
+            }
+            
+            // Filtro per collegamento
+            if (connectionValue) {
+                const connectedRatings = card.querySelectorAll('.rating-item.border-success').length;
+                const totalRatings = card.querySelectorAll('.rating-item').length;
+                
+                if (connectionValue === 'connected' && connectedRatings === 0) {
+                    showCard = false;
+                } else if (connectionValue === 'unconnected' && connectedRatings === totalRatings) {
+                    showCard = false;
+                }
+            }
+            
+            // Filtro per ricerca
+            if (searchValue) {
+                const cardText = card.textContent.toLowerCase();
+                if (!cardText.includes(searchValue)) {
+                    showCard = false;
+                }
+            }
+            
+            card.style.display = showCard ? 'block' : 'none';
+        });
+    }
+    
+    statusFilter.addEventListener('change', filterReviews);
+    connectionFilter.addEventListener('change', filterReviews);
+    searchInput.addEventListener('input', filterReviews);
+});
+</script>
+{% endblock %}

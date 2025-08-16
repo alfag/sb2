@@ -308,10 +308,23 @@ REGOLE CRITICHE:
     // Salva i risultati su MongoDB se l'analisi ha avuto successo
     if (aiResult.success && (aiResult.bottles?.length > 0 || aiResult.brewery)) {
       try {
-        await saveAnalysisResults(aiResult, reviewId, userId, sessionId);
-        logger.info('[GeminiAI] Risultati salvati su MongoDB', { reviewId, sessionId });
+        const saveResults = await saveAnalysisResults(aiResult, reviewId, userId, sessionId);
+        // Aggiungi gli ID generati al risultato AI per renderli disponibili al frontend
+        aiResult.breweryId = saveResults.breweryId;
+        aiResult.beerIds = saveResults.beerIds;
+        aiResult.dbSaveResults = saveResults;
+        
+        logger.info('[GeminiAI] Risultati salvati su MongoDB', { 
+          reviewId, 
+          sessionId,
+          breweryId: saveResults.breweryId,
+          beerIds: saveResults.beerIds,
+          beersProcessed: saveResults.beersProcessed
+        });
       } catch (saveError) {
         logger.error('[GeminiAI] Errore salvataggio MongoDB', { error: saveError.message, reviewId });
+        // Non bloccare il flusso se il salvataggio su DB fallisce
+        aiResult.dbSaveError = saveError.message;
       }
     }
     

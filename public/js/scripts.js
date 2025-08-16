@@ -4,6 +4,48 @@ let originalImageSrc = null;
 
 // --- Gestione caricamento, anteprima e selezione area foto per AI ---
 document.addEventListener('DOMContentLoaded', function () {
+    // Registrazione Service Worker per PWA (spostato dal template per rispettare CSP)
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(function(registration) {
+                    console.log('[INFO] Service Worker registrato con successo:', registration);
+                    
+                    // Gestisci aggiornamenti del service worker
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('[INFO] Nuova versione del service worker disponibile');
+                                // Forza l'aggiornamento per evitare cache vecchie
+                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                            }
+                        });
+                    });
+                })
+                .catch(function(error) {
+                    console.log('[ERROR] Registrazione Service Worker fallita:', error);
+                });
+        });
+    }
+    
+    // Reinizializza listener dopo navigazione del browser
+    window.addEventListener('popstate', function() {
+        setTimeout(() => {
+            initializeReviewButton();
+        }, 100);
+    });
+    
+    // Listener per cambio di visibilità della pagina (PWA)
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            // La pagina è tornata visibile, reinizializza
+            setTimeout(() => {
+                initializeReviewButton();
+            }, 100);
+        }
+    });
+    
     // Controlli di compatibilità browser
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const supportsTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -316,13 +358,26 @@ document.addEventListener('DOMContentLoaded', function () {
             // Aggiungi event listener al bottone pubblica recensione
             const publishBtn = document.getElementById('publish-review');
             if (publishBtn) {
+                // Debug per verificare il bottone
+                console.log('=== DEBUG BOTTONE PUBBLICA ===');
+                console.log('Bottone trovato:', publishBtn);
+                console.log('Bottone visible:', publishBtn.offsetParent !== null);
+                console.log('Bottone disabled:', publishBtn.disabled);
+                
                 // Rimuovi eventuali listener precedenti
                 publishBtn.replaceWith(publishBtn.cloneNode(true));
                 const newPublishBtn = document.getElementById('publish-review');
                 
-                newPublishBtn.addEventListener('click', function() {
+                newPublishBtn.addEventListener('click', function(event) {
+                    console.log('=== CLICK BOTTONE PUBBLICA ===');
+                    console.log('Event ricevuto:', event);
+                    event.preventDefault(); // Previeni comportamenti default
                     publishReviews();
                 });
+                
+                console.log('Event listener collegato al bottone pubblica recensione');
+            } else {
+                console.error('ERRORE: Bottone publish-review non trovato!');
             }
             
             logDebug('Processo di recensione avviato con successo');
@@ -335,14 +390,25 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Funzione per aggiungere event listeners alle stelle di rating
     function addRatingEventListeners() {
+        console.log('=== INIZIALIZZAZIONE EVENT LISTENERS STELLE ===');
+        
         // Event listeners per le stelle di rating
         const stars = document.querySelectorAll('.star');
-        stars.forEach(star => {
+        console.log('Stelle trovate:', stars.length);
+        
+        stars.forEach((star, starIndex) => {
             star.addEventListener('click', function() {
                 const rating = parseInt(this.dataset.rating);
                 const bottleIndex = this.parentElement.dataset.bottle;
                 const category = this.parentElement.dataset.category || 'overall';
                 const ratingContainer = this.parentElement;
+                
+                console.log(`=== CLICK STELLA ===`);
+                console.log('Stella cliccata:', starIndex);
+                console.log('Rating:', rating);
+                console.log('Bottiglia index:', bottleIndex);
+                console.log('Categoria:', category);
+                console.log('Container:', ratingContainer);
                 
                 // Reset tutte le stelle di questo rating
                 ratingContainer.querySelectorAll('.star').forEach(s => s.classList.remove('selected'));
@@ -350,7 +416,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Seleziona le stelle fino al rating cliccato
                 for (let i = 1; i <= rating; i++) {
                     const targetStar = ratingContainer.querySelector(`[data-rating="${i}"]`);
-                    if (targetStar) targetStar.classList.add('selected');
+                    if (targetStar) {
+                        targetStar.classList.add('selected');
+                        console.log(`Stella ${i} selezionata`);
+                    }
                 }
                 
                 logDebug('Rating selezionato', { bottleIndex, category, rating });
@@ -359,10 +428,17 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Event listeners per i toggle delle valutazioni dettagliate
         const toggleButtons = document.querySelectorAll('.btn-toggle-detailed');
-        toggleButtons.forEach(button => {
+        console.log('Toggle buttons trovati:', toggleButtons.length);
+        
+        toggleButtons.forEach((button, buttonIndex) => {
             button.addEventListener('click', function() {
                 const bottleIndex = this.dataset.bottle;
                 const detailedRatings = document.querySelector(`.detailed-ratings[data-bottle="${bottleIndex}"]`);
+                
+                console.log(`=== TOGGLE VALUTAZIONE DETTAGLIATA ===`);
+                console.log('Button index:', buttonIndex);
+                console.log('Bottle index:', bottleIndex);
+                console.log('Detailed ratings element:', detailedRatings);
                 
                 if (detailedRatings) {
                     const isVisible = detailedRatings.style.display !== 'none';
@@ -378,31 +454,52 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     
                     logDebug('Toggle valutazione dettagliata', { bottleIndex, isVisible: !isVisible });
+                } else {
+                    console.error('Elemento detailed-ratings non trovato per bottiglia:', bottleIndex);
                 }
             });
         });
+        
+        console.log('=== EVENT LISTENERS STELLE INIZIALIZZATI ===');
     }
     
     // Funzione per pubblicare le recensioni
     function publishReviews() {
         logDebug('Tentativo di pubblicazione recensioni');
         
+        // Debug più dettagliato
+        console.log('=== DEBUG PUBBLICAZIONE RECENSIONI ===');
+        console.log('window.currentReviewData:', window.currentReviewData);
+        console.log('Bottles disponibili:', window.currentReviewData?.bottles);
+        
         if (!window.currentReviewData || !window.currentReviewData.bottles) {
             logError('Nessun dato di recensione disponibile');
-            alert('Errore: nessun dato di recensione disponibile');
+            console.error('ERRORE: window.currentReviewData non disponibile');
+            alert('Errore: nessun dato di recensione disponibile. Ricarica la pagina e riprova il processo.');
             return;
         }
         
         // Raccogli i dati di rating da ogni birra
         const reviews = [];
+        console.log('=== DEBUG RACCOLTA DATI ===');
+        console.log('Numero di birre da elaborare:', window.currentReviewData.bottles.length);
+        
         window.currentReviewData.bottles.forEach((bottle, index) => {
+            console.log(`\n--- Elaborazione birra ${index}: ${bottle.bottleLabel} ---`);
+            
             // Rating generale (obbligatorio)
             const overallRatingContainer = document.querySelector(`[data-bottle="${index}"][data-category="overall"]`);
             const generalNotesTextarea = document.querySelector(`[data-notes="${index}"][data-category="general"]`);
             
+            console.log('Container rating generale:', overallRatingContainer);
+            console.log('Textarea note generali:', generalNotesTextarea);
+            
             if (overallRatingContainer) {
                 const selectedStars = overallRatingContainer.querySelectorAll('.star.selected');
                 const overallRating = selectedStars.length;
+                
+                console.log('Stelle selezionate:', selectedStars);
+                console.log('Rating generale:', overallRating);
                 
                 if (overallRating > 0) {
                     // Ottieni il thumbnail per questa birra
@@ -455,14 +552,23 @@ document.addEventListener('DOMContentLoaded', function () {
                         hasThumbnail: !!thumbnailSrc
                     });
                 } else {
-                    logDebug('Birra ignorata (nessun rating generale)', { beerName: bottle.bottleLabel });
+                    console.log(`Birra ${index} ignorata - nessun rating generale`, { beerName: bottle.bottleLabel });
                 }
             } else {
-                logDebug('Birra ignorata (container rating generale non trovato)', { beerName: bottle.bottleLabel });
+                console.log(`Birra ${index} ignorata - container rating generale non trovato`, { beerName: bottle.bottleLabel });
+                console.log('Selettore utilizzato:', `[data-bottle="${index}"][data-category="overall"]`);
+                // Debug: stampa tutti i container rating disponibili
+                const allRatingContainers = document.querySelectorAll('[data-category="overall"]');
+                console.log('Tutti i container rating trovati:', allRatingContainers);
             }
         });
         
+        console.log('=== RISULTATO RACCOLTA DATI ===');
+        console.log('Recensioni raccolte:', reviews.length);
+        console.log('Dati recensioni:', reviews);
+        
         if (reviews.length === 0) {
+            console.error('ERRORE: Nessuna recensione valida raccolta');
             alert('Aggiungi almeno una valutazione a stelle prima di pubblicare');
             return;
         }
@@ -635,36 +741,51 @@ document.addEventListener('DOMContentLoaded', function () {
     clearSessionDataOnNavigation();
     
     // Collegamento bottone principale "Pubblica una recensione" al caricamento foto
-    const startReviewBtn = document.getElementById('start-review-process');
-    if (startReviewBtn) {
-        startReviewBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            logDebug('Bottone principale "Pubblica una recensione" cliccato');
-            
-            // Pulisci eventuali dati AI precedenti dalla sessione
-            clearPreviousSessionData();
-            
-            // Non mostrare il sistema di caricamento foto (che include il link)
-            // Avvia direttamente il file picker
-            const reviewPhotoInput = document.getElementById('reviewPhoto');
-            if (reviewPhotoInput) {
-                // Prepara il file input
-                reviewPhotoInput.value = "";
-                reviewPhotoInput.setAttribute('accept', 'image/*');
-                reviewPhotoInput.removeAttribute('capture');
-                
-                // Avvia direttamente il file picker
-                reviewPhotoInput.click();
-                logDebug('File picker avviato direttamente dal bottone principale');
-            } else {
-                logError('Input reviewPhoto non trovato');
-                alert('Errore: sistema di caricamento foto non disponibile');
-            }
-        });
+    function initializeReviewButton() {
+        const startReviewBtn = document.getElementById('start-review-process');
+        if (startReviewBtn) {
+            // Rimuovi eventuali listener precedenti per evitare duplicati
+            startReviewBtn.removeEventListener('click', handleReviewButtonClick);
+            startReviewBtn.addEventListener('click', handleReviewButtonClick);
+            logDebug('Event listener collegato al bottone principale recensione');
+            return true;
+        } else {
+            logDebug('Bottone start-review-process non trovato (normale se non in pagina welcome)');
+            return false;
+        }
+    }
+    
+    function handleReviewButtonClick(e) {
+        e.preventDefault();
+        logDebug('=== BOTTONE PRINCIPALE CLICCATO ===');
+        logDebug('Bottone principale "Pubblica una recensione" cliccato');
         
-        logDebug('Event listener collegato al bottone principale recensione');
-    } else {
-        logDebug('Bottone start-review-process non trovato (normale se non in pagina welcome)');
+        // Pulisci eventuali dati AI precedenti dalla sessione
+        clearPreviousSessionData();
+        
+        // Avvia direttamente il file picker
+        const reviewPhotoInput = document.getElementById('reviewPhoto');
+        if (reviewPhotoInput) {
+            // Prepara il file input
+            reviewPhotoInput.value = "";
+            reviewPhotoInput.setAttribute('accept', 'image/*');
+            reviewPhotoInput.removeAttribute('capture');
+            
+            // Avvia direttamente il file picker
+            reviewPhotoInput.click();
+            logDebug('File picker avviato direttamente dal bottone principale');
+        } else {
+            logError('Input reviewPhoto non trovato');
+            alert('Errore: sistema di caricamento foto non disponibile');
+        }
+    }
+    
+    // Inizializza il bottone e riprova se non trovato
+    if (!initializeReviewButton()) {
+        // Riprova dopo un breve delay per gestire contenuto caricato dinamicamente
+        setTimeout(() => {
+            initializeReviewButton();
+        }, 100);
     }
     
     // Mostra suggerimenti appropriati in base al dispositivo
@@ -993,7 +1114,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 cropRect = null;
                 drawImageOnCanvas();
                 photoCanvas.style.cursor = 'crosshair';
-                if (confirmCropBtn) confirmCropBtn.style.display = 'block';
             } else {
                 // Drag immagine solo se non si sta croppando
                 if (!isDragging) {
@@ -1586,7 +1706,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Gestione sandwich menu
+    // Gestione sandwich menu con reinizializzazione
     const toggle = document.getElementById('sandwich-menu-toggle');
     const menu = document.getElementById('sandwich-menu-content');
     if (toggle && menu) {
@@ -1598,6 +1718,17 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!menu.contains(e.target) && e.target !== toggle) {
                 menu.style.display = 'none';
             }
+        });
+        
+        // Aggiungi listener ai link del menu per reinizializzare dopo la navigazione
+        const menuLinks = menu.querySelectorAll('a');
+        menuLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                // Reinizializza i listener dopo un breve delay per permettere il caricamento della pagina
+                setTimeout(() => {
+                    initializeReviewButton();
+                }, 200);
+            });
         });
     }
 
@@ -1748,7 +1879,7 @@ function validatePasswordMatch() {
     try {
         console.log('[checkForSessionData] Controllo dati AI in sessione');
         
-        const response = await fetch('/reviews/ai-session-data');
+        const response = await fetch('/review/ai-session-data');
         const result = await response.json();
         
         if (result.hasData && result.data) {
@@ -1833,7 +1964,7 @@ function clearSessionDataOnNavigation() {
     window.addEventListener('beforeunload', function() {
         // Solo se l'utente sta navigando via dalla pagina di review
         if (window.location.pathname.includes('/review')) {
-            navigator.sendBeacon('/reviews/ai-session-data', JSON.stringify({}));
+            navigator.sendBeacon('/review/ai-session-data', JSON.stringify({}));
         }
     });
 }
@@ -1845,7 +1976,7 @@ async function clearPreviousSessionData() {
     try {
         console.log('[clearPreviousSessionData] Pulizia dati AI precedenti dalla sessione');
         
-        const response = await fetch('/reviews/ai-session-data', {
+        const response = await fetch('/review/ai-session-data', {
             method: 'DELETE'
         });
         

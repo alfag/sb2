@@ -1,0 +1,42 @@
+{
+  "name": "SharingBeer2",
+  "short_name": "SB2",
+  "description": "Piattaforma per connettere clienti e birrifici per la vendita e distribuzione di birre artigianali",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2A0009",
+  "theme_color": "#FFD600",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "/images/icon-192x192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icon-512x512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "business"],
+  "shortcuts": [
+    {
+      "name": "Nuova Recensione",
+      "short_name": "Recensione",
+      "description": "Crea una nuova recensione di birra",
+      "url": "/review",
+      "icons": [
+        {
+          "src": "/images/icon-192x192.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}
