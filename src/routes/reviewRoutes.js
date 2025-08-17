@@ -14,8 +14,7 @@ router.post('/create-multiple', reviewController.createMultipleReviews);
 // Gestione dati AI in sessione
 router.get('/ai-session-data', reviewController.getAiDataFromSession);
 router.delete('/ai-session-data', reviewController.clearAiDataFromSession);
-
-module.exports = router;
+router.post('/clear-session-data', reviewController.clearAiDataFromSession); // Per sendBeacon
 
 // Rotte admin
 router.post('/batch-validate', ensureRole(['administrator']), reviewController.batchValidateReviews);

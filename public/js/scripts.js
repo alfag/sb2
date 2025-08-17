@@ -2,9 +2,229 @@
 let croppedImageForAI = null;
 let originalImageSrc = null;
 
+// Variabili globali per gestione dati birre
+let currentBeerData = null;
+let validBeers = [];
+
+// Logging per debug e monitoraggio
+function logDebug(message, data = null) {
+    if (data) {
+        console.log(`[Photo Crop Debug] ${message}:`, data);
+    } else {
+        console.log(`[Photo Crop Debug] ${message}`);
+    }
+}
+
+function logError(message, error = null) {
+    console.error(`[Photo Crop Error] ${message}`);
+    if (error) console.error(error);
+}
+
+// Monitoraggio performance
+function logPerformance(operation, startTime) {
+    const duration = performance.now() - startTime;
+    logDebug(`Performance ${operation}`, { duration: `${duration.toFixed(2)}ms` });
+    
+    if (duration > 1000) {
+        logError(`Performance issue: ${operation} took ${duration.toFixed(2)}ms`);
+    }
+}
+
+// Funzioni globali per gestione bottone recensione (spostate fuori da DOMContentLoaded)
+function initializeReviewButton() {
+    console.log('=== INIZIALIZZAZIONE BOTTONE RECENSIONE ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('URL corrente:', window.location.href);
+    console.log('Document ready state:', document.readyState);
+    
+    // Verifica il DOM più accuratamente
+    const startReviewBtn = document.getElementById('start-review-process');
+    const reviewPhotoInput = document.getElementById('reviewPhoto');
+    const photoModal = document.getElementById('photo-modal');
+    
+    console.log('Elementi DOM principali:', {
+        startReviewBtn: !!startReviewBtn,
+        reviewPhotoInput: !!reviewPhotoInput,
+        photoModal: !!photoModal
+    });
+    
+    // Se non ci sono gli elementi necessari, la pagina potrebbe non essere la welcome
+    if (!startReviewBtn && !reviewPhotoInput) {
+        console.log('Elementi recensione non trovati - probabile pagina diversa da welcome');
+        logDebug('Elementi recensione non trovati (normale se non in pagina welcome)');
+        return false;
+    }
+    
+    if (startReviewBtn) {
+        console.log('Bottone details:', {
+            id: startReviewBtn.id,
+            className: startReviewBtn.className,
+            style: startReviewBtn.style.cssText,
+            disabled: startReviewBtn.disabled,
+            visible: startReviewBtn.offsetParent !== null,
+            hasClickListener: startReviewBtn.onclick !== null,
+            parentElement: startReviewBtn.parentElement?.tagName,
+            computedDisplay: window.getComputedStyle(startReviewBtn).display
+        });
+        
+        // Verifica se il bottone è veramente interagibile
+        const rect = startReviewBtn.getBoundingClientRect();
+        console.log('Bottone posizione e dimensioni:', {
+            width: rect.width,
+            height: rect.height,
+            top: rect.top,
+            left: rect.left,
+            visible: rect.width > 0 && rect.height > 0
+        });
+        
+        // Rimuovi TUTTI i possibili listener precedenti (più sicuro)
+        const newButton = startReviewBtn.cloneNode(true);
+        startReviewBtn.parentNode.replaceChild(newButton, startReviewBtn);
+        console.log('Bottone completamente ricreato per evitare listener duplicati');
+        
+        // Usa il nuovo bottone
+        const freshButton = document.getElementById('start-review-process');
+        if (freshButton) {
+            freshButton.addEventListener('click', handleReviewButtonClick);
+            console.log('Nuovo listener aggiunto al bottone ricreato');
+            
+            // Test immediato del listener
+            console.log('Test listener con evento simulato...');
+            const testEvent = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+            
+            // Test asincrono per non interferire con l'inizializzazione
+            setTimeout(() => {
+                console.log('Verifica stato bottone dopo 2 secondi...');
+                const currentButton = document.getElementById('start-review-process');
+                if (currentButton) {
+                    console.log('Bottone ancora presente nel DOM:', {
+                        id: currentButton.id,
+                        visible: currentButton.offsetParent !== null,
+                        listeners: 'attached'
+                    });
+                } else {
+                    console.error('PROBLEMA: Bottone scomparso dal DOM dopo inizializzazione!');
+                }
+            }, 2000);
+            
+            console.log('Event listener collegato con successo al bottone ricreato');
+            logDebug('Event listener collegato al bottone principale recensione (ricreato)');
+            return true;
+        } else {
+            console.error('PROBLEMA: Bottone non trovato dopo ricreazione');
+            return false;
+        }
+    } else {
+        console.log('Bottone start-review-process NON trovato nel DOM');
+        console.log('Tutti gli elementi nel body con ID:');
+        document.querySelectorAll('[id]').forEach(el => {
+            console.log(' - ID:', el.id, 'Tag:', el.tagName, 'Classes:', el.className);
+        });
+        logDebug('Bottone start-review-process non trovato nel DOM');
+        return false;
+    }
+}
+
+function handleReviewButtonClick(e) {
+    console.log('=== CLICK INTERCETTATO ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Event type:', e.type);
+    console.log('Event target:', e.target.id, e.target.className);
+    console.log('Event currentTarget:', e.currentTarget.id, e.currentTarget.className);
+    
+    e.preventDefault();
+    console.log('preventDefault() chiamato');
+    
+    console.log('=== BOTTONE PRINCIPALE CLICCATO ===');
+    console.log('Event object:', e);
+    console.log('Target element:', e.target);
+    console.log('Current target:', e.currentTarget);
+    
+    logDebug('=== BOTTONE PRINCIPALE CLICCATO ===');
+    logDebug('Bottone principale "Pubblica una recensione" cliccato');
+    
+    // Debug elementi DOM
+    const reviewPhotoInput = document.getElementById('reviewPhoto');
+    const photoModal = document.getElementById('photo-modal');
+    
+    console.log('reviewPhotoInput trovato:', !!reviewPhotoInput);
+    console.log('photoModal trovato:', !!photoModal);
+    
+    if (reviewPhotoInput) {
+        console.log('reviewPhotoInput details:', {
+            id: reviewPhotoInput.id,
+            type: reviewPhotoInput.type,
+            accept: reviewPhotoInput.accept,
+            style: reviewPhotoInput.style.cssText,
+            disabled: reviewPhotoInput.disabled,
+            visible: reviewPhotoInput.offsetParent !== null
+        });
+    }
+    
+    // Pulisci eventuali dati AI precedenti dalla sessione
+    console.log('Chiamata clearPreviousSessionData...');
+    clearPreviousSessionData();
+    
+    // Avvia direttamente il file picker
+    if (reviewPhotoInput) {
+        console.log('Preparazione file input...');
+        // Prepara il file input
+        reviewPhotoInput.value = "";
+        reviewPhotoInput.setAttribute('accept', 'image/*');
+        reviewPhotoInput.removeAttribute('capture');
+        
+        console.log('Tentativo di aprire file picker...');
+        
+        // Avvia direttamente il file picker
+        try {
+            reviewPhotoInput.click();
+            console.log('File picker cliccato con successo');
+            logDebug('File picker avviato direttamente dal bottone principale');
+        } catch (error) {
+            console.error('Errore nell\'aprire file picker:', error);
+            logError('Errore nell\'aprire file picker', error);
+        }
+    } else {
+        console.error('reviewPhotoInput non trovato nel DOM');
+        console.log('Tutti gli input nel DOM:');
+        document.querySelectorAll('input').forEach(input => {
+            console.log('- Input:', {
+                id: input.id,
+                type: input.type,
+                className: input.className
+            });
+        });
+        logError('Input reviewPhoto non trovato');
+        alert('Errore: sistema di caricamento foto non disponibile');
+    }
+}
+
 // --- Gestione caricamento, anteprima e selezione area foto per AI ---
 document.addEventListener('DOMContentLoaded', function () {
-    // Registrazione Service Worker per PWA (spostato dal template per rispettare CSP)
+    console.log('=== SCRIPT CARICATO - DOMContentLoaded ===');
+    console.log('User agent:', navigator.userAgent);
+    console.log('Current page URL:', window.location.href);
+    console.log('Current page path:', window.location.pathname);
+    
+    // Debug: verifica se siamo in modalità PWA/Service Worker
+    console.log('=== DEBUG PWA ===');
+    console.log('Navigator serviceWorker:', 'serviceWorker' in navigator);
+    console.log('Service Worker controller:', navigator.serviceWorker?.controller?.scriptURL || 'none');
+    console.log('Scripts.js caricato:', new Date().toISOString());
+    console.log('Scripts.js URL:', document.currentScript?.src || 'unknown');
+    
+    // Verifica se il file è servito dalla cache
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        console.log('ATTENZIONE: File probabilmente servito da Service Worker cache');
+    } else {
+        console.log('File servito direttamente da network');
+    }
+    
+    // Registrazione Service Worker per PWA con strategie intelligenti
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
             navigator.serviceWorker.register('/service-worker.js')
@@ -28,23 +248,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
         });
     }
-    
-    // Reinizializza listener dopo navigazione del browser
-    window.addEventListener('popstate', function() {
-        setTimeout(() => {
-            initializeReviewButton();
-        }, 100);
-    });
-    
-    // Listener per cambio di visibilità della pagina (PWA)
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) {
-            // La pagina è tornata visibile, reinizializza
-            setTimeout(() => {
-                initializeReviewButton();
-            }, 100);
-        }
-    });
+    console.log('[DEBUG] Service Worker attivato con strategie intelligenti');
     
     // Controlli di compatibilità browser
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -53,30 +257,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const supportsFileReader = typeof FileReader !== 'undefined';
     
     // NOTA: Rimosso tracking birre duplicate per permettere repository di recensioni multiple
-    
-    // Logging per debug e monitoraggio
-    function logDebug(message, data = null) {
-        if (data) {
-            console.log(`[Photo Crop Debug] ${message}:`, data);
-        } else {
-            console.log(`[Photo Crop Debug] ${message}`);
-        }
-    }
-    
-    function logError(message, error = null) {
-        console.error(`[Photo Crop Error] ${message}`);
-        if (error) console.error(error);
-    }
-    
-    // Monitoraggio performance
-    function logPerformance(operation, startTime) {
-        const duration = performance.now() - startTime;
-        logDebug(`Performance ${operation}`, { duration: `${duration.toFixed(2)}ms` });
-        
-        if (duration > 1000) {
-            logError(`Performance issue: ${operation} took ${duration.toFixed(2)}ms`);
-        }
-    }
     
     // Debouncing utility per evitare troppe chiamate
     function debounce(func, wait) {
@@ -734,59 +914,39 @@ document.addEventListener('DOMContentLoaded', function () {
         fileReader: supportsFileReader
     });
     
+    // Pulizia preventiva di eventuali dati sessione molto vecchi all'avvio
+    cleanupOldSessionData();
+    
     // Controllo se ci sono dati AI in sessione al caricamento della pagina
     checkForSessionData();
     
     // Inizializza la pulizia dei dati di sessione quando l'utente naviga via
     clearSessionDataOnNavigation();
     
-    // Collegamento bottone principale "Pubblica una recensione" al caricamento foto
-    function initializeReviewButton() {
-        const startReviewBtn = document.getElementById('start-review-process');
-        if (startReviewBtn) {
-            // Rimuovi eventuali listener precedenti per evitare duplicati
-            startReviewBtn.removeEventListener('click', handleReviewButtonClick);
-            startReviewBtn.addEventListener('click', handleReviewButtonClick);
-            logDebug('Event listener collegato al bottone principale recensione');
-            return true;
+    // Aggiungi listener globale per pulizia dati AI su navigazione
+    addGlobalNavigationListeners();
+    
+    // Inizializza il bottone con retry multipli
+    function initWithRetry(attemptNumber = 1, maxAttempts = 5) {
+        console.log(`Tentativo inizializzazione bottone: ${attemptNumber}/${maxAttempts}`);
+        
+        if (initializeReviewButton()) {
+            console.log(`Inizializzazione riuscita al tentativo ${attemptNumber}`);
+            return;
+        }
+        
+        if (attemptNumber < maxAttempts) {
+            const delay = attemptNumber * 200; // Delay incrementale: 200ms, 400ms, 600ms, 800ms
+            console.log(`Riprovo inizializzazione tra ${delay}ms...`);
+            setTimeout(() => {
+                initWithRetry(attemptNumber + 1, maxAttempts);
+            }, delay);
         } else {
-            logDebug('Bottone start-review-process non trovato (normale se non in pagina welcome)');
-            return false;
+            console.log('Tutti i tentativi di inizializzazione falliti - probabilmente non siamo nella pagina welcome');
         }
     }
     
-    function handleReviewButtonClick(e) {
-        e.preventDefault();
-        logDebug('=== BOTTONE PRINCIPALE CLICCATO ===');
-        logDebug('Bottone principale "Pubblica una recensione" cliccato');
-        
-        // Pulisci eventuali dati AI precedenti dalla sessione
-        clearPreviousSessionData();
-        
-        // Avvia direttamente il file picker
-        const reviewPhotoInput = document.getElementById('reviewPhoto');
-        if (reviewPhotoInput) {
-            // Prepara il file input
-            reviewPhotoInput.value = "";
-            reviewPhotoInput.setAttribute('accept', 'image/*');
-            reviewPhotoInput.removeAttribute('capture');
-            
-            // Avvia direttamente il file picker
-            reviewPhotoInput.click();
-            logDebug('File picker avviato direttamente dal bottone principale');
-        } else {
-            logError('Input reviewPhoto non trovato');
-            alert('Errore: sistema di caricamento foto non disponibile');
-        }
-    }
-    
-    // Inizializza il bottone e riprova se non trovato
-    if (!initializeReviewButton()) {
-        // Riprova dopo un breve delay per gestire contenuto caricato dinamicamente
-        setTimeout(() => {
-            initializeReviewButton();
-        }, 100);
-    }
+    initWithRetry();
     
     // Mostra suggerimenti appropriati in base al dispositivo
     const cropNoteDesktop = document.getElementById('crop-note');
@@ -820,10 +980,16 @@ document.addEventListener('DOMContentLoaded', function () {
         // Mostra il modal solo se è stato selezionato e caricato un file immagine valido
         if (photoModal && modalReadyForShow) {
             photoModal.style.display = 'flex';
+            
+            // Fix per iOS: gestisci l'altezza del viewport dinamicamente
+            adjustModalHeightForIOS();
+            
             document.body.style.overflow = 'hidden';
         }
     }
     function closeModal() {
+        logDebug('=== CHIUSURA MODAL ===');
+        
         if (photoModal) {
             photoModal.style.display = 'none';
             document.body.style.overflow = '';
@@ -846,12 +1012,17 @@ document.addEventListener('DOMContentLoaded', function () {
             loadingOverlay.classList.remove('show');
         }
         
-        // Se non è in corso un processo di recensione, ripristina l'interfaccia
-        const reviewProcess = document.getElementById('review-process');
-        if (!reviewProcess || reviewProcess.style.display === 'none') {
-            resetReviewInterface();
-            logDebug('Interfaccia ripristinata dopo chiusura modal');
-        }
+        // SEMPRE pulisci i dati AI dalla sessione quando si chiude il modal
+        logDebug('Pulizia automatica dati AI dalla sessione per chiusura modal');
+        clearPreviousSessionData().then(() => {
+            logDebug('Dati AI puliti dalla sessione');
+        }).catch(error => {
+            logError('Errore nella pulizia dati AI:', error);
+        });
+        
+        // SEMPRE ripristina l'interfaccia principale (pulsante visibile)
+        resetReviewInterface();
+        logDebug('Interfaccia principale ripristinata dopo chiusura modal');
     }
     if (closePhotoModal) {
         closePhotoModal.addEventListener('click', closeModal);
@@ -1076,19 +1247,34 @@ document.addEventListener('DOMContentLoaded', function () {
             // Non disegniamo l'immagine sul canvas, usiamo il canvas solo per l'overlay
             ctx.restore();
             
-            // Se c'è una selezione crop attiva, disegnala (solo se non stiamo mostrando immagine croppata)
-            if (isDragging || (cropRect && cropRect.w > 0 && cropRect.h > 0)) {
+            // Se è attivo il crop mode (touch o desktop), applica l'overlay di trasparenza con finestra di selezione
+            if ((touchCropMode || isDragging) && (isDragging || (cropRect && cropRect.w > 0 && cropRect.h > 0))) {
                 ctx.save();
-                ctx.strokeStyle = '#FFD600';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([6, 4]);
                 
+                // Disegna overlay di trasparenza su tutta l'immagine
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; // Overlay scuro per contrasto
+                ctx.fillRect(0, 0, photoCanvas.width, photoCanvas.height);
+                
+                // Calcola area di selezione
                 const rectX = isDragging ? Math.min(startX, endX) : cropRect.x;
                 const rectY = isDragging ? Math.min(startY, endY) : cropRect.y;
                 const rectW = isDragging ? Math.abs(endX - startX) : cropRect.w;
                 const rectH = isDragging ? Math.abs(endY - startY) : cropRect.h;
                 
+                // Rimuovi l'overlay dall'area selezionata usando globalCompositeOperation
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+                ctx.fillRect(rectX, rectY, rectW, rectH);
+                
+                // Ripristina modalità di composizione normale
+                ctx.globalCompositeOperation = 'source-over';
+                
+                // Disegna il bordo della selezione
+                ctx.strokeStyle = '#FFD600';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 4]);
                 ctx.strokeRect(rectX, rectY, rectW, rectH);
+                
                 ctx.restore();
             }
         }
@@ -1190,13 +1376,75 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Touch events per mobile: drag e pinch-to-zoom
+        // Touch events per mobile: drag, pinch-to-zoom e crop selection
+        let touchCropMode = false;
+        let touchCropStart = null;
+        
         photoCanvas.addEventListener('touchstart', function (e) {
+            e.preventDefault(); // Previeni scroll su iOS
+            
             if (e.touches.length === 1) {
-                draggingImg = true;
-                imgStartX = e.touches[0].clientX;
-                imgStartY = e.touches[0].clientY;
+                const touch = e.touches[0];
+                const rect = photoCanvas.getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                
+                // Se c'è già un'immagine croppata, non permettere ulteriori crop
+                if (croppedImageForAI) {
+                    return;
+                }
+                
+                // Inizia crop mode se tocco prolungato (long press)
+                const longPressTimer = setTimeout(() => {
+                    touchCropMode = true;
+                    
+                    // Converti coordinate touch in coordinate canvas
+                    const scaleX = photoCanvas.width / rect.width;
+                    const scaleY = photoCanvas.height / rect.height;
+                    
+                    touchCropStart = {
+                        x: touchX * scaleX,
+                        y: touchY * scaleY
+                    };
+                    
+                    // Visual feedback per crop mode - ora gestito dal canvas overlay
+                    photoCanvas.style.cursor = 'crosshair';
+                    photoCanvas.classList.add('active-crop');
+                    
+                    // Vibrazione tattile se supportata
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                    
+                    console.log('Touch crop mode attivato');
+                }, 500); // 500ms per long press
+                
+                // Se l'utente muove il dito prima del long press, annulla crop mode
+                const cancelCropMode = () => {
+                    clearTimeout(longPressTimer);
+                    touchCropMode = false;
+                };
+                
+                // Fallback al drag normale se non è crop mode
+                setTimeout(() => {
+                    if (!touchCropMode) {
+                        draggingImg = true;
+                        imgStartX = touch.clientX;
+                        imgStartY = touch.clientY;
+                    }
+                }, 100);
+                
+                // Salva i listener per la pulizia
+                photoCanvas._cancelCropMode = cancelCropMode;
+                photoCanvas._longPressTimer = longPressTimer;
+                
             } else if (e.touches.length === 2) {
+                // Reset crop mode su pinch
+                touchCropMode = false;
+                if (photoCanvas._longPressTimer) {
+                    clearTimeout(photoCanvas._longPressTimer);
+                }
+                
                 draggingImg = false;
                 // Pinch zoom
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -1208,8 +1456,31 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
             }
         });
+        
         photoCanvas.addEventListener('touchmove', function (e) {
-            if (draggingImg && e.touches.length === 1) {
+            e.preventDefault();
+            
+            if (touchCropMode && e.touches.length === 1 && touchCropStart) {
+                // Modalità crop: disegna il rettangolo di selezione
+                const touch = e.touches[0];
+                const rect = photoCanvas.getBoundingClientRect();
+                const scaleX = photoCanvas.width / rect.width;
+                const scaleY = photoCanvas.height / rect.height;
+                
+                const currentX = (touch.clientX - rect.left) * scaleX;
+                const currentY = (touch.clientY - rect.top) * scaleY;
+                
+                // Simula il comportamento di isDragging per il crop
+                startX = touchCropStart.x;
+                startY = touchCropStart.y;
+                endX = currentX;
+                endY = currentY;
+                isDragging = true;
+                
+                drawImageOnCanvas();
+                
+            } else if (draggingImg && e.touches.length === 1) {
+                // Modalità drag normale
                 let dx = e.touches[0].clientX - imgStartX;
                 let dy = e.touches[0].clientY - imgStartY;
                 imgStartX = e.touches[0].clientX;
@@ -1239,9 +1510,56 @@ document.addEventListener('DOMContentLoaded', function () {
                 drawImageOnCanvas();
             }
         });
+        
         photoCanvas.addEventListener('touchend', function (e) {
-            draggingImg = false;
-            lastDist = null;
+            e.preventDefault();
+            
+            // Pulisci timer se presente
+            if (photoCanvas._longPressTimer) {
+                clearTimeout(photoCanvas._longPressTimer);
+            }
+            
+            if (touchCropMode && touchCropStart) {
+                // Completa il crop
+                isDragging = false;
+                
+                const rect = photoCanvas.getBoundingClientRect();
+                const scaleX = photoCanvas.width / rect.width;
+                const scaleY = photoCanvas.height / rect.height;
+                
+                cropRect = {
+                    x: Math.min(startX, endX),
+                    y: Math.min(startY, endY),
+                    w: Math.abs(endX - startX),
+                    h: Math.abs(endY - startY)
+                };
+                
+                photoCanvas.classList.remove('active-crop');
+                photoCanvas.style.cursor = '';
+                
+                // Applica il crop se la selezione è sufficientemente grande
+                if (cropRect.w > 20 && cropRect.h > 20) {
+                    console.log('Touch crop completato - applicazione automatica');
+                    applyCrop();
+                    
+                    // Vibrazione di conferma
+                    if (navigator.vibrate) {
+                        navigator.vibrate([50, 100, 50]);
+                    }
+                } else {
+                    console.log('Touch crop troppo piccolo - annullato');
+                    drawImageOnCanvas();
+                }
+                
+                // Reset crop mode
+                touchCropMode = false;
+                touchCropStart = null;
+                
+            } else {
+                // Fine drag normale
+                draggingImg = false;
+                lastDist = null;
+            }
         });
 
         // Funzione per confermare e applicare il crop
@@ -1720,14 +2038,20 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
         
-        // Aggiungi listener ai link del menu per reinizializzare dopo la navigazione
+        // Aggiungi listener ai link del menu per pulizia dati AI
         const menuLinks = menu.querySelectorAll('a');
         menuLinks.forEach(link => {
             link.addEventListener('click', function() {
-                // Reinizializza i listener dopo un breve delay per permettere il caricamento della pagina
-                setTimeout(() => {
-                    initializeReviewButton();
-                }, 200);
+                logDebug('Click su link menu, pulizia dati AI');
+                
+                // Pulisci i dati AI dalla sessione prima della navigazione
+                clearPreviousSessionData().then(() => {
+                    logDebug('Dati AI puliti per navigazione menu');
+                }).catch(error => {
+                    logError('Errore pulizia dati AI per navigazione:', error);
+                });
+                
+                // RIMOSSO: La reinizializzazione sarà gestita dal DOMContentLoaded della nuova pagina
             });
         });
     }
@@ -1883,12 +2207,33 @@ function validatePasswordMatch() {
         const result = await response.json();
         
         if (result.hasData && result.data) {
-            console.log('[checkForSessionData] Dati AI trovati in sessione, ripristino interfaccia', {
+            // Controlla se i dati sono troppo vecchi (più di 1 ora)
+            const sessionTimestamp = new Date(result.timestamp);
+            const now = new Date();
+            const maxAge = 60 * 60 * 1000; // 1 ora in millisecondi
+            const isExpired = (now - sessionTimestamp) > maxAge;
+            
+            console.log('[checkForSessionData] Dati AI trovati in sessione', {
                 bottlesCount: result.data.bottles?.length || 0,
-                timestamp: result.timestamp
+                timestamp: result.timestamp,
+                age: Math.round((now - sessionTimestamp) / 60000) + ' minuti',
+                isExpired: isExpired
             });
             
-            // Ripristina l'interfaccia con i dati AI
+            if (isExpired) {
+                console.log('[checkForSessionData] Dati sessione scaduti, pulizia automatica');
+                // Pulisci i dati scaduti
+                try {
+                    await fetch('/review/clear-session-data', { method: 'POST' });
+                    console.log('[checkForSessionData] Dati sessione scaduti rimossi');
+                } catch (cleanupError) {
+                    console.error('[checkForSessionData] Errore nella pulizia dati scaduti:', cleanupError);
+                }
+                // Non ripristinare l'interfaccia, mantieni il pulsante principale visibile
+                return;
+            }
+            
+            // Ripristina l'interfaccia con i dati AI (solo se non scaduti)
             restoreInterfaceFromSessionData(result.data);
         } else {
             console.log('[checkForSessionData] Nessun dato AI in sessione');
@@ -1905,30 +2250,50 @@ function restoreInterfaceFromSessionData(aiData) {
     console.log('[restoreInterfaceFromSessionData] Ripristino interfaccia con dati AI');
     
     try {
-        // Nascondi il bottone principale e mostra l'interfaccia di recensione
-        const startReviewBtn = document.getElementById('start-review-process');
-        if (startReviewBtn) {
-            startReviewBtn.style.display = 'none';
-        }
-        
-        // Mostra l'interfaccia di recensione
-        const reviewForm = document.getElementById('review-form');
-        if (reviewForm) {
-            reviewForm.style.display = 'block';
-        }
-        
-        // Se ci sono birre rilevate, mostrale
+        // Solo se ci sono birre valide da recensire, nascondi il bottone principale
         if (aiData.bottles && aiData.bottles.length > 0) {
+            console.log('[restoreInterfaceFromSessionData] Birre trovate, nascondo pulsante principale e mostro interfaccia recensione');
+            
+            // Nascondi il bottone principale e mostra l'interfaccia di recensione
+            const startReviewBtn = document.getElementById('start-review-process');
+            if (startReviewBtn) {
+                startReviewBtn.style.display = 'none';
+            }
+            
+            // Mostra l'interfaccia di recensione
+            const reviewForm = document.getElementById('review-form');
+            if (reviewForm) {
+                reviewForm.style.display = 'block';
+            }
+            
+            // Mostra le birre rilevate
             displayBeersFromSession(aiData);
-        } else if (aiData.errorType === 'NO_BEER_DETECTED') {
-            // Mostra il messaggio di warning per "nessuna birra rilevata"
-            showAlert('warning', 'Attenzione: Non sono state rilevate bottiglie di birra nell\'immagine. Puoi comunque procedere con la recensione manuale.');
+            
+        } else {
+            console.log('[restoreInterfaceFromSessionData] Nessuna birra valida trovata, mantengo pulsante principale visibile');
+            
+            // Mantieni il pulsante principale visibile
+            const startReviewBtn = document.getElementById('start-review-process');
+            if (startReviewBtn) {
+                startReviewBtn.style.display = 'inline-flex';
+            }
+            
+            // Se è esplicitamente "NO_BEER_DETECTED", mostra un warning
+            if (aiData.errorType === 'NO_BEER_DETECTED') {
+                showWarningMessage('L\'AI non ha rilevato bottiglie di birra nell\'ultima immagine analizzata. Carica una nuova immagine per procedere.');
+            }
         }
         
         console.log('[restoreInterfaceFromSessionData] Interfaccia ripristinata con successo');
         
     } catch (error) {
         console.error('[restoreInterfaceFromSessionData] Errore nel ripristino interfaccia:', error);
+        
+        // In caso di errore, assicurati che il pulsante sia visibile
+        const startReviewBtn = document.getElementById('start-review-process');
+        if (startReviewBtn) {
+            startReviewBtn.style.display = 'inline-flex';
+        }
     }
 }
 
@@ -1976,14 +2341,203 @@ async function clearPreviousSessionData() {
     try {
         console.log('[clearPreviousSessionData] Pulizia dati AI precedenti dalla sessione');
         
+        // Prova prima con sendBeacon se disponibile (più affidabile durante navigazione)
+        if (navigator.sendBeacon) {
+            try {
+                const success = navigator.sendBeacon('/review/clear-session-data', JSON.stringify({}));
+                if (success) {
+                    console.log('[clearPreviousSessionData] Dati AI precedenti puliti con sendBeacon');
+                    return;
+                } else {
+                    console.log('[clearPreviousSessionData] sendBeacon fallito, fallback a fetch');
+                }
+            } catch (beaconError) {
+                console.log('[clearPreviousSessionData] sendBeacon non disponibile, fallback a fetch');
+            }
+        }
+        
+        // Fallback con fetch normale (solo se sendBeacon non disponibile o fallito)
         const response = await fetch('/review/ai-session-data', {
             method: 'DELETE'
         });
         
         if (response.ok) {
-            console.log('[clearPreviousSessionData] Dati AI precedenti puliti con successo');
+            console.log('[clearPreviousSessionData] Dati AI precedenti puliti con fetch');
         }
     } catch (error) {
         console.error('[clearPreviousSessionData] Errore nella pulizia dati precedenti:', error);
     }
+}
+
+/**
+ * Pulizia preventiva di dati sessione molto vecchi all'avvio dell'applicazione
+ */
+async function cleanupOldSessionData() {
+    try {
+        console.log('[cleanupOldSessionData] Controllo pulizia dati sessione vecchi');
+        
+        const response = await fetch('/review/ai-session-data');
+        if (!response.ok) {
+            return; // Nessun dato o errore di connessione
+        }
+        
+        const result = await response.json();
+        
+        if (result.hasData && result.timestamp) {
+            const sessionTimestamp = new Date(result.timestamp);
+            const now = new Date();
+            const maxAge = 60 * 60 * 1000; // 1 ora in millisecondi
+            const isVeryOld = (now - sessionTimestamp) > maxAge;
+            
+            if (isVeryOld) {
+                console.log('[cleanupOldSessionData] Rilevati dati sessione molto vecchi, pulizia automatica', {
+                    timestamp: result.timestamp,
+                    age: Math.round((now - sessionTimestamp) / 60000) + ' minuti'
+                });
+                
+                // Pulisci i dati molto vecchi
+                const cleanupResponse = await fetch('/review/clear-session-data', { method: 'POST' });
+                
+                if (cleanupResponse.ok) {
+                    console.log('[cleanupOldSessionData] Dati sessione vecchi rimossi con successo');
+                } else {
+                    console.error('[cleanupOldSessionData] Errore nella pulizia:', cleanupResponse.status);
+                }
+            } else {
+                console.log('[cleanupOldSessionData] Dati sessione ancora validi, nessuna pulizia necessaria');
+            }
+        } else {
+            console.log('[cleanupOldSessionData] Nessun dato sessione da pulire');
+        }
+    } catch (error) {
+        console.error('[cleanupOldSessionData] Errore nella pulizia preventiva:', error);
+    }
+}
+
+/**
+ * Aggiunge listener globali per pulire i dati AI su navigazione
+ */
+function addGlobalNavigationListeners() {
+    // Listener per tutti i link della pagina (eccetto quelli del modal)
+    document.addEventListener('click', function(e) {
+        const clickedElement = e.target;
+        
+        // Se è un link (a, button che naviga, o elemento con data-href)
+        const isNavigationElement = 
+            clickedElement.tagName === 'A' ||
+            (clickedElement.tagName === 'BUTTON' && clickedElement.type === 'submit') ||
+            clickedElement.hasAttribute('data-href') ||
+            clickedElement.closest('form') ||
+            (clickedElement.tagName === 'BUTTON' && clickedElement.onclick);
+        
+        // Escludi elementi del modal e del sistema di recensione
+        const isModalElement = 
+            clickedElement.closest('#photo-modal') ||
+            clickedElement.closest('#review-process') ||
+            clickedElement.id === 'start-review-process' ||
+            clickedElement.classList.contains('star') ||
+            clickedElement.classList.contains('btn-toggle-detailed');
+        
+        if (isNavigationElement && !isModalElement) {
+            logDebug('Rilevata navigazione, pulizia automatica dati AI', {
+                element: clickedElement.tagName,
+                id: clickedElement.id,
+                class: clickedElement.className
+            });
+            
+            // Per navigazione immediata, usa sendBeacon (più affidabile)
+            try {
+                navigator.sendBeacon('/review/clear-session-data', JSON.stringify({}));
+                logDebug('Dati AI puliti via sendBeacon per navigazione immediata');
+            } catch (error) {
+                logDebug('SendBeacon non disponibile, pulizia normale');
+                // Fallback: pulizia asincrona (ma potrebbe fallire se la pagina si scarica)
+                clearPreviousSessionData().catch(err => {
+                    logError('Errore pulizia dati AI per navigazione globale:', err);
+                });
+            }
+        }
+    });
+    
+    logDebug('Listener globali per pulizia navigazione attivati');
+}
+
+// === FUNZIONI PER FIX iOS MODAL ===
+
+// Funzione per gestire l'altezza del modal su iOS
+function adjustModalHeightForIOS() {
+    // Controlla se siamo su iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    
+    if (isIOS) {
+        // Calcola l'altezza reale del viewport considerando la UI del browser
+        const realViewportHeight = window.innerHeight;
+        const documentHeight = document.documentElement.clientHeight;
+        
+        console.log('[iOS Fix] Viewport heights:', {
+            innerHeight: realViewportHeight,
+            documentHeight: documentHeight,
+            visualViewport: window.visualViewport?.height
+        });
+        
+        // Usa l'altezza più piccola per assicurarsi che il contenuto sia visibile
+        const safeHeight = Math.min(realViewportHeight, documentHeight);
+        
+        // Applica l'altezza al modal
+        const photoModal = document.getElementById('photo-modal');
+        const modalContainer = photoModal?.querySelector('.photo-modal-container');
+        
+        if (modalContainer && window.innerWidth <= 480) {
+            // Solo su mobile, imposta un'altezza fissa che tiene conto della UI iOS
+            modalContainer.style.height = `${safeHeight}px`;
+            modalContainer.style.maxHeight = `${safeHeight}px`;
+            
+            console.log('[iOS Fix] Modal height adjusted to:', safeHeight + 'px');
+            
+            // Assicurati che il footer sia sempre visibile
+            const footer = modalContainer.querySelector('.photo-modal-footer');
+            if (footer) {
+                footer.style.position = 'sticky';
+                footer.style.bottom = '0';
+                footer.style.zIndex = '100';
+                footer.style.backgroundColor = '#ffffff';
+            }
+        }
+        
+        // Ascolta i cambiamenti del Visual Viewport (iOS 13+)
+        if (window.visualViewport) {
+            const handleViewportResize = function() {
+                const newHeight = Math.min(window.visualViewport.height, window.innerHeight);
+                if (modalContainer && window.innerWidth <= 480) {
+                    modalContainer.style.height = `${newHeight}px`;
+                    modalContainer.style.maxHeight = `${newHeight}px`;
+                    console.log('[iOS Fix] Modal height updated to:', newHeight + 'px');
+                }
+            };
+            
+            // Rimuovi listener esistenti per evitare duplicati
+            window.visualViewport.removeEventListener('resize', handleViewportResize);
+            window.visualViewport.addEventListener('resize', handleViewportResize);
+        }
+    }
+}
+
+// Gestione orientamento dispositivo per iOS
+function handleOrientationChange() {
+    // Su iOS, ritarda la regolazione per permettere al browser di aggiornare la UI
+    setTimeout(adjustModalHeightForIOS, 150);
+}
+
+// Aggiungi listener per i cambiamenti di orientamento solo una volta
+if (!window.iosFixListenersAdded) {
+    window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('resize', function() {
+        // Solo su mobile
+        if (window.innerWidth <= 480) {
+            adjustModalHeightForIOS();
+        }
+    });
+    
+    window.iosFixListenersAdded = true;
+    console.log('[iOS Fix] Event listeners registered');
 }

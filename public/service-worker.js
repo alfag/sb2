@@ -1,29 +1,29 @@
-const CACHE_NAME = 'sb2-cache-v3';
+const CACHE_NAME = 'sb2-cache-v6-smart-strategies';
 const OFFLINE_URL = '/offline';
 
-// File essenziali da cachare
+// File essenziali da cachare immediatamente
 const STATIC_FILES = [
   '/',
   '/offline',
   '/css/styles.css',
   '/css/toggle.css',
-  '/js/scripts.js',
   '/manifest.json',
   '/images/visibility.svg',
   '/images/visibility_off.svg'
+  // NOTA: JS esclusi dal pre-cache per essere sempre fresh
 ];
 
-// Installazione - cache solo i file essenziali
+// Installazione - cache solo i file essenziali (esclusi JS)
 self.addEventListener('install', event => {
-  console.log('[SW] Installing Service Worker v3');
+  console.log('[SW] Installing Service Worker v6 with smart strategies');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('[SW] Caching essential files');
+        console.log('[SW] Caching essential files (excluding JS)');
         return cache.addAll(STATIC_FILES);
       })
       .then(() => {
-        console.log('[SW] All essential files cached successfully');
+        console.log('[SW] Essential files cached successfully');
         return self.skipWaiting();
       })
       .catch(error => {
@@ -34,7 +34,7 @@ self.addEventListener('install', event => {
 
 // Attivazione - pulisci cache vecchie
 self.addEventListener('activate', event => {
-  console.log('[SW] Activating Service Worker v3');
+  console.log('[SW] Activating Service Worker v6');
   event.waitUntil(
     caches.keys()
       .then(cacheNames => {
@@ -48,39 +48,166 @@ self.addEventListener('activate', event => {
         );
       })
       .then(() => {
-        console.log('[SW] Service Worker activated and controlling all tabs');
+        console.log('[SW] Service Worker activated with smart strategies');
         return self.clients.claim();
       })
   );
 });
 
-// Strategia intelligente di caching
+// Strategia intelligente differenziata per tipo di risorsa
 self.addEventListener('fetch', event => {
   const { request } = event;
+  const url = new URL(request.url);
   
   // Ignora richieste non HTTP/HTTPS e richieste POST/PUT/DELETE
   if (!request.url.startsWith('http') || request.method !== 'GET') {
     return;
   }
-  
-  // Cache-first per risorse statiche
+
+  // STRATEGIA 1: JavaScript - SEMPRE FRESH (Network Only)
+  if (isJavaScriptFile(request.url)) {
+    console.log('[SW] JS file - Network Only (always fresh):', request.url);
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          console.log('[SW] JS served fresh from network:', request.url);
+          return response;
+        })
+        .catch(() => {
+          console.log('[SW] JS not available offline:', request.url);
+          return new Response('JavaScript not available offline', { 
+            status: 503,
+            statusText: 'Service Unavailable'
+          });
+        })
+    );
+    return;
+  }
+
+  // STRATEGIA 2: CSS e Immagini - Cache First con Background Update
+  if (isCSSOrImageFile(request.url)) {
+    event.respondWith(
+      caches.match(request)
+        .then(cachedResponse => {
+          // Se trovato in cache, servilo immediatamente
+          if (cachedResponse) {
+            console.log('[SW] CSS/Image served from cache:', request.url);
+            
+            // Background update: aggiorna la cache in background
+            fetch(request)
+              .then(freshResponse => {
+                if (freshResponse.status === 200) {
+                  caches.open(CACHE_NAME)
+                    .then(cache => {
+                      console.log('[SW] CSS/Image cache updated in background:', request.url);
+                      cache.put(request, freshResponse.clone());
+                    });
+                }
+              })
+              .catch(() => {
+                console.log('[SW] Background update failed for:', request.url);
+              });
+            
+            return cachedResponse;
+          }
+          
+          // Se non in cache, scarica e crea cache
+          return fetch(request)
+            .then(response => {
+              if (response.status === 200) {
+                const responseToCache = response.clone();
+                caches.open(CACHE_NAME)
+                  .then(cache => {
+                    console.log('[SW] CSS/Image cached for first time:', request.url);
+                    cache.put(request, responseToCache);
+                  });
+              }
+              return response;
+            });
+        })
+        .catch(error => {
+          console.error('[SW] Error serving CSS/Image:', error);
+          return new Response('Resource not available offline', { status: 503 });
+        })
+    );
+    return;
+  }
+
+  // STRATEGIA 3: HTML Pages - Network First con Cache Fallback
+  if (isHTMLRequest(request)) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          // Se la risposta è OK, memorizzala in cache per uso offline
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                console.log('[SW] HTML page cached:', request.url);
+                cache.put(request, responseClone);
+              })
+              .catch(error => console.log('[SW] HTML cache error:', error));
+          }
+          console.log('[SW] HTML served fresh from network:', request.url);
+          return response;
+        })
+        .catch(() => {
+          // Se la rete non è disponibile, prova dalla cache
+          console.log('[SW] Network failed, trying cache for HTML:', request.url);
+          return caches.match(request)
+            .then(cachedResponse => {
+              if (cachedResponse) {
+                console.log('[SW] HTML served from cache (offline):', request.url);
+                return cachedResponse;
+              }
+              // Se non è in cache, mostra la pagina offline
+              console.log('[SW] Serving offline page for:', request.url);
+              return caches.match(OFFLINE_URL);
+            });
+        })
+    );
+    return;
+  }
+
+  // STRATEGIA 4: API Calls - Network Only (no cache)
+  if (isAPICall(request.url)) {
+    console.log('[SW] API call - Network Only:', request.url);
+    event.respondWith(
+      fetch(request)
+        .catch(() => {
+          return new Response(JSON.stringify({ 
+            error: 'API not available offline',
+            offline: true 
+          }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        })
+    );
+    return;
+  }
+
+  // STRATEGIA 5: Altri file statici - Cache First
   if (isStaticResource(request.url)) {
     event.respondWith(
       caches.match(request)
-        .then(response => {
-          if (response) {
+        .then(cachedResponse => {
+          if (cachedResponse) {
             console.log('[SW] Static resource served from cache:', request.url);
-            return response;
+            return cachedResponse;
           }
+          
           return fetch(request)
-            .then(fetchResponse => {
-              if (fetchResponse.status === 200) {
-                const responseToCache = fetchResponse.clone();
+            .then(response => {
+              if (response.status === 200) {
+                const responseToCache = response.clone();
                 caches.open(CACHE_NAME)
-                  .then(cache => cache.put(request, responseToCache))
-                  .catch(error => console.log('[SW] Cache put error:', error));
+                  .then(cache => {
+                    console.log('[SW] Static resource cached:', request.url);
+                    cache.put(request, responseToCache);
+                  });
               }
-              return fetchResponse;
+              return response;
             });
         })
         .catch(error => {
@@ -88,55 +215,28 @@ self.addEventListener('fetch', event => {
           return new Response('Resource not available offline', { status: 503 });
         })
     );
+    return;
   }
-  // Network-first per pagine dinamiche
-  else {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          // Se la risposta è OK e è una pagina HTML, memorizzala in cache
-          if (response.status === 200 && isHTMLRequest(request)) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => cache.put(request, responseClone))
-              .catch(error => console.log('[SW] Cache put error:', error));
-          }
-          return response;
-        })
-        .catch(() => {
-          // Se la rete non è disponibile, prova dalla cache
-          return caches.match(request)
-            .then(response => {
-              if (response) {
-                console.log('[SW] Page served from cache (offline):', request.url);
-                return response;
-              }
-              // Se è una richiesta HTML e non è in cache, mostra la pagina offline
-              if (isHTMLRequest(request)) {
-                console.log('[SW] Serving offline page for:', request.url);
-                return caches.match(OFFLINE_URL);
-              }
-              // Per altre risorse, restituisci un errore 503
-              throw new Error('Resource not available offline');
-            })
-            .catch(error => {
-              console.error('[SW] Error serving offline content:', error);
-              return new Response('Service Unavailable', { status: 503 });
-            });
-        })
-    );
-  }
+
+  // Default: passa attraverso senza caching
+  console.log('[SW] Default strategy - pass through:', request.url);
 });
 
-// Funzioni helper
-function isStaticResource(url) {
+// Funzioni helper per identificare i tipi di file
+function isJavaScriptFile(url) {
+  return url.includes('.js') || url.includes('/js/');
+}
+
+function isCSSOrImageFile(url) {
   return url.includes('/css/') || 
-         url.includes('/js/') || 
          url.includes('/images/') || 
-         url.includes('/manifest.json') ||
+         url.endsWith('.css') ||
          url.endsWith('.svg') ||
          url.endsWith('.png') ||
          url.endsWith('.jpg') ||
+         url.endsWith('.jpeg') ||
+         url.endsWith('.gif') ||
+         url.endsWith('.webp') ||
          url.endsWith('.ico');
 }
 
@@ -145,12 +245,32 @@ function isHTMLRequest(request) {
          request.headers.get('Accept').includes('text/html');
 }
 
+function isAPICall(url) {
+  return url.includes('/api/') || 
+         url.includes('/review/') ||
+         url.includes('/auth/') ||
+         url.includes('/admin/');
+}
+
+function isStaticResource(url) {
+  return url.includes('/manifest.json') ||
+         url.endsWith('.woff') ||
+         url.endsWith('.woff2') ||
+         url.endsWith('.ttf') ||
+         url.endsWith('.eot');
+}
+
 // Gestione messaggi dal main thread per aggiornamenti
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('[SW] Received SKIP_WAITING message');
+    console.log('[SW] Received SKIP_WAITING message - updating immediately');
     self.skipWaiting();
   }
 });
 
-console.log('[SW] Service Worker v3 loaded and ready');
+console.log('[SW] Service Worker v6 loaded with smart caching strategies:');
+console.log('[SW] - JavaScript: Network Only (always fresh)');
+console.log('[SW] - CSS/Images: Cache First + Background Update');
+console.log('[SW] - HTML: Network First + Cache Fallback');
+console.log('[SW] - API: Network Only');
+console.log('[SW] - Static: Cache First');

@@ -186,6 +186,42 @@
   position: relative;
 }
 
+/* Canvas overlay per crop con feedback touch */
+.photo-canvas-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.photo-canvas-overlay.active-crop {
+  opacity: 1;
+  pointer-events: auto;
+  background: transparent;
+}
+
+/* Rimuovo la trasparenza dell'immagine perché ora è gestita dal canvas overlay */
+/* .photo-preview-image.crop-mode-active {
+  opacity: 0.6 !important;
+  transition: opacity 0.3s ease;
+} */
+
+/* Touch feedback per dispositivi mobili */
+@media (max-width: 768px) {
+  .photo-canvas-overlay.active-crop {
+    background: transparent;
+    box-shadow: none;
+  }
+  
+  /* Rimuovo anche la trasparenza mobile */
+  /* .photo-preview-image.crop-mode-active {
+    opacity: 0.5 !important;
+  } */
+}
+
 /* Header fisso del modal */
 .photo-modal-header {
   background: #ffffff;
@@ -571,18 +607,33 @@
 /* Responsive per mobile */
 @media (max-width: 480px) {
   .photo-modal-overlay {
-    padding: 5px;
+    padding: 0;
+    align-items: flex-start;
+    /* Fix per iOS: usa dvh se disponibile, altrimenti fallback a vh */
+    height: 100dvh;
+    height: 100vh;
   }
   
   .photo-modal-container {
-    width: 98vw;
-    height: 95vh;
-    border-radius: 8px;
+    width: 100vw;
+    /* Fix per iOS: calcola l'altezza tenendo conto della UI del browser */
+    height: 100dvh;
+    height: calc(100vh - env(keyboard-inset-height, 0px));
+    max-height: none;
+    border-radius: 0;
+    margin: 0;
+    /* Assicura che il contenuto sia sempre visibile */
+    min-height: 400px;
   }
   
   .photo-modal-header {
-    padding: 10px 12px;
-    height: 45px;
+    padding: 8px 12px;
+    height: 50px;
+    min-height: 50px;
+    /* Forza il header a rimanere in cima */
+    position: sticky;
+    top: 0;
+    z-index: 100;
   }
   
   .photo-modal-title {
@@ -591,24 +642,80 @@
   
   .back-arrow-btn,
   .close-modal-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 1.1em;
+    width: 36px;
+    height: 36px;
+    font-size: 1.2em;
+  }
+  
+  .photo-modal-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Limita l'altezza per lasciare spazio al footer */
+    max-height: calc(100% - 160px);
   }
   
   .photo-modal-footer {
-    padding: 10px 12px;
+    padding: 12px;
+    min-height: 80px;
+    flex-shrink: 0;
+    /* Forza il footer a rimanere in fondo e sempre visibile */
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    z-index: 100;
+    border-top: 2px solid #e5e5e5;
+    /* Aggiungi safe area per iPhone con notch/Dynamic Island */
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
   
   .crop-instructions-desktop,
   .crop-instructions-mobile {
-    font-size: 12px;
-    padding: 6px 10px;
+    font-size: 11px;
+    padding: 4px 8px;
+    margin-bottom: 8px;
   }
   
   .send-to-ai-btn {
-    padding: 10px 20px;
-    font-size: 13px;
+    padding: 14px 16px;
+    font-size: 16px;
+    font-weight: 700;
+    width: 100%;
+    /* Rendi il pulsante più prominente su mobile */
+    min-height: 48px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  }
+  
+  /* Aggiungi uno stile distintivo per iOS */
+  .send-to-ai-btn:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* Media query specifica per iOS e dispositivi con safe areas */
+@supports (padding: max(0px)) {
+  @media (max-width: 480px) {
+    .photo-modal-footer {
+      /* Usa il max() per garantire almeno 12px di padding anche senza safe area */
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+  }
+}
+
+/* Media query per iPhone con Dynamic Viewport (iOS 15.4+) */
+@supports (height: 100dvh) {
+  @media (max-width: 480px) {
+    .photo-modal-overlay {
+      height: 100dvh;
+    }
+    
+    .photo-modal-container {
+      height: 100dvh;
+    }
   }
 }
 
@@ -647,6 +754,35 @@
     border-radius: 8px;
     background: #f9f9f9;
     display: none;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Assicura che su mobile il contenuto sia scrollabile */
+@media (max-width: 768px) {
+    #review-process {
+        margin: 10px;
+        padding: 15px;
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    body {
+        overflow-x: hidden;
+    }
+    
+    /* Previeni zoom su input focus su iOS */
+    input, select, textarea {
+        font-size: 16px;
+    }
+}
+
+/* Sticky footer per bottone su mobile */
+@media (max-width: 768px) {
+    .review-action-section {
+        padding-bottom: 80px; /* Spazio per bottone sticky */
+    }
 }
 
 #ai-feedback {
@@ -873,10 +1009,54 @@
     display: block;
     width: 100%;
     transition: background 0.2s ease;
+    position: relative;
+    z-index: 1000;
+    min-height: 44px; /* Touch target iOS */
 }
 
 #publish-review:hover {
     background: #218838;
+}
+
+#publish-review:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+/* Fix per mobile per bottone recensione */
+@media (max-width: 768px) {
+  #review-process {
+    margin: 10px;
+    padding: 15px;
+    max-width: calc(100vw - 20px);
+    box-sizing: border-box;
+  }
+  
+  #publish-review {
+    padding: 16px 24px;
+    font-size: 18px;
+    min-height: 50px;
+    margin-top: 15px;
+    margin-bottom: 20px;
+    position: sticky;
+    bottom: 10px;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  }
+  
+  .bottle-rating {
+    margin: 10px 0;
+    padding: 12px;
+  }
+  
+  .bottle-info {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .bottle-details h4 {
+    font-size: 1.1em;
+    margin-bottom: 8px;
+  }
 }
 
 /* Animazioni per messaggi dinamici */
