@@ -12,9 +12,13 @@ const disclaimerMiddleware = require('./middlewares/disclaimerMiddleware');
 const flash = require('connect-flash');
 const passport = require('../config/passport');
 const logWithFileName = require('./utils/logger');
+const ErrorHandler = require('./utils/errorHandler');
+const RateLimitService = require('./utils/rateLimitService');
 
 const baseRoutes = require('./routes/baseRoutes');
 const administratorRoutes = require('./routes/administratorRoutes');
+const cacheRoutes = require('./routes/cacheRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 const app = express();
 // Necessario per express-rate-limit dietro proxy o in LAN
@@ -90,10 +94,37 @@ app.use(disclaimerMiddleware);
 // Middleware vari
 app.use(helmet()); // Helmet aiuta a proteggere l'app impostando vari header HTTP
 app.use(cors()); // Abilita la condivisione di risorse tra origini diverse (CORS)
-app.use(rateLimitMiddleware); // Limita la frequenza delle richieste per prevenire abusi
+
+// Rate Limiting avanzato
+app.use(RateLimitService.createLoggingMiddleware()); // Logging rate limit hits
+app.use('/api/rate-limit-info', RateLimitService.getRateLimitInfo); // Info sui limiti
+app.use(RateLimitService.createGeneralLimiter()); // Rate limiting generale
+app.use('/review/first-check-ai', RateLimitService.createAILimiter()); // Rate limiting AI
+app.use('/review/create-multiple', RateLimitService.createReviewLimiter()); // Rate limiting recensioni
+app.use('/auth/login', RateLimitService.createAuthLimiter()); // Rate limiting auth
+app.use('/auth/register', RateLimitService.createRegistrationLimiter()); // Rate limiting registrazione
+
+app.use(rateLimitMiddleware); // Limita la frequenza delle richieste per prevenire abusi (legacy)
 app.use(cookieParser()); // Analizza i cookie nelle richieste
-app.use(express.json({ limit: '50mb' })); // Analizza i dati JSON
-app.use(express.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 })); // Analizza i dati URL-encoded
+
+// Middleware per body parsing - ESCLUDI routes con upload multipart
+app.use((req, res, next) => {
+  // Skip body parsing per routes che usano Multer
+  if (req.path.startsWith('/api/gemini/')) {
+    return next();
+  }
+  // Applica body parsing per altre routes
+  express.json({ limit: '50mb' })(req, res, next);
+});
+
+app.use((req, res, next) => {
+  // Skip body parsing per routes che usano Multer  
+  if (req.path.startsWith('/api/gemini/')) {
+    return next();
+  }
+  // Applica body parsing per altre routes
+  express.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 })(req, res, next);
+});
 
 // Middleware per la Content Security Policy
 app.use((req, res, next) => {
@@ -104,29 +135,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware globale per la gestione degli errori
-app.use((err, req, res, next) => {
-    logger.error(`Errore: ${err.message}`);
-    console.error('Stack dell\'errore:', err.stack);
-    if (process.env.NODE_ENV === 'development') {
-        // Invia una pagina di errore dettagliata in sviluppo
-        res.status(500).send(`
-            <h1>Errore del server</h1>
-            <p>${err.message}</p>
-            <pre>${err.stack}</pre>
-        `);
-    } else {
-        // Invia una pagina di errore generica in produzione
-        req.flash('error', 'Si è verificato un errore interno');
-        const redirectUrl = req.headers.referer || '/';
-        res.status(500).redirect(redirectUrl);
-    }
-});
+// Middleware centralizzato per la gestione degli errori
+app.use(ErrorHandler.handle);
 
 
 
 // Routes
 app.use('/', baseRoutes); // Gestisce le rotte di base dell'applicazione
 //app.use('/admin', administratorRoutes); // Gestisce le rotte amministrative
+app.use('/api/cache', cacheRoutes); // Gestisce le rotte cache (admin)
+app.use('/', reviewRoutes); // Gestisce le rotte delle recensioni e AI (senza prefisso, include /api/...)
 
 module.exports = app;

@@ -37,6 +37,12 @@ function initializeReviewButton() {
     console.log('URL corrente:', window.location.href);
     console.log('Document ready state:', document.readyState);
     
+    // Verifica disponibilità EventManager
+    if (typeof window.eventManager === 'undefined') {
+        console.error('EventManager non disponibile! Fallback al metodo tradizionale');
+        return initializeReviewButtonFallback();
+    }
+    
     // Verifica il DOM più accuratamente
     const startReviewBtn = document.getElementById('start-review-process');
     const reviewPhotoInput = document.getElementById('reviewPhoto');
@@ -77,47 +83,36 @@ function initializeReviewButton() {
             visible: rect.width > 0 && rect.height > 0
         });
         
-        // Rimuovi TUTTI i possibili listener precedenti (più sicuro)
-        const newButton = startReviewBtn.cloneNode(true);
-        startReviewBtn.parentNode.replaceChild(newButton, startReviewBtn);
-        console.log('Bottone completamente ricreato per evitare listener duplicati');
+        // Usa EventManager per gestire il listener in modo sicuro
+        window.eventManager.addListener(
+            startReviewBtn,
+            'click',
+            handleReviewButtonClick,
+            'review-button-main'
+        );
         
-        // Usa il nuovo bottone
-        const freshButton = document.getElementById('start-review-process');
-        if (freshButton) {
-            freshButton.addEventListener('click', handleReviewButtonClick);
-            console.log('Nuovo listener aggiunto al bottone ricreato');
-            
-            // Test immediato del listener
-            console.log('Test listener con evento simulato...');
-            const testEvent = new MouseEvent('click', {
-                bubbles: true,
-                cancelable: true,
-                view: window
-            });
-            
-            // Test asincrono per non interferire con l'inizializzazione
-            setTimeout(() => {
-                console.log('Verifica stato bottone dopo 2 secondi...');
-                const currentButton = document.getElementById('start-review-process');
-                if (currentButton) {
-                    console.log('Bottone ancora presente nel DOM:', {
-                        id: currentButton.id,
-                        visible: currentButton.offsetParent !== null,
-                        listeners: 'attached'
-                    });
-                } else {
-                    console.error('PROBLEMA: Bottone scomparso dal DOM dopo inizializzazione!');
-                }
-            }, 2000);
-            
-            console.log('Event listener collegato con successo al bottone ricreato');
-            logDebug('Event listener collegato al bottone principale recensione (ricreato)');
-            return true;
-        } else {
-            console.error('PROBLEMA: Bottone non trovato dopo ricreazione');
-            return false;
-        }
+        console.log('Event listener collegato tramite EventManager con chiave "review-button-main"');
+        logDebug('Event listener collegato al bottone principale recensione (EventManager)');
+        
+        // Test immediato del listener
+        console.log('Test listener con evento simulato...');
+        
+        // Test asincrono per non interferire con l'inizializzazione
+        setTimeout(() => {
+            console.log('Verifica stato bottone dopo 2 secondi...');
+            const currentButton = document.getElementById('start-review-process');
+            if (currentButton) {
+                console.log('Bottone ancora presente nel DOM:', {
+                    id: currentButton.id,
+                    visible: currentButton.offsetParent !== null,
+                    listeners: 'managed by EventManager'
+                });
+            } else {
+                console.error('PROBLEMA: Bottone scomparso dal DOM dopo inizializzazione!');
+            }
+        }, 2000);
+        
+        return true;
     } else {
         console.log('Bottone start-review-process NON trovato nel DOM');
         console.log('Tutti gli elementi nel body con ID:');
@@ -127,6 +122,28 @@ function initializeReviewButton() {
         logDebug('Bottone start-review-process non trovato nel DOM');
         return false;
     }
+}
+
+// Fallback per quando EventManager non è disponibile
+function initializeReviewButtonFallback() {
+    console.log('Utilizzo metodo fallback per inizializzazione bottone');
+    
+    const startReviewBtn = document.getElementById('start-review-process');
+    if (startReviewBtn) {
+        // Rimuovi TUTTI i possibili listener precedenti (più sicuro)
+        const newButton = startReviewBtn.cloneNode(true);
+        startReviewBtn.parentNode.replaceChild(newButton, startReviewBtn);
+        console.log('Bottone completamente ricreato per evitare listener duplicati (fallback)');
+        
+        // Usa il nuovo bottone
+        const freshButton = document.getElementById('start-review-process');
+        if (freshButton) {
+            freshButton.addEventListener('click', handleReviewButtonClick);
+            console.log('Nuovo listener aggiunto al bottone ricreato (fallback)');
+            return true;
+        }
+    }
+    return false;
 }
 
 function handleReviewButtonClick(e) {
@@ -209,6 +226,15 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('User agent:', navigator.userAgent);
     console.log('Current page URL:', window.location.href);
     console.log('Current page path:', window.location.pathname);
+    
+    // Event listener per il pulsante di reload nella pagina di errore
+    const reloadPageBtn = document.getElementById('reload-page-btn');
+    if (reloadPageBtn) {
+        reloadPageBtn.addEventListener('click', function() {
+            location.reload();
+        });
+        console.log('Event listener aggiunto per reload page button');
+    }
     
     // Debug: verifica se siamo in modalità PWA/Service Worker
     console.log('=== DEBUG PWA ===');
@@ -544,18 +570,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log('Bottone visible:', publishBtn.offsetParent !== null);
                 console.log('Bottone disabled:', publishBtn.disabled);
                 
-                // Rimuovi eventuali listener precedenti
-                publishBtn.replaceWith(publishBtn.cloneNode(true));
-                const newPublishBtn = document.getElementById('publish-review');
+                // Verifica disponibilità EventManager
+                const useEventManager = typeof window.eventManager !== 'undefined';
+                console.log('EventManager disponibile per bottone pubblica:', useEventManager);
                 
-                newPublishBtn.addEventListener('click', function(event) {
+                const publishHandler = function(event) {
                     console.log('=== CLICK BOTTONE PUBBLICA ===');
                     console.log('Event ricevuto:', event);
                     event.preventDefault(); // Previeni comportamenti default
                     publishReviews();
-                });
+                };
                 
-                console.log('Event listener collegato al bottone pubblica recensione');
+                if (useEventManager) {
+                    // Rimuovi eventuali listener precedenti e aggiungi nuovo
+                    window.eventManager.addListener(publishBtn, 'click', publishHandler, 'publish-reviews-btn');
+                    console.log('Event listener collegato al bottone pubblica recensione tramite EventManager');
+                } else {
+                    // Fallback: rimuovi listener precedenti clonando l'elemento
+                    publishBtn.replaceWith(publishBtn.cloneNode(true));
+                    const newPublishBtn = document.getElementById('publish-review');
+                    newPublishBtn.addEventListener('click', publishHandler);
+                    console.log('Event listener collegato al bottone pubblica recensione (fallback)');
+                }
             } else {
                 console.error('ERRORE: Bottone publish-review non trovato!');
             }
@@ -576,8 +612,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const stars = document.querySelectorAll('.star');
         console.log('Stelle trovate:', stars.length);
         
+        // Verifica disponibilità EventManager
+        const useEventManager = typeof window.eventManager !== 'undefined';
+        console.log('EventManager disponibile:', useEventManager);
+        
         stars.forEach((star, starIndex) => {
-            star.addEventListener('click', function() {
+            const starHandler = function() {
                 const rating = parseInt(this.dataset.rating);
                 const bottleIndex = this.parentElement.dataset.bottle;
                 const category = this.parentElement.dataset.category || 'overall';
@@ -603,7 +643,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 
                 logDebug('Rating selezionato', { bottleIndex, category, rating });
-            });
+            };
+            
+            if (useEventManager) {
+                // Usa EventManager per gestione sicura
+                const starKey = `star-${starIndex}-${star.dataset.rating || 'unknown'}-${Date.now()}`;
+                window.eventManager.addListener(star, 'click', starHandler, starKey);
+            } else {
+                // Fallback al metodo tradizionale
+                star.addEventListener('click', starHandler);
+            }
         });
         
         // Event listeners per i toggle delle valutazioni dettagliate
@@ -611,7 +660,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('Toggle buttons trovati:', toggleButtons.length);
         
         toggleButtons.forEach((button, buttonIndex) => {
-            button.addEventListener('click', function() {
+            const toggleHandler = function() {
                 const bottleIndex = this.dataset.bottle;
                 const detailedRatings = document.querySelector(`.detailed-ratings[data-bottle="${bottleIndex}"]`);
                 
@@ -637,10 +686,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     console.error('Elemento detailed-ratings non trovato per bottiglia:', bottleIndex);
                 }
-            });
+            };
+            
+            if (useEventManager) {
+                // Usa EventManager per gestione sicura
+                const toggleKey = `toggle-${buttonIndex}-${button.dataset.bottle || 'unknown'}-${Date.now()}`;
+                window.eventManager.addListener(button, 'click', toggleHandler, toggleKey);
+            } else {
+                // Fallback al metodo tradizionale
+                button.addEventListener('click', toggleHandler);
+            }
         });
         
         console.log('=== EVENT LISTENERS STELLE INIZIALIZZATI ===');
+        console.log('Metodo utilizzato:', useEventManager ? 'EventManager' : 'addEventListener tradizionale');
     }
     
     // Funzione per pubblicare le recensioni
@@ -705,7 +764,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             if (categoryRating > 0 || categoryNotes) {
                                 detailedRatings[category] = {
                                     rating: categoryRating > 0 ? categoryRating : null,
-                                    notes: categoryNotes || null
+                                    notes: categoryNotes || ''  // Usa sempre stringa vuota invece di null
                                 };
                             }
                         }
@@ -1629,7 +1688,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 );
                 
                 // Salva per invio AI e per display
-                croppedImageForAI = tempCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+                croppedImageForAI = tempCanvas.toDataURL('image/jpeg', 0.92); // Mantieni il data URL completo
                 
                 // Reset completo dello stato crop per evitare bordi residui
                 cropRect = null;
@@ -1793,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                         
                         ctx.drawImage(photoPreview, 0, 0);
-                        imageToSend = tempCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+                        imageToSend = tempCanvas.toDataURL('image/jpeg', 0.92); // Mantieni il data URL completo
                         
                         logDebug('Immagine originale preparata per AI', {
                             width: tempCanvas.width,
@@ -1830,12 +1889,64 @@ document.addEventListener('DOMContentLoaded', function () {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout 30 secondi
                 
-                fetch('/api/gemini/firstcheck', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image: imageToSend }),
-                    signal: controller.signal
-                })
+                // Converti base64 a blob per FormData
+                try {
+                    // Verifica che imageToSend sia un data URL valido
+                    if (!imageToSend.startsWith('data:')) {
+                        throw new Error('Formato immagine non valido - non è un data URL');
+                    }
+                    
+                    const base64Data = imageToSend.split(',')[1];
+                    if (!base64Data) {
+                        throw new Error('Dati base64 mancanti nell\'immagine');
+                    }
+                    
+                    // Decodifica base64 con gestione errori
+                    const byteCharacters = atob(base64Data);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    
+                    // Determina il tipo MIME dall'header del data URL
+                    const mimeMatch = imageToSend.match(/data:([^;]+)/);
+                    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    
+                    const blob = new Blob([byteArray], { type: mimeType });
+                    
+                    logDebug('Blob creato', { 
+                        size: blob.size, 
+                        type: blob.type,
+                        originalSize: imageToSend.length 
+                    });
+                
+                    // Crea FormData per upload
+                    const formData = new FormData();
+                    formData.append('image', blob, 'image.jpg');
+                    
+                    // Debug: Log del contenuto FormData
+                    logDebug('FormData creato', {
+                        hasImage: formData.has('image'),
+                        blobSize: blob.size,
+                        blobType: blob.type
+                    });
+                    
+                    // Log tutte le entries del FormData
+                    for (let [key, value] of formData.entries()) {
+                        logDebug('FormData entry', {
+                            key: key,
+                            valueType: typeof value,
+                            isBlob: value instanceof Blob,
+                            size: value instanceof Blob ? value.size : 'N/A'
+                        });
+                    }
+                    
+                    fetch('/api/gemini/firstcheck', {
+                        method: 'POST',
+                        body: formData, // Rimuovi Content-Type per permettere a browser di impostare multipart/form-data
+                        signal: controller.signal
+                    })
                 .then(response => {
                     clearTimeout(timeoutId);
                     
@@ -1943,6 +2054,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     sendToAIBtn.disabled = false;
                     logDebug('Invio AI completato, spinner nascosto');
                 });
+                
+                } catch (conversionError) {
+                    // Gestione errori nella conversione dell'immagine
+                    clearTimeout(timeoutId);
+                    logError('Errore nella conversione dell\'immagine', conversionError);
+                    
+                    // Nascondi overlay spinner
+                    const loadingOverlay = document.getElementById('ai-loading-overlay');
+                    if (loadingOverlay) {
+                        loadingOverlay.classList.remove('show');
+                    }
+                    
+                    // Ripristina il pulsante
+                    sendToAIBtn.disabled = false;
+                    
+                    alert('Errore nella preparazione dell\'immagine. Riprova con un\'immagine diversa.');
+                }
             });
         }
     }
@@ -2118,7 +2246,7 @@ function validatePasswordMatch() {
         // Usa l'immagine croppata se disponibile, altrimenti quella originale
         const photoPreviewElement = document.getElementById('photoPreview');
         let sourceImage = croppedImageForAI ? 
-            `data:image/jpeg;base64,${croppedImageForAI}` : 
+            croppedImageForAI : // croppedImageForAI è già un data URL completo
             (originalImageSrc || photoPreviewElement?.src);
         
         if (!sourceImage) {

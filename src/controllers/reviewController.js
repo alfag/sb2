@@ -10,19 +10,31 @@ const logger = logWithFileName(__filename);
 // Validazione AI primo livello (immagine)
 exports.firstCheckAI = async (req, res) => {
   try {
-    const { image } = req.body;
-    if (!image) {
+    // Usa req.file.buffer con Multer invece di req.body.image
+    const imageBuffer = req.file?.buffer;
+    if (!imageBuffer) {
+      logger.error('[firstCheckAI] Nessuna immagine fornita', {
+        sessionId: req.sessionID,
+        hasFile: !!req.file,
+        hasBuffer: !!req.file?.buffer
+      });
       return res.status(400).json({ success: false, message: 'Immagine mancante.' });
     }
+    
+    // Converti buffer in data URL per compatibilità con GeminiAI
+    const mimeType = req.file?.mimetype || 'image/jpeg';
+    const base64Image = imageBuffer.toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64Image}`;
     
     logger.info('[firstCheckAI] Avvio analisi AI', {
       userId: req.user?._id,
       sessionId: req.sessionID,
-      imageSize: image.length
+      imageSize: imageBuffer.length,
+      mimeType: mimeType
     });
     
     // Chiamata AI per analisi immagine
-    const aiResult = await GeminiAI.validateImage(image);
+    const aiResult = await GeminiAI.validateImage(dataUrl);
     if (!aiResult.success) {
       logger.warn('[firstCheckAI] Analisi AI fallita - nessuna birra rilevata', { 
         message: aiResult.message,

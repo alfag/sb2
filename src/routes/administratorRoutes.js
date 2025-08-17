@@ -219,6 +219,6 @@ router.post('/users/removeRole/:id', authMiddleware.isAdmin, async (req, res) =>
 });
 
 // Visualizza collegamenti recensioni-birre (debug/admin)
-router.get('/review-beer-connections', authMiddleware.isAdmin, reviewController.viewReviewBeerConnections);
+// router.get('/review-beer-connections', authMiddleware.isAdmin, reviewController.viewReviewBeerConnections);
 
 module.exports = router;

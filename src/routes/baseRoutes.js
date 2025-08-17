@@ -42,7 +42,4 @@ router.use('/', authRoutes); // Usa le rotte di autenticazione
 router.use('/administrator', administratorRoutes); // Usa le rotte amministrative
 router.use('/review', reviewRoutes); // Usa le rotte di recensioni
 
-const reviewController = require('../controllers/reviewController');
-router.post('/api/gemini/firstcheck', reviewController.firstCheckAI);
-
 module.exports = router;

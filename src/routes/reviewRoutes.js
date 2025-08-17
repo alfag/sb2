@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const reviewController = require('../controllers/reviewController');
 const { ensureAuthenticated, ensureRole } = require('../middlewares/authMiddleware');
+const { aiImageUpload } = require('../middlewares/uploadMiddleware');
 
 
 // Rotta pubblica per validazione AI (primo check)
-router.post('/api/gemini/firstcheck', reviewController.firstCheckAI);
+router.post('/api/gemini/firstcheck', aiImageUpload, reviewController.firstCheckAI);
 
 // Rotte pubbliche (temporaneamente senza autenticazione per test)
 router.post('/create', reviewController.createReview);
