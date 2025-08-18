@@ -570,27 +570,36 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log('Bottone visible:', publishBtn.offsetParent !== null);
                 console.log('Bottone disabled:', publishBtn.disabled);
                 
-                // Verifica disponibilità EventManager
-                const useEventManager = typeof window.eventManager !== 'undefined';
-                console.log('EventManager disponibile per bottone pubblica:', useEventManager);
-                
-                const publishHandler = function(event) {
-                    console.log('=== CLICK BOTTONE PUBBLICA ===');
-                    console.log('Event ricevuto:', event);
-                    event.preventDefault(); // Previeni comportamenti default
-                    publishReviews();
-                };
-                
-                if (useEventManager) {
-                    // Rimuovi eventuali listener precedenti e aggiungi nuovo
-                    window.eventManager.addListener(publishBtn, 'click', publishHandler, 'publish-reviews-btn');
-                    console.log('Event listener collegato al bottone pubblica recensione tramite EventManager');
+                // Se il ReviewModule è disponibile, lascia che gestisca lui la pubblicazione
+                if (window.ReviewModule && typeof window.ReviewModule === 'function') {
+                    console.log('ReviewModule disponibile - delego la gestione del bottone pubblica');
+                    // Non registrare event listener qui, lascia che lo faccia il ReviewModule
                 } else {
-                    // Fallback: rimuovi listener precedenti clonando l'elemento
-                    publishBtn.replaceWith(publishBtn.cloneNode(true));
-                    const newPublishBtn = document.getElementById('publish-review');
-                    newPublishBtn.addEventListener('click', publishHandler);
-                    console.log('Event listener collegato al bottone pubblica recensione (fallback)');
+                    // Fallback al sistema legacy solo se ReviewModule non è disponibile
+                    console.log('ReviewModule non disponibile - uso sistema legacy');
+                    
+                    // Verifica disponibilità EventManager
+                    const useEventManager = typeof window.eventManager !== 'undefined';
+                    console.log('EventManager disponibile per bottone pubblica:', useEventManager);
+                    
+                    const publishHandler = function(event) {
+                        console.log('=== CLICK BOTTONE PUBBLICA (LEGACY) ===');
+                        console.log('Event ricevuto:', event);
+                        event.preventDefault(); // Previeni comportamenti default
+                        publishReviews();
+                    };
+                    
+                    if (useEventManager) {
+                        // Rimuovi eventuali listener precedenti e aggiungi nuovo
+                        window.eventManager.addListener(publishBtn, 'click', publishHandler, 'publish-reviews-btn-legacy');
+                        console.log('Event listener collegato al bottone pubblica recensione tramite EventManager (legacy)');
+                    } else {
+                        // Fallback: rimuovi listener precedenti clonando l'elemento
+                        publishBtn.replaceWith(publishBtn.cloneNode(true));
+                        const newPublishBtn = document.getElementById('publish-review');
+                        newPublishBtn.addEventListener('click', publishHandler);
+                        console.log('Event listener collegato al bottone pubblica recensione (fallback legacy)');
+                    }
                 }
             } else {
                 console.error('ERRORE: Bottone publish-review non trovato!');
@@ -702,12 +711,19 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('Metodo utilizzato:', useEventManager ? 'EventManager' : 'addEventListener tradizionale');
     }
     
-    // Funzione per pubblicare le recensioni
+    // Funzione per pubblicare le recensioni (LEGACY - usata solo se ReviewModule non disponibile)
     function publishReviews() {
-        logDebug('Tentativo di pubblicazione recensioni');
+        // Se il ReviewModule è disponibile, non usare questo sistema legacy
+        if (window.ReviewModule && typeof window.ReviewModule === 'function') {
+            console.log('[LEGACY] ReviewModule disponibile - non uso sistema legacy di pubblicazione');
+            return;
+        }
+        
+        console.log('[LEGACY] Uso sistema legacy di pubblicazione');
+        logDebug('Tentativo di pubblicazione recensioni (LEGACY)');
         
         // Debug più dettagliato
-        console.log('=== DEBUG PUBBLICAZIONE RECENSIONI ===');
+        console.log('=== DEBUG PUBBLICAZIONE RECENSIONI LEGACY ===');
         console.log('window.currentReviewData:', window.currentReviewData);
         console.log('Bottles disponibili:', window.currentReviewData?.bottles);
         
@@ -791,7 +807,66 @@ document.addEventListener('DOMContentLoaded', function () {
                         hasThumbnail: !!thumbnailSrc
                     });
                 } else {
-                    console.log(`Birra ${index} ignorata - nessun rating generale`, { beerName: bottle.bottleLabel });
+                    // Se non c'è rating generale, controlla se ci sono valutazioni dettagliate
+                    const categories = ['appearance', 'aroma', 'taste', 'mouthfeel'];
+                    let hasAnyDetailedRating = false;
+                    const detailedRatings = {};
+                    
+                    categories.forEach(category => {
+                        const categoryRatingContainer = document.querySelector(`[data-bottle="${index}"][data-category="${category}"]`);
+                        const categoryNotesTextarea = document.querySelector(`[data-notes="${index}"][data-category="${category}"]`);
+                        
+                        if (categoryRatingContainer) {
+                            const categorySelectedStars = categoryRatingContainer.querySelectorAll('.star.selected');
+                            const categoryRating = categorySelectedStars.length;
+                            const categoryNotes = categoryNotesTextarea ? categoryNotesTextarea.value.trim() : '';
+                            
+                            if (categoryRating > 0) {
+                                hasAnyDetailedRating = true;
+                                detailedRatings[category] = {
+                                    rating: categoryRating,
+                                    notes: categoryNotes || ''
+                                };
+                            } else if (categoryNotes) {
+                                detailedRatings[category] = {
+                                    rating: null,
+                                    notes: categoryNotes
+                                };
+                            }
+                        }
+                    });
+                    
+                    if (hasAnyDetailedRating) {
+                        // Ottieni il thumbnail per questa birra
+                        const thumbnailImg = document.querySelector(`[data-bottle-index="${index}"] .beer-thumbnail`);
+                        const thumbnailSrc = thumbnailImg ? thumbnailImg.src : null;
+                        
+                        // Raccogli note generali
+                        const generalNotes = generalNotesTextarea ? generalNotesTextarea.value.trim() : '';
+                        
+                        reviews.push({
+                            beerId: bottle._id || bottle.id, // ID della birra dal DB
+                            beerName: bottle.bottleLabel,
+                            breweryName: bottle.breweryName,
+                            rating: 0, // Nessun rating generale
+                            notes: generalNotes, // Note generali
+                            detailedRatings: Object.keys(detailedRatings).length > 0 ? detailedRatings : null,
+                            aiData: bottle.aiData,
+                            thumbnail: thumbnailSrc // Aggiungi il thumbnail
+                        });
+                        
+                        logDebug('Recensione con solo valutazioni dettagliate raccolta', {
+                            beerName: bottle.bottleLabel,
+                            beerId: bottle._id || bottle.id || 'NOT_FOUND',
+                            overallRating: 0,
+                            hasGeneralNotes: generalNotes.length > 0,
+                            hasDetailedRatings: Object.keys(detailedRatings).length > 0,
+                            detailedCategories: Object.keys(detailedRatings),
+                            hasThumbnail: !!thumbnailSrc
+                        });
+                    } else {
+                        console.log(`Birra ${index} ignorata - nessun rating generale né dettagliato`, { beerName: bottle.bottleLabel });
+                    }
                 }
             } else {
                 console.log(`Birra ${index} ignorata - container rating generale non trovato`, { beerName: bottle.bottleLabel });
@@ -808,7 +883,21 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (reviews.length === 0) {
             console.error('ERRORE: Nessuna recensione valida raccolta');
-            alert('Aggiungi almeno una valutazione a stelle prima di pubblicare');
+            
+            // Mostra messaggio di errore all'utente
+            if (window.utils && window.utils.showNotification) {
+                window.utils.showNotification('Aggiungi almeno una valutazione a stelle prima di pubblicare', 'error', 5000);
+            } else {
+                showWarningMessage('Aggiungi almeno una valutazione a stelle prima di pubblicare');
+            }
+            
+            // Riabilita il bottone se è stato disabilitato
+            const publishBtn = document.getElementById('publish-review');
+            if (publishBtn) {
+                publishBtn.disabled = false;
+                publishBtn.textContent = 'Pubblica recensione';
+            }
+            
             return;
         }
         
@@ -836,7 +925,9 @@ document.addEventListener('DOMContentLoaded', function () {
             logDebug('Risposta pubblicazione ricevuta', { status: response.status });
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                return response.json().then(errorData => {
+                    throw { status: response.status, data: errorData };
+                });
             }
             
             return response.json();
@@ -861,13 +952,24 @@ document.addEventListener('DOMContentLoaded', function () {
             logError('Errore nella pubblicazione delle recensioni', error);
             
             let errorMessage = 'Errore nella pubblicazione delle recensioni';
-            if (error.message.includes('401')) {
+            
+            // Gestione specifica per contenuto inappropriato
+            if (error.data && error.data.inappropriateContent) {
+                errorMessage = 'È stato rilevato linguaggio inappropriato nelle tue recensioni. Per favore, rivedi il contenuto ed evita parole volgari o offensive.';
+            } else if (error.status === 401) {
                 errorMessage = 'Devi essere loggato per pubblicare recensioni';
-            } else if (error.message.includes('403')) {
+            } else if (error.status === 403) {
                 errorMessage = 'Non hai i permessi per pubblicare recensioni';
+            } else if (error.data && error.data.message) {
+                errorMessage = error.data.message;
             }
             
-            alert(errorMessage);
+            // Utilizza il sistema di notifiche se disponibile
+            if (window.utils && window.utils.showNotification) {
+                window.utils.showNotification(errorMessage, 'error', 8000);
+            } else {
+                alert(errorMessage);
+            }
         })
         .finally(() => {
             // Riabilita il bottone
@@ -885,11 +987,17 @@ document.addEventListener('DOMContentLoaded', function () {
         // Ripristina l'interfaccia principale
         resetReviewInterface();
         
-        // Rimuovi eventuali messaggi esistenti
-        const existingAlerts = document.querySelectorAll('.dynamic-alert');
+        // Rimuovi eventuali messaggi di errore/warning esistenti
+        const existingAlerts = document.querySelectorAll('.dynamic-alert, .alert-warning, .alert-danger, .error-message, .simple-notification');
         existingAlerts.forEach(alert => {
+            logDebug('Rimozione alert esistente per successo', { alert: alert.textContent });
             alert.remove();
         });
+        
+        // Rimuovi anche eventuali notifiche del nuovo sistema utils
+        if (window.utils && window.utils.clearNotifications) {
+            window.utils.clearNotifications();
+        }
         
         // Crea il nuovo messaggio di successo
         const alertDiv = document.createElement('div');

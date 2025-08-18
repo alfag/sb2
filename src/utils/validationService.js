@@ -1,5 +1,11 @@
 const Joi = require('joi');
 const ErrorHandler = require('./errorHandler');
+const { 
+  getInappropriateWords, 
+  moderationPatterns, 
+  severityLevels, 
+  moderationContexts 
+} = require('../../config/contentModeration');
 
 /**
  * Sistema di validazione centralizzato per input dell'applicazione
@@ -74,6 +80,75 @@ class ValidationService {
           message: detail.message,
           value: detail.context?.value
         }))
+      };
+    }
+
+    // Controllo linguaggio inappropriato su tutti i campi di testo delle recensioni
+    const inappropriateContentResults = [];
+    
+    for (let i = 0; i < value.reviews.length; i++) {
+      const review = value.reviews[i];
+      const fieldsToCheck = {};
+      
+      // Aggiungi campi da controllare
+      if (review.notes) fieldsToCheck.notes = review.notes;
+      if (review.beerName) fieldsToCheck.beerName = review.beerName;
+      if (review.breweryName) fieldsToCheck.breweryName = review.breweryName;
+      
+      // Controlla le note dettagliate
+      if (review.detailedRatings) {
+        ['appearance', 'aroma', 'taste', 'mouthfeel'].forEach(category => {
+          if (review.detailedRatings[category]?.notes) {
+            fieldsToCheck[`detailedRatings.${category}.notes`] = review.detailedRatings[category].notes;
+          }
+        });
+      }
+      
+      if (Object.keys(fieldsToCheck).length > 0) {
+        const contentCheck = this.checkMultipleFieldsForInappropriateContent(fieldsToCheck, {
+          strict: true,
+          context: `review_${i}`
+        });
+        
+        if (!contentCheck.isClean) {
+          inappropriateContentResults.push({
+            reviewIndex: i,
+            violations: contentCheck.violations,
+            violatingFields: contentCheck.summary.violatingFields
+          });
+          
+          // Applica la sanificazione automatica ai campi problematici
+          for (const [fieldName, fieldResult] of Object.entries(contentCheck.fields)) {
+            if (!fieldResult.isClean) {
+              // Naviga nel percorso del campo per applicare la sanificazione
+              const fieldPath = fieldName.split('.');
+              let target = review;
+              
+              for (let j = 0; j < fieldPath.length - 1; j++) {
+                target = target[fieldPath[j]];
+              }
+              
+              const finalField = fieldPath[fieldPath.length - 1];
+              target[finalField] = fieldResult.sanitizedText;
+            }
+          }
+        }
+      }
+    }
+
+    // Se sono stati trovati contenuti inappropriati, restituisci un errore
+    if (inappropriateContentResults.length > 0) {
+      return {
+        isValid: false,
+        message: 'Sono stati rilevati contenuti inappropriati in alcuni campi delle recensioni',
+        inappropriateContent: true,
+        details: inappropriateContentResults.map(result => ({
+          field: `reviews[${result.reviewIndex}]`,
+          message: `Linguaggio inappropriato rilevato in ${result.violatingFields} campo/i`,
+          violatingFields: result.violatingFields,
+          violations: result.violations
+        })),
+        sanitizedData: value // Restituisce i dati sanificati
       };
     }
 
@@ -221,6 +296,403 @@ class ValidationService {
       // Sostituisci i dati della richiesta con quelli validati
       req.body = result.data;
       next();
+    };
+  }
+
+  /**
+   * Verifica se un testo contiene linguaggio inappropriato usando ricerca avanzata
+   * @param {string} text - Il testo da verificare
+   * @param {Object} options - Opzioni di configurazione
+   * @returns {Object} - Risultato della verifica
+   */
+  static checkInappropriateLanguage(text, options = {}) {
+    if (!text || typeof text !== 'string') {
+      return {
+        isClean: true,
+        violations: [],
+        sanitizedText: text,
+        confidence: 1.0
+      };
+    }
+
+    const { strict = false, context = 'general' } = options;
+    const violations = [];
+    let cleanText = text;
+    const normalizedText = this.normalizeTextForProfanityCheck(text);
+    let inappropriateWords = [];
+
+    try {
+      // Ottieni le parole inappropriate decifrate
+      inappropriateWords = getInappropriateWords();
+      
+      if (inappropriateWords.length === 0) {
+        console.warn('Nessuna parola inappropriata caricata - verificare la configurazione della chiave di cifratura');
+      }
+
+      // Controllo parole inappropriate - ricerca più efficace anche se "attaccate"
+      for (const inappropriateWord of inappropriateWords) {
+        if (inappropriateWord && inappropriateWord.length > 2) {
+          // Ricerca la parola inappropriata all'interno del testo normalizzato
+          // anche se è attaccata ad altre parole
+          const wordRegex = new RegExp(inappropriateWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+          const matches = normalizedText.match(wordRegex);
+          
+          if (matches && matches.length > 0) {
+            violations.push({
+              type: 'inappropriate_word',
+              severity: 'high',
+              description: 'Parola inappropriata rilevata',
+              word: inappropriateWord.charAt(0) + '*'.repeat(inappropriateWord.length - 1),
+              matches: matches.length,
+              positions: this.findWordPositions(normalizedText, inappropriateWord)
+            });
+            
+            // Sostituisci tutte le occorrenze nel testo originale
+            const originalWordRegex = new RegExp(inappropriateWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            cleanText = cleanText.replace(originalWordRegex, '*'.repeat(inappropriateWord.length));
+          }
+
+          // Controllo anche varianti leet speak e con sostituzioni
+          const leetVariants = this.generateLeetVariants([inappropriateWord]);
+          for (const variant of leetVariants) {
+            const variantRegex = new RegExp(variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            const variantMatches = normalizedText.match(variantRegex);
+            
+            if (variantMatches && variantMatches.length > 0) {
+              violations.push({
+                type: 'inappropriate_word_variant',
+                severity: 'high',
+                description: 'Variante di parola inappropriata rilevata',
+                word: variant.charAt(0) + '*'.repeat(variant.length - 1),
+                originalWord: inappropriateWord.charAt(0) + '*'.repeat(inappropriateWord.length - 1),
+                matches: variantMatches.length
+              });
+              
+              // Sostituisci anche le varianti
+              const originalVariantRegex = new RegExp(variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+              cleanText = cleanText.replace(originalVariantRegex, '*'.repeat(variant.length));
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Errore durante il controllo delle parole inappropriate:', error.message);
+      // In caso di errore con la decifratura, continua con gli altri controlli
+    }
+
+    // Pattern per rilevare linguaggio inappropriato senza elencare parole specifiche
+    const inappropriatePatterns = [
+      // Pattern per parole con caratteri sostituiti (es: c4zzo, m3rda) - più specifico
+      {
+        pattern: /[bcdfghjklmnpqrstvwxyz]{1,2}[\d@#$%&*]{1,2}[aeiou]{1,2}[\d@#$%&*]{1,2}[bcdfghjklmnpqrstvwxyz]{1,3}/gi,
+        type: 'suspicious_substitution',
+        severity: 'medium'
+      },
+      // Pattern per caratteri ripetuti eccessivamente (possibile evasione)
+      {
+        pattern: moderationPatterns.excessive_repetition,
+        type: 'excessive_repetition',
+        severity: 'low'
+      },
+      // Pattern per alternanza sospetta maiuscole/minuscole
+      {
+        pattern: moderationPatterns.case_alternation,
+        type: 'suspicious_casing',
+        severity: 'low'
+      },
+      // Pattern per spazi che interrompono parole - molto più specifico per evitare falsi positivi
+      {
+        pattern: /[bcdfghjklmnpqrstvwxyz]{2,}[\s\-_\.]{1}[bcdfghjklmnpqrstvwxyz]{1}[\s\-_\.]{1}[bcdfghjklmnpqrstvwxyz]{2,}/gi,
+        type: 'word_breaking',
+        severity: 'medium'
+      },
+      // Pattern per sequenze di consonanti sospette
+      {
+        pattern: moderationPatterns.consonant_clustering,
+        type: 'consonant_clustering',
+        severity: 'medium'
+      }
+    ];
+
+    // Controllo CAPS LOCK eccessivo (possibile aggressività)
+    const capsRatio = (text.match(/[A-Z]/g) || []).length / text.length;
+    if (text.length > 10 && capsRatio > 0.7) {
+      violations.push({
+        type: 'excessive_caps',
+        severity: 'low',
+        description: 'Uso eccessivo di maiuscole'
+      });
+    }
+
+    // Controllo pattern sospetti solo se non abbiamo già trovato parole inappropriate
+    if (violations.filter(v => v.severity === 'high').length === 0) {
+      for (const patternObj of inappropriatePatterns) {
+        const matches = normalizedText.match(patternObj.pattern);
+        if (matches && matches.length > 0) {
+          // Filtro per evitare falsi positivi su parole normali
+          const suspiciousMatches = matches.filter(match => {
+            // Escludi numeri, acronimi comuni, codici prodotto
+            if (/^\d+$/.test(match) || /^[A-Z]{2,4}$/.test(match)) return false;
+            // Escludi parole troppo corte o troppo lunghe
+            if (match.length < 3 || match.length > 15) return false;
+            return true;
+          });
+
+          if (suspiciousMatches.length > 0) {
+            violations.push({
+              type: patternObj.type,
+              severity: patternObj.severity,
+              matches: suspiciousMatches.length,
+              description: `Pattern sospetto rilevato: ${patternObj.type}`
+            });
+          }
+        }
+      }
+    }
+
+    // Controllo entropia del testo (testi molto casuali possono indicare tentativi di evasione)
+    const entropy = this.calculateTextEntropy(normalizedText);
+    if (entropy > 4.5 && text.length > 20) {
+      violations.push({
+        type: 'high_entropy',
+        severity: 'medium',
+        entropy: entropy,
+        description: 'Testo con entropia sospettamente alta'
+      });
+    }
+
+    // Controllo sequenze di caratteri speciali
+    const specialCharsRatio = (text.match(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\?]/g) || []).length / text.length;
+    if (specialCharsRatio > 0.3 && text.length > 10) {
+      violations.push({
+        type: 'excessive_special_chars',
+        severity: 'medium',
+        ratio: specialCharsRatio,
+        description: 'Uso eccessivo di caratteri speciali'
+      });
+    }
+
+    // Se ci sono molti pattern sospetti, aumenta la severità
+    const highSeverityCount = violations.filter(v => v.severity === 'high').length;
+    const mediumSeverityCount = violations.filter(v => v.severity === 'medium').length;
+    
+    // Calcola confidenza
+    const confidence = this.calculateContentConfidence(violations, text.length);
+    
+    // Determina se il testo è pulito - più severo ora
+    const isClean = highSeverityCount === 0 && (mediumSeverityCount < 1 || !strict);
+
+    // Se il testo non è pulito, applica sanificazione
+    if (!isClean) {
+      cleanText = this.sanitizeInappropriateContent(cleanText);
+    }
+
+    return {
+      isClean: isClean,
+      violations: violations,
+      sanitizedText: cleanText,
+      confidence: confidence,
+      context: context,
+      analysis: {
+        originalLength: text.length,
+        capsRatio: capsRatio,
+        specialCharsRatio: specialCharsRatio,
+        entropy: entropy,
+        inappropriateWordsChecked: inappropriateWords ? inappropriateWords.length : 0
+      }
+    };
+  }
+
+  /**
+   * Trova le posizioni di una parola all'interno di un testo
+   * @param {string} text - Il testo in cui cercare
+   * @param {string} word - La parola da cercare
+   * @returns {Array} - Array delle posizioni trovate
+   */
+  static findWordPositions(text, word) {
+    const positions = [];
+    const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+      positions.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        match: match[0]
+      });
+    }
+    
+    return positions;
+  }
+
+  /**
+   * Genera varianti leet speak delle parole
+   * @param {Array} words - Array di parole
+   * @returns {Array} - Array di varianti generate
+   */
+  static generateLeetVariants(words) {
+    const variants = [];
+    const leetMap = { 'a': '4', 'e': '3', 'i': '1', 'o': '0', 's': '5', 't': '7' };
+    
+    for (const word of words) {
+      if (word.length > 2) {
+        let variant = word.toLowerCase();
+        for (const [letter, num] of Object.entries(leetMap)) {
+          variant = variant.replace(new RegExp(letter, 'g'), num);
+        }
+        if (variant !== word.toLowerCase()) {
+          variants.push(variant);
+        }
+      }
+    }
+    return variants;
+  }
+
+  /**
+   * Normalizza il testo per il controllo di contenuti inappropriati
+   * @param {string} text - Il testo da normalizzare
+   * @returns {string} - Il testo normalizzato
+   */
+  static normalizeTextForProfanityCheck(text) {
+    return text
+      .toLowerCase()
+      // Sostituisci numeri che potrebbero sostituire lettere
+      .replace(/3/g, 'e')
+      .replace(/4/g, 'a')
+      .replace(/1/g, 'i')
+      .replace(/0/g, 'o')
+      .replace(/5/g, 's')
+      .replace(/7/g, 't')
+      // Rimuovi simboli che possono nascondere parole
+      .replace(/[@#$%&*\-_\.]/g, '')
+      // Rimuovi spazi multipli
+      .replace(/\s+/g, ' ')
+      // Rimuovi caratteri ripetuti eccessivamente
+      .replace(/(.)\1{3,}/g, '$1$1')
+      .trim();
+  }
+
+  /**
+   * Calcola l'entropia di un testo
+   * @param {string} text - Il testo di cui calcolare l'entropia
+   * @returns {number} - Il valore di entropia
+   */
+  static calculateTextEntropy(text) {
+    const frequencies = {};
+    const length = text.length;
+
+    // Conta le frequenze dei caratteri
+    for (const char of text) {
+      frequencies[char] = (frequencies[char] || 0) + 1;
+    }
+
+    // Calcola l'entropia
+    let entropy = 0;
+    for (const freq of Object.values(frequencies)) {
+      const probability = freq / length;
+      entropy -= probability * Math.log2(probability);
+    }
+
+    return entropy;
+  }
+
+  /**
+   * Calcola la confidenza del controllo contenuti
+   * @param {Array} violations - Le violazioni trovate
+   * @param {number} textLength - La lunghezza del testo
+   * @returns {number} - Il valore di confidenza (0-1)
+   */
+  static calculateContentConfidence(violations, textLength) {
+    if (violations.length === 0) {
+      return 1.0;
+    }
+
+    let penaltyScore = 0;
+    
+    for (const violation of violations) {
+      switch (violation.severity) {
+        case 'high':
+          penaltyScore += 0.4;
+          break;
+        case 'medium':
+          penaltyScore += 0.2;
+          break;
+        case 'low':
+          penaltyScore += 0.1;
+          break;
+      }
+    }
+
+    // Penalità maggiore per testi corti con violazioni
+    if (textLength < 50 && violations.length > 0) {
+      penaltyScore *= 1.5;
+    }
+
+    return Math.max(0, Math.min(1, 1 - penaltyScore));
+  }
+
+  /**
+   * Sanifica contenuti inappropriati
+   * @param {string} text - Il testo da sanificare
+   * @returns {string} - Il testo sanificato
+   */
+  static sanitizeInappropriateContent(text) {
+    let sanitized = text;
+    
+    // Rimuovi caratteri ripetuti eccessivamente
+    sanitized = sanitized.replace(/(.)\1{4,}/g, '$1$1');
+    
+    // Converti tutto in minuscole eccetto la prima lettera
+    sanitized = sanitized.charAt(0).toUpperCase() + sanitized.slice(1).toLowerCase();
+    
+    // Rimuovi caratteri speciali eccessivi
+    sanitized = sanitized.replace(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\?]{3,}/g, '...');
+    
+    // Normalizza spazi
+    sanitized = sanitized.replace(/\s+/g, ' ').trim();
+    
+    return sanitized;
+  }
+
+  /**
+   * Verifica multipli campi di testo per contenuti inappropriati
+   * @param {Object} fields - Oggetto con i campi da verificare
+   * @param {Object} options - Opzioni di configurazione
+   * @returns {Object} - Risultato della verifica per tutti i campi
+   */
+  static checkMultipleFieldsForInappropriateContent(fields, options = {}) {
+    const results = {};
+    let hasViolations = false;
+    const allViolations = [];
+
+    for (const [fieldName, fieldValue] of Object.entries(fields)) {
+      if (fieldValue && typeof fieldValue === 'string') {
+        const result = this.checkInappropriateLanguage(fieldValue, {
+          ...options,
+          context: fieldName
+        });
+        
+        results[fieldName] = result;
+        
+        if (!result.isClean) {
+          hasViolations = true;
+          allViolations.push({
+            field: fieldName,
+            violations: result.violations
+          });
+        }
+      }
+    }
+
+    return {
+      isClean: !hasViolations,
+      fields: results,
+      summary: {
+        totalFields: Object.keys(fields).length,
+        violatingFields: allViolations.length,
+        totalViolations: allViolations.reduce((sum, field) => sum + field.violations.length, 0)
+      },
+      violations: allViolations
     };
   }
 

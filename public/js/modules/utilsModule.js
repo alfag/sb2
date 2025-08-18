@@ -6,6 +6,13 @@ class UtilsModule {
   constructor() {
     this.notifications = new Map();
     this.loadingStates = new Set();
+    
+    // Inizializza automaticamente quando il DOM è pronto
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.init());
+    } else {
+      this.init();
+    }
   }
 
   /**
@@ -32,13 +39,27 @@ class UtilsModule {
    * Mostra notifica
    */
   showNotification(message, type = 'info', duration = 5000) {
+    console.log('[UtilsModule] Creazione notifica:', { message, type, duration });
+    
     const id = this.generateId();
     const notification = this.createNotificationElement(message, type, id);
     
     const container = document.getElementById('notifications-container');
-    container.appendChild(notification);
+    if (!container) {
+      console.error('[UtilsModule] Container notifiche non trovato!');
+      this.createNotificationContainer();
+      const newContainer = document.getElementById('notifications-container');
+      if (!newContainer) {
+        console.error('[UtilsModule] Impossibile creare container notifiche!');
+        return;
+      }
+      newContainer.appendChild(notification);
+    } else {
+      container.appendChild(notification);
+    }
     
     this.notifications.set(id, notification);
+    console.log('[UtilsModule] Notifica aggiunta al DOM:', notification);
 
     // Auto-rimozione
     if (duration > 0) {
@@ -110,6 +131,19 @@ class UtilsModule {
    */
   showInfo(message, duration = 5000) {
     return this.showNotification(message, 'info', duration);
+  }
+
+  /**
+   * Pulisce tutte le notifiche esistenti
+   */
+  clearNotifications() {
+    const notifications = document.querySelectorAll('.notification, .dynamic-alert, .alert-warning, .alert-danger, .error-message, .simple-notification');
+    notifications.forEach(notification => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    });
+    console.log('[UtilsModule] Tutte le notifiche sono state rimosse');
   }
 
   /**

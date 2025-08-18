@@ -19,6 +19,7 @@ const baseRoutes = require('./routes/baseRoutes');
 const administratorRoutes = require('./routes/administratorRoutes');
 const cacheRoutes = require('./routes/cacheRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
+const contentModerationRoutes = require('./routes/contentModerationRoutes');
 
 const app = express();
 // Necessario per express-rate-limit dietro proxy o in LAN
@@ -145,5 +146,6 @@ app.use('/', baseRoutes); // Gestisce le rotte di base dell'applicazione
 //app.use('/admin', administratorRoutes); // Gestisce le rotte amministrative
 app.use('/api/cache', cacheRoutes); // Gestisce le rotte cache (admin)
 app.use('/', reviewRoutes); // Gestisce le rotte delle recensioni e AI (senza prefisso, include /api/...)
+app.use('/content-moderation', contentModerationRoutes); // Gestisce le rotte di test moderazione contenuti (admin)
 
 module.exports = app;

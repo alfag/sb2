@@ -15,6 +15,13 @@ class ReviewModule {
   init() {
     this.bindEvents();
     this.setupEventListeners();
+    
+    // Controlla se ci sono già dati AI disponibili
+    if (window.currentReviewData) {
+      console.log('[ReviewModule] Dati AI già disponibili, inizializzo interfaccia');
+      this.handleAnalysisComplete(window.currentReviewData);
+    }
+    
     console.log('[ReviewModule] Modulo recensioni inizializzato');
   }
 
@@ -26,6 +33,19 @@ class ReviewModule {
     window.addEventListener('aiAnalysisComplete', (event) => {
       this.handleAnalysisComplete(event.detail.data);
     });
+
+    // Listener per quando window.currentReviewData viene aggiornato
+    let currentReviewDataValue = window.currentReviewData;
+    const checkForReviewData = () => {
+      if (window.currentReviewData && window.currentReviewData !== currentReviewDataValue) {
+        console.log('[ReviewModule] Rilevati nuovi dati AI in window.currentReviewData');
+        currentReviewDataValue = window.currentReviewData;
+        this.handleAnalysisComplete(window.currentReviewData);
+      }
+    };
+    
+    // Controlla periodicamente per nuovi dati (ogni 500ms)
+    setInterval(checkForReviewData, 500);
 
     // Bottone pubblica recensione
     const publishBtn = document.getElementById('publish-review');
@@ -65,7 +85,24 @@ class ReviewModule {
    * Gestisce completamento analisi AI
    */
   handleAnalysisComplete(data) {
+    console.log('[ReviewModule] Analisi AI completata, aggiorno interfaccia');
+    
     this.currentReviewData = data;
+    
+    // Nasconde il bottone principale e la call-to-action quando inizia il processo
+    const startReviewBtn = document.getElementById('start-review-process');
+    const callToAction = document.querySelector('.review-call-to-action');
+    
+    if (startReviewBtn) {
+      startReviewBtn.style.display = 'none';
+      console.log('[ReviewModule] Bottone principale nascosto');
+    }
+    
+    if (callToAction) {
+      callToAction.style.display = 'none';
+      console.log('[ReviewModule] Call-to-action nascosta');
+    }
+    
     this.generateReviewInterface(data);
     this.showReviewSection();
   }
@@ -199,13 +236,19 @@ class ReviewModule {
    */
   handleStarClick(event) {
     const star = event.target;
-    const container = star.closest('.stars-container');
+    // Supporta sia il nuovo sistema (.stars-container) che il legacy (.rating-stars)
+    const container = star.closest('.stars-container') || star.closest('.rating-stars');
     
-    if (!container) return;
+    if (!container) {
+      console.log('[ReviewModule] Container stelle non trovato per:', star);
+      return;
+    }
 
     const bottleIndex = parseInt(container.dataset.bottle);
     const category = container.dataset.category;
     const rating = parseInt(star.dataset.rating);
+    
+    console.log(`[ReviewModule] Click stella: bottiglia ${bottleIndex}, categoria ${category}, rating ${rating}`);
 
     this.setRating(bottleIndex, category, rating);
     this.updateStarsDisplay(container, rating);
@@ -274,10 +317,15 @@ class ReviewModule {
    * Gestisce click pubblica
    */
   async handlePublishClick(event) {
+    console.log('[ReviewModule] Click pubblica recensioni ricevuto');
+    console.log('[ReviewModule] Event details:', event);
+    
     if (!this.validateReviews()) {
+      console.log('[ReviewModule] Validazione fallita - pubblicazione interrotta');
       return;
     }
 
+    console.log('[ReviewModule] Validazione riuscita - procedo con pubblicazione');
     await this.publishReviews();
   }
 
@@ -285,16 +333,79 @@ class ReviewModule {
    * Valida recensioni prima della pubblicazione
    */
   validateReviews() {
-    const hasValidReview = Array.from(this.ratings.keys()).some(bottleIndex => {
-      const bottleRatings = this.ratings.get(bottleIndex);
-      return bottleRatings.has('overall') && bottleRatings.get('overall') > 0;
-    });
-
+    console.log('[ReviewModule] Inizio validazione recensioni');
+    
+    // Se non abbiamo dati correnti, controlliamo l'HTML direttamente
+    if (!this.currentReviewData || !this.currentReviewData.bottles) {
+      console.log('[ReviewModule] Nessun currentReviewData, controllo window.currentReviewData');
+      if (window.currentReviewData && window.currentReviewData.bottles) {
+        this.currentReviewData = window.currentReviewData;
+        console.log('[ReviewModule] Dati recuperati da window.currentReviewData');
+      } else {
+        console.log('[ReviewModule] Nessun dato disponibile per validazione');
+        this.showError('Nessun dato di recensione disponibile');
+        return false;
+      }
+    }
+    
+    const categories = ['overall', 'appearance', 'aroma', 'taste', 'mouthfeel'];
+    console.log('[ReviewModule] Categorie da controllare:', categories);
+    
+    // Controlla sia i dati tracciati che l'HTML direttamente
+    let hasValidReview = false;
+    
+    // Prima controlla i dati tracciati dal reviewModule
+    if (this.ratings.size > 0) {
+      console.log('[ReviewModule] Ratings tracciati disponibili:', Array.from(this.ratings.entries()));
+      
+      hasValidReview = Array.from(this.ratings.keys()).some(bottleIndex => {
+        const bottleRatings = this.ratings.get(bottleIndex);
+        console.log(`[ReviewModule] Controllo bottiglia ${bottleIndex}, ratings:`, Array.from(bottleRatings.entries()));
+        
+        const hasValidRating = categories.some(category => {
+          const rating = bottleRatings.has(category) ? bottleRatings.get(category) : 0;
+          console.log(`[ReviewModule] Bottiglia ${bottleIndex}, categoria ${category}: ${rating}`);
+          return rating > 0;
+        });
+        
+        console.log(`[ReviewModule] Bottiglia ${bottleIndex} ha rating valido (tracciato): ${hasValidRating}`);
+        return hasValidRating;
+      });
+    }
+    
+    // Se non troviamo rating tracciati, controlla direttamente l'HTML
     if (!hasValidReview) {
+      console.log('[ReviewModule] Nessun rating tracciato valido, controllo DOM direttamente');
+      
+      this.currentReviewData.bottles.forEach((bottle, index) => {
+        categories.forEach(category => {
+          // Supporta sia i selettori nuovi che legacy
+          const container = document.querySelector(`[data-bottle="${index}"][data-category="${category}"].rating-stars`) ||
+                           document.querySelector(`[data-bottle="${index}"][data-category="${category}"].stars-container`);
+          
+          if (container) {
+            const selectedStars = container.querySelectorAll('.star.selected');
+            if (selectedStars.length > 0) {
+              console.log(`[ReviewModule] Trovate ${selectedStars.length} stelle selezionate per bottiglia ${index}, categoria ${category}`);
+              hasValidReview = true;
+              
+              // Sincronizza con i dati tracciati
+              this.setRating(index, category, selectedStars.length);
+            }
+          }
+        });
+      });
+    }
+
+    console.log('[ReviewModule] Risultato validazione finale:', hasValidReview);
+    
+    if (!hasValidReview) {
+      console.log('[ReviewModule] Validazione fallita - mostro errore');
       this.showError('Aggiungi almeno una valutazione a stelle prima di pubblicare');
       return false;
     }
 
+    console.log('[ReviewModule] Validazione riuscita');
     return true;
   }
 
@@ -318,10 +429,15 @@ class ReviewModule {
       const result = await response.json();
 
       if (!response.ok) {
+        // Gestione specifica per contenuto inappropriato
+        if (result.inappropriateContent) {
+          throw new Error('È stato rilevato linguaggio inappropriato nelle tue recensioni. Per favore, rivedi il contenuto ed evita parole volgari o offensive.');
+        }
         throw new Error(result.message || 'Errore durante la pubblicazione');
       }
 
       this.showSuccess('Recensioni pubblicate con successo!');
+      this.clearPreviousErrors(); // Pulisce eventuali messaggi di errore precedenti
       this.resetReviewInterface();
 
     } catch (error) {
@@ -338,24 +454,78 @@ class ReviewModule {
   collectReviewsData() {
     const reviews = [];
 
-    this.currentReviewData.bottles.forEach((bottle, index) => {
-      const bottleRatings = this.ratings.get(index);
-      const bottleNotes = this.notes.get(index);
+    if (!this.currentReviewData || !this.currentReviewData.bottles) {
+      console.log('[ReviewModule] Nessun currentReviewData disponibile per raccolta');
+      return { reviews, aiAnalysisData: null };
+    }
 
-      if (!bottleRatings || !bottleRatings.has('overall')) {
-        return; // Salta se non ha rating generale
+    this.currentReviewData.bottles.forEach((bottle, index) => {
+      let bottleRatings = this.ratings.get(index);
+      let bottleNotes = this.notes.get(index);
+      
+      // Se non abbiamo dati tracciati, leggi dall'HTML
+      if (!bottleRatings || bottleRatings.size === 0) {
+        console.log(`[ReviewModule] Nessun rating tracciato per bottiglia ${index}, leggo dall'HTML`);
+        bottleRatings = new Map();
+        
+        // Leggi rating dall'HTML
+        const categories = ['overall', 'appearance', 'aroma', 'taste', 'mouthfeel'];
+        categories.forEach(category => {
+          const container = document.querySelector(`[data-bottle="${index}"][data-category="${category}"].rating-stars`) ||
+                           document.querySelector(`[data-bottle="${index}"][data-category="${category}"].stars-container`);
+          
+          if (container) {
+            const selectedStars = container.querySelectorAll('.star.selected');
+            if (selectedStars.length > 0) {
+              bottleRatings.set(category, selectedStars.length);
+            }
+          }
+        });
+      }
+      
+      // Se non abbiamo note tracciate, leggi dall'HTML
+      if (!bottleNotes || bottleNotes.size === 0) {
+        console.log(`[ReviewModule] Nessuna nota tracciata per bottiglia ${index}, leggo dall'HTML`);
+        bottleNotes = new Map();
+        
+        // Leggi note dall'HTML
+        const categories = ['general', 'appearance', 'aroma', 'taste', 'mouthfeel'];
+        categories.forEach(category => {
+          const textarea = document.querySelector(`[data-notes="${index}"][data-category="${category}"]`);
+          if (textarea && textarea.value.trim()) {
+            bottleNotes.set(category, textarea.value.trim());
+          }
+        });
+      }
+
+      // Controlla se ha almeno un rating (generale o dettagliato)
+      const hasOverallRating = bottleRatings.has('overall') && bottleRatings.get('overall') > 0;
+      const hasDetailedRating = ['appearance', 'aroma', 'taste', 'mouthfeel'].some(cat => 
+        bottleRatings.has(cat) && bottleRatings.get(cat) > 0
+      );
+      
+      if (!hasOverallRating && !hasDetailedRating) {
+        console.log(`[ReviewModule] Bottiglia ${index} saltata - nessun rating trovato`);
+        return; // Salta se non ha rating
       }
 
       const review = {
         beerId: bottle._id,
         beerName: bottle.bottleLabel,
         breweryName: bottle.breweryName,
-        rating: bottleRatings.get('overall'),
+        rating: bottleRatings.get('overall') || 0,
         notes: bottleNotes.get('general') || '',
-        detailedRatings: this.getDetailedRatings(index),
+        detailedRatings: this.getDetailedRatingsFromData(bottleRatings, bottleNotes),
         aiData: bottle.aiData,
         thumbnail: bottle.thumbnail
       };
+
+      console.log(`[ReviewModule] Bottiglia ${index} raccolta:`, {
+        beerName: bottle.bottleLabel,
+        overallRating: review.rating,
+        hasNotes: !!review.notes,
+        hasDetailedRatings: !!review.detailedRatings
+      });
 
       reviews.push(review);
     });
@@ -367,12 +537,9 @@ class ReviewModule {
   }
 
   /**
-   * Ottieni valutazioni dettagliate per bottiglia
+   * Ottieni valutazioni dettagliate da dati specifici
    */
-  getDetailedRatings(bottleIndex) {
-    const bottleRatings = this.ratings.get(bottleIndex);
-    const bottleNotes = this.notes.get(bottleIndex);
-
+  getDetailedRatingsFromData(bottleRatings, bottleNotes) {
     if (!bottleRatings || !bottleNotes) return null;
 
     const detailed = {};
@@ -422,10 +589,30 @@ class ReviewModule {
     this.ratings.clear();
     this.notes.clear();
 
+    // Nasconde la sezione di processo recensione
     const section = document.getElementById('review-process');
     if (section) {
       section.style.display = 'none';
     }
+    
+    // Ripristina il bottone principale e la call-to-action (compatibilità con HTML legacy)
+    const startReviewBtn = document.getElementById('start-review-process');
+    const callToAction = document.querySelector('.review-call-to-action');
+    
+    if (startReviewBtn) {
+      startReviewBtn.style.display = 'inline-flex';
+      console.log('[ReviewModule] Bottone principale ripristinato');
+    }
+    
+    if (callToAction) {
+      callToAction.style.display = 'block';
+      console.log('[ReviewModule] Call-to-action ripristinata');
+    }
+    
+    // Reset dei dati globali per compatibilità con sistema legacy
+    window.currentReviewData = null;
+    
+    console.log('[ReviewModule] Interfaccia recensioni ripristinata completamente');
   }
 
   /**
@@ -440,8 +627,81 @@ class ReviewModule {
    * Mostra errore
    */
   showError(message) {
-    // Implementa notifica errore
+    // Utilizza il sistema di notifiche globale se disponibile
+    if (window.utils && window.utils.showNotification) {
+      window.utils.showNotification(message, 'error', 8000);
+    } else {
+      // Fallback: crea notifica semplice
+      this.createSimpleNotification(message, 'error');
+    }
     console.error('[ReviewModule] Errore:', message);
+  }
+
+  /**
+   * Mostra successo
+   */
+  showSuccess(message) {
+    // Prima pulisci eventuali errori precedenti
+    this.clearPreviousErrors();
+    
+    // Utilizza il sistema di notifiche globale se disponibile
+    if (window.utils && window.utils.showNotification) {
+      window.utils.showNotification(message, 'success', 5000);
+    } else {
+      // Fallback: crea notifica semplice
+      this.createSimpleNotification(message, 'success');
+    }
+    console.log('[ReviewModule] Successo:', message);
+  }
+
+  /**
+   * Pulisce messaggi di errore precedenti
+   */
+  clearPreviousErrors() {
+    // Rimuovi notifiche del sistema utils se disponibile
+    if (window.utils && window.utils.clearNotifications) {
+      window.utils.clearNotifications();
+    }
+    
+    // Rimuovi notifiche semplici create da questo modulo
+    const simpleNotifications = document.querySelectorAll('.simple-notification, .dynamic-alert, .alert-warning, .alert-danger, .error-message');
+    simpleNotifications.forEach(notification => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    });
+    
+    console.log('[ReviewModule] Messaggi di errore precedenti rimossi');
+  }
+
+  /**
+   * Crea notifica semplice (fallback)
+   */
+  createSimpleNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `simple-notification notification-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'error' ? '#dc3545' : '#28a745'};
+      color: white;
+      padding: 15px 20px;
+      border-radius: 5px;
+      z-index: 9999;
+      max-width: 400px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-rimozione dopo 8 secondi
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 8000);
   }
 }
 

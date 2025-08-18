@@ -54,14 +54,14 @@ class RateLimitService {
         // Salta rate limiting per admin
         return req.user?.role === 'admin';
       },
-      onLimitReached: (req, res, options) => {
+      handler: (req, res) => {
+        // Log del limite raggiunto spostato qui dal deprecato onLimitReached
         logger.warn('[RateLimit] Limite AI raggiunto', {
           userId: req.user?.id,
           ip: req.ip,
           userAgent: req.get('User-Agent')
         });
-      },
-      handler: (req, res) => {
+        
         res.status(429).json({
           error: 'AI rate limit exceeded',
           message: 'Hai raggiunto il limite di analisi AI per questa ora. Riprova più tardi.',

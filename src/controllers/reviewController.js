@@ -4,6 +4,7 @@ const User = require('../models/User');
 const path = require('path');
 const fs = require('fs');
 const GeminiAI = require('../utils/geminiAi');
+const ValidationService = require('../utils/validationService');
 const logWithFileName = require('../utils/logger');
 const logger = logWithFileName(__filename);
 
@@ -355,6 +356,53 @@ exports.createMultipleReviews = async (req, res) => {
       }))
     });
 
+    // Validazione input incluso controllo linguaggio inappropriato
+    logger.info('[createMultipleReviews] Test validazione con reviews:', {
+      reviewsCount: reviews.length,
+      sampleTexts: reviews.slice(0, 2).map(r => ({
+        beerName: r.beerName,
+        notes: r.notes
+      }))
+    });
+    
+    const validationResult = ValidationService.validateReviewsInput({ reviews, aiAnalysisData });
+    
+    logger.info('[createMultipleReviews] Risultato validazione:', {
+      isValid: validationResult.isValid,
+      inappropriateContent: validationResult.inappropriateContent,
+      hasDetails: !!validationResult.details
+    });
+    
+    if (!validationResult.isValid) {
+      if (validationResult.inappropriateContent) {
+        logger.warn('[createMultipleReviews] Contenuto inappropriato rilevato', {
+          userId: req.user?._id,
+          sessionId: req.sessionID,
+          violations: validationResult.details
+        });
+        
+        return res.status(400).json({
+          error: 'Sono stati rilevati contenuti inappropriati nelle recensioni',
+          inappropriateContent: true,
+          details: validationResult.details,
+          message: 'Per favore, rivedi il linguaggio utilizzato nelle tue recensioni. Evita contenuti volgari o inappropriati.'
+        });
+      } else {
+        logger.warn('[createMultipleReviews] Validazione fallita', {
+          userId: req.user?._id,
+          sessionId: req.sessionID,
+          errors: validationResult.details
+        });
+        
+        return res.status(400).json({
+          error: validationResult.message,
+          details: validationResult.details
+        });
+      }
+    }
+
+    // Usa i dati validati (e potenzialmente sanificati)
+    const validatedReviews = validationResult.data.reviews;
     const createdReviews = [];
 
     // Crea una singola review con ratings multipli (seguendo il modello Review esistente)
@@ -364,7 +412,7 @@ exports.createMultipleReviews = async (req, res) => {
     const sessionAiData = req.session.aiReviewData;
     const beerIds = sessionAiData?.data?.beerIds || [];
     
-    for (const [index, reviewData] of reviews.entries()) {
+    for (const [index, reviewData] of validatedReviews.entries()) {
       // Verifica che reviewData sia definito e abbia le proprietà necessarie
       if (!reviewData || typeof reviewData !== 'object') {
         logger.warn('[createMultipleReviews] ReviewData non valido, skipping', {
@@ -391,30 +439,30 @@ exports.createMultipleReviews = async (req, res) => {
       ratingsArray.push({
         bottleLabel: reviewData.beerName || 'Birra sconosciuta',
         rating: reviewData.rating,
-        notes: reviewData.notes || '', // Note generali
+        notes: reviewData.notes || '', // Note generali (già sanificate se necessario)
         beer: beerId, // ID della birra dal database
         brewery: breweryId, // ID del birrificio dal database
         // Valutazioni dettagliate (se presenti)
         detailedRatings: reviewData.detailedRatings ? {
           appearance: reviewData.detailedRatings.appearance ? {
             rating: reviewData.detailedRatings.appearance.rating || null,
-            notes: reviewData.detailedRatings.appearance.notes || null
+            notes: reviewData.detailedRatings.appearance.notes || null // Già sanificato se necessario
           } : null,
           aroma: reviewData.detailedRatings.aroma ? {
             rating: reviewData.detailedRatings.aroma.rating || null,
-            notes: reviewData.detailedRatings.aroma.notes || null
+            notes: reviewData.detailedRatings.aroma.notes || null // Già sanificato se necessario
           } : null,
           taste: reviewData.detailedRatings.taste ? {
             rating: reviewData.detailedRatings.taste.rating || null,
-            notes: reviewData.detailedRatings.taste.notes || null
+            notes: reviewData.detailedRatings.taste.notes || null // Già sanificato se necessario
           } : null,
           mouthfeel: reviewData.detailedRatings.mouthfeel ? {
             rating: reviewData.detailedRatings.mouthfeel.rating || null,
-            notes: reviewData.detailedRatings.mouthfeel.notes || null
+            notes: reviewData.detailedRatings.mouthfeel.notes || null // Già sanificato se necessario
           } : null,
           overall: reviewData.detailedRatings.overall ? {
             rating: reviewData.detailedRatings.overall.rating || null,
-            notes: reviewData.detailedRatings.overall.notes || null
+            notes: reviewData.detailedRatings.overall.notes || null // Già sanificato se necessario
           } : null
         } : null,
         aiData: {
