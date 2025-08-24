@@ -432,8 +432,8 @@ exports.createMultipleReviews = async (req, res) => {
       // Usa l'ID della birra dal database se disponibile
       const beerId = reviewData.beerId || beerIds[index] || null;
       
-      // Recupera l'ID del birrificio dalla sessione AI o dai dati della recensione
-      const breweryId = sessionAiData?.data?.brewery?._id || aiAnalysisData?.brewery?._id || null;
+      // Recupera l'ID del birrificio dalla sessione AI (breweryId è aggiunto dopo il salvataggio)
+      const breweryId = sessionAiData?.data?.breweryId || aiAnalysisData?.breweryId || null;
 
       // Aggiungi alla array ratings
       ratingsArray.push({

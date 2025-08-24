@@ -62,6 +62,7 @@ const encryptedInappropriateWords = [
   '49ef7e50c90cec88c1dee2ffda7f5619:61beb7d405a07d', // cretino
   'b10f35575e6a5d0d1149fb4354e3e7ae:6b93d142f4e7', // idiota
   'bd3a999d8bc6261d499035b22221820b:beddc0775488ab', // zoccola
+  'd6c4ef5a6463604efc04b1f5a4125533:34ec210f', // suca
   
   // === ABBREVIAZIONI COMUNI ===
   '6010df66ed903fffa212d35d266c2616:2a7b8b', // pdc

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "mocha --recursive --exit"
+    "test": "mocha --recursive --exit",
+    "security-check": "node scripts/securityCheck.js"
   },
   "dependencies": {
     "@google-cloud/aiplatform": "^5.0.0",
