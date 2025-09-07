@@ -1,0 +1,285 @@
+{% extends "../layout.njk" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>{{ title }}</h1>
+    
+    <!-- Messaggi flash -->
+    {% if message.success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message.success[0] }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+    
+    {% if message.error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ message.error[0] }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+    
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/administrator">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="/administrator/breweries">Birrifici</a></li>
+            <li class="breadcrumb-item active">Modifica {{ brewery.breweryName }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Modifica Birrificio: {{ brewery.breweryName }}</h5>
+                    <small class="text-muted">ID: {{ brewery._id }}</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="/administrator/breweries/edit/{{ brewery._id }}">
+                        
+                        <!-- Informazioni base -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2">Informazioni Base</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="breweryName" class="form-label">Nome Birrificio *</label>
+                                    <input type="text" class="form-control" id="breweryName" name="breweryName" 
+                                           value="{{ brewery.breweryName or '' }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="breweryEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="breweryEmail" name="breweryEmail" 
+                                           value="{{ brewery.breweryEmail or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="breweryDescription" class="form-label">Descrizione</label>
+                                    <textarea class="form-control" id="breweryDescription" name="breweryDescription" rows="3">{{ brewery.breweryDescription or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Dati legali -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2">Dati Legali</h6>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="breweryFiscalCode" class="form-label">Codice Fiscale</label>
+                                    <input type="text" class="form-control" id="breweryFiscalCode" name="breweryFiscalCode" 
+                                           value="{{ brewery.breweryFiscalCode or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="breweryREAcode" class="form-label">Codice REA</label>
+                                    <input type="text" class="form-control" id="breweryREAcode" name="breweryREAcode" 
+                                           value="{{ brewery.breweryREAcode or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="breweryacciseCode" class="form-label">Codice Accise</label>
+                                    <input type="text" class="form-control" id="breweryacciseCode" name="breweryacciseCode" 
+                                           value="{{ brewery.breweryacciseCode or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="breweryFund" class="form-label">Fondo</label>
+                                    <input type="text" class="form-control" id="breweryFund" name="breweryFund" 
+                                           value="{{ brewery.breweryFund or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="foundingYear" class="form-label">Anno di Fondazione</label>
+                                    <input type="number" class="form-control" id="foundingYear" name="foundingYear" 
+                                           min="1800" max="2025" value="{{ brewery.foundingYear or '' }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Indirizzi e contatti -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2">Indirizzi e Contatti</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="breweryLegalAddress" class="form-label">Indirizzo Legale</label>
+                                    <textarea class="form-control" id="breweryLegalAddress" name="breweryLegalAddress" rows="2">{{ brewery.breweryLegalAddress or '' }}</textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="breweryProductionAddress" class="form-label">Indirizzo Produzione</label>
+                                    <textarea class="form-control" id="breweryProductionAddress" name="breweryProductionAddress" rows="2">{{ brewery.breweryProductionAddress or '' }}</textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="breweryPhoneNumber" class="form-label">Telefono</label>
+                                    <input type="tel" class="form-control" id="breweryPhoneNumber" name="breweryPhoneNumber" 
+                                           value="{{ brewery.breweryPhoneNumber or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="breweryWebsite" class="form-label">Sito Web</label>
+                                    <input type="url" class="form-control" id="breweryWebsite" name="breweryWebsite" 
+                                           value="{{ brewery.breweryWebsite or '' }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Informazioni produttive -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2">Informazioni Produttive</h6>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="brewerySize" class="form-label">Dimensione Birrificio</label>
+                                    <select class="form-select" id="brewerySize" name="brewerySize">
+                                        <option value="">Seleziona...</option>
+                                        <option value="microbirrificio" {% if brewery.brewerySize == 'microbirrificio' %}selected{% endif %}>Microbirrificio</option>
+                                        <option value="birrificio artigianale" {% if brewery.brewerySize == 'birrificio artigianale' %}selected{% endif %}>Birrificio Artigianale</option>
+                                        <option value="industriale" {% if brewery.brewerySize == 'industriale' %}selected{% endif %}>Industriale</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="employeeCount" class="form-label">Numero Dipendenti</label>
+                                    <input type="text" class="form-control" id="employeeCount" name="employeeCount" 
+                                           value="{{ brewery.employeeCount or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="productionVolume" class="form-label">Volume Produzione</label>
+                                    <input type="text" class="form-control" id="productionVolume" name="productionVolume" 
+                                           placeholder="es. 1000 hl/anno" value="{{ brewery.productionVolume or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="distributionArea" class="form-label">Area Distribuzione</label>
+                                    <input type="text" class="form-control" id="distributionArea" name="distributionArea" 
+                                           placeholder="es. Regionale, Nazionale, Internazionale" value="{{ brewery.distributionArea or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="masterBrewer" class="form-label">Mastro Birraio</label>
+                                    <input type="text" class="form-control" id="masterBrewer" name="masterBrewer" 
+                                           value="{{ brewery.masterBrewer or '' }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Prodotti e riconoscimenti -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2">Prodotti e Riconoscimenti</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="mainProducts" class="form-label">Prodotti Principali</label>
+                                    <textarea class="form-control" id="mainProducts" name="mainProducts" rows="2" 
+                                              placeholder="Separa con virgole (es. IPA, Lager, Stout)">{% if brewery.mainProducts %}{{ brewery.mainProducts | join(', ') }}{% endif %}</textarea>
+                                    <small class="form-text text-muted">Separa i prodotti con virgole</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="awards" class="form-label">Premi e Riconoscimenti</label>
+                                    <textarea class="form-control" id="awards" name="awards" rows="2" 
+                                              placeholder="Separa con virgole (es. World Beer Cup 2021, Italian Beer Award 2020)">{% if brewery.awards %}{{ brewery.awards | join(', ') }}{% endif %}</textarea>
+                                    <small class="form-text text-muted">Separa i premi con virgole</small>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="breweryHistory" class="form-label">Storia del Birrificio</label>
+                                    <textarea class="form-control" id="breweryHistory" name="breweryHistory" rows="3">{{ brewery.breweryHistory or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Social Media -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2">Social Media</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="facebook" class="form-label">Facebook</label>
+                                    <input type="url" class="form-control" id="facebook" name="facebook" 
+                                           placeholder="https://facebook.com/breweryname" value="{{ brewery.brewerySocialMedia.facebook or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="instagram" class="form-label">Instagram</label>
+                                    <input type="url" class="form-control" id="instagram" name="instagram" 
+                                           placeholder="https://instagram.com/breweryname" value="{{ brewery.brewerySocialMedia.instagram or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="twitter" class="form-label">Twitter</label>
+                                    <input type="url" class="form-control" id="twitter" name="twitter" 
+                                           placeholder="https://twitter.com/breweryname" value="{{ brewery.brewerySocialMedia.twitter or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="linkedin" class="form-label">LinkedIn</label>
+                                    <input type="url" class="form-control" id="linkedin" name="linkedin" 
+                                           placeholder="https://linkedin.com/company/breweryname" value="{{ brewery.brewerySocialMedia.linkedin or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="youtube" class="form-label">YouTube</label>
+                                    <input type="url" class="form-control" id="youtube" name="youtube" 
+                                           placeholder="https://youtube.com/breweryname" value="{{ brewery.brewerySocialMedia.youtube or '' }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Pulsanti azione -->
+                        <div class="row">
+                            <div class="col-12">
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <a href="/administrator/breweries" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Torna alla Lista
+                                    </a>
+                                    <div>
+                                        <a href="/administrator/breweries/view/{{ brewery._id }}" class="btn btn-outline-info me-2">
+                                            <i class="fas fa-eye"></i> Visualizza
+                                        </a>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i> Salva Modifiche
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -2,6 +2,7 @@ const Review = require('../models/Review');
 const User = require('../models/User');
 const Beer = require('../models/Beer');
 const Brewery = require('../models/Brewery');
+const mongoose = require('mongoose');
 const logWithFileName = require('../utils/logger');
 const ValidationService = require('../utils/validationService');
 const ErrorHandler = require('../utils/errorHandler');
@@ -118,14 +119,29 @@ class ReviewService {
           r.ratings.map(rating => rating.beer?.toString()).filter(Boolean)
         )
       );
+      
+      // Invalida cache birre
       beerIds.forEach(beerId => {
         cacheService.invalidatePattern(`beer_stats:${beerId}`);
+      });
+      
+      // Ottieni IDs dei birrifici coinvolti per invalidare anche le loro cache
+      const breweryIds = new Set(
+        createdReviews.flatMap(r => 
+          r.ratings.map(rating => rating.brewery?.toString()).filter(Boolean)
+        )
+      );
+      
+      // Invalida cache birrifici
+      breweryIds.forEach(breweryId => {
+        this.invalidateBreweryStatsCache(breweryId);
       });
       
       logger.info('[ReviewService] Cache invalidated after review creation', {
         userId: userId || 'guest',
         reviewsCreated: createdReviews.length,
-        affectedBeers: beerIds.size
+        affectedBeers: beerIds.size,
+        affectedBreweries: breweryIds.size
       });
     }
 
@@ -159,6 +175,149 @@ class ReviewService {
   }
 
   /**
+   * Trova una birra esistente o la crea se non esiste
+   * @param {Object} reviewData - Dati della recensione contenenti info sulla birra
+   * @param {boolean} isGuestUser - Se l'utente è guest
+   * @returns {Promise<Object>} - Oggetto birra
+   */
+  static async findOrCreateBeer(reviewData, isGuestUser = false) {
+    const { beerName, beerId } = reviewData;
+    
+    // Se abbiamo un beerId, verifica che la birra esista
+    if (beerId) {
+      const beer = await Beer.findById(beerId).populate('brewery');
+      if (beer) {
+        logger.debug('[ReviewService] Birra trovata per ID', { beerId, beerName: beer.beerName });
+        return beer;
+      } else {
+        logger.warn('[ReviewService] Birra non trovata per ID fornito', { beerId, fallbackName: beerName });
+      }
+    }
+    
+    // Cerca per nome se non abbiamo ID o se l'ID non è valido
+    if (beerName) {
+      const normalizedName = beerName.toLowerCase().trim();
+      const existingBeer = await Beer.findOne({
+        $or: [
+          { beerName: new RegExp('^' + beerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') },
+          { normalizedName: normalizedName }
+        ]
+      }).populate('brewery');
+      
+      if (existingBeer) {
+        logger.debug('[ReviewService] Birra trovata per nome', { 
+          beerName, 
+          foundId: existingBeer._id,
+          foundName: existingBeer.beerName 
+        });
+        return existingBeer;
+      }
+    }
+    
+    // Se la birra non esiste, creala (solo per utenti autenticati o con dati sufficienti)
+    if (!beerName) {
+      throw ErrorHandler.createHttpError(400, 'Nome birra mancante per creazione', 'Beer name required for creation');
+    }
+    
+    // Per utenti guest, crea sempre nuove birre (potrebbero essere temporanee)
+    // Per utenti autenticati, verifica se creare effettivamente la birra
+    logger.info('[ReviewService] Creazione nuova birra', { 
+      beerName, 
+      isGuestUser,
+      hasBreweryData: !!reviewData.brewery || !!reviewData.breweryName
+    });
+    
+    // Cerca o crea birrificio se non fornito
+    let breweryId = reviewData.brewery;
+    if (!breweryId && reviewData.breweryName) {
+      const brewery = await this.findOrCreateBrewery(reviewData.breweryName);
+      breweryId = brewery._id;
+    }
+    
+    if (!breweryId) {
+      throw ErrorHandler.createHttpError(400, 'Birrificio mancante per creazione birra', 'Brewery required for beer creation');
+    }
+    
+    // Crea la birra
+    const newBeer = new Beer({
+      beerName: beerName,
+      brewery: breweryId,
+      alcoholContent: reviewData.aiData?.alcoholContent || '',
+      beerType: reviewData.aiData?.beerType || '',
+      beerSubStyle: reviewData.aiData?.beerSubStyle || '',
+      ibu: reviewData.aiData?.ibu || '',
+      volume: reviewData.aiData?.volume || '',
+      description: reviewData.aiData?.description || '',
+      ingredients: reviewData.aiData?.ingredients || '',
+      tastingNotes: reviewData.notes || reviewData.aiData?.tastingNotes || '',
+      nutritionalInfo: reviewData.aiData?.nutritionalInfo || '',
+      price: reviewData.aiData?.price || '',
+      availability: reviewData.aiData?.availability || '',
+      aiExtracted: !!reviewData.aiData,
+      aiConfidence: reviewData.aiData?.confidence || 0,
+      dataSource: reviewData.aiData?.dataSource || 'manual',
+      lastAiUpdate: new Date()
+    });
+    
+    const savedBeer = await newBeer.save();
+    const populatedBeer = await Beer.findById(savedBeer._id).populate('brewery');
+    
+    logger.info('[ReviewService] Birra creata con successo', {
+      beerId: savedBeer._id,
+      beerName: savedBeer.beerName,
+      breweryId: breweryId,
+      isGuestUser
+    });
+    
+    return populatedBeer;
+  }
+
+  /**
+   * Trova un birrificio esistente o lo crea se non esiste
+   * @param {string} breweryName - Nome del birrificio
+   * @returns {Promise<Object>} - Oggetto birrificio
+   */
+  static async findOrCreateBrewery(breweryName) {
+    if (!breweryName) {
+      throw ErrorHandler.createHttpError(400, 'Nome birrificio mancante', 'Brewery name required');
+    }
+    
+    // Cerca birrificio esistente
+    const normalizedName = breweryName.toLowerCase().trim();
+    let brewery = await Brewery.findOne({
+      $or: [
+        { breweryName: new RegExp('^' + breweryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') },
+        { breweryName: normalizedName }
+      ]
+    });
+    
+    if (brewery) {
+      logger.debug('[ReviewService] Birrificio trovato', { 
+        breweryName, 
+        foundId: brewery._id,
+        foundName: brewery.breweryName 
+      });
+      return brewery;
+    }
+    
+    // Crea nuovo birrificio
+    brewery = new Brewery({
+      breweryName: breweryName,
+      aiExtracted: false,
+      lastAiUpdate: new Date()
+    });
+    
+    const savedBrewery = await brewery.save();
+    
+    logger.info('[ReviewService] Birrificio creato con successo', {
+      breweryId: savedBrewery._id,
+      breweryName: savedBrewery.breweryName
+    });
+    
+    return savedBrewery;
+  }
+
+  /**
    * Valida che una birra esista nel database
    * @param {string} beerId - ID della birra
    * @returns {Promise<Object>} - Oggetto birra
@@ -178,19 +337,32 @@ class ReviewService {
 
   /**
    * Verifica che l'utente non abbia già recensito questa birra
+   * Controllo senza limiti temporali sui dati salvati nei Model
    * @param {string} userId - ID utente
    * @param {string} beerId - ID birra
    */
   static async checkDuplicateReview(userId, beerId) {
+    // Cerca recensioni esistenti dell'utente per questa birra
     const existingReview = await Review.findOne({
       user: userId,
-      beer: beerId
+      'ratings.beer': beerId
     });
 
     if (existingReview) {
-      throw ErrorHandler.createHttpError(409, 'Recensione già esistente', 
-        'User has already reviewed this beer');
+      logger.warn('[ReviewService] Recensione duplicata rilevata', {
+        userId,
+        beerId,
+        existingReviewId: existingReview._id,
+        existingReviewDate: existingReview.createdAt
+      });
+      
+      throw ErrorHandler.createHttpError(409, 
+        'Hai già recensito questa birra', 
+        `User ${userId} has already reviewed beer ${beerId} in review ${existingReview._id}`
+      );
     }
+    
+    logger.debug('[ReviewService] Nessuna recensione duplicata trovata', { userId, beerId });
   }
 
   /**
@@ -228,10 +400,6 @@ class ReviewService {
           mouthfeel: reviewData.detailedRatings.mouthfeel ? {
             rating: reviewData.detailedRatings.mouthfeel.rating,
             notes: reviewData.detailedRatings.mouthfeel.notes || ''
-          } : undefined,
-          overall: reviewData.detailedRatings.overall ? {
-            rating: reviewData.detailedRatings.overall.rating,
-            notes: reviewData.detailedRatings.overall.notes || ''
           } : undefined
         } : undefined,
 
@@ -370,13 +538,20 @@ class ReviewService {
     }
 
     const stats = await Review.aggregate([
-      { $match: { beer: beerId } },
+      { $unwind: '$ratings' },
+      { $match: { 'ratings.beer': new mongoose.Types.ObjectId(beerId) } },
       {
         $group: {
-          _id: '$beer',
-          averageRating: { $avg: '$rating' },
+          _id: '$ratings.beer',
+          averageRating: { $avg: '$ratings.rating' },
           totalReviews: { $sum: 1 },
-          ratings: { $push: '$rating' }
+          ratings: { $push: '$ratings.rating' },
+          // Statistiche dettagliate se presenti
+          avgAppearance: { $avg: '$ratings.detailedRatings.appearance.rating' },
+          avgAroma: { $avg: '$ratings.detailedRatings.aroma.rating' },
+          avgTaste: { $avg: '$ratings.detailedRatings.taste.rating' },
+          avgMouthfeel: { $avg: '$ratings.detailedRatings.mouthfeel.rating' },
+          avgOverall: { $avg: '$ratings.detailedRatings.overall.rating' }
         }
       }
     ]);
@@ -386,20 +561,35 @@ class ReviewService {
       result = {
         averageRating: 0,
         totalReviews: 0,
-        distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        detailedRatings: {
+          appearance: 0,
+          aroma: 0,
+          taste: 0,
+          mouthfeel: 0,
+          overall: 0
+        }
       };
     } else {
       const stat = stats[0];
       const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
       
       stat.ratings.forEach(rating => {
-        distribution[rating] = (distribution[rating] || 0) + 1;
+        const roundedRating = Math.round(rating);
+        distribution[roundedRating] = (distribution[roundedRating] || 0) + 1;
       });
 
       result = {
         averageRating: Math.round(stat.averageRating * 10) / 10,
         totalReviews: stat.totalReviews,
-        distribution
+        distribution,
+        detailedRatings: {
+          appearance: stat.avgAppearance ? Math.round(stat.avgAppearance * 10) / 10 : 0,
+          aroma: stat.avgAroma ? Math.round(stat.avgAroma * 10) / 10 : 0,
+          taste: stat.avgTaste ? Math.round(stat.avgTaste * 10) / 10 : 0,
+          mouthfeel: stat.avgMouthfeel ? Math.round(stat.avgMouthfeel * 10) / 10 : 0,
+          overall: stat.avgOverall ? Math.round(stat.avgOverall * 10) / 10 : 0
+        }
       };
     }
 
@@ -409,6 +599,294 @@ class ReviewService {
     logger.debug('[ReviewService] Beer stats cached', { beerId, totalReviews: result.totalReviews });
 
     return result;
+  }
+
+  /**
+   * Calcola statistiche aggregate per birrificio
+   * @param {string} breweryId - ID birrificio
+   * @returns {Promise<Object>} - Statistiche aggregate del birrificio
+   */
+  static async getBreweryStats(breweryId) {
+    // Cache key per statistiche birrificio
+    const cacheKey = `brewery_stats:${breweryId}`;
+    
+    // Controllo cache
+    const cached = cacheService.getDB(cacheKey);
+    if (cached) {
+      logger.debug('[ReviewService] Cache hit per brewery stats', { breweryId });
+      return cached;
+    }
+
+    logger.info('[ReviewService] Calcolo statistiche birrificio', { breweryId });
+
+    // Pipeline per calcolare statistiche aggregate del birrificio
+    const stats = await Review.aggregate([
+      { $unwind: '$ratings' },
+      {
+        $lookup: {
+          from: 'beers',
+          localField: 'ratings.beer',
+          foreignField: '_id',
+          as: 'beerInfo'
+        }
+      },
+      { $unwind: '$beerInfo' },
+      { $match: { 'beerInfo.brewery': new mongoose.Types.ObjectId(breweryId) } },
+      {
+        $group: {
+          _id: '$beerInfo.brewery',
+          totalReviews: { $sum: 1 },
+          averageRating: { $avg: '$ratings.rating' },
+          ratings: { $push: '$ratings.rating' },
+          uniqueBeers: { $addToSet: '$beerInfo._id' },
+          uniqueUsers: { $addToSet: '$user' },
+          beerRatings: {
+            $push: {
+              beerId: '$beerInfo._id',
+              beerName: '$beerInfo.beerName',
+              rating: '$ratings.rating',
+              detailedRatings: '$ratings.detailedRatings'
+            }
+          },
+          // Statistiche dettagliate aggregate
+          avgAppearance: { $avg: '$ratings.detailedRatings.appearance.rating' },
+          avgAroma: { $avg: '$ratings.detailedRatings.aroma.rating' },
+          avgTaste: { $avg: '$ratings.detailedRatings.taste.rating' },
+          avgMouthfeel: { $avg: '$ratings.detailedRatings.mouthfeel.rating' },
+          avgOverall: { $avg: '$ratings.detailedRatings.overall.rating' },
+          // Date per trend analysis
+          firstReview: { $min: '$createdAt' },
+          lastReview: { $max: '$createdAt' }
+        }
+      }
+    ]);
+
+    let result;
+    if (stats.length === 0) {
+      result = {
+        averageRating: 0,
+        totalReviews: 0,
+        totalBeers: 0,
+        totalUsers: 0,
+        distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        detailedRatings: {
+          appearance: 0,
+          aroma: 0,
+          taste: 0,
+          mouthfeel: 0,
+          overall: 0
+        },
+        beerBreakdown: [],
+        reviewPeriod: null
+      };
+    } else {
+      const stat = stats[0];
+      const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      
+      // Calcola distribuzione ratings
+      stat.ratings.forEach(rating => {
+        const roundedRating = Math.round(rating);
+        distribution[roundedRating] = (distribution[roundedRating] || 0) + 1;
+      });
+
+      // Raggruppa statistiche per birra
+      const beerBreakdown = {};
+      stat.beerRatings.forEach(beerRating => {
+        const beerId = beerRating.beerId.toString();
+        if (!beerBreakdown[beerId]) {
+          beerBreakdown[beerId] = {
+            beerId: beerRating.beerId,
+            beerName: beerRating.beerName,
+            ratings: [],
+            totalReviews: 0,
+            averageRating: 0
+          };
+        }
+        beerBreakdown[beerId].ratings.push(beerRating.rating);
+        beerBreakdown[beerId].totalReviews++;
+      });
+
+      // Calcola medie per ogni birra
+      const beerStats = Object.values(beerBreakdown).map(beer => ({
+        beerId: beer.beerId,
+        beerName: beer.beerName,
+        totalReviews: beer.totalReviews,
+        averageRating: Math.round((beer.ratings.reduce((sum, r) => sum + r, 0) / beer.ratings.length) * 10) / 10,
+        distribution: beer.ratings.reduce((dist, rating) => {
+          const rounded = Math.round(rating);
+          dist[rounded] = (dist[rounded] || 0) + 1;
+          return dist;
+        }, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 })
+      })).sort((a, b) => b.averageRating - a.averageRating);
+
+      result = {
+        averageRating: Math.round(stat.averageRating * 10) / 10,
+        totalReviews: stat.totalReviews,
+        totalBeers: stat.uniqueBeers.length,
+        totalUsers: stat.uniqueUsers.filter(u => u !== null).length, // Escludi guest users
+        distribution,
+        detailedRatings: {
+          appearance: stat.avgAppearance ? Math.round(stat.avgAppearance * 10) / 10 : 0,
+          aroma: stat.avgAroma ? Math.round(stat.avgAroma * 10) / 10 : 0,
+          taste: stat.avgTaste ? Math.round(stat.avgTaste * 10) / 10 : 0,
+          mouthfeel: stat.avgMouthfeel ? Math.round(stat.avgMouthfeel * 10) / 10 : 0,
+          overall: stat.avgOverall ? Math.round(stat.avgOverall * 10) / 10 : 0
+        },
+        beerBreakdown: beerStats,
+        reviewPeriod: {
+          firstReview: stat.firstReview,
+          lastReview: stat.lastReview,
+          daysActive: stat.firstReview && stat.lastReview ? 
+            Math.ceil((stat.lastReview - stat.firstReview) / (1000 * 60 * 60 * 24)) : 0
+        }
+      };
+    }
+
+    // Cache per 1 ora (le stats dei birrifici cambiano meno frequentemente)
+    cacheService.setDB(cacheKey, result, 3600);
+    
+    logger.info('[ReviewService] Brewery stats cached', { 
+      breweryId, 
+      totalReviews: result.totalReviews,
+      totalBeers: result.totalBeers,
+      averageRating: result.averageRating
+    });
+
+    return result;
+  }
+
+  /**
+   * Ottieni statistiche complete di tutti i birrifici per admin
+   * @param {Object} options - Opzioni per filtri e paginazione
+   * @returns {Promise<Object>} - Statistiche di tutti i birrifici
+   */
+  static async getAllBreweriesStats(options = {}) {
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = 'averageRating',
+      sortOrder = 'desc',
+      minReviews = 0,
+      breweryFilter = ''
+    } = options;
+
+    // Cache key basato sui parametri (incluso filtro birrificio)
+    const cacheKey = `all_breweries_stats:${page}:${limit}:${sortBy}:${sortOrder}:${minReviews}:${breweryFilter}`;
+    
+    // Controllo cache
+    const cached = cacheService.getDB(cacheKey);
+    if (cached) {
+      logger.debug('[ReviewService] Cache hit per all breweries stats', { page, limit, breweryFilter });
+      return cached;
+    }
+
+    logger.info('[ReviewService] Calcolo statistiche tutti i birrifici', { page, limit, sortBy, sortOrder, breweryFilter });
+
+    // Aggiungi filtro per nome birrificio se specificato
+    const breweryMatch = breweryFilter ? 
+      { breweryName: { $regex: breweryFilter, $options: 'i' } } : 
+      {};
+
+    // Prima ottieni tutti i birrifici che hanno recensioni
+    const breweriesWithReviews = await Review.aggregate([
+      { $unwind: '$ratings' },
+      {
+        $lookup: {
+          from: 'beers',
+          localField: 'ratings.beer',
+          foreignField: '_id',
+          as: 'beerInfo'
+        }
+      },
+      { $unwind: '$beerInfo' },
+      {
+        $group: {
+          _id: '$beerInfo.brewery',
+          reviewCount: { $sum: 1 }
+        }
+      },
+      { $match: { reviewCount: { $gte: minReviews } } },
+      {
+        $lookup: {
+          from: 'breweries',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'breweryInfo'
+        }
+      },
+      { $unwind: '$breweryInfo' },
+      // Aggiungi il filtro per nome birrificio
+      ...(Object.keys(breweryMatch).length > 0 ? [{ $match: { 'breweryInfo.breweryName': breweryMatch.breweryName } }] : []),
+      {
+        $project: {
+          _id: 1,
+          breweryName: '$breweryInfo.breweryName',
+          reviewCount: 1
+        }
+      }
+    ]);
+
+    const skip = (page - 1) * limit;
+    const breweryStats = [];
+
+    // Calcola statistiche per ogni birrificio (batch processing per performance)
+    for (const brewery of breweriesWithReviews) {
+      const stats = await this.getBreweryStats(brewery._id);
+      breweryStats.push({
+        breweryId: brewery._id,
+        breweryName: brewery.breweryName,
+        ...stats
+      });
+    }
+
+    // Ordinamento
+    breweryStats.sort((a, b) => {
+      const aVal = a[sortBy] || 0;
+      const bVal = b[sortBy] || 0;
+      return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
+    });
+
+    // Paginazione
+    const paginatedStats = breweryStats.slice(skip, skip + limit);
+    
+    const result = {
+      breweries: paginatedStats,
+      pagination: {
+        page,
+        limit,
+        total: breweryStats.length,
+        pages: Math.ceil(breweryStats.length / limit),
+        hasNext: page < Math.ceil(breweryStats.length / limit),
+        hasPrev: page > 1
+      },
+      summary: {
+        totalBreweries: breweryStats.length,
+        totalReviews: breweryStats.reduce((sum, b) => sum + b.totalReviews, 0),
+        totalBeers: breweryStats.reduce((sum, b) => sum + b.totalBeers, 0),
+        averageRating: breweryStats.length > 0 ? 
+          Math.round((breweryStats.reduce((sum, b) => sum + b.averageRating, 0) / breweryStats.length) * 10) / 10 : 0
+      }
+    };
+
+    // Cache per 2 ore (overview generale cambia meno frequentemente)
+    cacheService.setDB(cacheKey, result, 7200);
+    
+    logger.info('[ReviewService] All breweries stats cached', { 
+      totalBreweries: result.summary.totalBreweries,
+      totalReviews: result.summary.totalReviews
+    });
+
+    return result;
+  }
+
+  /**
+   * Invalida cache delle statistiche birrificio quando vengono aggiunte recensioni
+   * @param {string} breweryId - ID birrificio
+   */
+  static invalidateBreweryStatsCache(breweryId) {
+    cacheService.invalidatePattern(`brewery_stats:${breweryId}`);
+    cacheService.invalidatePattern('all_breweries_stats:*');
+    logger.debug('[ReviewService] Brewery stats cache invalidated', { breweryId });
   }
 }
 

@@ -484,6 +484,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </div>
                             </div>
                             
+                            <!-- Impressioni generali -->
+                            <div class="general-notes">
+                                <label>Impressioni generali:</label>
+                                <textarea placeholder="Impressioni generali sulla birra..." rows="3" data-notes="${index}" data-category="general"></textarea>
+                            </div>
+                            
                             <!-- Toggle per valutazioni dettagliate -->
                             <div class="detailed-ratings-toggle">
                                 <button type="button" class="btn-toggle-detailed" data-bottle="${index}">
@@ -541,12 +547,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <textarea placeholder="Note sulla sensazione in bocca..." rows="2" data-notes="${index}" data-category="mouthfeel"></textarea>
                                 </div>
                             </div>
-                            
-                            <!-- Note generali -->
-                            <textarea placeholder="Note generali sulla birra..." rows="3" data-notes="${index}" data-category="general"></textarea>
                         </div>
                     `;
                 });
+                
                 bottleRatings.innerHTML = ratingsHtml;
                 
                 // Aggiungi event listeners per le stelle di rating
@@ -761,7 +765,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     const thumbnailImg = document.querySelector(`[data-bottle-index="${index}"] .beer-thumbnail`);
                     const thumbnailSrc = thumbnailImg ? thumbnailImg.src : null;
                     
-                    // Raccogli note generali
+                    // Raccogli note generali (impressioni generali)
+                    const generalNotesTextarea = document.querySelector(`[data-notes="${index}"][data-category="general"]`);
                     const generalNotes = generalNotesTextarea ? generalNotesTextarea.value.trim() : '';
                     
                     // Raccogli valutazioni dettagliate (opzionali)
@@ -791,7 +796,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         beerName: bottle.bottleLabel,
                         breweryName: bottle.breweryName,
                         rating: overallRating, // Rating generale
-                        notes: generalNotes, // Note generali
+                        notes: generalNotes, // Impressioni generali
                         detailedRatings: Object.keys(detailedRatings).length > 0 ? detailedRatings : null,
                         aiData: bottle.aiData,
                         thumbnail: thumbnailSrc // Aggiungi il thumbnail
@@ -801,7 +806,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         beerName: bottle.bottleLabel,
                         beerId: bottle._id || bottle.id || 'NOT_FOUND',
                         overallRating: overallRating,
-                        hasGeneralNotes: generalNotes.length > 0,
                         hasDetailedRatings: Object.keys(detailedRatings).length > 0,
                         detailedCategories: Object.keys(detailedRatings),
                         hasThumbnail: !!thumbnailSrc
@@ -1992,7 +1996,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 logDebug('Invio immagine ad AI', { dataSize: imageToSend.length });
 
                 // Invio dell'immagine all'AI con gestione robusta
-                logDebug('Invio fetch a /api/gemini/firstcheck');
+                logDebug('Invio fetch a /review/api/gemini/firstcheck');
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout 30 secondi
@@ -2050,7 +2054,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         });
                     }
                     
-                    fetch('/api/gemini/firstcheck', {
+                    fetch('/review/api/gemini/firstcheck', {
                         method: 'POST',
                         body: formData, // Rimuovi Content-Type per permettere a browser di impostare multipart/form-data
                         signal: controller.signal
@@ -2063,6 +2067,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         statusText: response.statusText,
                         ok: response.ok 
                     });
+                    
+                    // Gestione specifica per rate limiting
+                    if (response.status === 429) {
+                        return response.json().then(data => {
+                            throw new Error(`RATE_LIMIT_EXCEEDED: ${data.message || 'Troppe richieste'}`);
+                        });
+                    }
                     
                     // MODIFICA: Non lanciare errore per status 200, anche se response.ok è false in certi casi
                     if (response.status !== 200) {
@@ -2141,6 +2152,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     
                     if (error.name === 'AbortError') {
                         errorMessage = 'Timeout: l\'analisi sta richiedendo troppo tempo. Riprova.';
+                    } else if (error.message.includes('RATE_LIMIT_EXCEEDED')) {
+                        // Estrai il messaggio specifico dal server
+                        const rateLimitMessage = error.message.replace('RATE_LIMIT_EXCEEDED: ', '');
+                        errorMessage = rateLimitMessage + '\n\nSuggerimento: Registrati per avere più analisi disponibili!';
                     } else if (error.message.includes('HTTP 413')) {
                         errorMessage = 'Immagine troppo grande. Prova a ridimensionarla.';
                     } else if (error.message.includes('HTTP 429')) {
@@ -2213,6 +2228,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (disclaimerModal && acceptDisclaimerBtn) {
         disclaimerModal.style.display = 'block';
         acceptDisclaimerBtn.addEventListener('click', function () {
+            // Disabilita il pulsante per evitare click multipli
+            acceptDisclaimerBtn.disabled = true;
+            acceptDisclaimerBtn.textContent = 'Elaborazione...';
+            
             fetch('/disclaimer', {
                 method: 'POST',
                 headers: {
@@ -2222,9 +2241,26 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(response => {
                 if (response.ok) {
-                    disclaimerModal.style.display = 'none';
-                    location.reload();
+                    return response.json();
+                } else {
+                    throw new Error('Errore nella risposta del server');
                 }
+            })
+            .then(data => {
+                if (data.success) {
+                    disclaimerModal.style.display = 'none';
+                    // Non ricarica la pagina, nasconde semplicemente il popup
+                } else {
+                    throw new Error(data.error || 'Errore durante accettazione disclaimer');
+                }
+            })
+            .catch(error => {
+                console.error('Errore accettazione disclaimer:', error);
+                alert('Errore durante l\'accettazione del disclaimer. Riprova.');
+                
+                // Riabilita il pulsante
+                acceptDisclaimerBtn.disabled = false;
+                acceptDisclaimerBtn.textContent = 'Accetto';
             });
         });
     }

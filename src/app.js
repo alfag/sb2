@@ -1,25 +1,25 @@
-const express = require('express');
-const mongoose = require('../config/db');
-const helmet = require('helmet');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const cookieParser = require('cookie-parser');
-const nunjucks = require('nunjucks');
-const path = require('path'); // Path fornisce funzionalità per lavorare con i percorsi dei file e delle directory
-const rateLimitMiddleware = require('./middlewares/rateLimitMiddleware');
-const sessionMiddleware = require('./middlewares/sessionMiddleware');
-const disclaimerMiddleware = require('./middlewares/disclaimerMiddleware');
-const flash = require('connect-flash');
-const passport = require('../config/passport');
-const logWithFileName = require('./utils/logger');
-const ErrorHandler = require('./utils/errorHandler');
-const RateLimitService = require('./utils/rateLimitService');
+const express = require('express'); // Framework web principale per la gestione delle route e middleware
+const mongoose = require('../config/db'); // Connessione e configurazione centralizzata a MongoDB tramite Mongoose
+const helmet = require('helmet'); // Middleware sicurezza: imposta header HTTP per protezione da vulnerabilità comuni
+const cors = require('cors'); // Middleware per abilitare CORS e gestire richieste cross-origin
+const bodyParser = require('body-parser'); // Middleware legacy per parsing body (non usato direttamente, vedi override sotto)
+const cookieParser = require('cookie-parser'); // Middleware per parsing e gestione dei cookie HTTP
+const nunjucks = require('nunjucks'); // Motore di template lato server, configurato con autoescape e noCache in sviluppo
+const path = require('path'); // Utility Node.js per gestione e normalizzazione dei percorsi file/directory
+const rateLimitMiddleware = require('./middlewares/rateLimitMiddleware'); // Middleware legacy per rate limiting base (fallback)
+const sessionMiddleware = require('./middlewares/sessionMiddleware'); // Middleware personalizzato per gestione sessioni utente su MongoDB
+const authMiddleware = require('./middlewares/authMiddleware'); // Middleware di autenticazione e gestione ruoli
+const flash = require('connect-flash'); // Middleware per messaggi flash temporanei, integrato con sessione e res.locals
+const passport = require('../config/passport'); // Configurazione Passport.js: strategie locali e OAuth multi-provider, gestione autenticazione multi-ruolo
+const logWithFileName = require('./utils/logger'); // Logger centralizzato con Winston, log su file/console e tracciabilità per file
+const ErrorHandler = require('./utils/errorHandler'); // Gestione errori centralizzata: categorizzazione, logging e messaggi utente personalizzati
+const RateLimitService = require('./utils/rateLimitService'); // Rate limiting avanzato: limiti multi-layer per endpoint, logging dettagliato, skip admin
 
-const baseRoutes = require('./routes/baseRoutes');
-const administratorRoutes = require('./routes/administratorRoutes');
-const cacheRoutes = require('./routes/cacheRoutes');
-const reviewRoutes = require('./routes/reviewRoutes');
-const contentModerationRoutes = require('./routes/contentModerationRoutes');
+const baseRoutes = require('./routes/baseRoutes'); // Rotte principali pubbliche e di base dell'applicazione
+const administratorRoutes = require('./routes/administratorRoutes'); // Rotte amministrative (abilitabili, protette da middleware multi-ruolo)
+const cacheRoutes = require('./routes/cacheRoutes'); // Rotte per gestione cache multi-layer (admin)
+// const reviewRoutes = require('./routes/reviewRoutes'); // RIMOSSO: Rotte recensioni birre e AI, ora incluse in baseRoutes
+const contentModerationRoutes = require('./routes/contentModerationRoutes'); // Rotte test moderazione contenuti AI (admin, sviluppo)
 
 const app = express();
 // Necessario per express-rate-limit dietro proxy o in LAN
@@ -29,9 +29,9 @@ const logger = logWithFileName(__filename); // Crea un logger con il nome del fi
 
 // Configura Nunjucks
 const env = nunjucks.configure('views', {
-    autoescape: true,
-    express: app,
-    noCache: true, // Disabilita il caching durante lo sviluppo
+  autoescape: true,
+  express: app,
+  noCache: process.env.NODE_ENV !== 'production', // Disabilita il caching solo in sviluppo
 });
 
 // Filtro custom escapejs
@@ -72,25 +72,13 @@ app.use((req, res, next) => {
 });
 
 // Middleware per rendere activeRole disponibile nelle viste
-app.use((req, res, next) => {
-    if (req.session.activeRole) {
-        res.locals.activeRole = req.session.activeRole;
-    } else if (req.user && req.user.role) {
-        const rolePriority = ['administrator', 'brewery', 'customer'];
-        let userRoles = Array.isArray(req.user.role) ? req.user.role : [req.user.role];
-        const found = rolePriority.find(r => userRoles.includes(r));
-        res.locals.activeRole = found || userRoles[0];
-    } else {
-        res.locals.activeRole = null;
-    }
-    next();
-});
+app.use(authMiddleware.setActiveRole);
 
 // Middleware per servire file statici
 app.use(express.static(path.join(__dirname, '../public'))); // Serve i file dalla cartella "public"
 
 // Middleware per disclaimer maggiore età
-app.use(disclaimerMiddleware);
+app.use(authMiddleware.disclaimerMiddleware);
 
 // Middleware vari
 app.use(helmet()); // Helmet aiuta a proteggere l'app impostando vari header HTTP
@@ -108,23 +96,14 @@ app.use('/auth/register', RateLimitService.createRegistrationLimiter()); // Rate
 app.use(rateLimitMiddleware); // Limita la frequenza delle richieste per prevenire abusi (legacy)
 app.use(cookieParser()); // Analizza i cookie nelle richieste
 
-// Middleware per body parsing - ESCLUDI routes con upload multipart
+// Middleware unico per body parsing - ESCLUDE routes con upload multipart (Multer)
 app.use((req, res, next) => {
-  // Skip body parsing per routes che usano Multer
   if (req.path.startsWith('/api/gemini/')) {
     return next();
   }
-  // Applica body parsing per altre routes
-  express.json({ limit: '50mb' })(req, res, next);
-});
-
-app.use((req, res, next) => {
-  // Skip body parsing per routes che usano Multer  
-  if (req.path.startsWith('/api/gemini/')) {
-    return next();
-  }
-  // Applica body parsing per altre routes
-  express.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 })(req, res, next);
+  express.json({ limit: '50mb' })(req, res, function() {
+    express.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 })(req, res, next);
+  });
 });
 
 // Middleware per la Content Security Policy
@@ -143,9 +122,9 @@ app.use(ErrorHandler.handle);
 
 // Routes
 app.use('/', baseRoutes); // Gestisce le rotte di base dell'applicazione
-//app.use('/admin', administratorRoutes); // Gestisce le rotte amministrative
+app.use('/administrator', administratorRoutes); // Gestisce le rotte amministrative
 app.use('/api/cache', cacheRoutes); // Gestisce le rotte cache (admin)
-app.use('/', reviewRoutes); // Gestisce le rotte delle recensioni e AI (senza prefisso, include /api/...)
+// app.use('/', reviewRoutes); // RIMOSSO: Le rotte review sono già incluse in baseRoutes con prefisso /review
 app.use('/content-moderation', contentModerationRoutes); // Gestisce le rotte di test moderazione contenuti (admin)
 
 module.exports = app;

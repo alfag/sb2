@@ -7,6 +7,12 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "mocha --recursive --exit",
+    "test:brewery-stats": "mocha test/test_brewery_stats.js --timeout 30000",
+    "test:integration": "mocha test/test_integration_complete.js --timeout 60000",
+    "test:performance": "node test/test_performance_cache.js",
+    "test:frontend": "node test/test_frontend_e2e.js",
+    "test:quick": "node test/quick_system_check.js",
+    "test:all": "node test/run_all_tests.js",
     "security-check": "node scripts/securityCheck.js"
   },
   "dependencies": {

@@ -1,0 +1,356 @@
+{% extends "layout.njk" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/css/admin.css">
+<link rel="stylesheet" href="/css/libs/fontawesome.min.css">
+<script src="/js/libs/chart.min.js"></script>
+<!-- Statistics Manager Script -->
+<script src="/js/statisticsManager.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section">
+    <div class="container">
+        <div class="hero-content animate-fade-scale">
+            <h1 class="hero-title">
+                <i class="fas fa-chart-line"></i> {{ title }}
+            </h1>
+            <p class="hero-subtitle">
+                Dashboard completa per analisi e monitoraggio della piattaforma
+            </p>
+            
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <span class="hero-stat-number">{{ summary.totalBreweries or 0 }}</span>
+                    <span class="hero-stat-label">Birrifici Attivi</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-number">{{ summary.totalBeers or 0 }}</span>
+                    <span class="hero-stat-label">Birre Catalogate</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-number">{{ summary.totalReviews or 0 }}</span>
+                    <span class="hero-stat-label">Recensioni Totali</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-number">{{ summary.totalUsers or 0 }}</span>
+                    <span class="hero-stat-label">Utenti Registrati</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Sezione Grafici Principali -->
+    <div class="modern-card animate-slide-up">
+        <div class="card-header">
+            <div class="card-title">
+                <div class="card-icon">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                Analisi Grafiche Avanzate
+            </div>
+            <div class="badge badge-success">Dati in tempo reale</div>
+        </div>
+        
+        <div class="charts-grid">
+            <!-- Grafico Distribuzione Rating -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h4 class="chart-title">Distribuzione Rating</h4>
+                    <p class="chart-subtitle">Analisi delle valutazioni degli utenti</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="ratingsChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Grafico Top Birrifici -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h4 class="chart-title">Top Birrifici</h4>
+                    <p class="chart-subtitle">Birrifici più recensiti</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="breweriesChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Grafico Trend Temporale -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h4 class="chart-title">Trend Recensioni</h4>
+                    <p class="chart-subtitle">Andamento negli ultimi 6 mesi</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Grafico Tipologie Birre -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h4 class="chart-title">Rating per Tipologia</h4>
+                    <p class="chart-subtitle">Valutazioni medie per stile</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="beerTypesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtri Avanzati -->
+    <div class="filters-panel animate-slide-up">
+        <div class="d-flex align-items-center mb-3">
+            <div class="card-icon me-3">
+                <i class="fas fa-filter"></i>
+            </div>
+            <h4 class="mb-0 text-gradient">Filtri e Ordinamento Avanzati</h4>
+        </div>
+        
+        <form method="GET" action="/administrator/statistics" class="modern-form">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-sort me-1"></i> Ordina per
+                    </label>
+                    <select name="sortBy" class="filter-input">
+                        <option value="totalReviews" {% if filters.sortBy == 'totalReviews' %}selected{% endif %}>
+                            📊 Numero Recensioni
+                        </option>
+                        <option value="averageRating" {% if filters.sortBy == 'averageRating' %}selected{% endif %}>
+                            ⭐ Rating Medio
+                        </option>
+                        <option value="totalBeers" {% if filters.sortBy == 'totalBeers' %}selected{% endif %}>
+                            🍺 Numero Birre
+                        </option>
+                        <option value="breweryName" {% if filters.sortBy == 'breweryName' %}selected{% endif %}>
+                            🏭 Nome Birrificio
+                        </option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-arrows-alt-v me-1"></i> Ordine
+                    </label>
+                    <select name="sortOrder" class="filter-input">
+                        <option value="desc" {% if filters.sortOrder == 'desc' %}selected{% endif %}>
+                            📉 Decrescente
+                        </option>
+                        <option value="asc" {% if filters.sortOrder == 'asc' %}selected{% endif %}>
+                            📈 Crescente
+                        </option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-hashtag me-1"></i> Min. Recensioni
+                    </label>
+                    <input type="number" name="minReviews" value="{{ filters.minReviews }}" 
+                           min="0" class="filter-input" placeholder="es. 5">
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-industry me-1"></i> Filtra per Birrificio
+                    </label>
+                    <div class="autocomplete-container">
+                        <input type="text" 
+                               id="breweryFilter" 
+                               name="brewery" 
+                               value="{{ filters.brewery or '' }}" 
+                               class="filter-input" 
+                               placeholder="Digita il nome del birrificio..."
+                               autocomplete="off">
+                        <div class="autocomplete-dropdown" id="breweryDropdown"></div>
+                        <button type="button" class="clear-input-btn" id="clearBrewery" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-list-ol me-1"></i> Risultati per pagina
+                    </label>
+                    <select name="limit" class="filter-input">
+                        <option value="5" {% if filters.limit == 5 %}selected{% endif %}>5 risultati</option>
+                        <option value="10" {% if filters.limit == 10 or (not filters.limit and filters.limit != 999) %}selected{% endif %}>10 risultati</option>
+                        <option value="20" {% if filters.limit == 20 %}selected{% endif %}>20 risultati</option>
+                        <option value="50" {% if filters.limit == 50 %}selected{% endif %}>50 risultati</option>
+                        <option value="999" {% if filters.limit == 999 %}selected{% endif %}>🔢 Tutte le righe</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="d-flex gap-3 mt-4">
+                <button type="submit" class="btn-modern btn-primary-modern">
+                    <i class="fas fa-search me-2"></i>
+                    Applica Filtri
+                </button>
+                <a href="/administrator/statistics" class="btn-modern btn-secondary-modern">
+                    <i class="fas fa-undo me-2"></i>
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabelle Dettagliate -->
+    <div class="modern-card animate-slide-up">
+        <div class="card-header">
+            <div class="card-title">
+                <div class="card-icon">
+                    <i class="fas fa-table"></i>
+                </div>
+                <div>
+                    <div>Dati Dettagliati</div>
+                    <small class="text-muted">
+                        {% if breweries and breweries.length > 0 %}
+                            {% set totalFiltered = pagination.total or breweries.length %}
+                            {% if filters.limit == 999 %}
+                                {% if totalFiltered < summary.totalBreweriesInDB %}
+                                    Visualizzati tutti i {{ breweries.length }} birrifici che soddisfano i filtri ({{ summary.totalBreweriesInDB }} totali censiti)
+                                {% else %}
+                                    Visualizzati tutti i {{ breweries.length }} su {{ summary.totalBreweriesInDB }} birrifici censiti
+                                {% endif %}
+                            {% else %}
+                                Visualizzati {{ breweries.length }} su {{ summary.totalBreweriesInDB }} birrifici censiti (limite: {{ filters.limit or 10 }})
+                            {% endif %}
+                        {% else %}
+                            Nessun risultato trovato con i filtri attuali su {{ summary.totalBreweriesInDB }} birrifici censiti
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Top Birrifici -->
+            <div class="col-lg-8">
+                <div class="table-modern">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-trophy"></i> Rank</th>
+                                <th><i class="fas fa-industry"></i> Birrificio</th>
+                                <th><i class="fas fa-star"></i> Rating</th>
+                                <th><i class="fas fa-comments"></i> Recensioni</th>
+                                <th><i class="fas fa-beer"></i> Birre</th>
+                                <th><i class="fas fa-users"></i> Utenti</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if breweries and breweries.length > 0 %}
+                                {% for brewery in breweries %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if loop.index <= 3 %}
+                                                <i class="fas fa-medal text-warning me-2"></i>
+                                            {% endif %}
+                                            <strong class="text-primary">#{{ loop.index }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="/administrator/statistics/brewery/{{ brewery.breweryId }}" 
+                                           class="text-decoration-none fw-bold text-dark">
+                                            {{ brewery.breweryName or 'Nome non disponibile' }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% set rating = brewery.averageRating or 0 %}
+                                        {% set stars = "⭐".repeat((rating | round)) %}
+                                        <span class="fw-bold text-warning">{{ stars }}</span>
+                                        <small class="text-muted ms-1">{{ rating.toFixed(2) }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary rounded-pill">
+                                            {{ brewery.totalReviews or 0 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info rounded-pill">
+                                            {{ brewery.totalBeers or 0 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success rounded-pill">
+                                            {{ brewery.totalUsers or 0 }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        Nessun birrificio trovato
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Statistiche Rapide -->
+            <div class="col-lg-4">
+                <div class="modern-card">
+                    <h5 class="text-gradient mb-3">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Statistiche Rapide
+                    </h5>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Rating Medio Globale</span>
+                            <span class="badge bg-warning rounded-pill">4.2 ⭐</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-warning" style="width: 84%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Utenti Attivi</span>
+                            <span class="badge bg-success rounded-pill">89%</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-success" style="width: 89%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Crescita Mensile</span>
+                            <span class="badge bg-primary rounded-pill">+12%</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-primary" style="width: 67%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Engagement</span>
+                            <span class="badge bg-info rounded-pill">76%</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-info" style="width: 76%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

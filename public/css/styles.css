@@ -1,5 +1,90 @@
 /* --- WELCOME PAGE STYLING --- */
 
+/* Layout base - assicura scrolling corretto */
+html, body {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Rate Limiting UI Styles */
+.rate-limit-error {
+  background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+  border: 2px solid #f39c12;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 15px 0;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(243, 156, 18, 0.2);
+}
+
+.rate-limit-error h4 {
+  color: #e67e22;
+  margin-bottom: 15px;
+  font-size: 1.2rem;
+}
+
+.rate-limit-error h4 i {
+  margin-right: 8px;
+  color: #f39c12;
+}
+
+.rate-limit-error .suggestion {
+  color: #8e7509;
+  font-style: italic;
+  margin: 10px 0;
+}
+
+.rate-limit-error .action-buttons {
+  margin: 15px 0;
+}
+
+.rate-limit-error .limit-details {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #f39c12;
+}
+
+.rate-limit-warning {
+  background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+  border-left: 4px solid #ff9800;
+  border-radius: 5px;
+  padding: 12px;
+  margin: 10px 0;
+  color: #e65100;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);
+}
+
+.rate-limit-warning i {
+  margin-right: 8px;
+  color: #ff9800;
+}
+
+.rate-limit-info {
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  border-left: 4px solid #2196f3;
+  border-radius: 5px;
+  padding: 8px 12px;
+  margin: 10px 0;
+  color: #0d47a1;
+}
+
+.rate-limit-info i {
+  margin-right: 6px;
+  color: #2196f3;
+}
+
+.rate-limit-info a {
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.rate-limit-info a:hover {
+  text-decoration: underline;
+}
+
 .welcome-section {
   padding: 20px;
   max-width: 1200px;

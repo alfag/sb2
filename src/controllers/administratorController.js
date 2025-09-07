@@ -1,6 +1,10 @@
 const User = require('../models/User');
 const Administrator = require('../models/Administrator');
 const Brewery = require('../models/Brewery');
+const Beer = require('../models/Beer');
+const Review = require('../models/Review');
+const ReviewService = require('../services/reviewService');
+const mongoose = require('mongoose');
 const logWithFileName = require('../utils/logger'); // Importa logWithFileName
 const bcrypt = require('bcrypt');
 
@@ -142,6 +146,108 @@ async function deleteUser(userId) {
 }
 
 // Brewery management
+async function getAllBreweries() {
+    logger.info('Recupero di tutti i brewery');
+    try {
+        const breweries = await Brewery.find().sort({ createdAt: -1 });
+        logger.info(`Brewery recuperati con successo: ${breweries.length} brewery trovati`);
+        return breweries;
+    } catch (error) {
+        logger.error('Errore durante il recupero dei brewery', error);
+        throw error;
+    }
+}
+
+async function createBrewery(breweryData, req, res) {
+    try {
+        logger.info('Creazione di un nuovo brewery');
+        
+        const newBrewery = new Brewery({
+            breweryName: breweryData.breweryName,
+            breweryDescription: breweryData.breweryDescription,
+            breweryFiscalCode: breweryData.breweryFiscalCode,
+            breweryREAcode: breweryData.breweryREAcode,
+            breweryacciseCode: breweryData.breweryacciseCode,
+            breweryFund: breweryData.breweryFund,
+            breweryLegalAddress: breweryData.breweryLegalAddress,
+            breweryPhoneNumber: breweryData.breweryPhoneNumber,
+            breweryWebsite: breweryData.breweryWebsite,
+            breweryEmail: breweryData.breweryEmail,
+            breweryProductionAddress: breweryData.breweryProductionAddress,
+            brewerySize: breweryData.brewerySize,
+            employeeCount: breweryData.employeeCount,
+            productionVolume: breweryData.productionVolume,
+            distributionArea: breweryData.distributionArea,
+            breweryHistory: breweryData.breweryHistory,
+            masterBrewer: breweryData.masterBrewer,
+            foundingYear: breweryData.foundingYear,
+            mainProducts: breweryData.mainProducts ? breweryData.mainProducts.split(',').map(p => p.trim()) : [],
+            awards: breweryData.awards ? breweryData.awards.split(',').map(a => a.trim()) : [],
+            brewerySocialMedia: {
+                facebook: breweryData.facebook || '',
+                instagram: breweryData.instagram || '',
+                twitter: breweryData.twitter || '',
+                linkedin: breweryData.linkedin || '',
+                youtube: breweryData.youtube || ''
+            }
+        });
+        
+        await newBrewery.save();
+        
+        logger.info(`Brewery creato con successo: ${newBrewery._id}`);
+        req.flash('success', 'Birrificio creato con successo');
+        res.redirect('/administrator/breweries');
+        
+    } catch (error) {
+        logger.error(`Errore durante la creazione del brewery: ${error.message}`);
+        req.flash('error', `Errore durante la creazione del birrificio: ${error.message}`);
+        const redirectUrl = req.headers.referer || '/administrator/breweries';
+        res.redirect(redirectUrl);
+    }
+}
+
+async function getBreweryDetailsById(breweryId) {
+    logger.info(`Recupero dettagli brewery con ID: ${breweryId}`);
+    try {
+        const brewery = await Brewery.findById(breweryId);
+        if (!brewery) {
+            logger.warn(`Brewery non trovato: ${breweryId}`);
+            return null;
+        }
+        
+        // Aggiungi statistiche delle birre associate
+        const Beer = require('../models/Beer');
+        const Review = require('../models/Review');
+        
+        const beers = await Beer.find({ brewery: breweryId });
+        const totalBeers = beers.length;
+        
+        // Calcola statistiche recensioni
+        const reviews = await Review.find({ 'ratings.brewery': breweryId });
+        const totalReviews = reviews.reduce((sum, review) => {
+            return sum + review.ratings.filter(rating => rating.brewery && rating.brewery.toString() === breweryId).length;
+        }, 0);
+        
+        const breweryDetails = brewery.toObject ? brewery.toObject() : brewery;
+        breweryDetails.stats = {
+            totalBeers,
+            totalReviews,
+            beers: beers.map(beer => ({
+                _id: beer._id,
+                beerName: beer.beerName,
+                beerType: beer.beerType,
+                alcoholContent: beer.alcoholContent
+            }))
+        };
+        
+        logger.info(`Brewery dettagli recuperati con successo: ${breweryId}`);
+        return breweryDetails;
+    } catch (error) {
+        logger.error(`Errore durante il recupero dettagli brewery: ${breweryId}`, error);
+        throw error;
+    }
+}
+
 async function getBreweryById(breweryId) {
     logger.info(`Recupero brewery con ID: ${breweryId}`);
     try {
@@ -160,6 +266,32 @@ async function getBreweryById(breweryId) {
 
 async function updateBrewery(breweryId, updateData) {
     try {
+        // Gestione dei social media se presenti nei dati di aggiornamento
+        if (updateData.facebook || updateData.instagram || updateData.twitter || updateData.linkedin || updateData.youtube) {
+            updateData.brewerySocialMedia = {
+                facebook: updateData.facebook || '',
+                instagram: updateData.instagram || '',
+                twitter: updateData.twitter || '',
+                linkedin: updateData.linkedin || '',
+                youtube: updateData.youtube || ''
+            };
+            
+            // Rimuovi i campi individuali per evitare errori di schema
+            delete updateData.facebook;
+            delete updateData.instagram;
+            delete updateData.twitter;
+            delete updateData.linkedin;
+            delete updateData.youtube;
+        }
+        
+        // Gestione array per mainProducts e awards
+        if (updateData.mainProducts && typeof updateData.mainProducts === 'string') {
+            updateData.mainProducts = updateData.mainProducts.split(',').map(p => p.trim()).filter(p => p);
+        }
+        if (updateData.awards && typeof updateData.awards === 'string') {
+            updateData.awards = updateData.awards.split(',').map(a => a.trim()).filter(a => a);
+        }
+        
         const brewery = await Brewery.findByIdAndUpdate(breweryId, updateData, { new: true });
         if (!brewery) {
             logger.warn(`Brewery non trovato: ${breweryId}`);
@@ -308,13 +440,282 @@ async function removeRoleFromUser(userId, roleToRemove, req, res) {
     }
 }
 
+// === GESTIONE STATISTICHE ===
+
+/**
+ * Dashboard statistiche principali per admin
+ */
+async function getStatisticsDashboard(req, res) {
+    try {
+        logger.info('Caricamento dashboard statistiche admin');
+
+        // Parametri di paginazione e filtri dalla query
+        const page = parseInt(req.query.page) || 1;
+        let limit = parseInt(req.query.limit) || 10;
+        
+        // Se limit è 999, significa "Tutte le righe" - impostiamo un numero molto alto
+        if (limit === 999) {
+            limit = 9999; // Numero sufficientemente alto per mostrare tutti i risultati
+        }
+        
+        const sortBy = req.query.sortBy || 'totalReviews';
+        const sortOrder = req.query.sortOrder || 'desc';
+        const minReviews = parseInt(req.query.minReviews) || 0;
+        const minRating = parseFloat(req.query.minRating) || 0;
+        const maxRating = parseFloat(req.query.maxRating) || 5;
+        const breweryFilter = req.query.brewery || '';
+
+        // Ottieni statistiche globali dai birrifici
+        const breweriesStats = await ReviewService.getAllBreweriesStats({
+            page,
+            limit,
+            sortBy,
+            sortOrder,
+            minReviews,
+            breweryFilter // Aggiungiamo il filtro per birrificio
+        });
+
+        // Filtra per rating se specificato
+        if (minRating > 0 || maxRating < 5) {
+            breweriesStats.breweries = breweriesStats.breweries.filter(brewery => 
+                brewery.averageRating >= minRating && brewery.averageRating <= maxRating
+            );
+        }
+
+        // Statistiche generali aggiuntive
+        const [totalUsers, totalBeers, totalReviews, totalBreweriesInDB] = await Promise.all([
+            User.countDocuments(),
+            Beer.countDocuments(),
+            Review.countDocuments(),
+            Brewery.countDocuments() // Aggiungiamo il conteggio totale dei birrifici
+        ]);
+
+        // Distribuzioni per analisi
+        const ratingDistribution = await Review.aggregate([
+            { $unwind: '$ratings' },
+            {
+                $group: {
+                    _id: { $round: '$ratings.rating' },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        const monthlyTrend = await Review.aggregate([
+            {
+                $group: {
+                    _id: {
+                        year: { $year: '$createdAt' },
+                        month: { $month: '$createdAt' }
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { '_id.year': -1, '_id.month': -1 } },
+            { $limit: 12 }
+        ]);
+
+        res.render('admin/statistics', {
+            title: 'Statistiche Piattaforma',
+            user: req.user,
+            message: req.flash(),
+            breweries: breweriesStats.breweries,
+            pagination: breweriesStats.pagination,
+            summary: {
+                ...breweriesStats.summary,
+                totalUsers,
+                totalBeers: totalBeers,
+                totalReviews: totalReviews,
+                totalBreweriesInDB // Aggiungiamo il totale assoluto dei birrifici
+            },
+            filters: {
+                page,
+                limit: limit === 9999 ? 999 : limit, // Riconverti 9999 in 999 per il template
+                sortBy,
+                sortOrder,
+                minReviews,
+                minRating,
+                maxRating,
+                brewery: breweryFilter // Aggiungiamo il filtro birrificio
+            },
+            analytics: {
+                ratingDistribution,
+                monthlyTrend
+            }
+        });
+
+        logger.info('Dashboard statistiche caricata con successo', {
+            breweriesCount: breweriesStats.breweries.length,
+            totalReviews,
+            totalUsers
+        });
+
+    } catch (error) {
+        logger.error('Errore caricamento dashboard statistiche', error);
+        req.flash('error', 'Errore durante il caricamento delle statistiche');
+        res.redirect('/administrator');
+    }
+}
+
+/**
+ * API endpoint per statistiche breweries con filtri avanzati
+ */
+async function getBreweriesStatsAPI(req, res) {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const sortBy = req.query.sortBy || 'totalReviews';
+        const sortOrder = req.query.sortOrder || 'desc';
+        const minReviews = parseInt(req.query.minReviews) || 0;
+        const search = req.query.search || '';
+
+        logger.info('API request breweries stats', { page, limit, sortBy, sortOrder, minReviews, search });
+
+        let stats = await ReviewService.getAllBreweriesStats({
+            page: 1, // Prendi tutti per poi filtrare
+            limit: 1000, // Limit alto per prendere tutti
+            sortBy,
+            sortOrder,
+            minReviews
+        });
+
+        // Filtro per ricerca se specificato
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            stats.breweries = stats.breweries.filter(brewery => 
+                searchRegex.test(brewery.breweryName)
+            );
+        }
+
+        // Applica paginazione dopo filtri
+        const total = stats.breweries.length;
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        
+        const result = {
+            success: true,
+            data: {
+                breweries: stats.breweries.slice(startIndex, endIndex),
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit),
+                    hasNext: endIndex < total,
+                    hasPrev: page > 1
+                },
+                summary: stats.summary
+            }
+        };
+
+        res.json(result);
+
+        logger.info('API breweries stats response sent', { 
+            returnedCount: result.data.breweries.length,
+            total 
+        });
+
+    } catch (error) {
+        logger.error('Errore API breweries stats', error);
+        res.status(500).json({
+            success: false,
+            error: 'Errore durante il recupero delle statistiche'
+        });
+    }
+}
+
+/**
+ * Dettagli statistiche per singolo brewery
+ */
+async function getBreweryStatisticsDetail(req, res) {
+    try {
+        const breweryId = req.params.id;
+        logger.info(`Caricamento dettagli statistiche brewery: ${breweryId}`);
+
+        // Verifica che il brewery esista
+        const brewery = await Brewery.findById(breweryId);
+        if (!brewery) {
+            req.flash('error', 'Birrificio non trovato');
+            return res.redirect('/administrator/statistics');
+        }
+
+        // Ottieni statistiche dettagliate del brewery
+        const breweryStats = await ReviewService.getBreweryStats(breweryId);
+        
+        // Aggiungi dettagli per ogni birra del brewery
+        const beersWithStats = await Promise.all(
+            breweryStats.beerBreakdown.map(async (beerSummary) => {
+                const beerStats = await ReviewService.getBeerStats(beerSummary.beerId);
+                const beerDetails = await Beer.findById(beerSummary.beerId);
+                
+                return {
+                    ...beerSummary,
+                    beerDetails: beerDetails ? beerDetails.toObject() : null,
+                    fullStats: beerStats
+                };
+            })
+        );
+
+        // Timeline delle recensioni per grafici
+        const reviewTimeline = await Review.aggregate([
+            { $unwind: '$ratings' },
+            {
+                $lookup: {
+                    from: 'beers',
+                    localField: 'ratings.beer',
+                    foreignField: '_id',
+                    as: 'beerInfo'
+                }
+            },
+            { $unwind: '$beerInfo' },
+            { $match: { 'beerInfo.brewery': new mongoose.Types.ObjectId(breweryId) } },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: '$createdAt' },
+                        month: { $month: '$createdAt' }
+                    },
+                    count: { $sum: 1 },
+                    avgRating: { $avg: '$ratings.rating' }
+                }
+            },
+            { $sort: { '_id.year': 1, '_id.month': 1 } }
+        ]);
+
+        res.render('admin/breweryStatistics', {
+            title: `Statistiche ${brewery.breweryName}`,
+            user: req.user,
+            message: req.flash(),
+            brewery: brewery.toObject(),
+            stats: breweryStats,
+            beersWithStats,
+            timeline: reviewTimeline
+        });
+
+        logger.info('Dettagli statistiche brewery caricati', {
+            breweryId,
+            totalReviews: breweryStats.totalReviews,
+            totalBeers: breweryStats.totalBeers
+        });
+
+    } catch (error) {
+        logger.error('Errore caricamento dettagli statistiche brewery', error);
+        req.flash('error', 'Errore durante il caricamento delle statistiche del birrificio');
+        res.redirect('/administrator/statistics');
+    }
+}
+
 module.exports = {
     getAllUsers,
     getUserById,
     updateUser,
     deleteUser,
     createUser,
+    getAllBreweries,
+    createBrewery,
     getBreweryById,
+    getBreweryDetailsById,
     updateBrewery,
     deleteBrewery,
     getAdministratorById,
@@ -322,4 +723,8 @@ module.exports = {
     deleteAdministrator,
     addRoleToUser,
     removeRoleFromUser,
+    // Nuovi metodi per statistiche
+    getStatisticsDashboard,
+    getBreweriesStatsAPI,
+    getBreweryStatisticsDetail
 };

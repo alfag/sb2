@@ -82,9 +82,15 @@ class UtilsModule {
     notification.innerHTML = `
       <div class="notification-content">
         <span class="notification-message">${message}</span>
-        <button class="notification-close" onclick="window.utils.removeNotification('${id}')">×</button>
+        <button class="notification-close" data-notification-id="${id}">×</button>
       </div>
     `;
+
+    // Aggiungi event listener per il pulsante di chiusura
+    const closeButton = notification.querySelector('.notification-close');
+    closeButton.addEventListener('click', () => {
+      this.removeNotification(id);
+    });
 
     return notification;
   }

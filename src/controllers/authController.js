@@ -102,6 +102,11 @@ exports.postLogin = (req, res, next) => {
                     populatedUser = populatedUserFromDb;
                     req.logIn(populatedUser, (err) => {
                         if (err) { return next(err); }
+                        
+                        // Se l'utente si è autenticato, significa che ha già accettato il disclaimer
+                        // in precedenza nella sessione, quindi lo impostiamo automaticamente
+                        req.session.disclaimerAccepted = true;
+                        
                         logger.info(`${user.role} - Utente ${populatedUser.username} loggato con successo`);
                         req.flash('info', 'Login effettuato con successo');
                         return renderView(req, res, '/', { user: populatedUser, type: 'info' });
@@ -117,6 +122,11 @@ exports.postLogin = (req, res, next) => {
                     populatedUser = populatedUserFromDb;
                     req.logIn(populatedUser, (err) => {
                         if (err) { return next(err); }
+                        
+                        // Se l'utente si è autenticato, significa che ha già accettato il disclaimer
+                        // in precedenza nella sessione, quindi lo impostiamo automaticamente
+                        req.session.disclaimerAccepted = true;
+                        
                         logger.info(`${user.role} - Utente ${populatedUser.username} loggato con successo`);
                         req.flash('info', 'Login effettuato con successo');
                         return renderView(req, res, 'welcome', { user: populatedUser, type: 'info' });
@@ -128,6 +138,11 @@ exports.postLogin = (req, res, next) => {
         } else {
             req.logIn(user, (err) => {
                 if (err) { return next(err); }
+                
+                // Se l'utente si è autenticato, significa che ha già accettato il disclaimer
+                // in precedenza nella sessione, quindi lo impostiamo automaticamente
+                req.session.disclaimerAccepted = true;
+                
                 logger.info(`${user.role} - Utente ${user.username} loggato con successo`);
                 req.flash('info', 'Login effettuato con successo');
                 return renderView(req, res, 'welcome', { user: populatedUser, type: 'info' });

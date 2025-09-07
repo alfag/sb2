@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Autocompletamento Birrifici</title>
+    <link rel="stylesheet" href="/css/admin.css">
+    <link rel="stylesheet" href="/css/libs/fontawesome.min.css">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px; 
+            background: #f5f5f5; 
+        }
+        .debug-container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .debug-log { 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            border-radius: 5px; 
+            padding: 15px; 
+            margin: 10px 0; 
+            font-family: monospace; 
+            font-size: 12px; 
+            max-height: 200px; 
+            overflow-y: auto; 
+        }
+        .debug-step { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border-left: 4px solid #007bff; 
+            background: #f8f9fa; 
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1><i class="fas fa-bug"></i> Debug Autocompletamento Birrifici</h1>
+        <p>Questo tool identifica il problema dell'autocompletamento che non fa chiamate AJAX.</p>
+
+        <div class="debug-step">
+            <h3>Step 1: Controllo Elementi DOM</h3>
+            <div id="dom-check" class="debug-log">Controllando elementi DOM...</div>
+        </div>
+
+        <div class="debug-step">
+            <h3>Step 2: Test Campo Input</h3>
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-industry me-1"></i> Test Campo Birrificio
+                </label>
+                <div class="autocomplete-container">
+                    <input type="text" 
+                           id="breweryFilter" 
+                           name="brewery" 
+                           class="filter-input" 
+                           placeholder="Digita almeno 3 caratteri per test..."
+                           autocomplete="off">
+                    <div class="autocomplete-dropdown" id="breweryDropdown"></div>
+                    <button type="button" class="clear-input-btn" id="clearBrewery" style="display: none;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="input-events" class="debug-log">Event listeners non ancora registrati...</div>
+        </div>
+
+        <div class="debug-step">
+            <h3>Step 3: Caricamento StatisticsManager</h3>
+            <div id="manager-status" class="debug-log">Attendendo caricamento StatisticsManager...</div>
+        </div>
+
+        <div class="debug-step">
+            <h3>Step 4: Test Chiamate AJAX</h3>
+            <div id="ajax-log" class="debug-log">Nessuna chiamata AJAX ancora effettuata...</div>
+        </div>
+
+        <div class="debug-step">
+            <h3>Step 5: Test Manuale</h3>
+            <button id="manual-test" class="btn-modern btn-primary-modern">
+                <i class="fas fa-play"></i> Test Manuale AJAX
+            </button>
+            <div id="manual-result" class="debug-log">Clicca il pulsante per test manuale...</div>
+        </div>
+    </div>
+
+    <script>
+        // Debug logging
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const typeClass = type;
+            const newMessage = `<div class="${typeClass}">[${timestamp}] ${message}</div>`;
+            
+            if (element.innerHTML.includes('Controllando') || 
+                element.innerHTML.includes('Event listeners non') || 
+                element.innerHTML.includes('Attendendo') || 
+                element.innerHTML.includes('Nessuna chiamata') ||
+                element.innerHTML.includes('Clicca il pulsante')) {
+                element.innerHTML = newMessage;
+            } else {
+                element.innerHTML += newMessage;
+            }
+            
+            element.scrollTop = element.scrollHeight;
+        }
+
+        // Step 1: Controllo elementi DOM
+        function checkDOM() {
+            const breweryInput = document.getElementById('breweryFilter');
+            const breweryDropdown = document.getElementById('breweryDropdown');
+            const clearBtn = document.getElementById('clearBrewery');
+            
+            if (breweryInput && breweryDropdown && clearBtn) {
+                log('dom-check', '✅ Tutti gli elementi DOM trovati correttamente', 'success');
+                log('dom-check', `- breweryFilter: ${breweryInput ? 'OK' : 'MANCANTE'}`, 'info');
+                log('dom-check', `- breweryDropdown: ${breweryDropdown ? 'OK' : 'MANCANTE'}`, 'info');
+                log('dom-check', `- clearBrewery: ${clearBtn ? 'OK' : 'MANCANTE'}`, 'info');
+                return true;
+            } else {
+                log('dom-check', '❌ Alcuni elementi DOM mancanti!', 'error');
+                log('dom-check', `- breweryFilter: ${breweryInput ? 'OK' : 'MANCANTE'}`, breweryInput ? 'success' : 'error');
+                log('dom-check', `- breweryDropdown: ${breweryDropdown ? 'OK' : 'MANCANTE'}`, breweryDropdown ? 'success' : 'error');
+                log('dom-check', `- clearBrewery: ${clearBtn ? 'OK' : 'MANCANTE'}`, clearBtn ? 'success' : 'error');
+                return false;
+            }
+        }
+
+        // Step 2: Monitor eventi input
+        function monitorInputEvents() {
+            const breweryInput = document.getElementById('breweryFilter');
+            if (!breweryInput) return;
+
+            // Intercetta tutti gli eventi
+            ['input', 'keydown', 'keyup', 'change', 'focus', 'blur'].forEach(eventType => {
+                breweryInput.addEventListener(eventType, (e) => {
+                    log('input-events', `📝 Evento '${eventType}': valore="${e.target.value}", lunghezza=${e.target.value.length}`, 'info');
+                });
+            });
+
+            log('input-events', '🎯 Event listeners registrati per monitoraggio input', 'success');
+        }
+
+        // Step 3: Monitor StatisticsManager
+        function monitorStatisticsManager() {
+            let attempts = 0;
+            const maxAttempts = 10;
+            
+            const checkManager = () => {
+                attempts++;
+                
+                if (window.statisticsManager) {
+                    log('manager-status', '✅ StatisticsManager trovato!', 'success');
+                    log('manager-status', `Tentativi necessari: ${attempts}`, 'info');
+                    
+                    // Verifica se il setupBreweryAutocomplete è stato chiamato
+                    if (typeof window.statisticsManager.setupBreweryAutocomplete === 'function') {
+                        log('manager-status', '✅ Metodo setupBreweryAutocomplete disponibile', 'success');
+                    } else {
+                        log('manager-status', '❌ Metodo setupBreweryAutocomplete NON disponibile', 'error');
+                    }
+                    
+                    return true;
+                } else if (attempts < maxAttempts) {
+                    log('manager-status', `⏳ Tentativo ${attempts}/${maxAttempts}: StatisticsManager non ancora disponibile...`, 'warning');
+                    setTimeout(checkManager, 500);
+                } else {
+                    log('manager-status', '❌ StatisticsManager NON caricato dopo 10 tentativi!', 'error');
+                    log('manager-status', 'Verificare che il file statisticsManager.js sia caricato correttamente', 'error');
+                }
+                return false;
+            };
+            
+            checkManager();
+        }
+
+        // Step 4: Intercetta chiamate AJAX
+        function monitorAJAX() {
+            // Intercetta fetch
+            const originalFetch = window.fetch;
+            window.fetch = function(...args) {
+                const url = args[0];
+                if (typeof url === 'string' && url.includes('statistics/breweries/search')) {
+                    log('ajax-log', `🌐 AJAX Fetch: ${url}`, 'success');
+                    log('ajax-log', `Parametri: ${JSON.stringify(args[1] || {})}`, 'info');
+                }
+                return originalFetch.apply(this, args)
+                    .then(response => {
+                        if (typeof url === 'string' && url.includes('statistics/breweries/search')) {
+                            log('ajax-log', `📡 Risposta AJAX: Status ${response.status}`, response.ok ? 'success' : 'error');
+                        }
+                        return response;
+                    })
+                    .catch(error => {
+                        if (typeof url === 'string' && url.includes('statistics/breweries/search')) {
+                            log('ajax-log', `❌ Errore AJAX: ${error.message}`, 'error');
+                        }
+                        throw error;
+                    });
+            };
+
+            // Intercetta XMLHttpRequest (se usato)
+            const originalXHR = window.XMLHttpRequest;
+            window.XMLHttpRequest = function() {
+                const xhr = new originalXHR();
+                const originalOpen = xhr.open;
+                
+                xhr.open = function(method, url, ...args) {
+                    if (url.includes('statistics/breweries/search')) {
+                        log('ajax-log', `🌐 XHR ${method}: ${url}`, 'success');
+                    }
+                    return originalOpen.apply(this, [method, url, ...args]);
+                };
+                
+                return xhr;
+            };
+
+            log('ajax-log', '🕵️ Monitoraggio AJAX attivato', 'info');
+        }
+
+        // Step 5: Test manuale
+        function setupManualTest() {
+            const manualTestBtn = document.getElementById('manual-test');
+            
+            manualTestBtn.addEventListener('click', async () => {
+                log('manual-result', '🔧 Avvio test manuale...', 'info');
+                
+                try {
+                    const testQuery = 'bir';
+                    const url = `/administrator/statistics/breweries/search?q=${encodeURIComponent(testQuery)}`;
+                    log('manual-result', `📡 Chiamata: ${url}`, 'info');
+                    
+                    const response = await fetch(url);
+                    const responseText = await response.text();
+                    
+                    log('manual-result', `📊 Status: ${response.status}`, response.ok ? 'success' : 'error');
+                    log('manual-result', `📄 Risposta: ${responseText.substring(0, 200)}...`, 'info');
+                    
+                    if (response.ok) {
+                        const data = JSON.parse(responseText);
+                        log('manual-result', `✅ Test riuscito! Trovati ${data.length} risultati`, 'success');
+                    } else {
+                        log('manual-result', `❌ Test fallito! Response: ${responseText}`, 'error');
+                    }
+                } catch (error) {
+                    log('manual-result', `❌ Errore test manuale: ${error.message}`, 'error');
+                }
+            });
+        }
+
+        // Avvio debug quando DOM è pronto
+        document.addEventListener('DOMContentLoaded', () => {
+            log('dom-check', '🚀 Avvio debug autocompletamento...', 'info');
+            
+            // Step 1
+            setTimeout(() => {
+                const domOk = checkDOM();
+                if (domOk) {
+                    // Step 2
+                    monitorInputEvents();
+                    
+                    // Step 3
+                    monitorStatisticsManager();
+                    
+                    // Step 4
+                    monitorAJAX();
+                    
+                    // Step 5
+                    setupManualTest();
+                }
+            }, 100);
+        });
+    </script>
+
+    <!-- Carica StatisticsManager per test -->
+    <script src="/js/statisticsManager.js"></script>
+</body>
+</html>

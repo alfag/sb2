@@ -23,23 +23,85 @@ class AIService {
 
   /**
    * Controlla se utente può fare richieste AI
+   * @param {Object} session - Sessione utente
+   * @param {string|null} userId - ID utente (null per guest)
+   * @returns {Object} - Risultato controllo con dettagli rate limiting
    */
   static canMakeRequest(session, userId = null) {
+    // In ambiente di sviluppo non ci sono limiti
+    if (process.env.NODE_ENV === 'development') {
+      logger.debug('[AIService] Ambiente di sviluppo: nessun limite di richieste');
+      return {
+        canMakeRequest: true,
+        requestCount: 0,
+        maxRequests: Infinity,
+        remainingRequests: Infinity,
+        isUserAuthenticated: !!userId,
+        resetInfo: {
+          resetTime: 'N/A - ambiente sviluppo',
+          resetMethod: 'Nessun limite in sviluppo'
+        },
+        developmentMode: true
+      };
+    }
+
     const sessionKey = 'aiRequestCount';
     const requestCount = session[sessionKey] || 0;
-    const maxRequests = userId ? 20 : 5; // Utenti registrati hanno più richieste
+    const maxRequests = userId ? 30 : 10; // Utenti registrati: 30, guest: 10
+    const remainingRequests = Math.max(0, maxRequests - requestCount);
+    const isLimitReached = requestCount >= maxRequests;
 
-    if (requestCount >= maxRequests) {
+    const result = {
+      canMakeRequest: !isLimitReached,
+      requestCount,
+      maxRequests,
+      remainingRequests,
+      isUserAuthenticated: !!userId,
+      resetInfo: {
+        resetTime: 'fine sessione',
+        resetMethod: 'Chiudi e riapri il browser'
+      }
+    };
+
+    if (isLimitReached) {
       logger.warn('[AIService] Rate limit raggiunto', {
         sessionId: session.id,
         userId,
         requestCount,
-        maxRequests
+        maxRequests,
+        isUserAuthenticated: !!userId
       });
-      return false;
+      
+      // Messaggio personalizzato in base al tipo di utente
+      if (userId) {
+        result.message = `Hai raggiunto il limite di ${maxRequests} analisi AI per questa sessione. Per continuare ad utilizzare il servizio, chiudi e riapri il browser.`;
+        result.suggestion = 'Le tue analisi sono state salvate nel tuo account.';
+      } else {
+        result.message = `Hai raggiunto il limite di ${maxRequests} analisi AI per utenti non registrati. Registrati per avere ${30} analisi per sessione.`;
+        result.suggestion = 'Crea un account gratuito per avere più analisi disponibili e salvare i tuoi dati.';
+        result.authUrl = '/auth/register';
+      }
+    } else {
+      // Avviso quando ci si avvicina al limite
+      if (remainingRequests <= 2) {
+        result.warning = `Ti rimangono solo ${remainingRequests} analisi AI per questa sessione.`;
+        if (!userId) {
+          result.warning += ' Registrati per avere più analisi disponibili.';
+          result.authUrl = '/auth/register';
+        }
+      }
     }
 
-    return true;
+    logger.debug('[AIService] Check rate limit completato', {
+      sessionId: session.id,
+      userId,
+      canMakeRequest: result.canMakeRequest,
+      requestCount,
+      maxRequests,
+      remainingRequests
+    });
+
+    return result;
   }
 
   /**
@@ -153,6 +215,12 @@ class AIService {
    * Incrementa contatore richieste in sessione
    */
   static incrementRequestCount(session) {
+    // In ambiente di sviluppo non incrementare il contatore
+    if (process.env.NODE_ENV === 'development') {
+      logger.debug('[AIService] Ambiente sviluppo: contatore richieste non incrementato');
+      return;
+    }
+
     const sessionKey = 'aiRequestCount';
     session[sessionKey] = (session[sessionKey] || 0) + 1;
     

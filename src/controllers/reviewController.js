@@ -5,12 +5,61 @@ const path = require('path');
 const fs = require('fs');
 const GeminiAI = require('../utils/geminiAi');
 const ValidationService = require('../utils/validationService');
+const AIService = require('../services/aiService');
 const logWithFileName = require('../utils/logger');
 const logger = logWithFileName(__filename);
 
 // Validazione AI primo livello (immagine)
 exports.firstCheckAI = async (req, res) => {
   try {
+    // Controllo rate limiting prima di elaborare la richiesta
+    const rateLimitCheck = AIService.canMakeRequest(req.session, req.user?._id);
+    
+    if (!rateLimitCheck.canMakeRequest) {
+      logger.warn('[firstCheckAI] Rate limit superato', {
+        sessionId: req.sessionID,
+        userId: req.user?._id,
+        requestCount: rateLimitCheck.requestCount,
+        maxRequests: rateLimitCheck.maxRequests,
+        isUserAuthenticated: rateLimitCheck.isUserAuthenticated
+      });
+      
+      logger.info('[firstCheckAI] Invio risposta rate limit e return', { 
+        sessionId: req.sessionID
+      });
+      
+      return res.status(429).json({
+        success: false,
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: 'Hai raggiunto il limite di richieste. Effettua il login per continuare o riprova più tardi.',
+        suggestion: 'Accedi per aumentare il numero di richieste disponibili o attendi prima di riprovare.',
+        details: {
+          requestCount: rateLimitCheck.requestCount,
+          maxRequests: rateLimitCheck.maxRequests,
+          remainingRequests: rateLimitCheck.remainingRequests,
+          resetInfo: rateLimitCheck.resetInfo,
+          authUrl: rateLimitCheck.authUrl
+        }
+      });
+    }
+    
+    // Avviso warning se ci si avvicina al limite
+    let responseWarning = null;
+    if (rateLimitCheck.warning) {
+      responseWarning = {
+        message: rateLimitCheck.warning,
+        remainingRequests: rateLimitCheck.remainingRequests,
+        authUrl: rateLimitCheck.authUrl
+      };
+      
+      logger.info('[firstCheckAI] Warning rate limit', {
+        sessionId: req.sessionID,
+        userId: req.user?._id,
+        remainingRequests: rateLimitCheck.remainingRequests,
+        warning: rateLimitCheck.warning
+      });
+    }
+
     // Usa req.file.buffer con Multer invece di req.body.image
     const imageBuffer = req.file?.buffer;
     if (!imageBuffer) {
@@ -27,7 +76,7 @@ exports.firstCheckAI = async (req, res) => {
     const base64Image = imageBuffer.toString('base64');
     const dataUrl = `data:${mimeType};base64,${base64Image}`;
     
-    logger.info('[firstCheckAI] Avvio analisi AI', {
+    logger.info('[firstCheckAI] Avvio analisi immagine', {
       userId: req.user?._id,
       sessionId: req.sessionID,
       imageSize: imageBuffer.length,
@@ -35,9 +84,32 @@ exports.firstCheckAI = async (req, res) => {
     });
     
     // Chiamata AI per analisi immagine
-    const aiResult = await GeminiAI.validateImage(dataUrl);
+    let aiResult;
+    try {
+      aiResult = await GeminiAI.validateImage(dataUrl);
+    } catch (apiError) {
+      logger.error('[firstCheckAI] Errore chiamata API Gemini', {
+        error: apiError.message,
+        stack: apiError.stack,
+        sessionId: req.sessionID
+      });
+      
+      // Fornisci una risposta di fallback
+      return res.status(200).json({
+        success: false,
+        message: 'Servizio di analisi temporaneamente non disponibile. Riprova più tardi.',
+        errorType: 'SERVICE_ERROR',
+        bottles: [],
+        brewery: null,
+        rateLimitInfo: {
+          remainingRequests: AIService.canMakeRequest(req.session, req.user?._id).remainingRequests,
+          maxRequests: AIService.canMakeRequest(req.session, req.user?._id).maxRequests,
+          isUserAuthenticated: !!req.user
+        }
+      });
+    }
     if (!aiResult.success) {
-      logger.warn('[firstCheckAI] Analisi AI fallita - nessuna birra rilevata', { 
+      logger.warn('[firstCheckAI] Analisi fallita - nessuna birra rilevata', { 
         message: aiResult.message,
         sessionId: req.sessionID,
         bottles: aiResult.bottles?.length || 0,
@@ -45,7 +117,7 @@ exports.firstCheckAI = async (req, res) => {
       });
       
       // Per "nessuna birra rilevata", restituisci 200 OK con errorType specifico
-      const errorMessage = aiResult.message || 'L\'AI non ha rilevato bottiglie di birra nell\'immagine. Carica un\'immagine contenente chiaramente prodotti birrari.';
+      const errorMessage = aiResult.message || 'Non sono state rilevate bottiglie di birra nell\'immagine. Carica un\'immagine contenente chiaramente prodotti birrari.';
       
       return res.status(200).json({
         success: false,
@@ -56,8 +128,9 @@ exports.firstCheckAI = async (req, res) => {
       });
     }
     
-    // NOTA: Rimosso controllo duplicati per permettere multiple recensioni della stessa birra
-    // Questo permette di creare un repository di recensioni multiple per ogni birra
+    // NOTA: Il controllo duplicati è gestito in reviewService.checkDuplicateReview()
+    // che verifica se l'utente ha già recensito una specifica birra (senza limiti temporali)
+    // permettendo così di evitare recensioni duplicate mantenendo l'integrità dei dati
     
     logger.info('[firstCheckAI] Analisi completata con successo', {
       sessionId: req.sessionID,
@@ -65,120 +138,49 @@ exports.firstCheckAI = async (req, res) => {
       breweryFound: !!aiResult.brewery
     });
     
-    // Salva i dati AI in sessione per persistenza
+    // Salva i dati di analisi in sessione per persistenza
     req.session.aiReviewData = {
       data: aiResult,
       timestamp: new Date().toISOString(),
       completed: false
     };
     
-    logger.info('[firstCheckAI] Dati AI salvati in sessione', {
+    logger.info('[firstCheckAI] Dati analisi salvati in sessione', {
       sessionId: req.sessionID,
       bottlesCount: aiResult.bottles?.length || 0
     });
     
-    return res.json(aiResult);
+    // Incrementa il contatore delle richieste dopo analisi completata con successo
+    AIService.incrementRequestCount(req.session);
+    
+    // Prepara risposta con eventuale warning
+    const response = {
+      ...aiResult
+    };
+    
+    // Aggiungi warning se presente
+    if (responseWarning) {
+      response.rateLimitWarning = responseWarning;
+    }
+    
+    // Aggiungi info rate limiting nella risposta
+    const updatedRateLimitCheck = AIService.canMakeRequest(req.session, req.user?._id);
+    response.rateLimitInfo = {
+      remainingRequests: Math.max(0, updatedRateLimitCheck.remainingRequests - 1), // -1 perché abbiamo appena fatto una richiesta
+      maxRequests: updatedRateLimitCheck.maxRequests,
+      isUserAuthenticated: updatedRateLimitCheck.isUserAuthenticated
+    };
+    
+    return res.json(response);
   } catch (err) {
     logger.error('[firstCheckAI] Errore:', { 
       error: err.message,
       sessionId: req.sessionID,
       userId: req.user?._id
     });
-    return res.status(500).json({ success: false, message: 'Errore validazione AI.' });
+    return res.status(500).json({ success: false, message: 'Errore durante l\'analisi dell\'immagine.' });
   }
 };
-
-// Funzione per controllare duplicati nella sessione
-async function checkDuplicateBeersInSession(bottles, sessionId, userId) {
-  try {
-    const duplicates = [];
-    const timeWindow = 2 * 60 * 60 * 1000; // 2 ore in millisecondi
-    const cutoffTime = new Date(Date.now() - timeWindow);
-    
-    logger.debug('[checkDuplicates] Controllo duplicati sessione', {
-      sessionId,
-      userId,
-      bottlesToCheck: bottles.length,
-      timeWindow: '2 ore'
-    });
-    
-    for (const bottle of bottles) {
-      if (!bottle.bottleLabel || !bottle.breweryName) {
-        continue; // Salta bottiglie senza dati sufficienti
-      }
-      
-      // Normalizza nomi per confronto
-      const normalizedBeerName = normalizeBeerName(bottle.bottleLabel);
-      const normalizedBreweryName = normalizeBeerName(bottle.breweryName);
-      
-      // Cerca recensioni recenti nella sessione o dello stesso utente
-      const searchCriteria = {
-        createdAt: { $gte: cutoffTime },
-        $or: [],
-        'ratings.aiData': { $exists: true }
-      };
-      
-      // Aggiungi criteri di ricerca
-      if (sessionId) {
-        searchCriteria.$or.push({ sessionId: sessionId });
-      }
-      if (userId) {
-        searchCriteria.$or.push({ user: userId });
-      }
-      
-      // Se non abbiamo né sessione né utente, salta il controllo
-      if (searchCriteria.$or.length === 0) {
-        continue;
-      }
-      
-      const recentReviews = await Review.find(searchCriteria).populate('ratings.brewery');
-      
-      // Controlla ogni recensione recente
-      for (const review of recentReviews) {
-        for (const rating of review.ratings) {
-          if (rating.aiData && rating.brewery) {
-            const existingBeerName = normalizeBeerName(rating.aiData.bottleLabel || rating.bottleLabel);
-            const existingBreweryName = normalizeBeerName(rating.brewery.breweryName);
-            
-            // Controllo match
-            if (existingBeerName === normalizedBeerName && 
-                existingBreweryName === normalizedBreweryName) {
-              
-              duplicates.push({
-                beerName: bottle.bottleLabel,
-                breweryName: bottle.breweryName,
-                lastReviewDate: review.createdAt,
-                reviewId: review._id
-              });
-              
-              logger.info('[checkDuplicates] Duplicato trovato', {
-                beerName: bottle.bottleLabel,
-                breweryName: bottle.breweryName,
-                existingReviewId: review._id,
-                sessionId,
-                userId
-              });
-              break;
-            }
-          }
-        }
-      }
-    }
-    
-    return {
-      hasDuplicates: duplicates.length > 0,
-      duplicates: duplicates
-    };
-    
-  } catch (error) {
-    logger.error('[checkDuplicates] Errore controllo duplicati', {
-      error: error.message,
-      sessionId,
-      userId
-    });
-    return { hasDuplicates: false, duplicates: [] };
-  }
-}
 
 // Normalizza nome birra/birrificio per confronto
 function normalizeBeerName(name) {
@@ -227,7 +229,7 @@ exports.createReview = async (req, res) => {
       userId: req.user?._id
     });
 
-    // Chiamata AI: validazione e salvataggio automatico su MongoDB
+    // Chiamata analisi: validazione e salvataggio automatico su MongoDB
     // Non passiamo l'immagine per evitare di salvarla due volte
     const aiResult = await GeminiAI.validateImage(
       image, 
@@ -237,30 +239,30 @@ exports.createReview = async (req, res) => {
     );
     
     if (!aiResult.success) {
-      // Se l'AI fallisce, manteniamo comunque la review come 'pending'
-      logger.warn('[createReview] Analisi AI fallita ma review salvata', {
+      // Se l'analisi fallisce, manteniamo comunque la review come 'pending'
+      logger.warn('[createReview] Analisi fallita ma review salvata', {
         reviewId: savedReview._id,
         aiMessage: aiResult.message
       });
       return res.status(200).json({ 
         success: true, 
-        message: 'Review salvata, analisi AI non riuscita', 
+        message: 'Recensione salvata, analisi non riuscita', 
         reviewId: savedReview._id 
       });
     }
 
-    logger.info('[createReview] Review e analisi AI completate', {
+    logger.info('[createReview] Recensione e analisi completate', {
       reviewId: savedReview._id,
       bottlesAnalyzed: aiResult.bottles?.length || 0,
       breweryFound: !!aiResult.brewery
     });
     
-    // Restituisci successo con i dettagli dell'analisi AI
+    // Restituisci successo con i dettagli dell'analisi
     return res.status(201).json({ 
       success: true,
-      message: 'Review salvata e analizzata con successo!', 
+      message: 'Recensione salvata e analizzata con successo!', 
       reviewId: savedReview._id,
-      aiAnalysis: aiResult
+      analysis: aiResult
     });
     
   } catch (err) {
@@ -299,7 +301,7 @@ exports.batchValidateReviews = async (req, res) => {
       review.status = 'completed';
       await review.save();
       
-      logger.info('[ReviewController] Recensione salvata con successo', {
+      logger.info('[batchValidateReviews] Recensione salvata con successo', {
         type: 'REVIEW_SAVED_SUCCESS',
         reviewId: review._id,
         userId: review.userId,
@@ -351,7 +353,7 @@ exports.createMultipleReviews = async (req, res) => {
       reviewsData: reviews.map(r => ({ 
         beerName: r?.beerName, 
         rating: r?.rating, 
-        hasAiData: !!r?.aiData,
+        hasData: !!r?.aiData,
         beerId: r?.beerId
       }))
     });
@@ -408,7 +410,7 @@ exports.createMultipleReviews = async (req, res) => {
     // Crea una singola review con ratings multipli (seguendo il modello Review esistente)
     const ratingsArray = [];
     
-    // Recupera i dati AI dalla sessione per ottenere gli ID delle birre
+    // Recupera i dati di analisi dalla sessione per ottenere gli ID delle birre
     const sessionAiData = req.session.aiReviewData;
     const beerIds = sessionAiData?.data?.beerIds || [];
     
@@ -432,7 +434,7 @@ exports.createMultipleReviews = async (req, res) => {
       // Usa l'ID della birra dal database se disponibile
       const beerId = reviewData.beerId || beerIds[index] || null;
       
-      // Recupera l'ID del birrificio dalla sessione AI (breweryId è aggiunto dopo il salvataggio)
+      // Recupera l'ID del birrificio dalla sessione di analisi (breweryId è aggiunto dopo il salvataggio)
       const breweryId = sessionAiData?.data?.breweryId || aiAnalysisData?.breweryId || null;
 
       // Aggiungi alla array ratings
@@ -442,7 +444,7 @@ exports.createMultipleReviews = async (req, res) => {
         notes: reviewData.notes || '', // Note generali (già sanificate se necessario)
         beer: beerId, // ID della birra dal database
         brewery: breweryId, // ID del birrificio dal database
-        // Valutazioni dettagliate (se presenti)
+        // Valutazioni dettagliate (se presenti) - solo le 4 categorie specifiche
         detailedRatings: reviewData.detailedRatings ? {
           appearance: reviewData.detailedRatings.appearance ? {
             rating: reviewData.detailedRatings.appearance.rating || null,
@@ -459,10 +461,6 @@ exports.createMultipleReviews = async (req, res) => {
           mouthfeel: reviewData.detailedRatings.mouthfeel ? {
             rating: reviewData.detailedRatings.mouthfeel.rating || null,
             notes: reviewData.detailedRatings.mouthfeel.notes || null // Già sanificato se necessario
-          } : null,
-          overall: reviewData.detailedRatings.overall ? {
-            rating: reviewData.detailedRatings.overall.rating || null,
-            notes: reviewData.detailedRatings.overall.notes || null // Già sanificato se necessario
           } : null
         } : null,
         aiData: {
@@ -535,11 +533,11 @@ exports.createMultipleReviews = async (req, res) => {
       sessionId: req.sessionID
     });
 
-    // Marca i dati AI come completati in sessione
+    // Marca i dati di analisi come completati in sessione
     if (req.session.aiReviewData) {
       req.session.aiReviewData.completed = true;
       req.session.aiReviewData.completedAt = new Date().toISOString();
-      logger.info('[createMultipleReviews] Dati AI marcati come completati in sessione', {
+      logger.info('[createMultipleReviews] Dati analisi marcati come completati in sessione', {
         sessionId: req.sessionID
       });
     }
@@ -569,14 +567,14 @@ exports.createMultipleReviews = async (req, res) => {
 };
 
 /**
- * Recupera i dati AI dalla sessione se presenti
+ * Recupera i dati di analisi dalla sessione se presenti
  */
 exports.getAiDataFromSession = async (req, res) => {
   try {
     const sessionData = req.session.aiReviewData;
     
     if (!sessionData || sessionData.completed) {
-      logger.info('[getAiDataFromSession] Nessun dato AI in sessione o già completato', {
+      logger.info('[getAiDataFromSession] Nessun dato di analisi in sessione o già completato', {
         sessionId: req.sessionID,
         hasData: !!sessionData,
         completed: sessionData?.completed
@@ -584,7 +582,7 @@ exports.getAiDataFromSession = async (req, res) => {
       return res.json({ hasData: false });
     }
     
-    logger.info('[getAiDataFromSession] Dati AI recuperati dalla sessione', {
+    logger.info('[getAiDataFromSession] Dati di analisi recuperati dalla sessione', {
       sessionId: req.sessionID,
       timestamp: sessionData.timestamp,
       bottlesCount: sessionData.data?.bottles?.length || 0
@@ -606,18 +604,18 @@ exports.getAiDataFromSession = async (req, res) => {
 };
 
 /**
- * Pulisce i dati AI dalla sessione
+ * Pulisce i dati di analisi dalla sessione
  */
 exports.clearAiDataFromSession = async (req, res) => {
   try {
     if (req.session.aiReviewData) {
       delete req.session.aiReviewData;
-      logger.info('[clearAiDataFromSession] Dati AI rimossi dalla sessione', {
+      logger.info('[clearAiDataFromSession] Dati di analisi rimossi dalla sessione', {
         sessionId: req.sessionID
       });
     }
     
-    return res.json({ success: true, message: 'Dati AI rimossi dalla sessione' });
+    return res.json({ success: true, message: 'Dati di analisi rimossi dalla sessione' });
     
   } catch (error) {
     logger.error('[clearAiDataFromSession] Errore durante la pulizia dei dati dalla sessione', {

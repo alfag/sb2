@@ -39,7 +39,7 @@ async function initializeGeminiAI() {
 }
 
 // Validazione e analisi completa: contenuto immagine + estrazione dettagli
-exports.validateImage = async function(image, reviewId = null, userId = null, sessionId = null) {
+async function validateImage(image, reviewId = null, userId = null, sessionId = null) {
   logger.info('[GeminiAI] Avvio analisi immagine', { reviewId, userId, sessionId });
 
   // Inizializza Gemini AI se non ancora fatto
@@ -1532,20 +1532,7 @@ async function getBeerMatchingCriteria(existingBeer, newBeerData) {
 }
 
 module.exports = {
-  validateImage: exports.validateImage,
+  validateImage,
   findOrCreateBrewery,
   findOrCreateBeer
 };
-
-// Aggiungiamo le funzioni anche come exports per compatibilità
-exports.validateImage = async function(image, reviewId = null, userId = null, sessionId = null) {
-  try {
-    return await analyzeImage(image, reviewId, userId, sessionId);
-  } catch (error) {
-    logger.error('[GeminiAI] Errore validateImage wrapper', { error: error.message });
-    throw error;
-  }
-};
-
-exports.findOrCreateBeer = findOrCreateBeer;
-exports.findOrCreateBrewery = findOrCreateBrewery;

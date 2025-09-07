@@ -8,8 +8,8 @@ const reviewSchema = new mongoose.Schema({
     rating: { type: Number, min: 1, max: 5 }, // Rating generale (mantenuto per compatibilità)
     brewery: { type: mongoose.Schema.Types.ObjectId, ref: 'Brewery' },
     beer: { type: mongoose.Schema.Types.ObjectId, ref: 'Beer' }, // Riferimento alla birra nel database
-    notes: String, // Note testuali della recensione
-    // Valutazioni dettagliate per le 5 caratteristiche principali
+    notes: String, // Note testuali della recensione - Impressioni generali
+    // Valutazioni dettagliate per le 4 caratteristiche specifiche
     detailedRatings: {
       appearance: {
         rating: { type: Number, min: 1, max: 5 },
@@ -26,10 +26,6 @@ const reviewSchema = new mongoose.Schema({
       mouthfeel: {
         rating: { type: Number, min: 1, max: 5 },
         notes: String // Note su corpo, carbonazione, astringenza
-      },
-      overall: {
-        rating: { type: Number, min: 1, max: 5 },
-        notes: String // Impressione generale
       }
     },
     // Dati AI aggiuntivi per ogni bottiglia

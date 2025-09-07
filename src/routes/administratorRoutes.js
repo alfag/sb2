@@ -3,6 +3,7 @@ const router = express.Router();
 const adminController = require('../controllers/administratorController');
 const reviewController = require('../controllers/reviewController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const Brewery = require('../models/Brewery');
 const logWithFileName = require('../utils/logger'); // Importa logWithFileName
 
 const logger = logWithFileName(__filename); // Crea un logger con il nome del file
@@ -220,5 +221,233 @@ router.post('/users/removeRole/:id', authMiddleware.isAdmin, async (req, res) =>
 
 // Visualizza collegamenti recensioni-birre (debug/admin)
 // router.get('/review-beer-connections', authMiddleware.isAdmin, reviewController.viewReviewBeerConnections);
+
+// === GESTIONE BREWERY ===
+// Lista tutti i brewery
+router.get('/breweries', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info('Accesso alla gestione brewery');
+        const breweries = await adminController.getAllBreweries();
+        res.render('admin/breweries', { 
+            title: 'Gestione Birrifici', 
+            breweries, 
+            user: req.user,
+            message: req.flash() 
+        });
+    } catch (error) {
+        logger.error(`Errore durante il recupero dei brewery: ${error.message}`);
+        req.flash('error', 'Errore durante il recupero dei birrifici');
+        res.redirect('/administrator');
+    }
+});
+
+// Mostra form per creare nuovo brewery
+router.get('/breweries/new', authMiddleware.isAdmin, (req, res) => {
+    logger.info('Accesso al form di creazione nuovo brewery');
+    res.render('admin/createBrewery', { 
+        title: 'Crea Nuovo Birrificio', 
+        user: req.user,
+        message: req.flash() 
+    });
+});
+
+// Crea nuovo brewery
+router.post('/breweries/new', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info('Creazione di un nuovo brewery');
+        await adminController.createBrewery(req.body, req, res);
+    } catch (error) {
+        logger.error(`Errore durante la creazione del brewery: ${error.message}`);
+        req.flash('error', 'Errore durante la creazione del birrificio');
+        res.render('admin/createBrewery', { 
+            title: 'Crea Nuovo Birrificio', 
+            message: { error: req.flash('error') }, 
+            user: req.user 
+        });
+    }
+});
+
+// Mostra dettagli brewery per modifica
+router.get('/breweries/edit/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const breweryId = req.params.id;
+        logger.info(`Accesso al form di modifica brewery: ${breweryId}`);
+        
+        const brewery = await adminController.getBreweryById(breweryId);
+        if (!brewery) {
+            req.flash('error', 'Birrificio non trovato');
+            return res.redirect('/administrator/breweries');
+        }
+        
+        res.render('admin/editBrewery', { 
+            title: 'Modifica Birrificio', 
+            brewery: brewery.toObject ? brewery.toObject() : brewery,
+            user: req.user,
+            message: req.flash() 
+        });
+    } catch (error) {
+        logger.error(`Errore durante il recupero del brewery per modifica: ${error.message}`);
+        req.flash('error', 'Errore durante il recupero del birrificio');
+        res.redirect('/administrator/breweries');
+    }
+});
+
+// Aggiorna brewery
+router.post('/breweries/edit/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const breweryId = req.params.id;
+        logger.info(`Aggiornamento brewery: ${breweryId}`);
+        
+        const updatedBrewery = await adminController.updateBrewery(breweryId, req.body);
+        if (!updatedBrewery) {
+            req.flash('error', 'Birrificio non trovato o non aggiornato');
+            return res.redirect('/administrator/breweries');
+        }
+        
+        req.flash('success', 'Birrificio aggiornato con successo');
+        res.redirect('/administrator/breweries');
+    } catch (error) {
+        logger.error(`Errore durante l'aggiornamento del brewery: ${error.message}`);
+        req.flash('error', 'Errore durante l\'aggiornamento del birrificio');
+        res.redirect(`/administrator/breweries/edit/${req.params.id}`);
+    }
+});
+
+// Elimina brewery
+router.post('/breweries/delete/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const breweryId = req.params.id;
+        logger.info(`Eliminazione brewery: ${breweryId}`);
+        
+        const deletedBrewery = await adminController.deleteBrewery(breweryId);
+        if (!deletedBrewery) {
+            req.flash('error', 'Birrificio non trovato o già eliminato');
+            return res.redirect('/administrator/breweries');
+        }
+        
+        req.flash('success', 'Birrificio eliminato con successo');
+        res.redirect('/administrator/breweries');
+    } catch (error) {
+        logger.error(`Errore durante l'eliminazione del brewery: ${error.message}`);
+        req.flash('error', 'Errore durante l\'eliminazione del birrificio');
+        res.redirect('/administrator/breweries');
+    }
+});
+
+// Visualizza dettagli brewery (solo lettura)
+router.get('/breweries/view/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const breweryId = req.params.id;
+        logger.info(`Visualizzazione dettagli brewery: ${breweryId}`);
+        
+        const brewery = await adminController.getBreweryDetailsById(breweryId);
+        if (!brewery) {
+            req.flash('error', 'Birrificio non trovato');
+            return res.redirect('/administrator/breweries');
+        }
+        
+        res.render('admin/viewBrewery', { 
+            title: 'Dettagli Birrificio', 
+            brewery: brewery,
+            user: req.user,
+            message: req.flash() 
+        });
+    } catch (error) {
+        logger.error(`Errore durante la visualizzazione del brewery: ${error.message}`);
+        req.flash('error', 'Errore durante la visualizzazione del birrificio');
+        res.redirect('/administrator/breweries');
+    }
+});
+
+// === GESTIONE STATISTICHE ===
+// Autocomplete birrifici per filtro
+router.get('/statistics/breweries/search', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const query = req.query.q;
+        if (!query || query.length < 3) {
+            return res.json([]);
+        }
+        
+        try {
+            // Prova a usare il database MongoDB se disponibile
+            const breweries = await Brewery.find({
+                breweryName: { $regex: query, $options: 'i' }
+            })
+            .select('_id breweryName')
+            .limit(10)
+            .lean();
+            
+            // Trasforma il risultato per mantenere la compatibilità con il frontend
+            const formattedBreweries = breweries.map(brewery => ({
+                _id: brewery._id,
+                name: brewery.breweryName
+            }));
+            
+            logger.info(`Ricerca birrifici per query: "${query}", trovati: ${formattedBreweries.length}`);
+            res.json(formattedBreweries);
+            
+        } catch (dbError) {
+            // Se il database non è disponibile, usa dati di test
+            logger.warn(`Database non disponibile, uso dati di test: ${dbError.message}`);
+            
+            const testBreweries = [
+                { _id: '507f1f77bcf86cd799439011', name: 'Birrificio Baladin' },
+                { _id: '507f1f77bcf86cd799439012', name: 'Birrificio Italiano' },
+                { _id: '507f1f77bcf86cd799439013', name: 'Birra del Borgo' },
+                { _id: '507f1f77bcf86cd799439014', name: 'Lambrate' },
+                { _id: '507f1f77bcf86cd799439015', name: 'Toccalmatto' },
+                { _id: '507f1f77bcf86cd799439016', name: 'Brewfist' },
+                { _id: '507f1f77bcf86cd799439017', name: 'Mastri Birrai Umbri' }
+            ];
+            
+            // Filtra i birrifici in base alla query
+            const filteredBreweries = testBreweries.filter(brewery => 
+                brewery.name.toLowerCase().includes(query.toLowerCase())
+            ).slice(0, 10);
+            
+            logger.info(`Ricerca birrifici per query: "${query}", trovati: ${filteredBreweries.length} (dati di test)`);
+            res.json(filteredBreweries);
+        }
+    } catch (error) {
+        logger.error(`Errore durante la ricerca birrifici: ${error.message}`);
+        res.status(500).json({ error: 'Errore interno del server' });
+    }
+});
+
+// API per statistiche breweries con filtri
+router.get('/api/breweries-stats', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info('API richiesta statistiche breweries', { query: req.query });
+        await adminController.getBreweriesStatsAPI(req, res);
+    } catch (error) {
+        logger.error(`Errore API statistiche breweries: ${error.message}`);
+        res.status(500).json({ success: false, error: 'Errore interno del server' });
+    }
+});
+
+// Dettagli statistiche singolo brewery
+router.get('/statistics/brewery/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const breweryId = req.params.id;
+        logger.info(`Accesso statistiche brewery specifico: ${breweryId}`);
+        await adminController.getBreweryStatisticsDetail(req, res);
+    } catch (error) {
+        logger.error(`Errore durante il recupero statistiche brewery: ${error.message}`);
+        req.flash('error', 'Errore durante il recupero delle statistiche del birrificio');
+        res.redirect('/administrator/statistics');
+    }
+});
+
+// Dashboard statistiche principali
+router.get('/statistics', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info('Accesso alle statistiche generali');
+        await adminController.getStatisticsDashboard(req, res);
+    } catch (error) {
+        logger.error(`Errore durante il recupero delle statistiche: ${error.message}`);
+        req.flash('error', 'Errore durante il recupero delle statistiche');
+        res.redirect('/administrator');
+    }
+});
 
 module.exports = router;

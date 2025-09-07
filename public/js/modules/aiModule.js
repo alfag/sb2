@@ -183,12 +183,28 @@ class AIModule {
 
       const result = await response.json();
 
+      // Gestione rate limiting
+      if (response.status === 429) {
+        this.handleRateLimitExceeded(result);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(result.message || 'Errore durante l\'analisi');
       }
 
-      this.currentAnalysisData = result.data;
-      this.showAnalysisResults(result.data);
+      // Gestione warning rate limit
+      if (result.rateLimitWarning) {
+        this.showRateLimitWarning(result.rateLimitWarning);
+      }
+
+      // Mostra info rate limiting rimanenti
+      if (result.rateLimitInfo) {
+        this.showRemainingRequests(result.rateLimitInfo);
+      }
+
+      this.currentAnalysisData = result.data || result;
+      this.showAnalysisResults(result.data || result);
 
     } catch (error) {
       console.error('[AIModule] Errore analisi:', error);
@@ -269,6 +285,130 @@ class AIModule {
       status.style.display = 'block';
     }
     this.setProcessingState(false);
+  }
+
+  /**
+   * Gestisce rate limit superato
+   */
+  handleRateLimitExceeded(result) {
+    const message = result.message || 'Limite richieste superato';
+    const suggestion = result.suggestion || '';
+    const details = result.details || {};
+    
+    let html = `<div class="rate-limit-error">
+      <h4><i class="fas fa-exclamation-triangle"></i> Limite Analisi Raggiunto</h4>
+      <p><strong>${message}</strong></p>`;
+    
+    if (suggestion) {
+      html += `<p class="suggestion">${suggestion}</p>`;
+    }
+    
+    if (details.authUrl && !details.isUserAuthenticated) {
+      html += `<div class="action-buttons">
+        <a href="${details.authUrl}" class="btn btn-primary">
+          <i class="fas fa-user-plus"></i> Registrati Ora
+        </a>
+      </div>`;
+    }
+    
+    html += `<div class="limit-details">
+      <small>
+        <i class="fas fa-info-circle"></i> 
+        ${details.requestCount || 0}/${details.maxRequests || 0} analisi utilizzate.
+        ${details.resetInfo ? `Reset: ${details.resetInfo.resetMethod}` : ''}
+      </small>
+    </div></div>`;
+    
+    const status = document.getElementById('ai-status');
+    if (status) {
+      status.innerHTML = html;
+      status.style.display = 'block';
+    }
+    
+    this.setProcessingState(false);
+    console.warn('[AIModule] Rate limit superato:', result);
+  }
+
+  /**
+   * Mostra warning rate limit
+   */
+  showRateLimitWarning(warning) {
+    const warningElement = document.getElementById('rate-limit-warning');
+    if (!warningElement) {
+      // Crea elemento warning se non esiste
+      const container = document.getElementById('ai-status');
+      if (container) {
+        const warningDiv = document.createElement('div');
+        warningDiv.id = 'rate-limit-warning';
+        warningDiv.className = 'rate-limit-warning alert alert-warning mt-2';
+        container.appendChild(warningDiv);
+      }
+    }
+    
+    const element = document.getElementById('rate-limit-warning');
+    if (element) {
+      let html = `<i class="fas fa-exclamation-triangle"></i> ${warning.message}`;
+      
+      if (warning.authUrl && warning.remainingRequests <= 1) {
+        html += ` <a href="${warning.authUrl}" class="btn btn-sm btn-outline-primary ms-2">
+          <i class="fas fa-user-plus"></i> Registrati
+        </a>`;
+      }
+      
+      element.innerHTML = html;
+      element.style.display = 'block';
+      
+      // Auto-hide dopo 8 secondi
+      setTimeout(() => {
+        if (element) {
+          element.style.display = 'none';
+        }
+      }, 8000);
+    }
+    
+    console.info('[AIModule] Rate limit warning:', warning);
+  }
+
+  /**
+   * Mostra richieste rimanenti
+   */
+  showRemainingRequests(rateLimitInfo) {
+    const infoElement = document.getElementById('rate-limit-info') || 
+                       this.createRateLimitInfoElement();
+    
+    if (infoElement) {
+      const remaining = rateLimitInfo.remainingRequests;
+      const max = rateLimitInfo.maxRequests;
+      const isAuth = rateLimitInfo.isUserAuthenticated;
+      
+      let html = `<small class="text-muted">
+        <i class="fas fa-chart-bar"></i> 
+        ${remaining}/${max} analisi rimanenti`;
+      
+      if (!isAuth && remaining <= 3) {
+        html += ` - <a href="/auth/register" class="text-primary">Registrati per averne di più</a>`;
+      }
+      
+      html += `</small>`;
+      
+      infoElement.innerHTML = html;
+      infoElement.style.display = 'block';
+    }
+  }
+
+  /**
+   * Crea elemento per info rate limiting
+   */
+  createRateLimitInfoElement() {
+    const container = document.getElementById('ai-status');
+    if (container) {
+      const infoDiv = document.createElement('div');
+      infoDiv.id = 'rate-limit-info';
+      infoDiv.className = 'rate-limit-info mt-2';
+      container.appendChild(infoDiv);
+      return infoDiv;
+    }
+    return null;
   }
 
   /**

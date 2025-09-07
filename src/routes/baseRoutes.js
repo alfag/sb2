@@ -15,9 +15,34 @@ router.get('/', (req, res) => {
 
 // Gestione accettazione disclaimer maggiore età
 router.post('/disclaimer', (req, res) => {
+    // Imposta SOLO nella sessione corrente (si cancella quando si chiude il browser)
     req.session.disclaimerAccepted = true;
+    
+    logger.info('Disclaimer maggiore età accettato per la sessione corrente', {
+        sessionId: req.sessionID,
+        userAuthenticated: !!req.user,
+        userId: req.user?._id
+    });
+    
     res.status(200).json({ success: true });
 });
+
+// Endpoint di debug per controllare lo stato disclaimer (solo in development)
+if (process.env.NODE_ENV !== 'production') {
+    router.get('/debug/disclaimer-status', (req, res) => {
+        res.json({
+            sessionId: req.sessionID,
+            disclaimerAccepted: req.session.disclaimerAccepted,
+            cookies: req.cookies
+        });
+    });
+    
+    router.post('/debug/reset-disclaimer', (req, res) => {
+        req.session.disclaimerAccepted = false;
+        res.clearCookie('disclaimerAccepted');
+        res.json({ success: true, message: 'Disclaimer resettato' });
+    });
+}
 
 // Proteggi la pagina profilo con il middleware isAuthenticated
 router.get('/profile', isAuthenticated, (req, res) => {

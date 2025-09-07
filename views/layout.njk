@@ -8,6 +8,7 @@
     <title>{% block title %}{% endblock %}</title>
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/toggle.css">
+    {% block head %}{% endblock %}
 </head>
 
 <body style="display: flex; flex-direction: column; min-height: 100vh;">
@@ -35,7 +36,7 @@
     <header>
         <h1>{% block header %}{% endblock %}</h1>
     </header>
-    <main style="flex: 1 0 auto;">
+    <main style="flex: 1 0 auto; padding-bottom: 120px;">
         {% block content %}{% endblock %}
     </main>
     {% if showDisclaimer %}

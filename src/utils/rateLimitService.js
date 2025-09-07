@@ -1,5 +1,6 @@
 const rateLimit = require('express-rate-limit');
-const logger = require('./logger');
+const logWithFileName = require('./logger');
+const logger = logWithFileName(__filename);
 
 /**
  * Rate Limiting configurabile per diversi endpoint

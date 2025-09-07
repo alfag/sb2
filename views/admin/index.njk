@@ -1,0 +1,178 @@
+{% extends "../layout.njk" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>{{ title }}</h1>
+    
+    <!-- Benvenuto -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h4><i class="fas fa-tachometer-alt"></i> Benvenuto nella Dashboard Amministrativa</h4>
+                <p class="mb-0">Da qui puoi gestire tutti gli aspetti del sistema SharingBeer.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Menu principale -->
+    <div class="row">
+        <!-- Gestione Utenti -->
+        <div class="col-md-6 col-xl-3 mb-4">
+            <div class="card h-100 border-primary">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Gestione Utenti</h5>
+                    <p class="card-text">Crea, modifica ed elimina utenti del sistema. Gestisci ruoli e permessi.</p>
+                    <div class="mt-auto">
+                        <a href="/administrator/users" class="btn btn-primary">
+                            <i class="fas fa-list"></i> Lista Utenti
+                        </a>
+                        <a href="/administrator/users/new" class="btn btn-outline-primary">
+                            <i class="fas fa-plus"></i> Nuovo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gestione Birrifici -->
+        <div class="col-md-6 col-xl-3 mb-4">
+            <div class="card h-100 border-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-industry fa-3x text-warning mb-3"></i>
+                    <h5 class="card-title">Gestione Birrifici</h5>
+                    <p class="card-text">Amministra i birrifici registrati. Visualizza dettagli, statistiche e gestisci i dati.</p>
+                    <div class="mt-auto">
+                        <a href="/administrator/breweries" class="btn btn-warning">
+                            <i class="fas fa-list"></i> Lista Birrifici
+                        </a>
+                        <a href="/administrator/breweries/new" class="btn btn-outline-warning">
+                            <i class="fas fa-plus"></i> Nuovo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gestione Recensioni -->
+        <div class="col-md-6 col-xl-3 mb-4">
+            <div class="card h-100 border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-star fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Gestione Recensioni</h5>
+                    <p class="card-text">Monitora recensioni, gestisci contenuti e visualizza statistiche di sistema.</p>
+                    <div class="mt-auto">
+                        <a href="/administrator/statistics" class="btn btn-success">
+                            <i class="fas fa-chart-bar"></i> Statistiche
+                        </a>
+                        <small class="text-muted d-block mt-2">Dashboard completa</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sistema e Cache -->
+        <div class="col-md-6 col-xl-3 mb-4">
+            <div class="card h-100 border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-cogs fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">Sistema</h5>
+                    <p class="card-text">Gestisci cache, logs di sistema e impostazioni globali dell'applicazione.</p>
+                    <div class="mt-auto">
+                        <a href="/api/cache" class="btn btn-info">
+                            <i class="fas fa-database"></i> Gestione Cache
+                        </a>
+                        <a href="/content-moderation" class="btn btn-outline-info">
+                            <i class="fas fa-shield-alt"></i> Moderazione
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistiche rapide -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-chart-bar"></i> Statistiche Rapide</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h3 class="text-primary">--</h3>
+                                <p class="text-muted">Utenti Totali</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h3 class="text-warning">--</h3>
+                                <p class="text-muted">Birrifici</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h3 class="text-success">--</h3>
+                                <p class="text-muted">Recensioni</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-info">--</h3>
+                            <p class="text-muted">Birre</p>
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        <a href="/administrator/statistics" class="text-decoration-none">Visualizza statistiche complete ›</a>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Azioni rapide -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-bolt"></i> Azioni Rapide</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Gestione Contenuti</h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="/administrator/users/new" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-user-plus"></i> Nuovo Utente
+                                </a>
+                                <a href="/administrator/breweries/new" class="btn btn-sm btn-outline-warning">
+                                    <i class="fas fa-plus"></i> Nuovo Birrificio
+                                </a>
+                                <a href="/api/cache" class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-trash"></i> Pulisci Cache
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Monitoraggio</h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="/content-moderation" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-shield-alt"></i> Test Moderazione
+                                </a>
+                                <button class="btn btn-sm btn-outline-secondary" disabled>
+                                    <i class="fas fa-chart-line"></i> Report
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" disabled>
+                                    <i class="fas fa-download"></i> Export Dati
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
