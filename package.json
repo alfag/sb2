@@ -55,6 +55,7 @@
     "eslint": "^7.14.0",
     "mocha": "^10.2.0",
     "nodemon": "^3.1.10",
+    "puppeteer": "^24.19.0",
     "supertest": "^6.3.4",
     "typescript": "^5.8.2"
   },

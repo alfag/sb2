@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const logWithFileName = require('../utils/logger'); // Importa logWithFileName
 const bcrypt = require('bcrypt');
 
-const logger = logWithFileName(__filename); // Crea un logger con il nome del file
+const logger = logWithFileName(__filename); // Crea logger per questo file
 
 // Crea un nuovo utente
 async function createUser({
@@ -465,14 +465,15 @@ async function getStatisticsDashboard(req, res) {
         const maxRating = parseFloat(req.query.maxRating) || 5;
         const breweryFilter = req.query.brewery || '';
 
-        // Ottieni statistiche globali dai birrifici
+        // Ottieni statistiche globali dai birrifici (senza cache per admin dashboard)
         const breweriesStats = await ReviewService.getAllBreweriesStats({
             page,
             limit,
             sortBy,
             sortOrder,
             minReviews,
-            breweryFilter // Aggiungiamo il filtro per birrificio
+            breweryFilter, // Aggiungiamo il filtro per birrificio
+            skipCache: true // Disabilita la cache per le statistiche admin
         });
 
         // Filtra per rating se specificato
@@ -483,12 +484,18 @@ async function getStatisticsDashboard(req, res) {
         }
 
         // Statistiche generali aggiuntive
-        const [totalUsers, totalBeers, totalReviews, totalBreweriesInDB] = await Promise.all([
+        const [totalUsers, totalBeers, totalBreweriesInDB] = await Promise.all([
             User.countDocuments(),
             Beer.countDocuments(),
-            Review.countDocuments(),
             Brewery.countDocuments() // Aggiungiamo il conteggio totale dei birrifici
         ]);
+
+        // Calcola il numero corretto di recensioni totali (count dei ratings, non dei documenti Review)
+        const totalReviewsResult = await Review.aggregate([
+            { $unwind: '$ratings' },
+            { $count: 'total' }
+        ]);
+        const totalReviews = totalReviewsResult.length > 0 ? totalReviewsResult[0].total : 0;
 
         // Distribuzioni per analisi
         const ratingDistribution = await Review.aggregate([
@@ -506,8 +513,8 @@ async function getStatisticsDashboard(req, res) {
             {
                 $group: {
                     _id: {
-                        year: { $year: '$createdAt' },
-                        month: { $month: '$createdAt' }
+                        year: { $year: '$date' },
+                        month: { $month: '$date' }
                     },
                     count: { $sum: 1 }
                 }
@@ -515,6 +522,138 @@ async function getStatisticsDashboard(req, res) {
             { $sort: { '_id.year': -1, '_id.month': -1 } },
             { $limit: 12 }
         ]);
+
+        // Statistiche per tipologie di birre
+        const beerTypesStats = await Review.aggregate([
+            { $unwind: '$ratings' },
+            {
+                $lookup: {
+                    from: 'beers',
+                    localField: 'ratings.beer',
+                    foreignField: '_id',
+                    as: 'beerInfo'
+                }
+            },
+            { $unwind: '$beerInfo' },
+            { $match: { 'beerInfo.beerType': { $exists: true, $ne: null, $ne: '' } } },
+            {
+                $group: {
+                    _id: '$beerInfo.beerType',
+                    count: { $sum: 1 },
+                    avgRating: { $avg: '$ratings.rating' }
+                }
+            },
+            { $match: { count: { $gte: 2 } } }, // Solo tipi con almeno 2 recensioni
+            { $sort: { count: -1 } },
+            { $limit: 8 } // Top 8 tipi più recensiti
+        ]);
+
+        // Calcola statistiche rapide reali
+        let globalAverageRating = 0;
+        let activeUsersPercentage = 0;
+        let monthlyGrowthPercentage = 0;
+        let engagementPercentage = 0;
+
+        try {
+            // Rating medio globale
+            const globalRatingResult = await Review.aggregate([
+                { $unwind: '$ratings' },
+                {
+                    $group: {
+                        _id: null,
+                        avgRating: { $avg: '$ratings.rating' }
+                    }
+                }
+            ]);
+            globalAverageRating = globalRatingResult.length > 0 ? globalRatingResult[0].avgRating : 0;
+
+            // Utenti attivi (utenti che hanno fatto almeno una recensione negli ultimi 30 giorni)
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            const activeUsersCount = await Review.distinct('user', {
+                createdAt: { $gte: thirtyDaysAgo }
+            }).then(users => users.length);
+            
+            activeUsersPercentage = totalUsers > 0 ? Math.round((activeUsersCount / totalUsers) * 100) : 0;
+
+            // Crescita mensile (confronto ultimo mese con mese precedente)
+            const currentMonth = new Date();
+            currentMonth.setDate(1); // Primo giorno del mese corrente
+            const lastMonth = new Date(currentMonth);
+            lastMonth.setMonth(lastMonth.getMonth() - 1);
+            const twoMonthsAgo = new Date(lastMonth);
+            twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 1);
+
+            const [currentMonthReviews, lastMonthReviews] = await Promise.all([
+                Review.countDocuments({ createdAt: { $gte: currentMonth } }),
+                Review.countDocuments({ 
+                    createdAt: { 
+                        $gte: twoMonthsAgo, 
+                        $lt: lastMonth 
+                    } 
+                })
+            ]);
+
+            if (lastMonthReviews > 0) {
+                monthlyGrowthPercentage = Math.round(((currentMonthReviews - lastMonthReviews) / lastMonthReviews) * 100);
+            }
+
+            // Engagement (percentuale di utenti che hanno fatto almeno una recensione)
+            const usersWithReviews = await Review.distinct('user').then(users => users.length);
+            engagementPercentage = totalUsers > 0 ? Math.round((usersWithReviews / totalUsers) * 100) : 0;
+
+        } catch (statsError) {
+            logger.warn('Errore nel calcolo delle statistiche rapide:', statsError);
+            // Le variabili rimangono a 0 se c'è un errore
+        }
+
+        // Genera dinamicamente il file statisticsData.js con i dati reali
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const statisticsDataPath = path.join(__dirname, '../../public/js/statisticsData.js');
+            
+            const jsContent = `// File generato dinamicamente dal server - NON MODIFICARE MANUALMENTE
+// Rendi i dati analytics disponibili al JavaScript
+console.log('📊 Caricamento dati analytics nel frontend...');
+
+try {
+    window.analyticsData = {
+        ratingDistribution: ${JSON.stringify(ratingDistribution)},
+        monthlyTrend: ${JSON.stringify(monthlyTrend)},
+        beerTypesStats: ${JSON.stringify(beerTypesStats)}
+    };
+    console.log('✅ Dati analytics caricati nel frontend:', window.analyticsData);
+    console.log('🔍 Rating distribution:', window.analyticsData.ratingDistribution);
+    console.log('🔍 Monthly trend:', window.analyticsData.monthlyTrend);
+    console.log('🔍 Beer types stats:', window.analyticsData.beerTypesStats);
+} catch (error) {
+    console.error('❌ Errore nel caricamento dati analytics:', error);
+    window.analyticsData = {
+        ratingDistribution: [],
+        monthlyTrend: [],
+        beerTypesStats: []
+    };
+}
+
+// Inizializza il gestore delle statistiche quando il DOM è pronto
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Inizializzazione StatisticsManager...');
+    try {
+        window.statisticsManager = new StatisticsManager();
+        console.log('✅ StatisticsManager inizializzato con successo');
+    } catch (error) {
+        console.error('❌ Errore nell\\'inizializzazione StatisticsManager:', error);
+    }
+});`;
+            
+            fs.writeFileSync(statisticsDataPath, jsContent, 'utf8');
+            logger.info('File statisticsData.js generato dinamicamente con successo');
+            
+        } catch (fileError) {
+            logger.warn('Errore nella generazione del file statisticsData.js:', fileError);
+        }
 
         res.render('admin/statistics', {
             title: 'Statistiche Piattaforma',
@@ -541,7 +680,18 @@ async function getStatisticsDashboard(req, res) {
             },
             analytics: {
                 ratingDistribution,
-                monthlyTrend
+                monthlyTrend,
+                beerTypesStats,
+                // Prepara i dati JSON per il frontend
+                ratingDistributionJson: JSON.stringify(ratingDistribution),
+                monthlyTrendJson: JSON.stringify(monthlyTrend),
+                beerTypesStatsJson: JSON.stringify(beerTypesStats)
+            },
+            quickStats: {
+                globalAverageRating: Math.round(globalAverageRating * 10) / 10, // Arrotonda a 1 decimale
+                activeUsersPercentage,
+                monthlyGrowthPercentage,
+                engagementPercentage
             }
         });
 
@@ -577,7 +727,8 @@ async function getBreweriesStatsAPI(req, res) {
             limit: 1000, // Limit alto per prendere tutti
             sortBy,
             sortOrder,
-            minReviews
+            minReviews,
+            skipCache: true // Disabilita la cache per le API admin
         });
 
         // Filtro per ricerca se specificato
@@ -640,13 +791,13 @@ async function getBreweryStatisticsDetail(req, res) {
             return res.redirect('/administrator/statistics');
         }
 
-        // Ottieni statistiche dettagliate del brewery
-        const breweryStats = await ReviewService.getBreweryStats(breweryId);
+        // Ottieni statistiche dettagliate del brewery (senza cache)
+        const breweryStats = await ReviewService.getBreweryStats(breweryId, true);
         
         // Aggiungi dettagli per ogni birra del brewery
         const beersWithStats = await Promise.all(
             breweryStats.beerBreakdown.map(async (beerSummary) => {
-                const beerStats = await ReviewService.getBeerStats(beerSummary.beerId);
+                const beerStats = await ReviewService.getBeerStats(beerSummary.beerId, true);
                 const beerDetails = await Beer.findById(beerSummary.beerId);
                 
                 return {

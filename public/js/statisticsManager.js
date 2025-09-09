@@ -32,13 +32,19 @@ class StatisticsManager {
     // Setup principale
     setup() {
         console.log('📊 StatisticsManager - Inizializzazione dashboard avanzata...');
+        console.log('🔍 Verifica window.analyticsData:', window.analyticsData);
+        
         this.setupChartDefaults();
-        this.createCharts();
-        this.setupEventHandlers();
-        this.setupBreweryAutocomplete();
-        this.enhanceUI();
-        this.animateCounters();
-        console.log('✅ Dashboard statistiche caricata con successo!');
+        
+        // Aggiungi un piccolo delay per assicurarsi che i dati siano caricati
+        setTimeout(() => {
+            this.createCharts();
+            this.setupEventHandlers();
+            this.setupBreweryAutocomplete();
+            this.enhanceUI();
+            this.animateCounters();
+            console.log('✅ Dashboard statistiche caricata con successo!');
+        }, 200);
     }
 
     // Configurazione avanzata per Chart.js
@@ -56,6 +62,8 @@ class StatisticsManager {
 
     // Crea tutti i grafici avanzati
     createCharts() {
+        console.log('📊 Creazione grafici - Verifica dati analytics:', window.analyticsData);
+        
         // Aggiungi un piccolo delay per assicurarsi che i canvas siano pronti
         setTimeout(() => {
             this.createRatingsChart();
@@ -70,10 +78,26 @@ class StatisticsManager {
         const ctx = document.getElementById('ratingsChart');
         if (!ctx) return;
 
+        // Utilizza i dati reali se disponibili
+        const realData = this.extractRatingDistribution();
+
+        // Se ci sono errori, mostra comunque il grafico con dati vuoti
+        let chartData, hasData = false;
+        
+        if (realData.hasError || realData.totalRatings === 0) {
+            // Mostra un grafico con tutti valori a 0 invece di errore
+            chartData = [0, 0, 0, 0, 0];
+            console.warn('📊 Mostrando grafico rating vuoto:', realData.errorMessage);
+        } else {
+            chartData = realData.counts;
+            hasData = true;
+            console.log('📊 Mostrando grafico rating con dati reali:', chartData);
+        }
+
         const data = {
             labels: ['★★★★★', '★★★★☆', '★★★☆☆', '★★☆☆☆', '★☆☆☆☆'],
             datasets: [{
-                data: [45, 30, 15, 7, 3],
+                data: chartData,
                 backgroundColor: [
                     this.colors.success,
                     this.colors.primary,
@@ -81,7 +105,8 @@ class StatisticsManager {
                     this.colors.secondary,
                     '#95a5a6'
                 ],
-                borderWidth: 0,
+                borderWidth: 2,
+                borderColor: '#fff',
                 hoverOffset: 10
             }]
         };
@@ -98,18 +123,78 @@ class StatisticsManager {
                         labels: {
                             padding: 20,
                             usePointStyle: true,
-                            pointStyle: 'circle'
+                            pointStyle: 'circle',
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                if (data.labels.length && data.datasets.length) {
+                                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    return data.labels.map((label, i) => {
+                                        const value = data.datasets[0].data[i];
+                                        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                        
+                                        // Se non ci sono dati, mostra messaggio appropriato
+                                        const displayText = total === 0 
+                                            ? `${label} (Nessun dato)` 
+                                            : `${label} (${value} - ${percentage}%)`;
+                                            
+                                        return {
+                                            text: displayText,
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            strokeStyle: data.datasets[0].borderColor,
+                                            lineWidth: data.datasets[0].borderWidth,
+                                            pointStyle: 'circle',
+                                            hidden: false, // Mostra sempre le etichette
+                                            index: i
+                                        };
+                                    });
+                                }
+                                return [];
+                            }
                         }
                     },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return context.label + ': ' + context.parsed + '%';
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const currentValue = context.parsed;
+                                
+                                if (total === 0) {
+                                    return `${context.label}: Nessun dato disponibile`;
+                                }
+                                
+                                const percentage = Math.round((currentValue / total) * 100);
+                                return `${context.label}: ${currentValue} recensioni (${percentage}%)`;
                             }
                         }
                     }
                 },
-                cutout: '60%'
+                cutout: '60%',
+                // Aggiungi animazione per un effetto più professionale
+                animation: {
+                    animateRotate: true,
+                    animateScale: true,
+                    duration: 1500,
+                    easing: 'easeOutQuart',
+                    // Callback per aggiungere testo al centro quando non ci sono dati
+                    onComplete: function(animation) {
+                        if (!hasData) {
+                            const canvasPosition = Chart.helpers.getRelativePosition(animation.chart.canvas, animation.chart);
+                            const ctx = animation.chart.ctx;
+                            const centerX = (animation.chart.chartArea.left + animation.chart.chartArea.right) / 2;
+                            const centerY = (animation.chart.chartArea.top + animation.chart.chartArea.bottom) / 2;
+                            
+                            ctx.restore();
+                            ctx.font = "bold 16px Inter";
+                            ctx.fillStyle = "#7f8c8d";
+                            ctx.textAlign = "center";
+                            ctx.textBaseline = "middle";
+                            ctx.fillText("Nessun dato", centerX, centerY - 10);
+                            ctx.font = "12px Inter";
+                            ctx.fillText("disponibile", centerX, centerY + 10);
+                            ctx.save();
+                        }
+                    }
+                }
             }
         });
     }
@@ -119,16 +204,28 @@ class StatisticsManager {
         const ctx = document.getElementById('breweriesChart');
         if (!ctx) return;
 
+        // Estrai i dati reali dalla tabella
+        const breweryData = this.extractBreweryData();
+        
+        // Gestisci errori con messaggio user-friendly
+        if (breweryData.hasError) {
+            this.showChartError(ctx, breweryData.errorMessage, 'Top Birrifici');
+            return;
+        }
+        
         const data = {
-            labels: ['Baladin', 'Italiano', 'Del Borgo', 'Lambrate', 'Toccalmatto'],
+            labels: breweryData.names,
             datasets: [{
-                data: [85, 72, 68, 55, 42],
+                data: breweryData.reviews,
                 backgroundColor: [
                     this.colors.primary,
                     this.colors.success,
                     this.colors.warning,
                     this.colors.info,
-                    this.colors.secondary
+                    this.colors.secondary,
+                    '#95a5a6',
+                    '#34495e',
+                    '#8e44ad'
                 ],
                 borderRadius: 8,
                 borderSkipped: false
@@ -175,11 +272,20 @@ class StatisticsManager {
         const ctx = document.getElementById('trendChart');
         if (!ctx) return;
 
+        // Utilizza i dati reali se disponibili
+        const trendData = this.extractMonthlyTrend();
+
+        // Gestisci errori con messaggio user-friendly
+        if (trendData.hasError) {
+            this.showChartError(ctx, trendData.errorMessage, 'Trend Temporale');
+            return;
+        }
+
         const data = {
-            labels: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu'],
+            labels: trendData.labels,
             datasets: [{
                 label: 'Nuove Recensioni',
-                data: [65, 78, 90, 85, 92, 105],
+                data: trendData.values,
                 borderColor: this.colors.primary,
                 backgroundColor: this.colors.primary + '20',
                 fill: true,
@@ -224,17 +330,29 @@ class StatisticsManager {
         const ctx = document.getElementById('beerTypesChart');
         if (!ctx) return;
 
+        // Utilizza i dati reali se disponibili
+        const beerTypesData = this.extractBeerTypesStats();
+
+        // Gestisci errori con messaggio user-friendly
+        if (beerTypesData.hasError) {
+            this.showChartError(ctx, beerTypesData.errorMessage, 'Tipologie Birre');
+            return;
+        }
+
         const data = {
-            labels: ['IPA', 'Lager', 'Stout', 'Wheat', 'Pilsner'],
+            labels: beerTypesData.types,
             datasets: [{
                 label: 'Rating Medio',
-                data: [4.2, 3.8, 4.5, 4.0, 3.9],
+                data: beerTypesData.ratings,
                 backgroundColor: [
                     this.colors.primary,
                     this.colors.success,
                     this.colors.warning,
                     this.colors.info,
-                    this.colors.secondary
+                    this.colors.secondary,
+                    '#95a5a6',
+                    '#34495e',
+                    '#8e44ad'
                 ],
                 borderRadius: 8,
                 borderSkipped: false
@@ -285,6 +403,247 @@ class StatisticsManager {
                 if (chart) chart.resize();
             });
         });
+    }
+
+    // Estrae i dati dei birrifici dalla tabella HTML reale
+    extractBreweryData() {
+        console.log('📊 Estrazione dati birrifici dalla tabella...');
+        
+        // Debug: Verifica che la tabella esista
+        const table = document.querySelector('.table-modern table');
+        console.log('🔍 Tabella trovata:', table);
+        
+        if (!table) {
+            console.error('❌ Tabella .table-modern table non trovata nel DOM');
+            return {
+                names: ['Dati non disponibili'],
+                reviews: [0],
+                hasError: true,
+                errorMessage: 'Tabella dei birrifici non trovata. La pagina potrebbe non essere caricata completamente.'
+            };
+        }
+        
+        // Cerca le righe della tabella delle statistiche birrifici
+        const breweryRows = table.querySelectorAll('tbody tr');
+        const names = [];
+        const reviews = [];
+
+        console.log(`🔍 Trovate ${breweryRows.length} righe nella tabella`);
+
+        breweryRows.forEach((row, index) => {
+            if (index < 8) { // Prendi solo i primi 8 per il grafico
+                console.log(`🔍 Elaborazione riga ${index + 1}:`, row);
+                
+                // Il nome del birrificio è nella seconda colonna (td:nth-child(2) a)
+                const nameCell = row.querySelector('td:nth-child(2) a');
+                // Le recensioni sono nella quarta colonna (td:nth-child(4) .badge) 
+                const reviewsCell = row.querySelector('td:nth-child(4) .badge');
+                
+                console.log(`   - Nome cell:`, nameCell);
+                console.log(`   - Reviews cell:`, reviewsCell);
+                
+                if (nameCell && reviewsCell) {
+                    const breweryName = nameCell.textContent.trim();
+                    const reviewCount = parseInt(reviewsCell.textContent.trim()) || 0;
+                    
+                    names.push(breweryName);
+                    reviews.push(reviewCount);
+                    
+                    console.log(`✅ ${index + 1}. ${breweryName}: ${reviewCount} recensioni`);
+                } else {
+                    console.warn(`⚠️ Riga ${index + 1}: elementi mancanti - nameCell: ${!!nameCell}, reviewsCell: ${!!reviewsCell}`);
+                    
+                    // Debug aggiuntivo per capire cosa c'è nella riga
+                    const allCells = row.querySelectorAll('td');
+                    console.log(`   - Numero celle trovate: ${allCells.length}`);
+                    allCells.forEach((cell, cellIndex) => {
+                        console.log(`   - Cella ${cellIndex + 1}:`, cell.textContent.trim());
+                    });
+                }
+            }
+        });
+
+        // Messaggio di errore user-friendly se non ci sono dati reali
+        if (names.length === 0) {
+            console.warn('⚠️ Nessun dato birrifici trovato nella tabella');
+            return {
+                names: ['Dati non disponibili'],
+                reviews: [0],
+                hasError: true,
+                errorMessage: 'Impossibile caricare i dati dei birrifici. Riprova più tardi.'
+            };
+        }
+
+        console.log(`✅ Estratti ${names.length} birrifici dalla tabella`);
+        return { names, reviews, hasError: false };
+    }
+
+    // Estrae e processa la distribuzione dei rating dai dati analytics
+    extractRatingDistribution() {
+        console.log('📊 Estrazione distribuzione rating...');
+        
+        if (!window.analyticsData || !window.analyticsData.ratingDistribution) {
+            console.warn('⚠️ Dati analytics non disponibili');
+            return {
+                counts: [0, 0, 0, 0, 0], // Array con 5 valori per le 5 stelle
+                percentages: [0, 0, 0, 0, 0],
+                totalRatings: 0,
+                hasError: true,
+                errorMessage: 'Dati delle valutazioni temporaneamente non disponibili. Riprova tra qualche minuto.'
+            };
+        }
+
+        const distribution = window.analyticsData.ratingDistribution;
+        console.log('Raw distribution data:', distribution);
+
+        // Inizializza contatori per rating 1-5
+        const counts = [0, 0, 0, 0, 0]; // [1-star, 2-star, 3-star, 4-star, 5-star]
+        let totalRatings = 0;
+
+        // Processa i dati dal database
+        distribution.forEach(item => {
+            const rating = item._id; // rating da 1 a 5
+            const count = item.count;
+            
+            if (rating >= 1 && rating <= 5) {
+                counts[rating - 1] = count; // Array 0-indexed
+                totalRatings += count;
+            }
+        });
+
+        // Verifica se ci sono dati validi
+        if (totalRatings === 0) {
+            console.warn('⚠️ Nessuna recensione trovata nel database');
+            return {
+                counts: [0, 0, 0, 0, 0], // Array con 5 valori per le 5 stelle
+                percentages: [0, 0, 0, 0, 0], 
+                totalRatings: 0,
+                hasError: true,
+                errorMessage: 'Non ci sono ancora recensioni nel sistema. Torna quando saranno disponibili!'
+            };
+        }
+
+        // Calcola percentuali per riferimento
+        const percentages = counts.map(count => 
+            totalRatings > 0 ? Math.round((count / totalRatings) * 100) : 0
+        ).reverse(); // Inverti per avere 5-star per primo
+
+        // Restituisci i counts invertiti (5-star per primo) per il grafico
+        const countsReversed = counts.slice().reverse();
+
+        console.log('Rating counts (1-5 stars):', counts);
+        console.log('Rating counts (5-1 stars for chart):', countsReversed);
+        console.log('Rating percentages:', percentages);
+        console.log('Total ratings:', totalRatings);
+
+        return { 
+            counts: countsReversed, // Usa i valori assoluti per il grafico
+            percentages, 
+            totalRatings,
+            hasError: false
+        };
+    }
+
+    // Estrae e processa il trend mensile dai dati analytics
+    extractMonthlyTrend() {
+        console.log('📊 Estrazione trend mensile...');
+        
+        if (!window.analyticsData || !window.analyticsData.monthlyTrend) {
+            console.warn('⚠️ Dati trend non disponibili');
+            return {
+                labels: ['Dati non disponibili'],
+                values: [0],
+                hasError: true,
+                errorMessage: 'Impossibile caricare il trend delle recensioni. Riprova più tardi.'
+            };
+        }
+
+        const trend = window.analyticsData.monthlyTrend;
+        console.log('Raw trend data:', trend);
+
+        if (!trend || trend.length === 0) {
+            console.warn('⚠️ Nessun dato di trend disponibile');
+            return {
+                labels: ['Nessun dato'],
+                values: [0],
+                hasError: true,
+                errorMessage: 'Non ci sono ancora abbastanza dati per mostrare il trend. Torna più avanti!'
+            };
+        }
+
+        const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 
+                           'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+        
+        const labels = [];
+        const values = [];
+
+        // Processa i dati dal più recente al più vecchio e inverti per cronologia
+        trend.reverse().forEach(item => {
+            const month = item._id.month - 1; // MongoDB month è 1-based
+            const year = item._id.year;
+            const count = item.count;
+            
+            // Crea label nel formato "Mese Anno" (es. "Set 2024")
+            const label = year === new Date().getFullYear() 
+                ? monthNames[month] 
+                : `${monthNames[month]} ${year.toString().slice(-2)}`;
+            
+            labels.push(label);
+            values.push(count);
+        });
+
+        console.log('Trend labels:', labels);
+        console.log('Trend values:', values);
+
+        return { labels, values, hasError: false };
+    }
+
+    // Estrae e processa le statistiche per tipologie di birre
+    extractBeerTypesStats() {
+        console.log('📊 Estrazione statistiche tipologie birre...');
+        
+        if (!window.analyticsData || !window.analyticsData.beerTypesStats) {
+            console.warn('⚠️ Dati tipologie birre non disponibili');
+            return {
+                types: ['Dati non disponibili'],
+                ratings: [0],
+                hasError: true,
+                errorMessage: 'Impossibile caricare le statistiche delle tipologie di birre. Riprova più tardi.'
+            };
+        }
+
+        const stats = window.analyticsData.beerTypesStats;
+        console.log('Raw beer types data:', stats);
+
+        if (!stats || stats.length === 0) {
+            console.warn('⚠️ Nessuna tipologia di birra trovata');
+            return {
+                types: ['Nessun dato'],
+                ratings: [0],
+                hasError: true,
+                errorMessage: 'Non ci sono ancora abbastanza dati per le tipologie di birre. Torna più avanti!'
+            };
+        }
+
+        const types = [];
+        const ratings = [];
+
+        // Processa i dati dal database
+        stats.forEach(item => {
+            const beerType = item._id || 'Tipo sconosciuto';
+            const avgRating = item.avgRating || 0;
+            
+            // Normalizza il nome del tipo (capitalizza prima lettera)
+            const normalizedType = beerType.charAt(0).toUpperCase() + beerType.slice(1).toLowerCase();
+            
+            types.push(normalizedType);
+            ratings.push(Math.round(avgRating * 10) / 10); // Arrotonda a 1 decimale
+            
+            console.log(`Tipo: ${normalizedType}, Rating: ${avgRating}, Recensioni: ${item.count}`);
+        });
+
+        console.log(`✅ Estratti ${types.length} tipi di birra`);
+        return { types, ratings, hasError: false };
     }
 
     // Setup autocomplete per ricerca birrifici
@@ -452,6 +811,43 @@ class StatisticsManager {
         });
     }
 
+    // Mostra messaggio di errore nel canvas del grafico
+    showChartError(ctx, errorMessage, chartTitle) {
+        const parentDiv = ctx.parentElement;
+        
+        // Rimuovi il canvas esistente
+        ctx.style.display = 'none';
+        
+        // Crea un elemento di errore se non esiste già
+        let errorDiv = parentDiv.querySelector('.chart-error');
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'chart-error';
+            errorDiv.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 300px;
+                padding: 20px;
+                text-align: center;
+                color: #7f8c8d;
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                border-radius: 12px;
+                border: 2px dashed #dee2e6;
+            `;
+            parentDiv.appendChild(errorDiv);
+        }
+        
+        errorDiv.innerHTML = `
+            <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">📊</div>
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-weight: 600;">${chartTitle}</h4>
+            <p style="margin: 0; font-size: 14px; line-height: 1.4;">${errorMessage}</p>
+        `;
+        
+        console.warn(`⚠️ Errore grafico ${chartTitle}:`, errorMessage);
+    }
+
     // Distruggi i grafici per cleanup
     destroyCharts() {
         Object.values(this.charts).forEach(chart => {
@@ -461,11 +857,8 @@ class StatisticsManager {
     }
 }
 
-// Inizializzazione globale
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('📊 Inizializzazione StatisticsManager avanzato...');
-    window.statisticsManager = new StatisticsManager();
-});
+// Rimuoviamo l'inizializzazione automatica per evitare doppia inizializzazione
+// Il StatisticsManager sarà inizializzato direttamente dal template
 
 // Cleanup al cambio pagina
 window.addEventListener('beforeunload', () => {

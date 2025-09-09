@@ -5,9 +5,6 @@
 {% block head %}
 <link rel="stylesheet" href="/css/admin.css">
 <link rel="stylesheet" href="/css/libs/fontawesome.min.css">
-<script src="/js/libs/chart.min.js"></script>
-<!-- Statistics Manager Script -->
-<script src="/js/statisticsManager.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -312,40 +309,165 @@
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-bold">Rating Medio Globale</span>
-                            <span class="badge bg-warning rounded-pill">4.2 ⭐</span>
+                            {% if quickStats.globalAverageRating > 0 %}
+                                <span class="badge bg-warning rounded-pill">{{ quickStats.globalAverageRating }} ⭐</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">N/A</span>
+                            {% endif %}
                         </div>
                         <div class="progress mb-3" style="height: 8px;">
-                            <div class="progress-bar bg-warning" style="width: 84%"></div>
+                            <div class="progress-bar bg-warning" style="width: {{ (quickStats.globalAverageRating / 5 * 100) | round }}%"></div>
                         </div>
                     </div>
                     
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-bold">Utenti Attivi</span>
-                            <span class="badge bg-success rounded-pill">89%</span>
+                            {% if quickStats.activeUsersPercentage >= 0 %}
+                                <span class="badge bg-success rounded-pill">{{ quickStats.activeUsersPercentage }}%</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">N/A</span>
+                            {% endif %}
                         </div>
                         <div class="progress mb-3" style="height: 8px;">
-                            <div class="progress-bar bg-success" style="width: 89%"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold">Crescita Mensile</span>
-                            <span class="badge bg-primary rounded-pill">+12%</span>
-                        </div>
-                        <div class="progress mb-3" style="height: 8px;">
-                            <div class="progress-bar bg-primary" style="width: 67%"></div>
+                            <div class="progress-bar bg-success" style="width: {{ quickStats.activeUsersPercentage }}%"></div>
                         </div>
                     </div>
                     
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-bold">Engagement</span>
-                            <span class="badge bg-info rounded-pill">76%</span>
+                            {% if quickStats.engagementPercentage >= 0 %}
+                                <span class="badge bg-info rounded-pill">{{ quickStats.engagementPercentage }}%</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">N/A</span>
+                            {% endif %}
                         </div>
                         <div class="progress mb-3" style="height: 8px;">
-                            <div class="progress-bar bg-info" style="width: 76%"></div>
+                            <div class="progress-bar bg-info" style="width: {{ quickStats.engagementPercentage }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- VU Meter per Crescita Mensile -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="fw-bold">Crescita Mensile</span>
+                            {% if quickStats.monthlyGrowthPercentage !== null %}
+                                {% if quickStats.monthlyGrowthPercentage > 0 %}
+                                    <span class="badge bg-success rounded-pill">
+                                        <i class="fas fa-arrow-up me-1"></i>+{{ quickStats.monthlyGrowthPercentage }}%
+                                    </span>
+                                {% elif quickStats.monthlyGrowthPercentage < 0 %}
+                                    <span class="badge bg-danger rounded-pill">
+                                        <i class="fas fa-arrow-down me-1"></i>{{ quickStats.monthlyGrowthPercentage }}%
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill">
+                                        <i class="fas fa-minus me-1"></i>{{ quickStats.monthlyGrowthPercentage }}%
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">N/A</span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- VU Meter -->
+                        <div class="vu-meter-container">
+                            <div class="vu-meter">
+                                <svg class="vu-meter-svg" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+                                    <!-- Arco di sfondo -->
+                                    <path d="M 20 100 A 80 80 0 0 1 180 100" 
+                                          fill="none" 
+                                          stroke="#e9ecef" 
+                                          stroke-width="12" 
+                                          stroke-linecap="round"/>
+                                    
+                                    <!-- Segmenti colorati del meter -->
+                                    <path d="M 20 100 A 80 80 0 0 1 40 35" 
+                                          fill="none" 
+                                          stroke="#dc3545" 
+                                          stroke-width="10" 
+                                          stroke-linecap="round" 
+                                          class="vu-segment danger"/>
+                                    
+                                    <path d="M 45 30 A 80 80 0 0 1 80 15" 
+                                          fill="none" 
+                                          stroke="#fd7e14" 
+                                          stroke-width="10" 
+                                          stroke-linecap="round" 
+                                          class="vu-segment warning"/>
+                                    
+                                    <path d="M 85 15 A 80 80 0 0 1 115 15" 
+                                          fill="none" 
+                                          stroke="#6c757d" 
+                                          stroke-width="10" 
+                                          stroke-linecap="round" 
+                                          class="vu-segment neutral"/>
+                                    
+                                    <path d="M 120 15 A 80 80 0 0 1 155 30" 
+                                          fill="none" 
+                                          stroke="#20c997" 
+                                          stroke-width="10" 
+                                          stroke-linecap="round" 
+                                          class="vu-segment success"/>
+                                    
+                                    <path d="M 160 35 A 80 80 0 0 1 180 100" 
+                                          fill="none" 
+                                          stroke="#198754" 
+                                          stroke-width="10" 
+                                          stroke-linecap="round" 
+                                          class="vu-segment excellent"/>
+                                    
+                                    <!-- Indicatore (ago) -->
+                                    {% if quickStats.monthlyGrowthPercentage !== null %}
+                                        {% set normalizedValue = ((quickStats.monthlyGrowthPercentage + 100) / 200) %}
+                                        {% set angle = (normalizedValue * 160) + 10 %}
+                                        {% set radians = (angle - 90) * 3.14159 / 180 %}
+                                        
+                                        <!-- Calcolo approssimativo delle coordinate dell'ago -->
+                                        {% if quickStats.monthlyGrowthPercentage <= -80 %}
+                                            <line x1="100" y1="100" x2="30" y2="80" stroke="#dc3545" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% elif quickStats.monthlyGrowthPercentage <= -40 %}
+                                            <line x1="100" y1="100" x2="50" y2="50" stroke="#fd7e14" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% elif quickStats.monthlyGrowthPercentage <= -10 %}
+                                            <line x1="100" y1="100" x2="75" y2="30" stroke="#ffc107" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% elif quickStats.monthlyGrowthPercentage <= 10 %}
+                                            <line x1="100" y1="100" x2="100" y2="20" stroke="#6c757d" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% elif quickStats.monthlyGrowthPercentage <= 40 %}
+                                            <line x1="100" y1="100" x2="125" y2="30" stroke="#20c997" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% elif quickStats.monthlyGrowthPercentage <= 80 %}
+                                            <line x1="100" y1="100" x2="150" y2="50" stroke="#198754" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% else %}
+                                            <line x1="100" y1="100" x2="170" y2="80" stroke="#198754" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% endif %}
+                                        
+                                        <!-- Centro dell'ago -->
+                                        <circle cx="100" cy="100" r="4" fill="#495057"/>
+                                    {% else %}
+                                        <!-- Ago in posizione neutra quando non ci sono dati -->
+                                        <line x1="100" y1="100" x2="100" y2="35" 
+                                              stroke="#6c757d" 
+                                              stroke-width="4" 
+                                              stroke-linecap="round" 
+                                              class="vu-needle neutral"/>
+                                        <circle cx="100" cy="100" r="5" fill="#6c757d"/>
+                                    {% endif %}
+                                    
+                                    <!-- Etichette -->
+                                    <text x="30" y="115" text-anchor="middle" class="vu-label">-100%</text>
+                                    <text x="100" y="25" text-anchor="middle" class="vu-label">0%</text>
+                                    <text x="170" y="115" text-anchor="middle" class="vu-label">+100%</text>
+                                </svg>
+                                
+                                <!-- Valore centrale -->
+                                <div class="vu-value">
+                                    {% if quickStats.monthlyGrowthPercentage !== null %}
+                                        {{ quickStats.monthlyGrowthPercentage }}%
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -353,4 +475,16 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+<!-- Script per passare dati analytics al JavaScript -->
+{% block scripts %}
+    <!-- Chart.js locale UMD -->
+    <script src="/js/chart.umd.js"></script>
+    <!-- Statistics Manager Script -->
+    <script src="/js/statisticsManager.js"></script>
+    <!-- Statistics Data Script -->
+    <script src="/js/statisticsData.js"></script>
+    <!-- VU Meter Animation Script -->
+    <script src="/js/vuMeterAnimation.js"></script>
 {% endblock %}

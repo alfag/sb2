@@ -526,15 +526,19 @@ class ReviewService {
    * @param {string} beerId - ID birra
    * @returns {Promise<Object>} - Statistiche birra
    */
-  static async getBeerStats(beerId) {
+  static async getBeerStats(beerId, skipCache = false) {
     // Cache key per statistiche birra
     const cacheKey = `beer_stats:${beerId}`;
     
-    // Controllo cache
-    const cached = cacheService.getDB(cacheKey);
-    if (cached) {
-      logger.debug('[ReviewService] Cache hit per beer stats', { beerId });
-      return cached;
+    // Controllo cache solo se non richiesto di saltarla
+    if (!skipCache) {
+      const cached = cacheService.getDB(cacheKey);
+      if (cached) {
+        logger.debug('[ReviewService] Cache hit per beer stats', { beerId });
+        return cached;
+      }
+    } else {
+      logger.debug('[ReviewService] Cache bypassata per beer stats (admin dashboard)', { beerId });
     }
 
     const stats = await Review.aggregate([
@@ -593,10 +597,13 @@ class ReviewService {
       };
     }
 
-    // Cache per 30 minuti (le stats cambiano meno frequentemente)
-    cacheService.setDB(cacheKey, result, 1800);
-    
-    logger.debug('[ReviewService] Beer stats cached', { beerId, totalReviews: result.totalReviews });
+    // Cache solo se non richiesto di saltarla (non per admin dashboard)
+    if (!skipCache) {
+      cacheService.setDB(cacheKey, result, 1800);
+      logger.debug('[ReviewService] Beer stats cached', { beerId, totalReviews: result.totalReviews });
+    } else {
+      logger.debug('[ReviewService] Cache saltata per beer stats (admin dashboard)', { beerId, totalReviews: result.totalReviews });
+    }
 
     return result;
   }
@@ -606,15 +613,19 @@ class ReviewService {
    * @param {string} breweryId - ID birrificio
    * @returns {Promise<Object>} - Statistiche aggregate del birrificio
    */
-  static async getBreweryStats(breweryId) {
+  static async getBreweryStats(breweryId, skipCache = false) {
     // Cache key per statistiche birrificio
     const cacheKey = `brewery_stats:${breweryId}`;
     
-    // Controllo cache
-    const cached = cacheService.getDB(cacheKey);
-    if (cached) {
-      logger.debug('[ReviewService] Cache hit per brewery stats', { breweryId });
-      return cached;
+    // Controllo cache solo se non richiesto di saltarla
+    if (!skipCache) {
+      const cached = cacheService.getDB(cacheKey);
+      if (cached) {
+        logger.debug('[ReviewService] Cache hit per brewery stats', { breweryId });
+        return cached;
+      }
+    } else {
+      logger.debug('[ReviewService] Cache bypassata per brewery stats (admin dashboard)', { breweryId });
     }
 
     logger.info('[ReviewService] Calcolo statistiche birrificio', { breweryId });
@@ -742,15 +753,23 @@ class ReviewService {
       };
     }
 
-    // Cache per 1 ora (le stats dei birrifici cambiano meno frequentemente)
-    cacheService.setDB(cacheKey, result, 3600);
-    
-    logger.info('[ReviewService] Brewery stats cached', { 
-      breweryId, 
-      totalReviews: result.totalReviews,
-      totalBeers: result.totalBeers,
-      averageRating: result.averageRating
-    });
+    // Cache solo se non richiesto di saltarla (non per admin dashboard)
+    if (!skipCache) {
+      cacheService.setDB(cacheKey, result, 3600);
+      logger.info('[ReviewService] Brewery stats cached', { 
+        breweryId, 
+        totalReviews: result.totalReviews,
+        totalBeers: result.totalBeers,
+        averageRating: result.averageRating
+      });
+    } else {
+      logger.info('[ReviewService] Cache saltata per brewery stats (admin dashboard)', {
+        breweryId, 
+        totalReviews: result.totalReviews,
+        totalBeers: result.totalBeers,
+        averageRating: result.averageRating
+      });
+    }
 
     return result;
   }
@@ -767,17 +786,22 @@ class ReviewService {
       sortBy = 'averageRating',
       sortOrder = 'desc',
       minReviews = 0,
-      breweryFilter = ''
+      breweryFilter = '',
+      skipCache = false // Nuovo parametro per saltare la cache
     } = options;
 
     // Cache key basato sui parametri (incluso filtro birrificio)
     const cacheKey = `all_breweries_stats:${page}:${limit}:${sortBy}:${sortOrder}:${minReviews}:${breweryFilter}`;
     
-    // Controllo cache
-    const cached = cacheService.getDB(cacheKey);
-    if (cached) {
-      logger.debug('[ReviewService] Cache hit per all breweries stats', { page, limit, breweryFilter });
-      return cached;
+    // Controllo cache solo se non richiesto di saltarla
+    if (!skipCache) {
+      const cached = cacheService.getDB(cacheKey);
+      if (cached) {
+        logger.debug('[ReviewService] Cache hit per all breweries stats', { page, limit, breweryFilter });
+        return cached;
+      }
+    } else {
+      logger.info('[ReviewService] Cache bypassata per all breweries stats (admin dashboard)', { page, limit, breweryFilter });
     }
 
     logger.info('[ReviewService] Calcolo statistiche tutti i birrifici', { page, limit, sortBy, sortOrder, breweryFilter });
@@ -831,7 +855,7 @@ class ReviewService {
 
     // Calcola statistiche per ogni birrificio (batch processing per performance)
     for (const brewery of breweriesWithReviews) {
-      const stats = await this.getBreweryStats(brewery._id);
+      const stats = await this.getBreweryStats(brewery._id, skipCache);
       breweryStats.push({
         breweryId: brewery._id,
         breweryName: brewery.breweryName,
@@ -868,13 +892,19 @@ class ReviewService {
       }
     };
 
-    // Cache per 2 ore (overview generale cambia meno frequentemente)
-    cacheService.setDB(cacheKey, result, 7200);
-    
-    logger.info('[ReviewService] All breweries stats cached', { 
-      totalBreweries: result.summary.totalBreweries,
-      totalReviews: result.summary.totalReviews
-    });
+    // Cache solo se non richiesto di saltarla (non per admin dashboard)
+    if (!skipCache) {
+      cacheService.setDB(cacheKey, result, 7200);
+      logger.info('[ReviewService] All breweries stats cached', { 
+        totalBreweries: result.summary.totalBreweries,
+        totalReviews: result.summary.totalReviews
+      });
+    } else {
+      logger.info('[ReviewService] Cache saltata per all breweries stats (admin dashboard)', {
+        totalBreweries: result.summary.totalBreweries,
+        totalReviews: result.summary.totalReviews
+      });
+    }
 
     return result;
   }
