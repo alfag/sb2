@@ -13,28 +13,52 @@
     {% else %}
         {% set userRoles = user.role or [] %}
     {% endif %}
-    {% set selectedRole = activeRole or (userRoles | first) %}
+    {# SECURITY FIX: Escludere administrator da selezione UI per conformità specifiche #}
+    {% set selectableRoles = [] %}
+    {% for role in userRoles %}
+        {% if role != 'administrator' %}
+            {% set selectableRoles = (selectableRoles.push(role), selectableRoles) %}
+        {% endif %}
+    {% endfor %}
+    {% set selectedRole = activeRole or (selectableRoles | first) %}
 
     <div class="section" style="margin-bottom: 32px;">
         <h2>Ruoli disponibili per cambio ruolo</h2>
-        {% if userRoles|length > 1 %}
+        {% if selectableRoles|length > 1 %}
             <form id="changeRoleForm" method="post" action="/profile">
                 <input type="hidden" name="changeRoleOnly" value="1">
                 <div class="form-group">
                     <label for="activeRole">Seleziona ruolo attivo:</label>
                     <select id="activeRole" name="activeRole" required>
-                        {% for r in userRoles %}
+                        {% for r in selectableRoles %}
                             <option value="{{ r }}" {% if r == selectedRole %}selected{% endif %}>{{ r|capitalize }}</option>
                         {% endfor %}
                     </select>
                 </div>
             </form>
         {% endif %}
-        {% if userRoles|length == 1 %}
+        {% if selectableRoles|length == 1 %}
             <div class="form-group">
                 <span>{{ selectedRole|capitalize }}</span>
             </div>
         {% endif %}
+    </div>
+
+    <div class="section" style="margin-bottom: 32px;">
+        <h2>Configurazione Ruolo Default</h2>
+        <p>Seleziona il ruolo che vuoi utilizzare automaticamente al login:</p>
+        <form method="post" action="/profile">
+            <input type="hidden" name="updateDefaultRole" value="1">
+            <div class="form-group">
+                <label for="defaultRole">Ruolo predefinito:</label>
+                <select id="defaultRole" name="defaultRole" required>
+                    {% for role in selectableRoles %}
+                        <option value="{{ role }}" {% if role == user.defaultRole %}selected{% endif %}>{{ role|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit">Salva Ruolo Default</button>
+        </form>
     </div>
 </div>
 {% endblock %}

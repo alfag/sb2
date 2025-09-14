@@ -116,13 +116,22 @@ async function updateUser(userId, updateData) {
             // Hash della nuova password se presente
             updateData.password = await bcrypt.hash(updateData.password, 10);
         }
-        const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
-        if (!user) {
+        
+        // SECURITY FIX: Non aggiornare defaultRole per administrator
+        const user = await User.findById(userId);
+        if (user && user.role.includes('administrator')) {
+            // Rimuovi defaultRole dall'aggiornamento per gli administrator
+            delete updateData.defaultRole;
+            logger.info(`DefaultRole rimosso dall'aggiornamento per utente administrator: ${userId}`);
+        }
+        
+        const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
+        if (!updatedUser) {
             logger.warn(`Utente non trovato: ${userId}`);
             return null;
         }
         logger.info(`Utente aggiornato con successo: ${userId}`);
-        return user;
+        return updatedUser;
     } catch (error) {
         logger.error(`Errore durante l'aggiornamento dell'utente: ${userId}`, error);
         throw error;
@@ -370,11 +379,19 @@ async function deleteAdministrator(administratorId) {
 // Aggiungi un ruolo a un utente e popola i dettagli
 async function addRoleToUser(userId, roleToAdd, req, res) {
     try {
+        logger.info(`addRoleToUser chiamata: userId=${userId}, roleToAdd=${roleToAdd}, breweryId=${req.body.breweryId}`);
+        
         const user = await User.findById(userId).populate('administratorDetails').populate('breweryDetails');
         if (!user) {
             req.flash('error', 'Utente non trovato');
             return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
         }
+        // SECURITY FIX: Blocco assegnazione ruolo administrator per conformità specifiche
+        if (roleToAdd === 'administrator') {
+            req.flash('error', 'Il ruolo administrator non può essere assegnato tramite questa funzione per motivi di sicurezza');
+            return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+        }
+
         if (!user.role.includes(roleToAdd)) {
             user.role.push(roleToAdd);
             if (roleToAdd === 'customer') {
@@ -385,26 +402,35 @@ async function addRoleToUser(userId, roleToAdd, req, res) {
                     customerAddresses: { billingAddress: '', shippingAddress: '' },
                     customerPhoneNumber: ''
                 };
-            } else if (roleToAdd === 'administrator') {
-                const newAdmin = new Administrator({ administratorName: '', administratorPermission: '' });
-                await newAdmin.save();
-                user.administratorDetails = newAdmin._id;
             } else if (roleToAdd === 'brewery') {
-                const newBrewery = new Brewery({
-                    breweryName: '',
-                    breweryDescription: '',
-                    breweryFiscalCode: '',
-                    breweryREAcode: '',
-                    breweryacciseCode: '',
-                    breweryFund: '',
-                    breweryLegalAddress: '',
-                    breweryPhoneNumber: ''
-                });
-                await newBrewery.save();
-                user.breweryDetails = newBrewery._id;
+                const breweryId = req.body.breweryId;
+                
+                if (!breweryId) {
+                    req.flash('error', 'Devi selezionare un birrificio per assegnare il ruolo brewery');
+                    return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+                }
+
+                // Verifica che il birrificio esista
+                const existingBrewery = await Brewery.findById(breweryId);
+                if (!existingBrewery) {
+                    req.flash('error', 'Birrificio selezionato non trovato');
+                    return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+                }
+
+                // Verifica che il birrificio non sia già associato ad un altro utente
+                const existingUserWithBrewery = await User.findOne({ breweryDetails: breweryId });
+                if (existingUserWithBrewery && existingUserWithBrewery._id.toString() !== userId) {
+                    req.flash('error', `Il birrificio "${existingBrewery.breweryName}" è già associato all'utente "${existingUserWithBrewery.username}"`);
+                    return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+                }
+
+                user.breweryDetails = breweryId;
+                req.flash('success', `Ruolo brewery aggiunto con successo. Utente associato al birrificio "${existingBrewery.breweryName}".`);
             }
             await user.save();
-            req.flash('success', `Ruolo ${roleToAdd} aggiunto con successo. Compila i dettagli e salva.`);
+            if (roleToAdd === 'customer') {
+                req.flash('success', `Ruolo ${roleToAdd} aggiunto con successo. Compila i dettagli e salva.`);
+            }
         }
         return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
     } catch (error) {
@@ -421,20 +447,53 @@ async function removeRoleFromUser(userId, roleToRemove, req, res) {
             req.flash('error', 'Utente non trovato');
             return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
         }
+
+        // SECURITY FIX: Controllo rimozione ruolo customer
+        if (roleToRemove === 'customer') {
+            // Un utente deve sempre avere almeno il ruolo customer
+            if (user.role.length <= 1) {
+                req.flash('error', 'Impossibile rimuovere il ruolo customer: ogni utente deve avere almeno un ruolo');
+                return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+            }
+            // Se ha più ruoli, ma customer è il defaultRole, impedisci la rimozione
+            if (user.defaultRole === 'customer' && user.role.length > 1) {
+                req.flash('error', 'Impossibile rimuovere il ruolo customer: è il ruolo predefinito dell\'utente. Cambia prima il ruolo predefinito.');
+                return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+            }
+        }
+
+        // SECURITY FIX: Controllo rimozione ultimo ruolo
+        if (user.role.length <= 1) {
+            req.flash('error', 'Impossibile rimuovere l\'ultimo ruolo: ogni utente deve avere almeno un ruolo');
+            return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+        }
+
+        logger.info(`Rimozione ruolo ${roleToRemove} da utente ${user.username}`);
+
         user.role = user.role.filter(r => r !== roleToRemove);
+        
         if (roleToRemove === 'customer') {
             user.customerDetails = undefined;
         } else if (roleToRemove === 'administrator' && user.administratorDetails) {
             await Administrator.findByIdAndDelete(user.administratorDetails);
             user.administratorDetails = undefined;
         } else if (roleToRemove === 'brewery' && user.breweryDetails) {
-            await Brewery.findByIdAndDelete(user.breweryDetails);
+            // IMPORTANTE: Non eliminare il birrificio, solo disassocia l'utente
             user.breweryDetails = undefined;
+            logger.info(`Utente ${user.username} disassociato dal birrificio, birrificio non eliminato`);
         }
+
+        // Se il ruolo rimosso era l'activeRole, reset a customer se disponibile
+        if (req.session && req.session.activeRole === roleToRemove) {
+            req.session.activeRole = user.role.includes('customer') ? 'customer' : user.role[0];
+            logger.info(`ActiveRole resettato a ${req.session.activeRole} dopo rimozione ruolo`);
+        }
+
         await user.save();
         req.flash('success', `Ruolo ${roleToRemove} rimosso con successo.`);
         return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
     } catch (error) {
+        logger.error(`Errore rimozione ruolo: ${error.message}`);
         req.flash('error', 'Errore durante la rimozione del ruolo');
         return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
     }
@@ -834,6 +893,8 @@ async function getBreweryStatisticsDetail(req, res) {
             { $sort: { '_id.year': 1, '_id.month': 1 } }
         ]);
 
+        logger.info(`🎯 Rendering template admin/breweryStatistics per brewery: ${brewery.breweryName}`);
+        
         res.render('admin/breweryStatistics', {
             title: `Statistiche ${brewery.breweryName}`,
             user: req.user,

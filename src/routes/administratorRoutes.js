@@ -14,24 +14,6 @@ router.get('/', authMiddleware.isAdmin, (req, res) => {
     res.render('admin/index', { title: 'Dashboard Amministrativa', user: req.user });
 });
 
-// Ottieni tutti gli utenti e renderizza la vista
-router.get('/users', authMiddleware.isAdmin, async (req, res) => {
-    try {
-        logger.info('Recupero di tutti gli utenti'); // Log in italiano
-
-        // Recupera tutti gli utenti dal controller
-        const users = await adminController.getAllUsers(req, res);
-        logger.info(`Utenti recuperati: ${JSON.stringify(users)}`); // Log in italiano
-
-        // Renderizza la vista con i dati degli utenti
-        res.render('admin/users', { title: 'Gestione Utenti', users });
-    } catch (error) {
-        logger.error(`Errore durante il recupero degli utenti: ${error.message}`);
-        req.flash('error', 'Errore durante il recupero degli utenti');
-        res.redirect('/admin');
-    }
-});
-
 // Mostra il form per creare un nuovo utente
 router.get('/users/new', authMiddleware.isAdmin, (req, res) => {
     logger.info('Accesso al form di creazione nuovo utente');
@@ -72,24 +54,44 @@ router.get('/users/update', authMiddleware.isAdmin, async (req, res) => {
         const allUsers = await adminController.getAllUsers(req, res, { raw: true });
         const users = allUsers.filter(u => u.id !== req.user.id);
 
+        // Recupera tutti i birrifici disponibili per la selezione
+        const availableBreweries = await adminController.getAllBreweries();
+
         if (!userId) {
             logger.info('Accesso a updateUser senza utente selezionato');
-            return res.render('admin/updateUser', { title: 'Modifica Utente', users, userToEdit: null, user: req.user, message: req.flash() });
+            return res.render('admin/updateUser', { 
+                title: 'Modifica Utente', 
+                users, 
+                userToEdit: null, 
+                user: req.user, 
+                availableBreweries,
+                message: req.flash() 
+            });
         }
         logger.info(`Accesso al form di modifica per utente con ID: ${userId}`);
         const user = await adminController.getUserById(userId);
         
         if (!user) {
             req.flash('error', 'Utente non trovato');
-            return res.render('admin/updateUser', { title: 'Modifica Utente', users, userToEdit: null, user: req.user, message: req.flash() });
+            return res.render('admin/updateUser', { 
+                title: 'Modifica Utente', 
+                users, 
+                userToEdit: null, 
+                user: req.user, 
+                availableBreweries,
+                message: req.flash() 
+            });
         }
         
-        logger.info(`Utente selezionato per modifica: username=${user.username}`); 
+        logger.info(`Utente selezionato per modifica: username=${user.username}`);
+        // Force reload
+        
         res.render('admin/updateUser', {
             title: 'Modifica Utente',
             userToEdit: user ? (typeof user.toObject === 'function' ? user.toObject() : user) : null,
             users: null,
             user: req.user,
+            availableBreweries,
             message: req.flash()
         });
     } catch (error) {
@@ -105,46 +107,127 @@ router.post('/users/update/:id', authMiddleware.isAdmin, async (req, res) => {
     try {
         const userId = req.params.id;
         const updateData = { ...req.body };
+        
+        logger.info(`🔍 Aggiornamento utente ${userId} - Dati ricevuti:`, updateData);
 
-        // Se la password è presente e non vuota, aggiorna la password con hash
+        // La password verrà hashata automaticamente dal middleware pre-save del modello User
         if (updateData.password && updateData.password.trim() !== '') {
-            const bcrypt = require('bcrypt');
-            updateData.password = await bcrypt.hash(updateData.password, 10);
+            logger.info(`🔐 Password fornita per aggiornamento: "${updateData.password}"`);
+            logger.info(`🔐 La password verrà hashata automaticamente dal modello User`);
+            // NON hashare qui - se ne occupa il middleware pre-save
         } else {
             // Se la password è vuota, non aggiornarla
+            logger.info(`🔐 Password vuota - non viene aggiornata`);
             delete updateData.password;
         }
 
-        // Recupera l'utente completo con dettagli popolati
-        const user = await adminController.getUserById(userId);
+        // Recupera l'utente completo con dettagli popolati (documento Mongoose)
+        const User = require('../models/User');
+        const user = await User.findById(userId)
+            .populate('customerDetails')
+            .populate('administratorDetails')
+            .populate('breweryDetails');
+            
         if (!user) {
             req.flash('error', 'Utente non trovato');
             return res.redirect('/administrator/users/update');
         }
 
-        // Aggiorna i dettagli in base al ruolo
-        if (user.role === 'customer') {
-            // Aggiorna i dettagli customer direttamente nell'oggetto user
-            user.customerDetails.customerName = updateData.customerName;
-            user.customerDetails.customerSurname = updateData.customerSurname;
-            user.customerDetails.customerFiscalCode = updateData.customerFiscalCode;
-            if (user.customerDetails.customerAddresses) {
-                user.customerDetails.customerAddresses.billingAddress = updateData.customerBillingAddress;
-                user.customerDetails.customerAddresses.shippingAddress = updateData.customerShippingAddress;
+        // Aggiorna i dettagli in base ai ruoli (sistema multi-ruolo)
+        if (user.role.includes('customer') && user.customerDetails) {
+            logger.info(`🔍 Aggiornamento dettagli customer per utente: ${user.username}`);
+            logger.info(`📝 Dati da aggiornare:`, updateData);
+            logger.info(`🔎 CustomerDetails PRIMA:`, JSON.stringify(user.customerDetails, null, 2));
+            
+            // Aggiorna i dettagli customer
+            if (updateData.customerName !== undefined) {
+                logger.info(`🏷️ Aggiornamento customerName: ${user.customerDetails.customerName} -> ${updateData.customerName}`);
+                user.customerDetails.customerName = updateData.customerName;
+                user.markModified('customerDetails.customerName');
             }
-            user.customerDetails.customerPhoneNumber = updateData.customerPhoneNumber;
-        logger.info(`Aggiornamento dettagli customer per utente: ${JSON.stringify(user)}`);
-            await user.save();
-        } else if (user.role === 'administrator' && user.administratorDetails) {
-            await adminController.updateAdministrator(
+            if (updateData.customerSurname !== undefined) {
+                logger.info(`🏷️ Aggiornamento customerSurname: ${user.customerDetails.customerSurname} -> ${updateData.customerSurname}`);
+                user.customerDetails.customerSurname = updateData.customerSurname;
+                user.markModified('customerDetails.customerSurname');
+            }
+            if (updateData.customerFiscalCode !== undefined) {
+                logger.info(`🏷️ Aggiornamento customerFiscalCode: ${user.customerDetails.customerFiscalCode} -> ${updateData.customerFiscalCode}`);
+                user.customerDetails.customerFiscalCode = updateData.customerFiscalCode;
+                user.markModified('customerDetails.customerFiscalCode');
+            }
+            if (updateData.customerPhoneNumber !== undefined) {
+                logger.info(`🏷️ Aggiornamento customerPhoneNumber: ${user.customerDetails.customerPhoneNumber} -> ${updateData.customerPhoneNumber}`);
+                user.customerDetails.customerPhoneNumber = updateData.customerPhoneNumber;
+                user.markModified('customerDetails.customerPhoneNumber');
+            }
+            
+            if (user.customerDetails.customerAddresses) {
+                if (updateData.customerBillingAddress !== undefined) {
+                    logger.info(`🏷️ Aggiornamento billingAddress: ${user.customerDetails.customerAddresses.billingAddress} -> ${updateData.customerBillingAddress}`);
+                    user.customerDetails.customerAddresses.billingAddress = updateData.customerBillingAddress;
+                    user.markModified('customerDetails.customerAddresses');
+                }
+                if (updateData.customerShippingAddress !== undefined) {
+                    logger.info(`🏷️ Aggiornamento shippingAddress: ${user.customerDetails.customerAddresses.shippingAddress} -> ${updateData.customerShippingAddress}`);
+                    user.customerDetails.customerAddresses.shippingAddress = updateData.customerShippingAddress;
+                    user.markModified('customerDetails.customerAddresses');
+                }
+            }
+            
+            logger.info(`🔎 CustomerDetails DOPO:`, JSON.stringify(user.customerDetails, null, 2));
+        }
+
+        // Aggiorna i campi principali dell'utente
+        if (updateData.username !== undefined && updateData.username.trim() !== '') user.username = updateData.username;
+        if (updateData.email !== undefined && updateData.email.trim() !== '') user.email = updateData.email;
+        if (updateData.password !== undefined) {
+            logger.info(`🔐 Impostazione password in chiaro nel documento (sarà hashata dal pre-save): ${updateData.password}`);
+            user.password = updateData.password;
+        }
+        
+        // Aggiorna defaultRole solo per utenti NON administrator
+        if (updateData.defaultRole !== undefined && updateData.defaultRole.trim() !== '' && !user.role.includes('administrator')) {
+            logger.info(`🎯 Aggiornamento defaultRole: ${user.defaultRole} -> ${updateData.defaultRole}`);
+            user.defaultRole = updateData.defaultRole;
+        } else if (user.role.includes('administrator')) {
+            if (updateData.defaultRole !== undefined) {
+                logger.info(`⚠️ Tentativo di aggiornare defaultRole per administrator - IGNORATO`);
+            }
+            // Assicurati che gli administrator non abbiano mai un defaultRole
+            if (user.defaultRole !== undefined) {
+                logger.info(`🧹 Rimozione defaultRole da utente administrator`);
+                user.defaultRole = undefined;
+            }
+        }
+
+        logger.info(`💾 Salvataggio in corso per utente: ${user.username}...`);
+        await user.save();
+        logger.info(`✅ Salvataggio completato per utente: ${user.username}`);
+        
+        if (user.role.includes('administrator') && user.administratorDetails) {
+            logger.info(`🔧 Aggiornamento administratorDetails per ID: ${user.administratorDetails._id || user.administratorDetails}`);
+            logger.info(`📝 Dati administrator:`, {
+                administratorName: updateData.administratorName,
+                administratorPermission: updateData.administratorPermission
+            });
+            const updatedAdmin = await adminController.updateAdministrator(
                 user.administratorDetails._id || user.administratorDetails,
                 {
                     administratorName: updateData.administratorName,
                     administratorPermission: updateData.administratorPermission
                 }
             );
-        } else if (user.role === 'brewery' && user.breweryDetails) {
-            await adminController.updateBrewery(
+            logger.info(`✅ Administrator aggiornato:`, updatedAdmin ? 'Successo' : 'Fallito');
+        }
+        
+        if (user.role.includes('brewery') && user.breweryDetails) {
+            logger.info(`🏭 Aggiornamento breweryDetails per ID: ${user.breweryDetails._id || user.breweryDetails}`);
+            logger.info(`📝 Dati brewery:`, {
+                breweryName: updateData.breweryName,
+                breweryDescription: updateData.breweryDescription,
+                breweryFiscalCode: updateData.breweryFiscalCode
+            });
+            const updatedBrewery = await adminController.updateBrewery(
                 user.breweryDetails._id || user.breweryDetails,
                 {
                     breweryName: updateData.breweryName,
@@ -152,16 +235,10 @@ router.post('/users/update/:id', authMiddleware.isAdmin, async (req, res) => {
                     breweryFiscalCode: updateData.breweryFiscalCode
                 }
             );
+            logger.info(`✅ Brewery aggiornato:`, updatedBrewery ? 'Successo' : 'Fallito');
         }
 
-        // Aggiorna i dati principali dell'utente
-        const updatedUser = await adminController.updateUser(userId, updateData);
-
-        if (!updatedUser) {
-            req.flash('error', 'Utente non trovato o non aggiornato');
-            return res.redirect('/administrator/users/update');
-        }
-
+        // Non chiamare adminController.updateUser perché abbiamo già salvato tutto
         req.flash('success', 'Utente aggiornato con successo');
         res.redirect('/administrator/users/update');
     } catch (error) {
@@ -426,15 +503,41 @@ router.get('/api/breweries-stats', authMiddleware.isAdmin, async (req, res) => {
 });
 
 // Dettagli statistiche singolo brewery
-router.get('/statistics/brewery/:id', authMiddleware.isAdmin, async (req, res) => {
+router.get('/statistics/brewery/:id', async (req, res, next) => {
+    // Middleware custom: permetti accesso ad admin o utenti brewery per il loro birrificio
+    const breweryId = req.params.id;
+    
+    logger.info(`🔍 Accesso statistiche brewery ${breweryId} da utente: ${req.user?.username}`);
+    logger.info(`👤 Ruoli utente: ${JSON.stringify(req.user?.role)}`);
+    logger.info(`🎯 ActiveRole: ${req.session?.activeRole}`);
+    logger.info(`🏭 BreweryDetails: ${req.user?.breweryDetails}`);
+    
+    const isAdmin = req.isAuthenticated() && 
+                   ((req.session.activeRole === 'administrator') ||
+                    (Array.isArray(req.user.role) && req.user.role.includes('administrator')));
+    
+    const isOwnerBrewery = req.isAuthenticated() && 
+                          req.user.role.includes('brewery') &&
+                          req.user.breweryDetails &&
+                          (req.user.breweryDetails._id?.toString() === breweryId || 
+                           req.user.breweryDetails.toString() === breweryId);
+    
+    logger.info(`✅ IsAdmin: ${isAdmin}`);
+    logger.info(`🏭 IsOwnerBrewery: ${isOwnerBrewery}`);
+    
+    if (!isAdmin && !isOwnerBrewery) {
+        logger.warn(`❌ Accesso negato per utente ${req.user?.username} a brewery ${breweryId}`);
+        req.flash('error', 'Accesso negato. Non hai i permessi per visualizzare queste statistiche.');
+        return res.redirect('/');
+    }
+    
     try {
-        const breweryId = req.params.id;
-        logger.info(`Accesso statistiche brewery specifico: ${breweryId}`);
+        logger.info(`Accesso statistiche brewery specifico: ${breweryId} da ${req.user.username} (admin: ${isAdmin}, owner: ${isOwnerBrewery})`);
         await adminController.getBreweryStatisticsDetail(req, res);
     } catch (error) {
         logger.error(`Errore durante il recupero statistiche brewery: ${error.message}`);
         req.flash('error', 'Errore durante il recupero delle statistiche del birrificio');
-        res.redirect('/administrator/statistics');
+        res.redirect(isAdmin ? '/administrator/statistics' : '/profile');
     }
 });
 

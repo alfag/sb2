@@ -109,7 +109,7 @@ exports.postLogin = (req, res, next) => {
                         
                         logger.info(`${user.role} - Utente ${populatedUser.username} loggato con successo`);
                         req.flash('info', 'Login effettuato con successo');
-                        return renderView(req, res, '/', { user: populatedUser, type: 'info' });
+                        return res.redirect('/'); // Redirect invece di render per permettere al middleware di gestire il routing
                     });
                 })
                 .catch(err => {

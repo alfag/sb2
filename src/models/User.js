@@ -17,6 +17,12 @@ const userSchema = new mongoose.Schema({
         enum: ['customer', 'brewery', 'administrator'],
         default: ['customer'],
     },
+    defaultRole: {
+        type: String,
+        enum: ['customer', 'brewery'],
+        default: 'customer',
+        required: true,
+    },
     customerDetails: {
         type: Object,
         customerID: { type: mongoose.Schema.Types.ObjectId, required: true, unique: true },

@@ -574,19 +574,19 @@ exports.getAiDataFromSession = async (req, res) => {
     const sessionData = req.session.aiReviewData;
     
     if (!sessionData || sessionData.completed) {
-      logger.info('[getAiDataFromSession] Nessun dato di analisi in sessione o già completato', {
-        sessionId: req.sessionID,
-        hasData: !!sessionData,
-        completed: sessionData?.completed
-      });
+      // logger.info('[getAiDataFromSession] Nessun dato di analisi in sessione o già completato', {
+      //   sessionId: req.sessionID,
+      //   hasData: !!sessionData,
+      //   completed: sessionData?.completed
+      // });
       return res.json({ hasData: false });
     }
     
-    logger.info('[getAiDataFromSession] Dati di analisi recuperati dalla sessione', {
-      sessionId: req.sessionID,
-      timestamp: sessionData.timestamp,
-      bottlesCount: sessionData.data?.bottles?.length || 0
-    });
+    // logger.info('[getAiDataFromSession] Dati di analisi recuperati dalla sessione', {
+    //   sessionId: req.sessionID,
+    //   timestamp: sessionData.timestamp,
+    //   bottlesCount: sessionData.data?.bottles?.length || 0
+    // });
     
     return res.json({ 
       hasData: true, 

@@ -69,8 +69,23 @@ const setActiveRole = (req, res, next) => {
     } else if (req.user && req.user.role) {
         const rolePriority = ['administrator', 'brewery', 'customer'];
         let userRoles = Array.isArray(req.user.role) ? req.user.role : [req.user.role];
-        const found = rolePriority.find(r => userRoles.includes(r));
-        res.locals.activeRole = found || userRoles[0];
+        
+        // NUOVA LOGICA: Usa defaultRole se disponibile e presente nei ruoli dell'utente
+        let selectedRole;
+        if (req.user.defaultRole && userRoles.includes(req.user.defaultRole)) {
+            selectedRole = req.user.defaultRole;
+        } else {
+            const found = rolePriority.find(r => userRoles.includes(r));
+            selectedRole = found || userRoles[0];
+        }
+        
+        res.locals.activeRole = selectedRole;
+        
+        // REDIRECT LOGIC: Se utente ha ruolo brewery attivo e sta accedendo alla root, redirect alle statistiche
+        if (selectedRole === 'brewery' && req.path === '/' && req.user.breweryDetails) {
+            logger.info(`Redirect brewery user alla dashboard: ${req.user.username}`);
+            return res.redirect('/brewery/dashboard');
+        }
     } else {
         res.locals.activeRole = null;
     }
@@ -82,10 +97,11 @@ const disclaimerMiddleware = (req, res, next) => {
     // Il disclaimer deve essere mostrato solo se NON è stato accettato nella sessione corrente
     // e SOLO per le pagine HTML principali (non AJAX, API, risorse statiche)
     
+    // Definisci percorsi esclusi dal controllo del disclaimer
     const excludedPaths = ['/disclaimer', '/public/js/review.js', '/debug/'];
     const isExcludedPath = excludedPaths.some(path => req.path === path || req.path.startsWith(path));
     
-    // Escludi richieste AJAX, API, risorse statiche
+    // Escludi richieste AJAX, API, risorse statiche basate su header, metodo e percorso
     const isAjaxRequest = req.headers['x-requested-with'] === 'XMLHttpRequest' || 
                          req.headers['content-type']?.includes('application/json') ||
                          req.method === 'POST' ||  // Tutte le POST sono considerate AJAX
@@ -117,24 +133,28 @@ const disclaimerMiddleware = (req, res, next) => {
     
     if (shouldShowDisclaimer) {
         res.locals.showDisclaimer = true;
-        logger.info('Popup disclaimer maggiore età mostrato', {
-            sessionId: req.sessionID,
-            path: req.path,
-            method: req.method,
-            disclaimerAccepted: req.session.disclaimerAccepted,
-            isExcludedPath: isExcludedPath,
-            isAjaxRequest: isAjaxRequest,
-            userAgent: req.get('User-Agent')?.substring(0, 50)
-        });
+        // Logger intenzionalmente commentato per ridurre verbosità nei log
+        // Questo disclaimer viene mostrato quando l'utente accede per la prima volta
+        // a una pagina HTML principale e non ha ancora accettato il disclaimer
+        // logger.info('Popup disclaimer maggiore età mostrato', {
+        //     sessionId: req.sessionID,
+        //     path: req.path,
+        //     method: req.method,
+        //     disclaimerAccepted: req.session.disclaimerAccepted,
+        //     isExcludedPath: isExcludedPath,
+        //     isAjaxRequest: isAjaxRequest,
+        //     userAgent: req.get('User-Agent')?.substring(0, 50)
+        // });
     } else {
         res.locals.showDisclaimer = false;
-        logger.debug('Disclaimer NON mostrato', {
-            sessionId: req.sessionID,
-            path: req.path,
-            disclaimerAccepted: req.session.disclaimerAccepted,
-            isExcludedPath: isExcludedPath,
-            isAjaxRequest: isAjaxRequest
-        });
+        // Logger rimosso per non loggare
+        // logger.debug('Disclaimer NON mostrato', {
+        //     sessionId: req.sessionID,
+        //     path: req.path,
+        //     disclaimerAccepted: req.session.disclaimerAccepted,
+        //     isExcludedPath: isExcludedPath,
+        //     isAjaxRequest: isAjaxRequest
+        // });
     }
     next();
 };

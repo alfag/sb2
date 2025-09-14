@@ -81,7 +81,19 @@ app.use(express.static(path.join(__dirname, '../public'))); // Serve i file dall
 app.use(authMiddleware.disclaimerMiddleware);
 
 // Middleware vari
-app.use(helmet()); // Helmet aiuta a proteggere l'app impostando vari header HTTP
+app.use(helmet({
+    contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+            "script-src": ["'self'"],
+            "style-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            "style-src-elem": ["'self'", "https://cdnjs.cloudflare.com"],
+            "font-src": ["'self'", "https://cdnjs.cloudflare.com", "data:"],
+            "img-src": ["'self'", "data:", "https:"],
+            "connect-src": ["'self'"]
+        }
+    }
+})); // Helmet con CSP personalizzata per Font Awesome e sicurezza
 app.use(cors()); // Abilita la condivisione di risorse tra origini diverse (CORS)
 
 // Rate Limiting avanzato
