@@ -2365,22 +2365,6 @@ function validatePasswordMatch() {
     return true;
 }
 
-window.onerror = function (message, source, lineno, colno, error) {
-    console.error('Errore JavaScript:', message, source, lineno, colno, error);
-};
-
-function validatePasswordMatch() {
-    var pwd = document.getElementById('password').value;
-    var conf = document.getElementById('confirmPassword').value;
-    var error = document.getElementById('passwordError');
-    if (pwd !== conf) {
-        error.style.display = 'inline';
-        return false;
-    }
-    error.style.display = 'none';
-    return true;
-    }
-
     // --- Gestione thumbnail delle birre ---
 
     /**

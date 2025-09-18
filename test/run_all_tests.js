@@ -53,6 +53,16 @@ class TestRunner {
                 name: 'Test Brewery Stats',
                 file: 'test_brewery_stats.js',
                 description: 'Test specifici funzionalità statistiche birrifici'
+            },
+            {
+                name: 'Test Brewery Dashboard (Fase 2)',
+                file: 'test_brewery_dashboard.js',
+                description: 'Test dashboard unificato per utenti brewery'
+            },
+            {
+                name: 'Test Multi-Ruolo Validazione Completa',
+                file: 'test_multiruolo_validation.js',
+                description: 'Validazione sistema multi-ruolo Fase 1 + Fase 2'
             }
         ];
 
@@ -104,7 +114,9 @@ class TestRunner {
             'test_integration_complete.js',
             'test_performance_cache.js', 
             'test_frontend_e2e.js',
-            'test_brewery_stats.js'
+            'test_brewery_stats.js',
+            'test_brewery_dashboard.js',
+            'test_multiruolo_validation.js'
         ]) {
             const testFile = path.join(testDir, suite);
             if (fs.existsSync(testFile)) {
@@ -288,6 +300,8 @@ class TestRunner {
         console.log('✅ Rate limiting AI Service (Punto 6)');
         console.log('✅ Statistiche birrifici ReviewService (Punto 7)');
         console.log('✅ Interface admin statistiche (Punto 8)');
+        console.log('✅ Sistema Multi-Ruolo Fase 1 (sicurezza)');
+        console.log('✅ Dashboard Brewery Unificato Fase 2');
         console.log('✅ Performance e cache sistema');
         console.log('✅ Integrità dati e scalabilità');
 

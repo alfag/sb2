@@ -2,12 +2,15 @@
 <html lang="it">
 
 <head>
-    <meta http-equiv="content-type; X-UA-Compatible"
-        content="text/html; IE=edge; charset=UTF-8; X-Content-Type-Options=nosniff">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %}</title>
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/toggle.css">
+    <link rel="stylesheet" href="/css/roleSelector.css">
+    <link rel="stylesheet" href="/css/libs/fontawesome.min.css">
     {% block head %}{% endblock %}
 </head>
 
@@ -60,9 +63,19 @@
                         <div id="sandwich-menu-content"
                             style="display:none; position:absolute; bottom:36px; left:5px; background:#fff; border:1px solid #ccc; box-shadow:0 2px 8px rgba(0,0,0,0.15); padding:12px; z-index:100;">
                             <!-- Icona Home -->
+                            {% set homeUrl = "/" %}
+                            {% if user and activeRole %}
+                                {% if activeRole == 'brewery' and user.breweryDetails %}
+                                    {% set homeUrl = "/brewery/dashboard" %}
+                                {% elif activeRole == 'administrator' %}
+                                    {% set homeUrl = "/administrator/breweries" %}
+                                {% elif activeRole == 'customer' %}
+                                    {% set homeUrl = "/" %}
+                                {% endif %}
+                            {% endif %}
                             <a class="navbar-brand"
                                 style="font-size:14px; color: #000; text-decoration: none; display: flex; align-items: center;"
-                                href="/">
+                                href="{{ homeUrl }}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="36px" height="36px" fill="#000"
                                     viewBox="0 0 24 24">
                                     <path
@@ -96,17 +109,53 @@
                 <td width="25%" style="text-align: right; font-size: 14px; color: #000;">
                     {% if user %}
                     <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-right: 5px;">
-                        <a style="color:#000;font-size:14px; text-decoration: none;" href="/profile">
-                            <div> <!-- Icona profilo -->
-                                <span>
-                                    <svg style="vertical-align:bottom" xmlns="http://www.w3.org/2000/svg" height="36px" viewBox="0 -960 960 960"
-                                        width="36px" fill="#000000">
-                                        <path
-                                            d="M230.8-265.45q59.24-38.85 119.17-58.95 59.94-20.1 130.03-20.1t130.47 20.38q60.38 20.38 119.66 58.75 41.28-50.74 59.38-103.14t18.1-111.45q0-138.64-94.5-233.14-94.5-94.51-233.08-94.51-138.59 0-233.11 94.51-94.53 94.5-94.53 233.14 0 58.96 18.32 111.32 18.32 52.36 60.09 103.19Zm249.15-180.72q-58.44 0-98.32-39.91-39.89-39.9-39.89-98.24 0-58.33 39.94-98.31 39.93-39.98 98.37-39.98 58.44 0 98.32 40.03 39.89 40.03 39.89 98.36 0 58.34-39.94 98.19-39.93 39.86-98.37 39.86Zm-.22 366.2q-82.53 0-155.83-31.58-73.29-31.58-127.36-85.98-54.06-54.41-85.32-127.18-31.25-72.78-31.25-155.56 0-82.87 31.62-155.79 31.61-72.91 85.97-127.01 54.36-54.09 127.15-85.6 72.78-31.52 155.58-31.52 82.88 0 155.78 31.61 72.91 31.6 127 85.72 54.09 54.11 85.6 127.01 31.52 72.89 31.52 155.63 0 82.82-31.53 155.67t-85.72 127.12q-54.19 54.26-127.19 85.86-72.99 31.6-156.02 31.6Z" />
-                                    </svg>
-                                </span>
+                        <!-- Profile dropdown -->
+                        <div style="position: relative; display: inline-block;">
+                            <div id="profile-menu-toggle" style="cursor: pointer;">
+                                <svg style="vertical-align:bottom" xmlns="http://www.w3.org/2000/svg" height="36px" viewBox="0 -960 960 960"
+                                    width="36px" fill="#000000">
+                                    <path
+                                        d="M230.8-265.45q59.24-38.85 119.17-58.95 59.94-20.1 130.03-20.1t130.47 20.38q60.38 20.38 119.66 58.75 41.28-50.74 59.38-103.14t18.1-111.45q0-138.64-94.5-233.14-94.5-94.51-233.08-94.51-138.59 0-233.11 94.51-94.53 94.5-94.53 233.14 0 58.96 18.32 111.32 18.32 52.36 60.09 103.19Zm249.15-180.72q-58.44 0-98.32-39.91-39.89-39.9-39.89-98.24 0-58.33 39.94-98.31 39.93-39.98 98.37-39.98 58.44 0 98.32 40.03 39.89 40.03 39.89 98.36 0 58.34-39.94 98.19-39.93 39.86-98.37 39.86Zm-.22 366.2q-82.53 0-155.83-31.58-73.29-31.58-127.36-85.98-54.06-54.41-85.32-127.18-31.25-72.78-31.25-155.56 0-82.87 31.62-155.79 31.61-72.91 85.97-127.01 54.36-54.09 127.15-85.6 72.78-31.52 155.58-31.52 82.88 0 155.78 31.61 72.91 31.6 127 85.72 54.09 54.11 85.6 127.01 31.52 72.89 31.52 155.63 0 82.82-31.53 155.67t-85.72 127.12q-54.19 54.26-127.19 85.86-72.99 31.6-156.02 31.6Z" />
+                                </svg>
                             </div>
-                        </a>
+                            <!-- Profile dropdown menu (hidden by default, opens upward) -->
+                            <div id="profile-menu-content"
+                                style="display:none; position:absolute; bottom:40px; right:0; background:#fff; border:1px solid #ccc; box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:0; z-index:100; min-width:200px; border-radius:6px;">
+                                <!-- User info header -->
+                                <div style="padding:12px 16px; border-bottom:1px solid #eee; background:#f8f9fa; border-radius:6px 6px 0 0;">
+                                    <div style="font-weight:600; color:#333;">{{ user.username }}</div>
+                                    <div style="font-size:12px; color:#666;">
+                                        {% if activeRole %}{{ activeRole | capitalize }}{% else %}{{ user.defaultRole | capitalize }}{% endif %}
+                                    </div>
+                                </div>
+                                <!-- Menu items -->
+                                <div style="padding:8px 0;">
+                                    <a href="/complete-profile" style="display:block; width:100%; padding:0; margin:0; color:#333; text-decoration:none; font-size:14px; transition: background 0.2s; border:none; background:none;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                        <div style="display:flex; align-items:center; width:100%; padding:12px 16px; margin:0; min-height:44px; box-sizing:border-box;">
+                                            <div style="width:20px; height:20px; margin-right:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+                                                    <path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"/>
+                                                </svg>
+                                            </div>
+                                            <span style="line-height:20px;">I tuoi dati</span>
+                                        </div>
+                                    </a>
+                                    {% set currentUserRole = (activeRole if activeRole is defined and activeRole else (user.defaultRole if user.defaultRole is defined else '')) %}
+                                    {% if currentUserRole != 'administrator' %}
+                                    <a href="/profile" style="display:block; width:100%; padding:0; margin:0; color:#333; text-decoration:none; font-size:14px; transition: background 0.2s; border:none; background:none;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
+                                        <div style="display:flex; align-items:center; width:100%; padding:12px 16px; margin:0; min-height:44px; box-sizing:border-box;">
+                                            <div style="width:20px; height:20px; margin-right:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+                                                    <path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm-40-82v-78q-33 0-56.5-23.5T360-320v-40L168-552q-3 18-5.5 36t-2.5 36q0 121 79.5 212T440-162Zm276-102q20-22 36-47.5t26.5-53q10.5-27.5 16-56.5t5.5-59q0-98-54.5-179T600-776v16q0 33-23.5 56.5T520-680h-80v80q0 17-11.5 28.5T400-560h-80v80h240q17 0 28.5 11.5T600-440v120h40q26 0 47 15.5t29 40.5Z"/>
+                                                </svg>
+                                            </div>
+                                            <span style="line-height:20px;">Cambia ruolo</span>
+                                        </div>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                         <a style="color:#000;font-size:14px; text-decoration: none;" href="/logout">
                             <div> <!-- Icona esci -->
                                 <span>
@@ -162,11 +211,45 @@
     <script src="/js/modules/aiModule.js"></script>
     <script src="/js/modules/reviewModule.js"></script>
     
+    <!-- Role Selector Module -->
+    <script src="/js/roleSelector.js"></script>
+    
     <!-- Modular app coordinator -->
     <script src="/js/modularApp.js"></script>
     
     <!-- Legacy scripts (deprecated - will be removed) -->
     <script src="/js/scripts.js"></script>
+    
+    <!-- Profile dropdown functionality -->
+    <script>
+        // Gestione dropdown profilo
+        document.addEventListener('DOMContentLoaded', function() {
+            const profileToggle = document.getElementById('profile-menu-toggle');
+            const profileMenu = document.getElementById('profile-menu-content');
+            
+            if (profileToggle && profileMenu) {
+                profileToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isVisible = profileMenu.style.display === 'block';
+                    profileMenu.style.display = isVisible ? 'none' : 'block';
+                });
+                
+                // Chiudi dropdown quando si clicca fuori
+                document.addEventListener('click', function(e) {
+                    if (!profileToggle.contains(e.target) && !profileMenu.contains(e.target)) {
+                        profileMenu.style.display = 'none';
+                    }
+                });
+                
+                // Chiudi dropdown quando si preme ESC
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        profileMenu.style.display = 'none';
+                    }
+                });
+            }
+        });
+    </script>
     
     <!-- Page-specific scripts -->
     {% block scripts %}{% endblock %}

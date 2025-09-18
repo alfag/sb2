@@ -81,10 +81,9 @@ const setActiveRole = (req, res, next) => {
         
         res.locals.activeRole = selectedRole;
         
-        // REDIRECT LOGIC: Se utente ha ruolo brewery attivo e sta accedendo alla root, redirect alle statistiche
-        if (selectedRole === 'brewery' && req.path === '/' && req.user.breweryDetails) {
-            logger.info(`Redirect brewery user alla dashboard: ${req.user.username}`);
-            return res.redirect('/brewery/dashboard');
+        // Imposta il ruolo attivo in sessione se non è già settato
+        if (!req.session.activeRole) {
+            req.session.activeRole = selectedRole;
         }
     } else {
         res.locals.activeRole = null;

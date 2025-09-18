@@ -895,14 +895,14 @@ async function getBreweryStatisticsDetail(req, res) {
 
         logger.info(`🎯 Rendering template admin/breweryStatistics per brewery: ${brewery.breweryName}`);
         
-        res.render('admin/breweryStatistics', {
-            title: `Statistiche ${brewery.breweryName}`,
+        res.render('brewery/dashboard', {
             user: req.user,
             message: req.flash(),
             brewery: brewery.toObject(),
             stats: breweryStats,
             beersWithStats,
-            timeline: reviewTimeline
+            timeline: reviewTimeline,
+            timelineJson: reviewTimeline
         });
 
         logger.info('Dettagli statistiche brewery caricati', {
@@ -915,6 +915,444 @@ async function getBreweryStatisticsDetail(req, res) {
         logger.error('Errore caricamento dettagli statistiche brewery', error);
         req.flash('error', 'Errore durante il caricamento delle statistiche del birrificio');
         res.redirect('/administrator/statistics');
+    }
+}
+
+// FASE 2: Brewery Dashboard Unificato - Combina statistiche + form modifica
+async function getBreweryDashboard(req, res) {
+    try {
+        const breweryId = req.params.id || (req.user.breweryDetails && req.user.breweryDetails._id);
+        
+        logger.info(`🔍 Debug getBreweryDashboard - breweryId: ${breweryId}, req.params.id: ${req.params.id}, req.user.breweryDetails: ${JSON.stringify(req.user.breweryDetails)}`);
+        
+        if (!breweryId) {
+            logger.warn('❌ breweryId non trovato, redirect a /profile');
+            req.flash('error', 'Dati birrificio non trovati');
+            return res.redirect('/profile');
+        }
+
+        logger.info(`🏭 Caricamento brewery dashboard unificato: ${breweryId} per utente: ${req.user.username}`);
+
+        // Verifica che il brewery esista e l'utente abbia accesso
+        const brewery = await Brewery.findById(breweryId);
+        if (!brewery) {
+            logger.warn(`❌ Brewery ${breweryId} non trovato nel DB, redirect a /profile`);
+            req.flash('error', 'Birrificio non trovato');
+            return res.redirect('/profile');
+        }
+
+        // Verifica autorizzazioni (admin o owner brewery)
+        const isAdmin = req.user.role.includes('administrator');
+        
+        logger.info(`🔍 Debug breweryDetails - req.user.breweryDetails: ${JSON.stringify(req.user.breweryDetails)}`);
+        logger.info(`🔍 Debug comparison - breweryId: ${breweryId}`);
+        
+        const isOwnerBrewery = req.user.role.includes('brewery') &&
+                              req.user.breweryDetails &&
+                              (req.user.breweryDetails._id?.toString() === breweryId || 
+                               req.user.breweryDetails._id?.toString() === breweryId.toString());
+
+        logger.info(`🔍 Debug autorizzazioni - isAdmin: ${isAdmin}, isOwnerBrewery: ${isOwnerBrewery}, user.role: ${JSON.stringify(req.user.role)}`);
+        
+        if (req.user.breweryDetails) {
+            logger.info(`🔍 Debug comparison details:`);
+            logger.info(`  - breweryDetails._id: ${req.user.breweryDetails._id}`);
+            logger.info(`  - breweryDetails._id?.toString(): ${req.user.breweryDetails._id?.toString()}`);
+            logger.info(`  - breweryId: ${breweryId}`);
+            logger.info(`  - Comparison 1 (._id?.toString() === breweryId): ${req.user.breweryDetails._id?.toString() === breweryId}`);
+            logger.info(`  - Comparison 2 (._id?.toString() === breweryId.toString()): ${req.user.breweryDetails._id?.toString() === breweryId.toString()}`);
+        }
+
+        if (!isAdmin && !isOwnerBrewery) {
+            logger.warn('❌ Autorizzazioni insufficienti, redirect a /profile');
+            req.flash('error', 'Accesso negato. Non hai i permessi per gestire questo birrificio.');
+            return res.redirect('/profile');
+        }
+
+        // Ottieni statistiche dettagliate del brewery (riutilizza logica esistente)
+        const breweryStats = await ReviewService.getBreweryStats(breweryId, true);
+        
+        // Ottieni dettagli per ogni birra del brewery
+        const beersWithStats = await Promise.all(
+            breweryStats.beerBreakdown.map(async (beerSummary) => {
+                const beerStats = await ReviewService.getBeerStats(beerSummary.beerId, true);
+                const beerDetails = await Beer.findById(beerSummary.beerId);
+                
+                return {
+                    ...beerSummary,
+                    beerDetails: beerDetails ? beerDetails.toObject() : null,
+                    fullStats: beerStats
+                };
+            })
+        );
+
+        // Timeline delle recensioni per grafici
+        const reviewTimeline = await Review.aggregate([
+            { $unwind: '$ratings' },
+            {
+                $lookup: {
+                    from: 'beers',
+                    localField: 'ratings.beer',
+                    foreignField: '_id',
+                    as: 'beerInfo'
+                }
+            },
+            { $unwind: '$beerInfo' },
+            { $match: { 'beerInfo.brewery': new mongoose.Types.ObjectId(breweryId) } },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: '$createdAt' },
+                        month: { $month: '$createdAt' }
+                    },
+                    count: { $sum: 1 },
+                    avgRating: { $avg: '$ratings.rating' }
+                }
+            },
+            { $sort: { '_id.year': 1, '_id.month': 1 } }
+        ]);
+
+        logger.info(`✅ Brewery dashboard caricato con successo per: ${brewery.breweryName}`);
+
+        // 🚨 LOG CRUCIALE: VERIFICA SE ARRIVA A QUESTO PUNTO
+        logger.info('🚨 ARRIVO AL CALCOLO STATISTICHE AVANZATE - CHECKPOINT 1');
+
+        // 🚨 DEBUG: Calcolo statistiche avanzate con try-catch
+        logger.info('🔍 Inizio calcolo statistiche avanzate per brewery:', breweryId);
+        let advancedStats;
+        try {
+            // Calcolo statistiche avanzate
+            logger.info('📊 Calcolo statistiche crescita...');
+            
+            // 1. Analisi crescita mese corrente vs precedente
+            const currentDate = new Date();
+            const currentYear = currentDate.getFullYear();
+            const currentMonth = currentDate.getMonth() + 1; // JavaScript mese è 0-based
+            const previousDate = new Date(currentYear, currentMonth - 2, 1); // Mese precedente
+            const previousYear = previousDate.getFullYear();
+            const previousMonth = previousDate.getMonth() + 1;
+
+            const growthAnalysis = await Review.aggregate([
+                { $unwind: '$ratings' },
+                {
+                    $lookup: {
+                        from: 'beers',
+                        localField: 'ratings.beer',
+                        foreignField: '_id',
+                        as: 'beerInfo'
+                    }
+                },
+                { $unwind: '$beerInfo' },
+                { $match: { 'beerInfo.brewery': new mongoose.Types.ObjectId(breweryId) } },
+                {
+                    $group: {
+                        _id: {
+                            year: { $year: '$createdAt' },
+                            month: { $month: '$createdAt' }
+                        },
+                        count: { $sum: 1 },
+                        avgRating: { $avg: '$ratings.rating' }
+                    }
+                },
+                {
+                    $match: {
+                        $or: [
+                            { '_id.year': currentYear, '_id.month': currentMonth },
+                            { '_id.year': previousYear, '_id.month': previousMonth }
+                        ]
+                    }
+                }
+            ]);
+
+            const currentMonthData = growthAnalysis.find(item => 
+                item._id.year === currentYear && item._id.month === currentMonth) || { count: 0, avgRating: 0 };
+            const previousMonthData = growthAnalysis.find(item => 
+                item._id.year === previousYear && item._id.month === previousMonth) || { count: 0, avgRating: 0 };
+
+            const reviewsGrowth = previousMonthData.count > 0 
+                ? ((currentMonthData.count - previousMonthData.count) / previousMonthData.count * 100).toFixed(1)
+                : currentMonthData.count > 0 ? 100 : 0;
+
+            logger.info('✅ Crescita calcolata:', { currentMonth: currentMonthData, previousMonth: previousMonthData, growth: reviewsGrowth });
+
+            // 2. Top 5 Birre Performance
+            logger.info('📊 Calcolo top birre...');
+            const topBeersPerformance = await Review.aggregate([
+                { $unwind: '$ratings' },
+                {
+                    $lookup: {
+                        from: 'beers',
+                        localField: 'ratings.beer',
+                        foreignField: '_id',
+                        as: 'beerInfo'
+                    }
+                },
+                { $unwind: '$beerInfo' },
+                { $match: { 'beerInfo.brewery': new mongoose.Types.ObjectId(breweryId) } },
+                {
+                    $group: {
+                        _id: '$ratings.beer',
+                        beerName: { $first: '$beerInfo.beerName' },
+                        totalReviews: { $sum: 1 },
+                        avgRating: { $avg: '$ratings.rating' },
+                        satisfactionIndex: {
+                            $avg: {
+                                $cond: [{ $gte: ['$ratings.rating', 4] }, 100, 0]
+                            }
+                        }
+                    }
+                },
+                { $sort: { totalReviews: -1, avgRating: -1 } },
+                { $limit: 5 }
+            ]);
+
+            logger.info('✅ Top birre calcolate:', topBeersPerformance);
+
+            // 3. Distribuzione Rating (1-5 stelle)
+            logger.info('📊 Calcolo distribuzione rating...');
+            const ratingDistribution = await Review.aggregate([
+                { $unwind: '$ratings' },
+                {
+                    $lookup: {
+                        from: 'beers',
+                        localField: 'ratings.beer',
+                        foreignField: '_id',
+                        as: 'beerInfo'
+                    }
+                },
+                { $unwind: '$beerInfo' },
+                { $match: { 'beerInfo.brewery': new mongoose.Types.ObjectId(breweryId) } },
+                {
+                    $group: {
+                        _id: { $round: ['$ratings.rating'] },
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { '_id': 1 } }
+            ]);
+
+            logger.info('✅ Distribuzione rating calcolata:', ratingDistribution);
+
+            // 4. Coinvolgimento Utenti
+            logger.info('📊 Calcolo engagement utenti...');
+            const userEngagement = await Review.aggregate([
+                { $unwind: '$ratings' },
+                {
+                    $lookup: {
+                        from: 'beers',
+                        localField: 'ratings.beer',
+                        foreignField: '_id',
+                        as: 'beerInfo'
+                    }
+                },
+                { $unwind: '$beerInfo' },
+                { $match: { 'beerInfo.brewery': new mongoose.Types.ObjectId(breweryId) } },
+                {
+                    $group: {
+                        _id: '$createdBy',
+                        reviewCount: { $sum: 1 },
+                        avgUserRating: { $avg: '$ratings.rating' },
+                        lastReviewDate: { $max: '$createdAt' }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalUniqueUsers: { $sum: 1 },
+                        multiReviewUsers: {
+                            $sum: { $cond: [{ $gt: ['$reviewCount', 1] }, 1, 0] }
+                        },
+                        avgReviewsPerUser: { $avg: '$reviewCount' },
+                        loyalUsers: {
+                            $sum: { $cond: [{ $gte: ['$reviewCount', 3] }, 1, 0] }
+                        }
+                    }
+                }
+            ]);
+
+            const engagementData = userEngagement[0] || {
+                totalUniqueUsers: 0,
+                multiReviewUsers: 0,
+                avgReviewsPerUser: 0,
+                loyalUsers: 0
+            };
+
+            logger.info('✅ Engagement calcolato:', engagementData);
+
+            // 5. Indicatori Avanzati
+            logger.info('📊 Calcolo indicatori avanzati...');
+            const totalReviews = breweryStats.totalReviews || 0;
+            const highRatingReviews = await Review.aggregate([
+                { $unwind: '$ratings' },
+                {
+                    $lookup: {
+                        from: 'beers',
+                        localField: 'ratings.beer',
+                        foreignField: '_id',
+                        as: 'beerInfo'
+                    }
+                },
+                { $unwind: '$beerInfo' },
+                { $match: { 'beerInfo.brewery': new mongoose.Types.ObjectId(breweryId) } },
+                { $match: { 'ratings.rating': { $gte: 4 } } },
+                { $count: 'highRatingCount' }
+            ]);
+
+            const satisfactionIndex = totalReviews > 0 
+                ? ((highRatingReviews[0]?.highRatingCount || 0) / totalReviews * 100).toFixed(1)
+                : 0;
+
+            // 6. Analisi Giorni della Settimana
+            logger.info('📊 Calcolo attività settimanale...');
+            const weekdayAnalysis = await Review.aggregate([
+                { $unwind: '$ratings' },
+                {
+                    $lookup: {
+                        from: 'beers',
+                        localField: 'ratings.beer',
+                        foreignField: '_id',
+                        as: 'beerInfo'
+                    }
+                },
+                { $unwind: '$beerInfo' },
+                { $match: { 'beerInfo.brewery': new mongoose.Types.ObjectId(breweryId) } },
+                {
+                    $group: {
+                        _id: { $dayOfWeek: '$createdAt' },
+                        count: { $sum: 1 },
+                        avgRating: { $avg: '$ratings.rating' }
+                    }
+                },
+                { $sort: { '_id': 1 } }
+            ]);
+
+            // Converti numeri giorni in nomi
+            const weekdays = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+            const weekdayData = weekdayAnalysis.map(day => ({
+                dayName: weekdays[day._id - 1],
+                count: day.count,
+                avgRating: parseFloat(day.avgRating.toFixed(1))
+            }));
+
+            logger.info('✅ Attività settimanale calcolata:', weekdayData);
+
+            // Combina tutte le statistiche avanzate
+            advancedStats = {
+                growth: {
+                    reviewsGrowth: parseFloat(reviewsGrowth),
+                    currentMonth: currentMonthData,
+                    previousMonth: previousMonthData,
+                    isPositiveGrowth: parseFloat(reviewsGrowth) > 0
+                },
+                topBeers: topBeersPerformance,
+                ratingDistribution,
+                engagement: {
+                    ...engagementData,
+                    engagementRate: engagementData.totalUniqueUsers > 0 
+                        ? (engagementData.multiReviewUsers / engagementData.totalUniqueUsers * 100).toFixed(1)
+                        : 0,
+                    loyaltyRate: engagementData.totalUniqueUsers > 0
+                        ? (engagementData.loyalUsers / engagementData.totalUniqueUsers * 100).toFixed(1)
+                        : 0
+                },
+                indicators: {
+                    satisfactionIndex: parseFloat(satisfactionIndex),
+                    avgReviewsPerUser: parseFloat((engagementData.avgReviewsPerUser || 0).toFixed(1)),
+                    totalUniqueUsers: engagementData.totalUniqueUsers
+                },
+                weekdayActivity: weekdayData
+            };
+
+            logger.info('✅ TUTTE le statistiche avanzate completate con successo!');
+
+        } catch (error) {
+            logger.error('❌ ERRORE nel calcolo statistiche avanzate:', error);
+            // Fallback per evitare crash della pagina
+            advancedStats = {
+                growth: { reviewsGrowth: 0, currentMonth: { count: 0 }, previousMonth: { count: 0 }, isPositiveGrowth: false },
+                topBeers: [],
+                ratingDistribution: [],
+                engagement: { engagementRate: 0, loyaltyRate: 0 },
+                indicators: { satisfactionIndex: 0, avgReviewsPerUser: 0, totalUniqueUsers: 0 },
+                weekdayActivity: []
+            };
+        }
+
+        // Log delle statistiche avanzate per debug
+        logger.info('🔍 Debug advancedStats FINALE', {
+            topBeersLength: advancedStats.topBeers?.length || 0,
+            ratingDistributionLength: advancedStats.ratingDistribution?.length || 0,
+            weekdayActivityLength: advancedStats.weekdayActivity?.length || 0,
+            topBeersType: typeof advancedStats.topBeers,
+            ratingDistributionType: typeof advancedStats.ratingDistribution,
+            weekdayActivityType: typeof advancedStats.weekdayActivity,
+            topBeersPreview: advancedStats.topBeers?.slice(0, 2),
+            ratingDistributionPreview: advancedStats.ratingDistribution?.slice(0, 2),
+            weekdayActivityPreview: advancedStats.weekdayActivity?.slice(0, 2)
+        });
+
+        // Assicurati che advancedStats abbia valori di default e siano oggetti JS puliti
+        const safeAdvancedStats = {
+            topBeers: (advancedStats?.topBeers || []).map(beer => ({
+                _id: beer._id?.toString(),
+                beerName: beer.beerName,
+                totalReviews: beer.totalReviews,
+                avgRating: beer.avgRating,
+                satisfactionIndex: beer.satisfactionIndex
+            })),
+            ratingDistribution: (advancedStats?.ratingDistribution || []).map(item => ({
+                _id: item._id,
+                count: item.count
+            })),
+            weekdayActivity: (advancedStats?.weekdayActivity || []).map(item => ({
+                _id: item._id,
+                count: item.count,
+                avgRating: item.avgRating
+            })),
+            growth: advancedStats?.growth || { isPositiveGrowth: false, reviewsGrowth: 0 },
+            indicators: advancedStats?.indicators || { satisfactionIndex: 0, avgReviewsPerUser: 0 },
+            engagement: advancedStats?.engagement || { engagementRate: 0 }
+        };
+
+        // Renderizza la dashboard unificata brewery
+        res.render('brewery/dashboard', {
+            title: `Dashboard ${brewery.breweryName}`,
+            user: req.user,
+            message: req.flash(),
+            brewery: brewery.toObject(),
+            stats: breweryStats,
+            beersWithStats,
+            timeline: reviewTimeline,
+            // Converti in JSON stringificato per evitare problemi di serializzazione
+            timelineJson: JSON.stringify(reviewTimeline),
+            advancedStats: safeAdvancedStats,
+            // Converti in JSON stringificato
+            advancedStatsJson: JSON.stringify({
+                topBeers: safeAdvancedStats.topBeers,
+                ratingDistribution: safeAdvancedStats.ratingDistribution,
+                weekdayActivity: safeAdvancedStats.weekdayActivity
+            }),
+            // Converti in JSON stringificato
+            statsJson: JSON.stringify({
+                totalReviews: breweryStats.totalReviews || 0,
+                avgRating: breweryStats.avgRating || 0
+            }),
+            isOwner: isOwnerBrewery,
+            isAdmin: isAdmin
+        });
+
+        logger.info('Brewery dashboard renderizzato', {
+            breweryId,
+            totalReviews: breweryStats.totalReviews,
+            totalBeers: breweryStats.totalBeers,
+            userRole: req.user.role,
+            isOwner: isOwnerBrewery
+        });
+
+    } catch (error) {
+        logger.error('Errore nel caricamento brewery dashboard:', error);
+        req.flash('error', 'Errore durante il caricamento della dashboard');
+        res.redirect('/profile');
     }
 }
 
@@ -938,5 +1376,7 @@ module.exports = {
     // Nuovi metodi per statistiche
     getStatisticsDashboard,
     getBreweriesStatsAPI,
-    getBreweryStatisticsDetail
+    getBreweryStatisticsDetail,
+    // FASE 2: Brewery Dashboard Unificato
+    getBreweryDashboard
 };

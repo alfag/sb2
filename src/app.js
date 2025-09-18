@@ -46,6 +46,27 @@ env.addFilter('escapejs', function(str) {
         .replace(/<\/(script)/gi, '<\\/$1');
 });
 
+// Filtro custom tojson - converte oggetto in JSON escapato per JavaScript
+env.addFilter('tojson', function(obj) {
+    if (obj === null || obj === undefined) {
+        return '[]';
+    }
+    try {
+        const jsonString = JSON.stringify(obj);
+        // Applica escape JavaScript
+        return jsonString
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/"/g, '\\"')
+            .replace(/\r/g, '\\r')
+            .replace(/\n/g, '\\n')
+            .replace(/<\/(script)/gi, '<\\/$1');
+    } catch (error) {
+        console.error('Errore tojson filter:', error);
+        return '[]';
+    }
+});
+
 // Imposta Nunjucks come motore di template predefinito
 app.set('view engine', 'njk');
 
@@ -83,17 +104,20 @@ app.use(authMiddleware.disclaimerMiddleware);
 // Middleware vari
 app.use(helmet({
     contentSecurityPolicy: {
-        useDefaults: true,
+        useDefaults: false,
         directives: {
+            "default-src": ["'self'"],
             "script-src": ["'self'"],
-            "style-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-            "style-src-elem": ["'self'", "https://cdnjs.cloudflare.com"],
-            "font-src": ["'self'", "https://cdnjs.cloudflare.com", "data:"],
-            "img-src": ["'self'", "data:", "https:"],
-            "connect-src": ["'self'"]
+            "style-src": ["'self'", "'unsafe-inline'"],
+            "style-src-elem": ["'self'", "'unsafe-inline'"],
+            "font-src": ["'self'", "data:"],
+            "img-src": ["'self'", "data:", "https:", "http:"],
+            "connect-src": ["'self'"],
+            "object-src": ["'none'"],
+            "base-uri": ["'self'"]
         }
     }
-})); // Helmet con CSP personalizzata per Font Awesome e sicurezza
+})); // Helmet con CSP personalizzata per Font Awesome, Chart.js e sicurezza
 app.use(cors()); // Abilita la condivisione di risorse tra origini diverse (CORS)
 
 // Rate Limiting avanzato
@@ -122,7 +146,16 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'none'; frame-src 'none'; font-src 'self';"
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline'; " +
+    "object-src 'none'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "style-src-elem 'self' 'unsafe-inline'; " +
+    "img-src 'self' data: https:; " +
+    "media-src 'none'; " +
+    "frame-src 'none'; " +
+    "font-src 'self' data:; " +
+    "connect-src 'self';"
   );
   next();
 });

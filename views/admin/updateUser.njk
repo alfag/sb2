@@ -863,4 +863,28 @@ body {
 
 {% block scripts %}
 <script src="/js/updateUser.js"></script>
+<!-- Debug temporaneo -->
+<script>
+console.log('=== DEBUG RIMOZIONE RUOLI ===');
+console.log('Pagina caricata:', window.location.href);
+{% if userToEdit %}
+console.log('UserToEdit presente: true');
+console.log('Ruoli utente:', {{ userToEdit.role | dump | safe }});
+{% else %}
+console.log('UserToEdit presente: false');
+{% endif %}
+
+window.addEventListener('load', function() {
+    console.log('Window loaded, controllo elementi...');
+    const removeButtons = document.querySelectorAll('.remove-role-btn');
+    console.log('Pulsanti rimozione trovati:', removeButtons.length);
+    removeButtons.forEach((btn, index) => {
+        console.log('Pulsante ' + index + ':', {
+            role: btn.getAttribute('data-role'),
+            form: btn.closest('form'),
+            action: btn.closest('form') ? btn.closest('form').action : 'no form'
+        });
+    });
+});
+</script>
 {% endblock %}

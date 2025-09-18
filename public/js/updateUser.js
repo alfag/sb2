@@ -182,22 +182,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const removeButtons = document.querySelectorAll('.remove-role-btn');
     removeButtons.forEach(function(btn) {
         btn.addEventListener('click', function(e) {
+            // Previeni il submit automatico del form - controlleremo noi il flusso
+            e.preventDefault();
+            
             const ruolo = btn.getAttribute('data-role');
             const form = btn.closest('form');
+            
+            console.log(`Click su rimozione ruolo: ${ruolo}`, { form: form, button: btn });
             
             // Conta i ruoli totali sulla pagina
             const totalRoles = document.querySelectorAll('.role-badge').length;
             
             // Controlla se è l'ultimo ruolo
             if (totalRoles <= 1) {
-                e.preventDefault();
                 alert(`❌ Impossibile rimuovere il ruolo "${ruolo}".\n\nOgni utente deve avere almeno un ruolo attivo.`);
                 return false;
             }
             
             // Controllo specifico per ruolo customer
             if (ruolo === 'customer') {
-                e.preventDefault();
                 alert(`❌ Impossibile rimuovere il ruolo "customer".\n\nIl ruolo customer è obbligatorio per tutti gli utenti della piattaforma.`);
                 return false;
             }
@@ -215,7 +218,6 @@ document.addEventListener('DOMContentLoaded', function() {
             );
             
             if (!confirmed) {
-                e.preventDefault();
                 return false;
             }
             
@@ -250,6 +252,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 10000);
             
             console.log(`Rimozione ruolo ${ruolo} confermata, invio form...`);
+            
+            // CORREZIONE: Forza il submit del form dopo la conferma
+            if (form) {
+                console.log('Submitting form:', form);
+                form.submit();
+            } else {
+                console.error('Form non trovato per la rimozione del ruolo');
+            }
         });
     });
 
