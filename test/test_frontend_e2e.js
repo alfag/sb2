@@ -1,5 +1,10 @@
 const puppeteer = require('puppeteer');
 const config = require('../config/config');
+const chai = require('chai');
+const expect = chai.expect;
+
+// Enable should-style assertions
+chai.should();
 
 /**
  * Test End-to-End per funzionalità frontend

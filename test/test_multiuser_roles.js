@@ -1,11 +1,10 @@
 const chai = require('chai');
 const sinon = require('sinon');
 const expect = chai.expect;
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 
-const User = require('../src/models/User');
-const Administrator = require('../src/models/Administrator');
-const Brewery = require('../src/models/Brewery');
-const administratorController = require('../src/controllers/administratorController');
+// Import DOPO setup database sicuro
+let User, Administrator, Brewery, administratorController;
 
 describe('Sistema Multi-Ruolo SB2 - Fase 1', function() {
     this.timeout(30000);
@@ -14,6 +13,14 @@ describe('Sistema Multi-Ruolo SB2 - Fase 1', function() {
     let adminUser;
 
     before(async function() {
+        // SICUREZZA: Setup database test PRIMA di importare modelli
+        await setupTestDatabase();
+        
+        // Import sicuri DOPO connessione test
+        User = require('../src/models/User');
+        Administrator = require('../src/models/Administrator');
+        Brewery = require('../src/models/Brewery');
+        administratorController = require('../src/controllers/administratorController');
         // Crea utente test per i test
         testUser = new User({
             username: 'testMultiRole',
@@ -267,5 +274,11 @@ describe('Sistema Multi-Ruolo SB2 - Fase 1', function() {
             const shouldBlock = requestBody.activeRole === 'administrator';
             expect(shouldBlock).to.be.true;
         });
+    });
+
+    // SICUREZZA: Cleanup database test
+    after(async function() {
+        await cleanupTestDatabase();
+        await closeTestDatabase();
     });
 });

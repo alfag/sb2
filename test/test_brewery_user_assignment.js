@@ -1,9 +1,12 @@
 const { expect } = require('chai');
 const request = require('supertest');
+
+// IMPORT SICURO: Usa helper di test che garantisce database separato
+const { testConfig, setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 const mongoose = require('mongoose');
-const app = require('../src/app');
-const User = require('../src/models/User');
-const Brewery = require('../src/models/Brewery');
+
+// Import modelli e app DOPO setup database di test
+let app, User, Brewery;
 
 describe('🏭 Test Assegnazione Utente-Birrificio', function() {
     this.timeout(30000);
@@ -13,14 +16,21 @@ describe('🏭 Test Assegnazione Utente-Birrificio', function() {
     let adminUser;
 
     before(async function() {
-        // Assicuriamoci che la connessione MongoDB sia stabilita
-        if (mongoose.connection.readyState !== 1) {
-            await mongoose.connect(process.env.MONGODB_URL_SB2 || 'mongodb://localhost:27017/sb2_test');
-        }
+        console.log('🔧 Setup test brewery user assignment SICURO...');
+        
+        // Connessione database di TEST SICURO
+        await setupTestDatabase();
+        
+        // Import modelli DOPO connessione test sicura
+        app = require('../src/app');
+        User = require('../src/models/User');
+        Brewery = require('../src/models/Brewery');
         
         // Cleanup precedente
         await User.deleteMany({ username: { $in: ['testUserBrewery', 'testAdmin'] } });
         await Brewery.deleteMany({ breweryName: 'Test Brewery for Assignment' });
+        
+        console.log('✅ Database di TEST connesso per brewery user assignment');
 
         // Crea un birrificio di test
         testBrewery = new Brewery({
@@ -49,16 +59,15 @@ describe('🏭 Test Assegnazione Utente-Birrificio', function() {
             username: 'testAdmin',
             password: '$2b$10$test.admin.password.hash',
             role: ['administrator'],
-            defaultRole: 'administrator'
+            defaultRole: 'customer'  // Administrator non è permesso in defaultRole
         });
         await adminUser.save();
     });
 
     after(async function() {
-        // Cleanup
-        await User.deleteMany({ username: { $in: ['testUserBrewery', 'testAdmin'] } });
-        await Brewery.deleteMany({ breweryName: 'Test Brewery for Assignment' });
-        await mongoose.connection.close();
+        // Cleanup finale del test database
+        await cleanupTestDatabase();
+        console.log('🧹 Cleanup test brewery user assignment completato');
     });
 
     describe('📝 Pagina Update User', function() {

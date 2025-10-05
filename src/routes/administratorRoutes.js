@@ -436,6 +436,12 @@ router.get('/breweries/view/:id', authMiddleware.isAdmin, async (req, res) => {
     }
 });
 
+// Dashboard risoluzione birrifici non riconosciuti
+router.get('/brewery-resolution', authMiddleware.isAdmin, reviewController.adminBreweryResolution);
+
+// Approva/rifiuta birrificio
+router.post('/brewery/:breweryId/approve', authMiddleware.isAdmin, reviewController.approveBrewery);
+
 // === GESTIONE STATISTICHE ===
 // Autocomplete birrifici per filtro
 router.get('/statistics/breweries/search', authMiddleware.isAdmin, async (req, res) => {
@@ -550,6 +556,36 @@ router.get('/statistics', authMiddleware.isAdmin, async (req, res) => {
         logger.error(`Errore durante il recupero delle statistiche: ${error.message}`);
         req.flash('error', 'Errore durante il recupero delle statistiche');
         res.redirect('/administrator');
+    }
+});
+
+// =====================================================
+// SISTEMA DI TEST MATCHING BIRRIFICI AI
+// =====================================================
+
+// Pagina di test per il matching dei birrifici
+router.get('/brewery-matching-test', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info('Accesso alla pagina di test matching birrifici');
+        await adminController.getBreweryMatchingTest(req, res);
+    } catch (error) {
+        logger.error(`Errore durante l'accesso alla pagina di test matching: ${error.message}`);
+        req.flash('error', 'Errore durante il caricamento della pagina di test');
+        res.redirect('/administrator');
+    }
+});
+
+// API per testare il matching di un birrificio
+router.post('/api/test-brewery-matching', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info('Test matching birrificio tramite API');
+        await adminController.testBreweryMatching(req, res);
+    } catch (error) {
+        logger.error(`Errore durante il test matching API: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Errore interno durante il test di matching'
+        });
     }
 });
 

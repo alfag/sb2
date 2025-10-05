@@ -6,6 +6,12 @@ let originalImageSrc = null;
 let currentBeerData = null;
 let validBeers = [];
 
+// Variabile globale per controllo disambiguazione attiva
+let isDisambiguationActive = false;
+
+// Variabile globale per controllo analisi AI in corso
+let isAIAnalysisActive = false;
+
 // Logging per debug e monitoraggio
 function logDebug(message, data = null) {
     if (data) {
@@ -380,6 +386,41 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
+    // Funzione semplice per mostrare alert (compatibilità)
+    function showAlert(type, message) {
+        if (type === 'success') {
+            // Per i messaggi di successo, usa una classe diversa
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success dynamic-alert';
+            alertDiv.style.margin = '20px';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.style.position = 'relative';
+            alertDiv.style.animation = 'fadeIn 0.3s ease-in';
+            alertDiv.style.cursor = 'pointer';
+            alertDiv.style.userSelect = 'none';
+            alertDiv.textContent = message;
+            
+            alertDiv.addEventListener('click', function() {
+                alertDiv.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => {
+                    if (alertDiv && alertDiv.parentNode) {
+                        alertDiv.remove();
+                    }
+                }, 300);
+            });
+            
+            const header = document.querySelector('header');
+            if (header) {
+                header.parentNode.insertBefore(alertDiv, header.nextSibling);
+            } else {
+                document.body.insertBefore(alertDiv, document.body.firstChild);
+            }
+        } else {
+            // Per altri tipi, usa showWarningMessage
+            showWarningMessage(message);
+        }
+    }
+    
     // Funzione per iniziare il processo di recensione con i dati AI
     function startReviewProcess(aiData) {
         logDebug('Avvio processo di recensione', {
@@ -389,6 +430,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         
         try {
+            // Registra l'inizio del processo nel SessionCleanupManager
+            if (window.sessionCleanupManager) {
+                const sessionId = Date.now().toString(); // ID sessione semplice
+                window.sessionCleanupManager.startReviewProcess(sessionId);
+            }
+            
             // Nascondi il bottone principale e la call-to-action
             const startReviewBtn = document.getElementById('start-review-process');
             const callToAction = document.querySelector('.review-call-to-action');
@@ -939,6 +986,11 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(result => {
             logDebug('Recensioni pubblicate con successo', result);
             
+            // Notifica completamento al SessionCleanupManager
+            if (window.sessionCleanupManager) {
+                window.sessionCleanupManager.cleanupOnReviewComplete();
+            }
+            
             // Nascondi l'area di review process
             const reviewProcess = document.getElementById('review-process');
             if (reviewProcess) {
@@ -954,6 +1006,11 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .catch(error => {
             logError('Errore nella pubblicazione delle recensioni', error);
+            
+            // Notifica errore al SessionCleanupManager
+            if (window.sessionCleanupManager) {
+                window.sessionCleanupManager.cleanupOnReviewError(error);
+            }
             
             let errorMessage = 'Errore nella pubblicazione delle recensioni';
             
@@ -1059,6 +1116,20 @@ document.addEventListener('DOMContentLoaded', function () {
             logDebug('Call-to-action ripristinata');
         }
         
+        // Nascondi il contenitore del processo di recensione
+        const reviewProcess = document.getElementById('review-process');
+        if (reviewProcess) {
+            reviewProcess.style.display = 'none';
+            logDebug('Contenitore review-process nascosto');
+        }
+        
+        // Nascondi il pulsante ricomincia quando si ripristina l'interfaccia
+        const restartReviewBtn = document.getElementById('restart-review');
+        if (restartReviewBtn) {
+            restartReviewBtn.style.display = 'none';
+            logDebug('Pulsante ricomincia nascosto');
+        }
+        
         // Reset dei dati di recensione
         window.currentReviewData = null;
         
@@ -1119,6 +1190,29 @@ document.addEventListener('DOMContentLoaded', function () {
     
     initWithRetry();
     
+    // Inizializza il pulsante "Ricomincia"
+    const restartReviewBtn = document.getElementById('restart-review');
+    if (restartReviewBtn) {
+        restartReviewBtn.addEventListener('click', async function() {
+            console.log('[restart-review] Pulsante ricomincia cliccato');
+            
+            // Pulisci i dati AI dalla sessione
+            try {
+                await clearPreviousSessionData();
+                console.log('[restart-review] Dati AI puliti dalla sessione');
+            } catch (error) {
+                console.error('[restart-review] Errore nella pulizia dati AI:', error);
+            }
+            
+            // Ripristina l'interfaccia principale
+            resetReviewInterface();
+            
+            // Mostra un messaggio di conferma
+            showWarningMessage('Perfetto! Ora puoi inserire una nuova recensione.');
+        });
+        console.log('Event listener aggiunto per pulsante ricomincia');
+    }
+    
     // Mostra suggerimenti appropriati in base al dispositivo
     const cropNoteDesktop = document.getElementById('crop-note');
     const cropNoteMobile = document.getElementById('crop-note-mobile');
@@ -1158,8 +1252,17 @@ document.addEventListener('DOMContentLoaded', function () {
             document.body.style.overflow = 'hidden';
         }
     }
-    function closeModal() {
-        logDebug('=== CHIUSURA MODAL ===');
+    function closeModal(eventOrOptions) {
+        let options = {};
+        if (eventOrOptions && typeof eventOrOptions.preventDefault === 'function') {
+            eventOrOptions.preventDefault();
+        } else if (eventOrOptions && typeof eventOrOptions === 'object') {
+            options = eventOrOptions;
+        }
+
+        const preserveSessionData = !!options.preserveSessionData;
+
+        logDebug('=== CHIUSURA MODAL ===', { preserveSessionData });
         
         if (photoModal) {
             photoModal.style.display = 'none';
@@ -1183,17 +1286,27 @@ document.addEventListener('DOMContentLoaded', function () {
             loadingOverlay.classList.remove('show');
         }
         
-        // SEMPRE pulisci i dati AI dalla sessione quando si chiude il modal
-        logDebug('Pulizia automatica dati AI dalla sessione per chiusura modal');
-        clearPreviousSessionData().then(() => {
-            logDebug('Dati AI puliti dalla sessione');
-        }).catch(error => {
-            logError('Errore nella pulizia dati AI:', error);
-        });
-        
-        // SEMPRE ripristina l'interfaccia principale (pulsante visibile)
-        resetReviewInterface();
-        logDebug('Interfaccia principale ripristinata dopo chiusura modal');
+        if (!preserveSessionData) {
+            logDebug('Pulizia dati AI dalla sessione per chiusura modal (nessun processo attivo previsto)');
+            if (window.sessionCleanupManager) {
+                if (window.sessionCleanupManager.isProcessActive() || window.sessionCleanupManager.isDisambiguationInProgress()) {
+                    console.log('[SessionCleanup] Skip pulizia: processo/disambiguazione attiva durante closeModal');
+                } else {
+                    window.sessionCleanupManager.cleanupManual('modal_close_no_active_process');
+                }
+            } else {
+                clearPreviousSessionData().then(() => {
+                    logDebug('Dati AI puliti dalla sessione (fallback)');
+                }).catch(error => {
+                    logError('Errore nella pulizia dati AI (fallback):', error);
+                });
+            }
+
+            resetReviewInterface();
+            logDebug('Interfaccia principale ripristinata dopo chiusura modal');
+        } else {
+            logDebug('Pulizia sessione saltata: dati devono restare disponibili per il processo in corso');
+        }
     }
     if (closePhotoModal) {
         closePhotoModal.addEventListener('click', closeModal);
@@ -2061,26 +2174,78 @@ document.addEventListener('DOMContentLoaded', function () {
                     })
                 .then(response => {
                     clearTimeout(timeoutId);
-                    
-                    logDebug('Ricevuta risposta HTTP', { 
-                        status: response.status, 
+
+                    logDebug('Ricevuta risposta HTTP', {
+                        status: response.status,
                         statusText: response.statusText,
-                        ok: response.ok 
+                        ok: response.ok,
+                        contentType: response.headers.get('content-type')
                     });
-                    
+
                     // Gestione specifica per rate limiting
                     if (response.status === 429) {
-                        return response.json().then(data => {
-                            throw new Error(`RATE_LIMIT_EXCEEDED: ${data.message || 'Troppe richieste'}`);
+                        return response.text().then(text => {
+                            try {
+                                const data = JSON.parse(text);
+                                throw new Error(`RATE_LIMIT_EXCEEDED: ${data.message || 'Troppe richieste'}`);
+                            } catch (parseError) {
+                                // Se non è JSON, usa il testo grezzo
+                                throw new Error(`RATE_LIMIT_EXCEEDED: ${text || 'Troppe richieste'}`);
+                            }
                         });
                     }
-                    
+
+                    // Gestione redirect HTTP (302) - potrebbe indicare autenticazione richiesta
+                    if (response.status === 302 || response.status === 301) {
+                        logError('Ricevuto redirect HTTP dal server', {
+                            status: response.status,
+                            location: response.headers.get('location')
+                        });
+                        throw new Error('Sessione scaduta o autenticazione richiesta. Ricarica la pagina e riprova.');
+                    }
+
                     // MODIFICA: Non lanciare errore per status 200, anche se response.ok è false in certi casi
                     if (response.status !== 200) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        return response.text().then(text => {
+                            // Prova a parsare come JSON per messaggi di errore strutturati
+                            try {
+                                const errorData = JSON.parse(text);
+                                if (errorData.message) {
+                                    throw new Error(errorData.message);
+                                } else if (errorData.error) {
+                                    throw new Error(errorData.error);
+                                } else {
+                                    throw new Error(`Errore server: ${text.substring(0, 100)}`);
+                                }
+                            } catch (parseError) {
+                                // Se non è JSON valido, usa il testo grezzo
+                                throw new Error(`Errore server: ${text.substring(0, 100)}`);
+                            }
+                        });
                     }
-                    
-                    return response.json();
+
+                    // Controlla se la risposta è JSON prima di parsarla
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    } else {
+                        // Se non è JSON, potrebbe essere HTML (redirect o errore)
+                        return response.text().then(text => {
+                            logError('Risposta non JSON ricevuta dal server', {
+                                contentType,
+                                textPreview: text.substring(0, 200) + (text.length > 200 ? '...' : ''),
+                                isHtml: text.includes('<html') || text.includes('<!DOCTYPE')
+                            });
+                            
+                            if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+                                // È una pagina HTML, probabilmente un errore o redirect
+                                throw new Error('Risposta HTML ricevuta invece di JSON. Potrebbe essere necessario ricaricare la pagina.');
+                            } else {
+                                // Testo semplice, potrebbe essere un messaggio di errore
+                                throw new Error(`Risposta non valida dal server: ${text.substring(0, 100)}`);
+                            }
+                        });
+                    }
                 })
                 .then(data => {
                     logDebug('Risposta AI ricevuta (JSON parsato)', data);
@@ -2090,36 +2255,29 @@ document.addEventListener('DOMContentLoaded', function () {
                         throw new Error(data.error);
                     }
                     
-                    // Gestione caso: AI non ha rilevato elementi birra
-                    if (!data.success || data.errorType === 'NO_BEER_DETECTED') {
-                        logDebug('CONDIZIONE MATCH: AI non ha rilevato elementi di birra', {
-                            success: data.success,
-                            errorType: data.errorType,
-                            message: data.message
-                        });
-                        
-                        // Nascondi overlay spinner immediatamente
-                        const loadingOverlay = document.getElementById('ai-loading-overlay');
-                        if (loadingOverlay) {
-                            loadingOverlay.classList.remove('show');
-                            logDebug('Overlay spinner nascosto per NO_BEER_DETECTED');
+                    // 🎯 GESTIONE CENTRALIZZATA: Usa AIModule per tutte le risposte AI
+                    const handleResult = window.AIModule.handleAIResponse(data, {
+                        closeModal: closeModal,
+                        showWarningMessage: showWarningMessage,
+                        hideLoadingOverlay: () => {
+                            const loadingOverlay = document.getElementById('ai-loading-overlay');
+                            if (loadingOverlay) {
+                                loadingOverlay.classList.remove('show');
+                                logDebug('Overlay spinner nascosto tramite AIModule');
+                            }
                         }
-                        
-                        // Chiudi il modal
-                        closeModal();
-                        logDebug('Modal chiuso per NO_BEER_DETECTED');
-                        
-                        // Mostra warning nella pagina principale con messaggio specifico
-                        const warningMessage = data.message || 'L\'AI non ha rilevato bottiglie di birra nell\'immagine. Carica un\'immagine contenente chiaramente prodotti birrari.';
-                        
-                        // Piccolo delay per assicurarsi che il modal si sia chiuso
-                        setTimeout(() => {
-                            logDebug('Esecuzione showWarningMessage per NO_BEER_DETECTED');
-                            showWarningMessage(warningMessage);
-                        }, 100);
-                        
-                        return; // IMPORTANTE: esce qui senza mostrare altri alert
+                    });
+
+                    // Se la risposta è stata gestita centralmente, esci
+                    if (handleResult.handled) {
+                        logDebug('Risposta AI gestita centralmente da AIModule:', handleResult.action);
+                        return; // IMPORTANTE: esce qui senza processare altri dati
                     }
+
+                    // Altrimenti continua con flusso normale per successo
+                    logDebug('AIModule indica di continuare con flusso normale:', handleResult.action);
+                    
+                    // Il caso NO_BEER_DETECTED è ora gestito centralmente da AIModule
                     
                     // NOTA: Rimosso controllo duplicati per permettere repository di recensioni multiple
                     
@@ -2130,8 +2288,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             bottles: data.bottles
                         });
                         
-                        // Chiudi il modal di anteprima foto
-                        closeModal();
+                        // Chiudi il modal mantenendo i dati sessione per il processo recensione
+                        closeModal({ preserveSessionData: true });
                         
                         // NOTA: Rimosso tracking birre recensite per permettere recensioni multiple
                         
@@ -2160,8 +2318,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         errorMessage = 'Immagine troppo grande. Prova a ridimensionarla.';
                     } else if (error.message.includes('HTTP 429')) {
                         errorMessage = 'Troppe richieste. Attendi un momento e riprova.';
+                    } else if (error.message.includes('Sessione scaduta')) {
+                        errorMessage = 'La sessione è scaduta. Ricarica la pagina e riprova.';
+                    } else if (error.message.includes('Risposta HTML ricevuta')) {
+                        errorMessage = 'Errore del server. Ricarica la pagina e riprova.';
+                    } else if (error.message.includes('Risposta non valida dal server')) {
+                        errorMessage = 'Il server ha restituito una risposta non valida. Riprova più tardi.';
                     } else if (error.message.includes('Failed to fetch')) {
                         errorMessage = 'Problema di connessione. Controlla la tua connessione internet.';
+                    } else if (error.message.includes('JSON.parse')) {
+                        errorMessage = 'Errore nella comunicazione con il server. Riprova.';
                     }
                     
                     alert(errorMessage);
@@ -2473,8 +2639,15 @@ function validatePasswordMatch() {
                 bottlesCount: result.data.bottles?.length || 0,
                 timestamp: result.timestamp,
                 age: Math.round((now - sessionTimestamp) / 60000) + ' minuti',
+                needsDisambiguation: result.data.needsDisambiguation || false,
                 isExpired: isExpired
             });
+            
+            // CRITICO: Se ci sono dati di disambiguazione attivi, blocca la pulizia automatica
+            if (result.data.needsDisambiguation) {
+                isDisambiguationActive = true;
+                console.log('[checkForSessionData] Disambiguazione attiva - pulizia automatica disabilitata');
+            }
             
             if (isExpired) {
                 console.log('[checkForSessionData] Dati sessione scaduti, pulizia automatica');
@@ -2516,10 +2689,26 @@ function restoreInterfaceFromSessionData(aiData) {
                 startReviewBtn.style.display = 'none';
             }
             
+            // Mostra il contenitore del processo di recensione
+            const reviewProcess = document.getElementById('review-process');
+            if (reviewProcess) {
+                reviewProcess.style.display = 'block';
+                console.log('[restoreInterfaceFromSessionData] Contenitore review-process mostrato');
+            }
+            
             // Mostra l'interfaccia di recensione
             const reviewForm = document.getElementById('review-form');
             if (reviewForm) {
                 reviewForm.style.display = 'block';
+            }
+            
+            // Mostra il pulsante ricomincia quando ci sono dati in sessione
+            const restartReviewBtn = document.getElementById('restart-review');
+            if (restartReviewBtn) {
+                restartReviewBtn.style.display = 'inline-flex';
+                console.log('[restoreInterfaceFromSessionData] Pulsante ricomincia mostrato');
+            } else {
+                console.log('[restoreInterfaceFromSessionData] ATTENZIONE: Pulsante ricomincia non trovato nel DOM');
             }
             
             // Mostra le birre rilevate
@@ -2592,17 +2781,24 @@ function clearSessionDataOnNavigation() {
 
 /**
  * Pulisce i dati AI precedenti dalla sessione (chiamata manuale)
+ * Usa SessionCleanupManager quando disponibile
  */
 async function clearPreviousSessionData() {
     try {
         console.log('[clearPreviousSessionData] Pulizia dati AI precedenti dalla sessione');
         
+        // Usa SessionCleanupManager se disponibile
+        if (window.sessionCleanupManager) {
+            return await window.sessionCleanupManager.cleanupManual('clearPreviousSessionData chiamata');
+        }
+        
+        // Fallback al sistema tradizionale
         // Prova prima con sendBeacon se disponibile (più affidabile durante navigazione)
         if (navigator.sendBeacon) {
             try {
                 const success = navigator.sendBeacon('/review/clear-session-data', JSON.stringify({}));
                 if (success) {
-                    console.log('[clearPreviousSessionData] Dati AI precedenti puliti con sendBeacon');
+                    console.log('[clearPreviousSessionData] Dati AI precedenti puliti con sendBeacon (fallback)');
                     return;
                 } else {
                     console.log('[clearPreviousSessionData] sendBeacon fallito, fallback a fetch');
@@ -2618,7 +2814,7 @@ async function clearPreviousSessionData() {
         });
         
         if (response.ok) {
-            console.log('[clearPreviousSessionData] Dati AI precedenti puliti con fetch');
+            console.log('[clearPreviousSessionData] Dati AI precedenti puliti con fetch (fallback)');
         }
     } catch (error) {
         console.error('[clearPreviousSessionData] Errore nella pulizia dati precedenti:', error);
@@ -2671,9 +2867,15 @@ async function cleanupOldSessionData() {
 }
 
 /**
- * Aggiunge listener globali per pulire i dati AI su navigazione
+ * Aggiunge listener globali per pulire i dati AI su navigazione usando SessionCleanupManager
  */
 function addGlobalNavigationListeners() {
+    // Assicurati che il SessionCleanupManager sia disponibile
+    if (!window.sessionCleanupManager) {
+        console.error('[Navigation] SessionCleanupManager non disponibile');
+        return;
+    }
+
     // Listener per tutti i link della pagina (eccetto quelli del modal)
     document.addEventListener('click', function(e) {
         const clickedElement = e.target;
@@ -2695,27 +2897,48 @@ function addGlobalNavigationListeners() {
             clickedElement.classList.contains('btn-toggle-detailed');
         
         if (isNavigationElement && !isModalElement) {
-            logDebug('Rilevata navigazione, pulizia automatica dati AI', {
+            const targetUrl = clickedElement.href || clickedElement.action || 'unknown';
+            
+            logDebug('Navigazione rilevata - controllo se necessaria pulizia', {
                 element: clickedElement.tagName,
                 id: clickedElement.id,
-                class: clickedElement.className
+                targetUrl: targetUrl,
+                isProcessActive: window.sessionCleanupManager.isProcessActive(),
+                isDisambiguationActive: window.sessionCleanupManager.isDisambiguationInProgress()
             });
             
-            // Per navigazione immediata, usa sendBeacon (più affidabile)
-            try {
-                navigator.sendBeacon('/review/clear-session-data', JSON.stringify({}));
-                logDebug('Dati AI puliti via sendBeacon per navigazione immediata');
-            } catch (error) {
-                logDebug('SendBeacon non disponibile, pulizia normale');
-                // Fallback: pulizia asincrona (ma potrebbe fallire se la pagina si scarica)
-                clearPreviousSessionData().catch(err => {
-                    logError('Errore pulizia dati AI per navigazione globale:', err);
-                });
+            // Usa SessionCleanupManager per gestire la pulizia intelligente
+            if (window.sessionCleanupManager.isProcessActive()) {
+                // Se navigazione verso pagina diversa da review, pulisci
+                if (!targetUrl.includes('/review')) {
+                    console.log('[Navigation] Navigazione fuori da review - pulizia sessione');
+                    window.sessionCleanupManager.cleanupOnNavigation(targetUrl);
+                } else {
+                    console.log('[Navigation] Navigazione interna review - mantieni sessione');
+                }
             }
         }
     });
     
-    logDebug('Listener globali per pulizia navigazione attivati');
+    // Listener per cambio ruolo (se presente form di cambio ruolo)
+    const roleChangeForm = document.querySelector('form[action*="profile"]');
+    if (roleChangeForm) {
+        roleChangeForm.addEventListener('submit', function(e) {
+            console.log('[Navigation] Cambio ruolo rilevato - pulizia sessione');
+            window.sessionCleanupManager.cleanupOnRoleChange('current', 'new');
+        });
+    }
+
+    // Listener per logout
+    const logoutLinks = document.querySelectorAll('a[href*="logout"], button[onclick*="logout"]');
+    logoutLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            console.log('[Navigation] Logout rilevato - pulizia sessione');
+            window.sessionCleanupManager.cleanupOnLogout();
+        });
+    });
+    
+    logDebug('Listener globali per pulizia navigazione attivati (SessionCleanupManager)');
 }
 
 // === FUNZIONI PER FIX iOS MODAL ===

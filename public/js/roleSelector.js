@@ -25,9 +25,43 @@ class RoleSelector {
     }
 
     setup() {
-        this.createDropdown();
-        this.attachEventListeners();
-        this.loadUserRoles();
+        // Verifica se l'utente è administrator puro (solo administrator)
+        this.checkUserRoles().then(isAdministratorOnly => {
+            if (isAdministratorOnly) {
+                console.log('👑 Utente administrator - roleSelector disabilitato');
+                return; // Non inizializzare per administrator
+            }
+            
+            this.createDropdown();
+            this.attachEventListeners();
+            this.loadUserRoles();
+        });
+    }
+
+    async checkUserRoles() {
+        try {
+            const response = await fetch('/api/user/roles', {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            // Controlla se la risposta è JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.log('👤 Risposta non JSON - utente non autenticato');
+                return false;
+            }
+
+            if (response.ok) {
+                const data = await response.json();
+                const roles = data.roles || [];
+                // Se ha solo il ruolo administrator, non mostrare il selector
+                return roles.length === 1 && roles.includes('administrator');
+            }
+        } catch (error) {
+            console.warn('Impossibile verificare ruoli utente - assumo non autenticato');
+        }
+        return false;
     }
 
     createDropdown() {
@@ -99,6 +133,14 @@ class RoleSelector {
                 }
             });
 
+            // Controlla se la risposta è JSON valida
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn('⚠️ Risposta non JSON ricevuta - utente probabilmente non autenticato');
+                this.handleUnauthenticatedUser();
+                return;
+            }
+
             if (response.ok) {
                 const data = await response.json();
                 console.log('📦 Dati ruoli ricevuti:', data);
@@ -108,13 +150,21 @@ class RoleSelector {
                 this.updateDropdownContent();
             } else {
                 console.warn('⚠️ Impossibile caricare i ruoli utente');
+                this.handleUnauthenticatedUser();
             }
         } catch (error) {
             console.error('❌ Errore nel caricamento ruoli:', error);
+            this.handleUnauthenticatedUser();
         }
     }
 
     updateDropdownContent() {
+        // Verifica che il dropdown esista (non esiste per administrator)
+        if (!this.dropdown) {
+            console.log('👑 Dropdown non disponibile per administrator');
+            return;
+        }
+        
         const roleList = this.dropdown.querySelector('#role-list');
         
         if (roleList) {
@@ -331,7 +381,7 @@ class RoleSelector {
                 homeUrl = '/brewery/dashboard';
                 break;
             case 'administrator':
-                homeUrl = '/administrator/breweries';
+                homeUrl = '/administrator';
                 break;
             case 'customer':
             default:
@@ -404,7 +454,27 @@ class RoleSelector {
         this.dropdown.classList.remove('show');
         this.isOpen = false;
     }
+
+    handleUnauthenticatedUser() {
+        console.log('👤 Utente non autenticato - nascondo role selector');
+        // Nasconde il dropdown se esiste
+        if (this.dropdown) {
+            this.dropdown.style.display = 'none';
+        }
+        // Resetta i dati
+        this.currentRoles = [];
+        this.activeRole = null;
+        this.defaultRole = null;
+    }
 }
 
-// Inizializza il role selector quando il documento è pronto
-window.roleSelector = new RoleSelector();
+// Inizializza il role selector solo per utenti autenticati
+document.addEventListener('DOMContentLoaded', function() {
+    // Controlla se esiste elemento che indica utente autenticato
+    const userIndicator = document.querySelector('.user-menu, .navbar-nav .dropdown');
+    if (userIndicator) {
+        window.roleSelector = new RoleSelector();
+    } else {
+        console.log('🔒 Utente guest - Role selector disabilitato');
+    }
+});

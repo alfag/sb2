@@ -1,12 +1,35 @@
 {% extends "../layout.njk" %}
 
+{% block title %}{{ title }}{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
-    <h1>{{ title }}</h1>
+    <!-- Header con breadcrumb -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/administrator">Dashboard</a></li>
+                    <li class="breadcrumb-item active">{{ title }}</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-industry me-2 text-warning"></i>
+                    {{ title }}
+                </h1>
+                <a href="/administrator/breweries/new" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Nuovo Birrificio
+                </a>
+            </div>
+        </div>
+    </div>
     
     <!-- Messaggi flash -->
     {% if message.success %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
             {{ message.success[0] }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
@@ -14,153 +37,243 @@
     
     {% if message.error %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
             {{ message.error[0] }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     {% endif %}
     
-    <!-- Pulsante per creare nuovo birrificio -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <a href="/administrator/breweries/new" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Crea Nuovo Birrificio
-            </a>
-        </div>
-    </div>
-    
-    <!-- Tabella dei birrifici -->
-    <div class="row">
-        <div class="col-12">
-            {% if breweries.length > 0 %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Nome Birrificio</th>
-                                <th>Email</th>
-                                <th>Telefono</th>
-                                <th>Indirizzo</th>
-                                <th>Sito Web</th>
-                                <th>Data Creazione</th>
-                                <th>Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for brewery in breweries %}
-                            <tr>
-                                <td>
-                                    <strong>{{ brewery.breweryName or 'N/A' }}</strong>
-                                    {% if brewery.breweryDescription %}
-                                        <br><small class="text-muted">{{ brewery.breweryDescription | truncate(50) }}</small>
-                                    {% endif %}
-                                </td>
-                                <td>{{ brewery.breweryEmail or 'N/A' }}</td>
-                                <td>{{ brewery.breweryPhoneNumber or 'N/A' }}</td>
-                                <td>{{ brewery.breweryLegalAddress or 'N/A' }}</td>
-                                <td>
-                                    {% if brewery.breweryWebsite %}
-                                        <a href="{{ brewery.breweryWebsite }}" target="_blank" class="text-decoration-none">
-                                            {{ brewery.breweryWebsite | truncate(30) }}
-                                        </a>
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                                <td>{{ brewery.createdAt | date('d/m/Y') }}</td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="/administrator/breweries/view/{{ brewery._id }}" 
-                                           class="btn btn-sm btn-outline-info" title="Visualizza">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="/administrator/breweries/edit/{{ brewery._id }}" 
-                                           class="btn btn-sm btn-outline-warning" title="Modifica">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                title="Elimina" data-bs-toggle="modal" 
-                                                data-bs-target="#deleteModal{{ brewery._id }}">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- Modal di conferma eliminazione -->
-                                    <div class="modal fade" id="deleteModal{{ brewery._id }}" tabindex="-1">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title">Conferma Eliminazione</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    Sei sicuro di voler eliminare il birrificio <strong>{{ brewery.breweryName }}</strong>?
-                                                    <br><br>
-                                                    <small class="text-warning">
-                                                        <i class="fas fa-warning"></i> 
-                                                        Questa azione non può essere annullata e potrebbe influenzare le recensioni esistenti.
-                                                    </small>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                                                    <form method="POST" action="/administrator/breweries/delete/{{ brewery._id }}" style="display: inline;">
-                                                        <button type="submit" class="btn btn-danger">Elimina</button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i> 
-                    Nessun birrificio trovato. <a href="/administrator/breweries/new">Crea il primo birrificio</a>.
-                </div>
-            {% endif %}
-        </div>
-    </div>
-    
-    <!-- Statistiche -->
+    <!-- Statistiche rapide -->
     {% if breweries.length > 0 %}
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Statistiche Birrifici</h5>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <h3 class="text-primary">{{ breweries.length }}</h3>
-                                    <p class="text-muted">Birrifici Totali</p>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <h3 class="text-success">{{ breweries | selectattr('breweryEmail') | list | length }}</h3>
-                                    <p class="text-muted">Con Email</p>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <h3 class="text-info">{{ breweries | selectattr('breweryWebsite') | list | length }}</h3>
-                                    <p class="text-muted">Con Sito Web</p>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <h3 class="text-warning">{{ breweries | rejectattr('breweryEmail') | list | length }}</h3>
-                                    <p class="text-muted">Dati Incompleti</p>
-                                </div>
-                            </div>
-                        </div>
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <i class="fas fa-building fa-2x text-primary mb-2"></i>
+                        <h4 class="text-primary">{{ breweries.length }}</h4>
+                        <p class="text-muted mb-0">Birrifici Totali</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <i class="fas fa-envelope fa-2x text-success mb-2"></i>
+                        <h4 class="text-success">{{ breweries | selectattr('breweryEmail') | list | length }}</h4>
+                        <p class="text-muted mb-0">Con Email</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <i class="fas fa-globe fa-2x text-info mb-2"></i>
+                        <h4 class="text-info">{{ breweries | selectattr('breweryWebsite') | list | length }}</h4>
+                        <p class="text-muted mb-0">Con Sito Web</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-circle fa-2x text-warning mb-2"></i>
+                        <h4 class="text-warning">{{ breweries | rejectattr('breweryEmail') | list | length }}</h4>
+                        <p class="text-muted mb-0">Dati Incompleti</p>
                     </div>
                 </div>
             </div>
         </div>
     {% endif %}
+    
+    <!-- Tabella dei birrifici -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Elenco Birrifici
+                        {% if breweries.length > 0 %}
+                            <span class="badge bg-primary ms-2">{{ breweries.length }}</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if breweries.length > 0 %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th><i class="fas fa-industry me-1"></i> Nome Birrificio</th>
+                                        <th><i class="fas fa-envelope me-1"></i> Email</th>
+                                        <th><i class="fas fa-phone me-1"></i> Telefono</th>
+                                        <th><i class="fas fa-map-marker-alt me-1"></i> Indirizzo</th>
+                                        <th><i class="fas fa-globe me-1"></i> Sito Web</th>
+                                        <th><i class="fas fa-calendar me-1"></i> Creazione</th>
+                                        <th><i class="fas fa-cogs me-1"></i> Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for brewery in breweries %}
+                                    <tr>
+                                        <td>
+                                            <div>
+                                                <strong class="text-dark">{{ brewery.breweryName or 'N/A' }}</strong>
+                                                {% if brewery.breweryDescription %}
+                                                    <br><small class="text-muted">{{ brewery.breweryDescription | truncate(50) }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if brewery.breweryEmail %}
+                                                <span class="badge bg-success-subtle text-success">{{ brewery.breweryEmail }}</span>
+                                            {% else %}
+                                                <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if brewery.breweryPhoneNumber %}
+                                                <span class="text-dark">{{ brewery.breweryPhoneNumber }}</span>
+                                            {% else %}
+                                                <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if brewery.breweryLegalAddress %}
+                                                <small class="text-dark">{{ brewery.breweryLegalAddress | truncate(40) }}</small>
+                                            {% else %}
+                                                <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if brewery.breweryWebsite %}
+                                                <a href="{{ brewery.breweryWebsite }}" target="_blank" 
+                                                   class="text-decoration-none text-info">
+                                                    <i class="fas fa-external-link-alt me-1"></i>
+                                                    {{ brewery.breweryWebsite | truncate(25) }}
+                                                </a>
+                                            {% else %}
+                                                <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ brewery.createdAt | date('d/m/Y') }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="/administrator/breweries/view/{{ brewery._id }}" 
+                                                   class="btn btn-sm btn-outline-info" 
+                                                   title="Visualizza dettagli">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="/administrator/breweries/edit/{{ brewery._id }}" 
+                                                   class="btn btn-sm btn-outline-warning" 
+                                                   title="Modifica birrificio">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="/administrator/statistics/brewery/{{ brewery._id }}" 
+                                                   class="btn btn-sm btn-outline-success" 
+                                                   title="Statistiche birrificio">
+                                                    <i class="fas fa-chart-bar"></i>
+                                                </a>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger" 
+                                                        title="Elimina birrificio" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#deleteModal{{ brewery._id }}">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                            
+                                            <!-- Modal di conferma eliminazione -->
+                                            <div class="modal fade" id="deleteModal{{ brewery._id }}" tabindex="-1">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header bg-danger text-white">
+                                                            <h5 class="modal-title">
+                                                                <i class="fas fa-trash me-2"></i>
+                                                                Conferma Eliminazione
+                                                            </h5>
+                                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <div class="alert alert-warning">
+                                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                                <strong>Attenzione!</strong> Questa azione non può essere annullata.
+                                                            </div>
+                                                            <p>Sei sicuro di voler eliminare il birrificio:</p>
+                                                            <div class="bg-light p-3 rounded">
+                                                                <strong>{{ brewery.breweryName }}</strong>
+                                                                {% if brewery.breweryEmail %}
+                                                                    <br><small class="text-muted">{{ brewery.breweryEmail }}</small>
+                                                                {% endif %}
+                                                            </div>
+                                                            <br>
+                                                            <small class="text-warning">
+                                                                <i class="fas fa-info-circle me-1"></i>
+                                                                L'eliminazione potrebbe influenzare le recensioni e le birre associate.
+                                                            </small>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                                <i class="fas fa-times me-2"></i>Annulla
+                                                            </button>
+                                                            <form method="POST" action="/administrator/breweries/delete/{{ brewery._id }}" style="display: inline;">
+                                                                <button type="submit" class="btn btn-danger">
+                                                                    <i class="fas fa-trash me-2"></i>Elimina Definitivamente
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-industry fa-4x text-muted mb-3"></i>
+                            <h5 class="text-muted">Nessun birrificio registrato</h5>
+                            <p class="text-muted">Inizia creando il primo birrificio del sistema.</p>
+                            <a href="/administrator/breweries/new" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Crea Primo Birrificio
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid #e9ecef;
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.btn-group .btn {
+    margin-right: 0;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.card-body .fa-2x {
+    font-size: 2rem !important;
+}
+</style>
 {% endblock %}

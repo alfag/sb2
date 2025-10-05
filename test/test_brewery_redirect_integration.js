@@ -1,12 +1,14 @@
 /**
  * Test Integration per Redirect Brewery Users con utenti reali
+ * SICUREZZA: Utilizza database test isolato per prevenire corruzione dati produzione
  */
 
 const request = require('supertest');
 const { expect } = require('chai');
-const app = require('../src/app');
-const User = require('../src/models/User');
-const Brewery = require('../src/models/Brewery');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
+
+// Import DOPO setup database sicuro
+let app, User, Brewery;
 
 describe('🧪 Test Integration Redirect Brewery Users', function() {
     this.timeout(15000);
@@ -14,6 +16,13 @@ describe('🧪 Test Integration Redirect Brewery Users', function() {
     let testBrewery, agent;
 
     before(async function() {
+        // SICUREZZA: Setup database test PRIMA di importare modelli
+        await setupTestDatabase();
+        
+        // Import sicuri DOPO connessione test
+        app = require('../src/app');
+        User = require('../src/models/User');
+        Brewery = require('../src/models/Brewery');
         // Crea birrificio test
         testBrewery = new Brewery({
             breweryName: 'Redirect Test Brewery',
@@ -175,6 +184,12 @@ describe('🧪 Test Integration Redirect Brewery Users', function() {
             console.error('❌ Errore test cambio ruolo:', error.message);
             throw error;
         }
+    });
+
+    // SICUREZZA: Cleanup database test
+    after(async function() {
+        await cleanupTestDatabase();
+        await closeTestDatabase();
     });
 });
 

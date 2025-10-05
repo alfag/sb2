@@ -1,9 +1,12 @@
 const request = require('supertest');
 const expect = require('chai').expect;
-const app = require('../src/app');
-const User = require('../src/models/User');
-const Brewery = require('../src/models/Brewery');
+
+// IMPORT SICURO: Usa helper di test che garantisce database separato
+const { testConfig, setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 const bcrypt = require('bcrypt');
+
+// Import modelli e app DOPO setup database di test
+let app, User, Brewery;
 
 describe('Debug Role Removal', function() {
     this.timeout(30000);
@@ -13,6 +16,18 @@ describe('Debug Role Removal', function() {
     let adminAgent;
     
     before(async function() {
+        console.log('🔧 Setup test role removal debug SICURO...');
+        
+        // Connessione database di TEST SICURO
+        await setupTestDatabase();
+        
+        // Import modelli DOPO connessione test sicura
+        app = require('../src/app');
+        User = require('../src/models/User');
+        Brewery = require('../src/models/Brewery');
+        
+        console.log('✅ Database di TEST connesso per role removal debug');
+        
         // Crea un utente di test con ruoli multipli
         const hashedPassword = await bcrypt.hash('testpassword', 10);
         
@@ -49,16 +64,9 @@ describe('Debug Role Removal', function() {
     });
     
     after(async function() {
-        try {
-            if (testUser) {
-                await User.findByIdAndDelete(testUser._id);
-            }
-            if (testBrewery) {
-                await Brewery.findByIdAndDelete(testBrewery._id);
-            }
-        } catch (error) {
-            console.log('Cleanup error:', error.message);
-        }
+        // Cleanup finale del test database
+        await cleanupTestDatabase();
+        console.log('🧹 Cleanup test role removal debug completato');
     });
     
     it('should display role removal form elements correctly', async function() {

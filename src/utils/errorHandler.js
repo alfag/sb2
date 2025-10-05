@@ -27,10 +27,10 @@ class ErrorHandler {
     });
 
     // Determina il tipo di errore e la risposta appropriata
-    const errorResponse = this.categorizeError(err);
+    const errorResponse = ErrorHandler.categorizeError(err);
 
     // Se è una richiesta AJAX/API (header Content-Type application/json o Accept application/json)
-    if (this.isApiRequest(req)) {
+    if (ErrorHandler.isApiRequest(req)) {
       return res.status(errorResponse.statusCode).json({
         success: false,
         error: errorResponse.message,
@@ -118,7 +118,7 @@ class ErrorHandler {
       return {
         statusCode: err.statusCode,
         message: err.message,
-        userMessage: err.userMessage || this.getDefaultUserMessage(err.statusCode)
+        userMessage: err.userMessage || ErrorHandler.getDefaultUserMessage(err.statusCode)
       };
     }
 
@@ -179,7 +179,7 @@ class ErrorHandler {
   static createHttpError(statusCode, message, userMessage = null) {
     const error = new Error(message);
     error.statusCode = statusCode;
-    error.userMessage = userMessage || this.getDefaultUserMessage(statusCode);
+    error.userMessage = userMessage || ErrorHandler.getDefaultUserMessage(statusCode);
     return error;
   }
 

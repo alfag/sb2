@@ -1,0 +1,249 @@
+{% extends "layout.njk" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Header della pagina -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h1 class="h3 mb-2">
+                        <i class="fas fa-search-location me-2"></i>
+                        {{ title }}
+                    </h1>
+                    <p class="mb-0">
+                        Testa la logica AI di matching dei birrifici utilizzata in produzione. 
+                        Inserisci i dati di un birrificio per vedere come il sistema identifica duplicati e risolve ambiguità.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form di test -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-flask me-2"></i>
+                        Dati di Test
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="breweryMatchingForm">
+                        <div class="mb-3">
+                            <label for="breweryName" class="form-label">
+                                <strong>Nome Birrificio</strong> <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="breweryName" 
+                                   name="breweryName" 
+                                   placeholder="Es: Birrificio San Andrea"
+                                   required>
+                            <div class="form-text">Il nome del birrificio da confrontare con il database</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="breweryWebsite" class="form-label">
+                                <strong>Sito Web</strong> <span class="text-muted">(opzionale)</span>
+                            </label>
+                            <input type="url" 
+                                   class="form-control" 
+                                   id="breweryWebsite" 
+                                   name="breweryWebsite" 
+                                   placeholder="https://www.birrificio.com">
+                            <div class="form-text">Il sito web aiuta a identificare con precisione il birrificio</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="breweryEmail" class="form-label">
+                                <strong>Email</strong> <span class="text-muted">(opzionale)</span>
+                            </label>
+                            <input type="email" 
+                                   class="form-control" 
+                                   id="breweryEmail" 
+                                   name="breweryEmail" 
+                                   placeholder="info@birrificio.com">
+                            <div class="form-text">L'email è un identificatore unico molto affidabile</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="breweryLegalAddress" class="form-label">
+                                <strong>Indirizzo</strong> <span class="text-muted">(opzionale)</span>
+                            </label>
+                            <textarea class="form-control" 
+                                      id="breweryLegalAddress" 
+                                      name="breweryLegalAddress" 
+                                      rows="2" 
+                                      placeholder="Via Roma 123, 20100 Milano (MI)"></textarea>
+                            <div class="form-text">L'indirizzo può aiutare a distinguere birrifici con nomi simili</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="fas fa-search me-2"></i>
+                            Testa Matching
+                        </button>
+                    </form>
+
+                    <!-- Statistiche database -->
+                    <div class="mt-4 p-3 bg-light rounded">
+                        <h6 class="text-muted mb-2">Statistiche Database</h6>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="fw-bold text-primary">{{ totalBreweries }}</div>
+                                <small class="text-muted">Birrifici Totali</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="fw-bold text-success">5 Fasi</div>
+                                <small class="text-muted">Controlli Matching</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risultati -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Risultati Matching
+                    </h5>
+                </div>
+                <div class="card-body" id="resultsContainer">
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-arrow-left fa-3x mb-3"></i>
+                        <p>Compila il form e clicca "Testa Matching" per vedere i risultati</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="d-none">
+        <div class="loading-content">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+            <p class="mt-3">Elaborazione in corso...</p>
+        </div>
+    </div>
+
+    <!-- Esempi di test -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        Esempi di Test
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="test-example" data-example="exact">
+                                <h6 class="text-primary">Test Match Esatto</h6>
+                                <p class="small">Inserisci il nome esatto di un birrificio esistente per testare il riconoscimento diretto.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="test-example" data-example="fuzzy">
+                                <h6 class="text-info">Test Fuzzy Matching</h6>
+                                <p class="small">Inserisci un nome simile ma non identico per testare il matching fuzzy (es: "Birrificio XX" vs "Birrificio X X").</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="test-example" data-example="ambiguity">
+                                <h6 class="text-warning">Test Ambiguità</h6>
+                                <p class="small">Inserisci un nome generico per testare la gestione delle ambiguità e i criteri di disambiguazione.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+#loadingOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-content {
+    text-align: center;
+    color: white;
+}
+
+.test-example {
+    cursor: pointer;
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.test-example:hover {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+    transform: translateY(-2px);
+}
+
+.match-result {
+    border-left: 4px solid #28a745;
+    background-color: #d4edda;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+.ambiguity-result {
+    border-left: 4px solid #ffc107;
+    background-color: #fff3cd;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+.no-match-result {
+    border-left: 4px solid #dc3545;
+    background-color: #f8d7da;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+.confidence-bar {
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="/js/breweryMatchingTest.js"></script>
+{% endblock %}

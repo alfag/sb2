@@ -173,10 +173,16 @@ class AIModule {
       this.setProcessingState(true);
       this.showLoadingState('Analisi in corso...');
 
+      // Notifica inizio analisi al SessionCleanupManager
+      if (window.sessionCleanupManager) {
+        const sessionId = Date.now().toString();
+        window.sessionCleanupManager.startReviewProcess(sessionId);
+      }
+
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch('/review/first-check-ai', {
+      const response = await fetch('/review/api/gemini/firstcheck', {
         method: 'POST',
         body: formData
       });
@@ -204,11 +210,72 @@ class AIModule {
       }
 
       this.currentAnalysisData = result.data || result;
-      this.showAnalysisResults(result.data || result);
+
+      // 🔍 DEBUG: Log completo della risposta per debugging
+      console.log('[AIModule] DEBUG - Risposta completa ricevuta:', result);
+      console.log('[AIModule] DEBUG - Bottles ricevute:', result.bottles || result.data?.bottles);
+      console.log('[AIModule] DEBUG - antiHallucinationActive:', result.antiHallucinationActive);
+      console.log('[AIModule] DEBUG - needsVerification:', result.needsVerification);
+      console.log('[AIModule] DEBUG - redirectUrl:', result.redirectUrl);
+      console.log('[AIModule] DEBUG - Condizione anti-allucinazioni:', !!(result.antiHallucinationActive && result.needsVerification));
+
+      // 🎯 USA IL METODO CENTRALIZZATO per gestire tutte le risposte AI
+      const handleResult = AIModule.handleAIResponse(result, {
+        closeModal: () => {
+          // Non c'è modal da chiudere in aiModule, ma manteniamo l'interfaccia
+          console.log('[AIModule] Modal close request (N/A)');
+        },
+        showWarningMessage: (message) => {
+          this.showError(message);
+        },
+        hideLoadingOverlay: () => {
+          this.hideLoadingState();
+        }
+      });
+
+      // Se la risposta è stata gestita (redirect, errore, etc.), esci
+      if (handleResult.handled) {
+        console.log('[AIModule] Risposta gestita centralmente:', handleResult.action);
+        return;
+      }
+
+      // Altrimenti continua con flusso normale
+      console.log('[AIModule] Continuando con flusso normale:', handleResult.action);
+      
+      // CRITICO: Gestione disambiguazione con SessionCleanupManager
+      const needsDisambiguation = result.data?.needsDisambiguation || result.needsDisambiguation;
+      if (needsDisambiguation && window.sessionCleanupManager) {
+        console.log('[AIModule] Disambiguazione richiesta - blocco pulizia automatica');
+        window.sessionCleanupManager.startDisambiguation();
+      }
+
+      // Mostra i risultati normali
+      this.showAnalysisResults(handleResult.data || result.data || result);
+
+      // CRITICO: Gestione legacy per compatibilità (se esiste)
+      if (typeof isAIAnalysisActive !== 'undefined') {
+        if (!needsDisambiguation) {
+          isAIAnalysisActive = false;
+          console.log('[AIModule] Pulizia automatica sessione riabilitata (legacy) - nessuna disambiguazione necessaria');
+        } else {
+          console.log('[AIModule] Pulizia automatica sessione MANTENUTA DISABILITATA (legacy) per disambiguazione');
+        }
+      }
 
     } catch (error) {
       console.error('[AIModule] Errore analisi:', error);
       this.showError(`Errore durante l'analisi: ${error.message}`);
+      
+      // Notifica errore al SessionCleanupManager
+      if (window.sessionCleanupManager) {
+        window.sessionCleanupManager.cleanupOnReviewError(error);
+      }
+      
+      // CRITICO: Riabilita pulizia automatica in caso di errore (legacy)
+      if (typeof isAIAnalysisActive !== 'undefined') {
+        isAIAnalysisActive = false;
+        console.log('[AIModule] Pulizia automatica sessione riabilitata (legacy) dopo errore AI');
+      }
     } finally {
       this.setProcessingState(false);
     }
@@ -230,6 +297,106 @@ class AIModule {
 
     this.hideLoadingState();
     console.log('[AIModule] Analisi completata:', data);
+  }
+
+  /**
+   * 🎯 METODO CENTRALIZZATO: Gestione di tutte le risposte AI
+   * Gestisce anti-allucinazioni, disambiguazione e flussi normali
+   */
+  static handleAIResponse(data, options = {}) {
+    console.log('[AIModule] 🎯 Gestione centralizzata risposta AI:', data);
+    
+    // 🛡️ PRIORITÀ 1: Sistema Anti-Allucinazioni
+    if (data.antiHallucinationActive && data.needsVerification) {
+      console.log('[AIModule] 🛡️ Sistema anti-allucinazioni attivo - redirect a verifica');
+      
+      // Chiudi modal se fornito
+      if (options.closeModal) {
+        options.closeModal({ preserveSessionData: true });
+      }
+      
+      // Mostra messaggio di avviso
+      if (data.message && options.showWarningMessage) {
+        options.showWarningMessage(data.message);
+      }
+      
+      // Redirect alla pagina di verifica
+      setTimeout(() => {
+        window.location.href = data.redirectUrl + '?sessionId=' + encodeURIComponent(Date.now());
+      }, 1500);
+      
+      return { handled: true, action: 'anti-hallucination-redirect' };
+    }
+    
+    // 🔀 PRIORITÀ 2: Disambiguazione
+    if (data.needsDisambiguation) {
+      console.log('[AIModule] 🔀 Disambiguazione richiesta - redirect');
+      
+      // Chiudi modal mantenendo i dati
+      if (options.closeModal) {
+        options.closeModal({ preserveSessionData: true });
+      }
+      
+      // Mostra messaggio di avviso
+      if (data.message && options.showWarningMessage) {
+        options.showWarningMessage(data.message);
+      }
+      
+      // Redirect alla pagina di disambiguazione
+      setTimeout(() => {
+        window.location.href = data.redirectUrl || '/review';
+      }, 1500);
+      
+      return { handled: true, action: 'disambiguation-redirect' };
+    }
+    
+    // ❌ PRIORITÀ 3: Nessuna birra rilevata
+    if (!data.success || data.errorType === 'NO_BEER_DETECTED') {
+      console.log('[AIModule] ❌ Nessuna birra rilevata');
+      
+      // Nascondi loading overlay
+      if (options.hideLoadingOverlay) {
+        options.hideLoadingOverlay();
+      }
+      
+      // Chiudi modal
+      if (options.closeModal) {
+        options.closeModal();
+      }
+      
+      // Mostra warning con messaggio specifico
+      const warningMessage = data.message || 'L\'AI non ha rilevato bottiglie di birra nell\'immagine. Carica un\'immagine contenente chiaramente prodotti birrari.';
+      
+      if (options.showWarningMessage) {
+        setTimeout(() => {
+          options.showWarningMessage(warningMessage);
+        }, 100);
+      }
+      
+      return { handled: true, action: 'no-beer-detected' };
+    }
+    
+    // ✅ PRIORITÀ 4: Successo - Procedi con flusso normale
+    if (data.success && data.bottles && data.bottles.length > 0) {
+      console.log('[AIModule] ✅ Analisi riuscita - flusso normale', {
+        bottlesCount: data.bottles.length,
+        bottles: data.bottles
+      });
+      
+      return { 
+        handled: false, 
+        action: 'success-continue',
+        data: data 
+      };
+    }
+    
+    // ⚠️ Caso non gestito
+    console.warn('[AIModule] ⚠️ Risposta AI non riconosciuta:', data);
+    return { 
+      handled: false, 
+      action: 'unknown',
+      data: data 
+    };
   }
 
   /**
@@ -327,6 +494,36 @@ class AIModule {
     
     this.setProcessingState(false);
     console.warn('[AIModule] Rate limit superato:', result);
+  }
+
+  /**
+   * Gestisce errore di autenticazione richiesta
+   */
+  handleAuthenticationRequired(result) {
+    const message = result.message || 'Autenticazione richiesta per utilizzare questa funzionalità';
+    
+    const html = `<div class="auth-required-error">
+      <h4><i class="fas fa-lock"></i> Accesso Richiesto</h4>
+      <p><strong>${message}</strong></p>
+      <p>È necessario effettuare il login per utilizzare l'analisi AI delle birre.</p>
+      <div class="action-buttons">
+        <a href="/login" class="btn btn-primary">
+          <i class="fas fa-sign-in-alt"></i> Accedi
+        </a>
+        <a href="/register" class="btn btn-secondary">
+          <i class="fas fa-user-plus"></i> Registrati
+        </a>
+      </div>
+    </div>`;
+    
+    const status = document.getElementById('ai-status');
+    if (status) {
+      status.innerHTML = html;
+      status.style.display = 'block';
+    }
+    
+    this.setProcessingState(false);
+    console.warn('[AIModule] Autenticazione richiesta:', result);
   }
 
   /**

@@ -1,10 +1,12 @@
+const chai = require('chai');
+const expect = chai.expect;
+
+// IMPORT SICURO: Usa helper di test che garantisce database separato
+const { testConfig, setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 const mongoose = require('mongoose');
-const config = require('../config/config');
-const ReviewService = require('../src/services/reviewService');
-const AIService = require('../src/services/aiService');
-const cacheService = require('../src/utils/cacheService');
-const Review = require('../src/models/Review');
-const Brewery = require('../src/models/Brewery');
+
+// Import modelli e servizi DOPO setup database di test
+let ReviewService, AIService, cacheService, Review, Brewery;
 
 /**
  * Test specifici per performance, cache e stress testing
@@ -14,13 +16,24 @@ describe('⚡ Performance & Cache Tests', () => {
     
     before(async function() {
         this.timeout(30000);
-        await mongoose.connect(config.MONGODB_URL);
-        console.log('🔗 Database connesso per test performance');
+        console.log('🔧 Setup test performance SICURO...');
+        
+        // Connessione database di TEST SICURO
+        await setupTestDatabase();
+        
+        // Import modelli DOPO connessione test sicura
+        ReviewService = require('../src/services/reviewService');
+        AIService = require('../src/services/aiService');
+        cacheService = require('../src/utils/cacheService');
+        Review = require('../src/models/Review');
+        Brewery = require('../src/models/Brewery');
+        
+        console.log('✅ Database di TEST connesso per test performance');
     });
     
     after(async function() {
-        await mongoose.disconnect();
-        console.log('🔌 Database disconnesso');
+        // Non disconnettiamo il database per non interferire con altri test
+        console.log('🔌 Test performance completati');
     });
 
     describe('🚀 Cache Performance Tests', () => {
@@ -293,5 +306,3 @@ describe('⚡ Performance & Cache Tests', () => {
         });
     });
 });
-
-module.exports = describe;

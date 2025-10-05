@@ -162,7 +162,18 @@ const createUploadMiddleware = (uploadConfig, fieldName = 'image') => {
       method: req.method,
       url: req.url,
       contentType: req.headers['content-type'],
-      contentLength: req.headers['content-length']
+      contentLength: req.headers['content-length'],
+      hasBody: !!req.body,
+      bodyLength: req.body ? JSON.stringify(req.body).length : 0
+    });
+
+    // Debug: Ispezione richiesta prima di Multer
+    logger.debug('[UploadMiddleware] Pre-Multer debug', {
+      fieldName,
+      headers: req.headers,
+      bodyType: typeof req.body,
+      hasRawBody: !!req.rawBody,
+      isMultipart: req.headers['content-type']?.includes('multipart/form-data')
     });
 
     const upload = uploadConfig.single(fieldName);

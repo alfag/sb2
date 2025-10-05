@@ -1,0 +1,320 @@
+{% extends "layout.njk" %}
+
+{% block title %}Verifica Analisi AI{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/css/aiVerification.css">
+<link rel="stylesheet" href="/css/libs/fontawesome-7.0.1.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="ai-verification-container">
+    <div class="verification-header">
+        <h1><i class="fas fa-robot"></i> Verifica Analisi AI</h1>
+        <p class="subtitle">Controlla e completa i dati identificati dall'intelligenza artificiale</p>
+        
+        {% if not user %}
+        <!-- Messaggio informativo per utenti guest -->
+        <div class="guest-info-banner">
+            <div class="guest-info-content">
+                <i class="fas fa-info-circle"></i>
+                <div class="guest-info-text">
+                    <strong>Utente ospite</strong>
+                    <p>Stai contribuendo come ospite! I tuoi dati verranno salvati e potrai creare un account in seguito per gestire le tue recensioni.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if validation.canSaveDirectly %}
+    <!-- Caso 1: Tutto verificato - Conferma salvataggio -->
+    <div class="verification-section success-section">
+        <div class="section-header">
+            <h2><i class="fas fa-check-circle"></i> Analisi Completata</h2>
+            <p>{{ validation.successMessage }}</p>
+        </div>
+        
+        <div class="verified-summary">
+            <div class="summary-card">
+                <div class="summary-item">
+                    <span class="number">{{ validation.summary.verifiedBreweries }}</span>
+                    <span class="label">Birrifici Verificati</span>
+                </div>
+                <div class="summary-item">
+                    <span class="number">{{ validation.summary.verifiedBeers }}</span>
+                    <span class="label">Birre Verificate</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="verified-data-preview">
+            {% for brewery in validation.verifiedData.breweries %}
+            <div class="data-card brewery-card verified">
+                <div class="card-header">
+                    <h3><i class="fas fa-industry"></i> {{ brewery.originalData.verifiedData.breweryName }}</h3>
+                    <span class="verification-badge verified">
+                        <i class="fas fa-check"></i> Verificato
+                    </span>
+                </div>
+                <div class="card-content">
+                    {% if brewery.originalData.verifiedData.breweryWebsite %}
+                    <p><strong>Sito:</strong> <a href="{{ brewery.originalData.verifiedData.breweryWebsite }}" target="_blank">{{ brewery.originalData.verifiedData.breweryWebsite }}</a></p>
+                    {% endif %}
+                    {% if brewery.originalData.verifiedData.breweryLegalAddress %}
+                    <p><strong>Indirizzo:</strong> {{ brewery.originalData.verifiedData.breweryLegalAddress }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            {% for beer in validation.verifiedData.beers %}
+            <div class="data-card beer-card verified">
+                <div class="card-header">
+                    <h4><i class="fas fa-beer"></i> {{ beer.originalData.verifiedData.beerName }}</h4>
+                    <span class="verification-badge verified">
+                        <i class="fas fa-check"></i> Verificata
+                    </span>
+                </div>
+                <div class="card-content">
+                    {% if beer.originalData.verifiedData.alcoholContent %}
+                    <span class="beer-detail">{{ beer.originalData.verifiedData.alcoholContent }}</span>
+                    {% endif %}
+                    {% if beer.originalData.verifiedData.beerType %}
+                    <span class="beer-detail">{{ beer.originalData.verifiedData.beerType }}</span>
+                    {% endif %}
+                    {% if beer.originalData.verifiedData.volume %}
+                    <span class="beer-detail">{{ beer.originalData.verifiedData.volume }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="action-buttons">
+            <button type="button" id="confirmSaveBtn" class="btn btn-success btn-lg">
+                <i class="fas fa-save"></i> Conferma e Salva Tutto
+            </button>
+            <button type="button" id="reviewDetailsBtn" class="btn btn-secondary">
+                <i class="fas fa-eye"></i> Controlla Dettagli
+            </button>
+        </div>
+    </div>
+
+    {% elif validation.requiresUserConfirmation %}
+    <!-- Caso 2: Conferma parziale necessaria -->
+    <div class="verification-section warning-section">
+        <div class="section-header">
+            <h2><i class="fas fa-exclamation-triangle"></i> Conferma Necessaria</h2>
+            <p>{{ validation.warningMessage }}</p>
+        </div>
+
+        <!-- Dati verificati -->
+        {% if validation.verifiedData.breweries.length > 0 or validation.verifiedData.beers.length > 0 %}
+        <div class="verified-section">
+            <h3><i class="fas fa-check-circle text-success"></i> Dati Già Verificati</h3>
+            <!-- Mostra dati verificati come sopra -->
+        </div>
+        {% endif %}
+
+        <!-- Azioni richieste -->
+        <div class="actions-required">
+            <h3><i class="fas fa-tasks text-warning"></i> Azioni Richieste</h3>
+            {% for action in validation.userActions %}
+            <div class="action-item priority-{{ action.priority }}">
+                <div class="action-header">
+                    <h4>{{ action.title }}</h4>
+                    <span class="priority-badge {{ action.priority }}">
+                        {% if action.priority == 'high' %}
+                        <i class="fas fa-exclamation-circle"></i> Urgente
+                        {% elif action.priority == 'medium' %}
+                        <i class="fas fa-info-circle"></i> Importante
+                        {% else %}
+                        <i class="fas fa-check-circle"></i> Opzionale
+                        {% endif %}
+                    </span>
+                </div>
+                <p class="action-description">{{ action.description }}</p>
+                
+                {% if action.type == 'MANUAL_VERIFICATION' %}
+                <div class="manual-verification">
+                    <label>Nome birrificio dall'etichetta:</label>
+                    <input type="text" class="form-control" value="{{ action.data.labelName }}" readonly>
+                    
+                    <label>Conferma che questo birrificio esiste:</label>
+                    <div class="verification-options">
+                        <button class="btn btn-success" onclick="confirmBrewery('{{ action.data.labelName }}', true)">
+                            <i class="fas fa-check"></i> Sì, esiste
+                        </button>
+                        <button class="btn btn-danger" onclick="confirmBrewery('{{ action.data.labelName }}', false)">
+                            <i class="fas fa-times"></i> No, non esiste
+                        </button>
+                        <button class="btn btn-warning" onclick="showManualForm('{{ action.data.labelName }}')">
+                            <i class="fas fa-edit"></i> Inserisci dati manualmente
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="action-buttons">
+            <button type="button" id="saveVerifiedBtn" class="btn btn-primary">
+                <i class="fas fa-save"></i> Salva Solo Dati Verificati
+            </button>
+            <button type="button" id="completeAllBtn" class="btn btn-success">
+                <i class="fas fa-check-double"></i> Completa Tutti i Campi
+            </button>
+        </div>
+    </div>
+
+    {% elif validation.requiresUserCompletion %}
+    <!-- Caso 3: Completamento manuale necessario -->
+    <div class="verification-section info-section">
+        <div class="section-header">
+            <h2><i class="fas fa-user-edit"></i> Completamento Manuale</h2>
+            <p>{{ validation.infoMessage }}</p>
+        </div>
+
+        <div class="manual-completion-form">
+            {% for action in validation.userActions %}
+            {% if action.type == 'MANUAL_VERIFICATION' or action.type == 'COMPLETE_DATA' %}
+            <div class="completion-card">
+                <div class="card-header">
+                    <h3>{{ action.title }}</h3>
+                </div>
+                <div class="card-content">
+                    <p>{{ action.description }}</p>
+                    
+                    <!-- Form per completamento manuale -->
+                    <form class="manual-data-form" data-type="brewery" data-id="{{ action.data.labelName }}">
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="breweryName">Nome Birrificio *</label>
+                                <input type="text" class="form-control required" 
+                                       name="breweryName" value="{{ action.data.labelName }}" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="breweryWebsite">Sito Web</label>
+                                <input type="url" class="form-control" name="breweryWebsite" 
+                                       placeholder="https://www.birrificio.it">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="breweryLegalAddress">Indirizzo Completo</label>
+                            <textarea class="form-control" name="breweryLegalAddress" rows="2" 
+                                      placeholder="Via, Città, Provincia, CAP, Nazione"></textarea>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="breweryEmail">Email</label>
+                                <input type="email" class="form-control" name="breweryEmail" 
+                                       placeholder="info@birrificio.it">
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="breweryPhoneNumber">Telefono</label>
+                                <input type="tel" class="form-control" name="breweryPhoneNumber" 
+                                       placeholder="+39 123 456789">
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-success" onclick="saveManualData(this)">
+                                <i class="fas fa-save"></i> Salva Dati
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="searchSuggestions(this)">
+                                <i class="fas fa-search"></i> Cerca Suggerimenti
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    {% elif validation.blockedByValidation %}
+    <!-- Caso 4: Errore bloccante -->
+    <div class="verification-section error-section">
+        <div class="section-header">
+            <h2><i class="fas fa-exclamation-triangle"></i> Errore nell'Analisi</h2>
+            <p>Si sono verificati problemi durante l'analisi dell'immagine.</p>
+        </div>
+
+        <div class="error-messages">
+            {% for error in validation.errorMessages %}
+            <div class="alert alert-danger">
+                <i class="fas fa-times-circle"></i> {{ error }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="action-buttons">
+            <a href="/review/upload" class="btn btn-primary">
+                <i class="fas fa-upload"></i> Carica Nuova Immagine
+            </a>
+            <button type="button" class="btn btn-secondary" onclick="contactSupport()">
+                <i class="fas fa-life-ring"></i> Contatta Assistenza
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Progress indicator -->
+    <div class="progress-indicator">
+        <div class="progress-step {% if validation.canSaveDirectly %}completed{% elif validation.requiresUserConfirmation %}active{% endif %}">
+            <div class="step-number">1</div>
+            <div class="step-label">Analisi AI</div>
+        </div>
+        <div class="progress-step {% if validation.canSaveDirectly %}completed{% elif validation.requiresUserConfirmation or validation.requiresUserCompletion %}active{% endif %}">
+            <div class="step-number">2</div>
+            <div class="step-label">Verifica</div>
+        </div>
+        <div class="progress-step {% if validation.canSaveDirectly %}completed{% endif %}">
+            <div class="step-number">3</div>
+            <div class="step-label">Salvataggio</div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <p>Elaborazione in corso...</p>
+    </div>
+</div>
+
+<!-- Hidden form per invio dati -->
+<form id="confirmationForm" method="POST" action="/api/ai-verification/confirm-ai-analysis" style="display: none;">
+    <input type="hidden" name="confirmVerified" id="confirmVerified">
+    <input type="hidden" name="userCompletions" id="userCompletions">
+    <input type="hidden" name="sessionData" id="sessionData" value="{{ sessionData | escapejs }}" 
+           data-validation="{{ validation | escapejs }}" 
+           data-session-data="{{ sessionData | escapejs }}">
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/js/aiVerification.js"></script>
+<script>
+    // Inizializza con dati dalla sessione (sicuro da HTML attributes)
+    try {
+        const validationData = document.querySelector('#sessionData').dataset.validation;
+        const sessionDataStr = document.querySelector('#sessionData').dataset.sessionData;
+        
+        window.aiVerificationData = {
+            validation: validationData ? JSON.parse(validationData) : {},
+            sessionData: sessionDataStr ? JSON.parse(sessionDataStr) : {}
+        };
+    } catch (e) {
+        console.error('Errore parsing dati AI verification:', e);
+        window.aiVerificationData = { validation: {}, sessionData: {} };
+    }
+</script>
+{% endblock %}

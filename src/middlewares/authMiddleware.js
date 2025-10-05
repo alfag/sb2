@@ -6,6 +6,24 @@ const logger = logWithFileName(__filename); // Crea un logger con il nome del fi
 const isAuthenticated = (req, res, next) => {
     if (!req.isAuthenticated()) {
         logger.warn('Accesso negato. Utente non autenticato.');
+        
+        // Per richieste AJAX/API, restituisci JSON invece di redirect
+        if (req.xhr || 
+            req.headers.accept?.includes('application/json') ||
+            req.headers['content-type']?.includes('application/json') ||
+            req.path.startsWith('/api/') ||
+            req.path.startsWith('/review/api/')) {
+            
+            return res.status(401).json({
+                success: false,
+                authenticated: false,
+                message: 'Accesso negato. Effettua il login per continuare.',
+                requiresLogin: true,
+                redirectUrl: '/login'
+            });
+        }
+        
+        // Per richieste normali, usa redirect
         req.flash('error', 'Accesso negato. Effettua il login per continuare.');
         return res.redirect('/');
     }

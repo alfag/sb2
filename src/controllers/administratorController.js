@@ -4,6 +4,7 @@ const Brewery = require('../models/Brewery');
 const Beer = require('../models/Beer');
 const Review = require('../models/Review');
 const ReviewService = require('../services/reviewService');
+const AIService = require('../services/aiService');
 const mongoose = require('mongoose');
 const logWithFileName = require('../utils/logger'); // Importa logWithFileName
 const bcrypt = require('bcrypt');
@@ -20,11 +21,12 @@ async function createUser({
     try {
         logger.info('Inizio creazione di un nuovo utente'); // Log in italiano
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // RIMOSSO: const hashedPassword = await bcrypt.hash(password, 10);
+        // Il middleware pre-save del modello User si occupa automaticamente dell'hash
 
         let newUser = new User({
             username: username,
-            password: hashedPassword,
+            password, // Password in chiaro - verrà hashata dal middleware pre-save
             role: [role], // sempre array
             // Inizializza gli altri campi a null o a valori di default appropriati
         });
@@ -112,10 +114,11 @@ async function getUserById(userId) {
 // Update user information (coerente con administratorRoutes)
 async function updateUser(userId, updateData) {
     try {
-        if (updateData.password) {
-            // Hash della nuova password se presente
-            updateData.password = await bcrypt.hash(updateData.password, 10);
-        }
+        // RIMOSSO: Hash manuale della password
+        // Il middleware pre-save del modello User si occupa automaticamente dell'hash
+        // if (updateData.password) {
+        //     updateData.password = await bcrypt.hash(updateData.password, 10);
+        // }
         
         // SECURITY FIX: Non aggiornare defaultRole per administrator
         const user = await User.findById(userId);
@@ -1356,6 +1359,146 @@ async function getBreweryDashboard(req, res) {
     }
 }
 
+// =====================================================
+// SISTEMA DI TEST MATCHING BIRRIFICI AI
+// =====================================================
+
+/**
+ * Visualizza la pagina di test per il matching dei birrifici
+ */
+async function getBreweryMatchingTest(req, res) {
+    try {
+        logger.info('[getBreweryMatchingTest] Accesso alla pagina di test matching', {
+            userId: req.user?._id,
+            userRole: req.user?.role
+        });
+
+        // Carica tutti i birrifici per avere il dataset completo
+        const allBreweries = await Brewery.find({}).select('breweryName breweryWebsite breweryEmail breweryLegalAddress breweryPhoneNumber createdAt').lean();
+        
+        logger.info('[getBreweryMatchingTest] Dataset birrifici caricato', {
+            totalBreweries: allBreweries.length
+        });
+
+        res.render('admin/breweryMatchingTest', {
+            title: 'Test Matching Birrifici AI',
+            user: req.user,
+            message: req.flash(),
+            totalBreweries: allBreweries.length,
+            breweries: allBreweries.slice(0, 10) // Mostra solo i primi 10 per esempio
+        });
+
+    } catch (error) {
+        logger.error('[getBreweryMatchingTest] Errore nel caricamento pagina:', error);
+        req.flash('error', 'Errore durante il caricamento della pagina di test');
+        res.redirect('/administrator');
+    }
+}
+
+/**
+ * Testa il matching di un nome birrificio contro il database
+ * Applica la stessa logica usata dall'AI per risolvere ambiguità
+ */
+async function testBreweryMatching(req, res) {
+    try {
+        const { breweryName, breweryWebsite, breweryEmail, breweryLegalAddress } = req.body;
+
+        if (!breweryName || breweryName.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                error: 'Nome birrificio richiesto'
+            });
+        }
+
+        logger.info('[testBreweryMatching] Test matching avviato', {
+            searchName: breweryName,
+            hasWebsite: !!breweryWebsite,
+            hasEmail: !!breweryEmail,
+            hasAddress: !!breweryLegalAddress,
+            userId: req.user?._id
+        });
+
+        // Carica tutti i birrifici dal database
+        const allBreweries = await Brewery.find({}).lean();
+
+        // Simula i dati che arriverebbero dall'AI
+        const mockBreweryData = {
+            breweryName: breweryName.trim(),
+            breweryWebsite: breweryWebsite || null,
+            breweryEmail: breweryEmail || null,
+            breweryLegalAddress: breweryLegalAddress || null
+        };
+
+        // Applica la stessa logica usata nell'AI per trovare match
+        const matchingResult = await AIService.findMatchingBrewery(
+            breweryName.trim(), 
+            mockBreweryData, 
+            allBreweries
+        );
+
+        logger.info('[testBreweryMatching] Risultato matching', {
+            searchName: breweryName,
+            foundMatch: !!matchingResult.match,
+            matchType: matchingResult.match?.matchType,
+            confidence: matchingResult.match?.confidence,
+            hasAmbiguities: matchingResult.needsDisambiguation,
+            ambiguitiesCount: matchingResult.ambiguities?.length || 0
+        });
+
+        // Prepara la risposta con informazioni dettagliate
+        const response = {
+            success: true,
+            searchData: {
+                breweryName: breweryName.trim(),
+                breweryWebsite,
+                breweryEmail,
+                breweryLegalAddress
+            },
+            result: {
+                match: matchingResult.match ? {
+                    id: matchingResult.match._id,
+                    name: matchingResult.match.breweryName,
+                    website: matchingResult.match.breweryWebsite,
+                    email: matchingResult.match.breweryEmail,
+                    address: matchingResult.match.breweryLegalAddress,
+                    matchType: matchingResult.match.matchType,
+                    confidence: matchingResult.match.confidence,
+                    similarity: matchingResult.match.similarity
+                } : null,
+                needsDisambiguation: matchingResult.needsDisambiguation,
+                ambiguities: (matchingResult.ambiguities || []).map(amb => ({
+                    id: amb._id,
+                    name: amb.breweryName,
+                    website: amb.breweryWebsite,
+                    email: amb.breweryEmail,
+                    address: amb.breweryLegalAddress,
+                    matchType: amb.matchType,
+                    confidence: amb.confidence,
+                    similarity: amb.similarity,
+                    keywordMatch: amb.keywordMatch
+                })),
+                totalBreweriesInDB: allBreweries.length,
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        res.json(response);
+
+    } catch (error) {
+        logger.error('[testBreweryMatching] Errore durante il test:', {
+            error: error.message,
+            stack: error.stack,
+            breweryName: req.body.breweryName
+        });
+
+        res.status(500).json({
+            success: false,
+            error: 'Errore interno durante il test di matching',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+}
+
 module.exports = {
     getAllUsers,
     getUserById,
@@ -1378,5 +1521,8 @@ module.exports = {
     getBreweriesStatsAPI,
     getBreweryStatisticsDetail,
     // FASE 2: Brewery Dashboard Unificato
-    getBreweryDashboard
+    getBreweryDashboard,
+    // Sistema Test Matching Birrifici
+    getBreweryMatchingTest,
+    testBreweryMatching
 };

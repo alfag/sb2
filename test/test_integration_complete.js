@@ -1,13 +1,13 @@
 const request = require('supertest');
-const app = require('../src/app');
+const chai = require('chai');
+const expect = chai.expect;
+
+// IMPORT SICURO: Usa helper di test che garantisce database separato
+const { testConfig, setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 const mongoose = require('mongoose');
-const config = require('../config/config');
-const User = require('../src/models/User');
-const Brewery = require('../src/models/Brewery');
-const Beer = require('../src/models/Beer');
-const Review = require('../src/models/Review');
-const ReviewService = require('../src/services/reviewService');
-const AIService = require('../src/services/aiService');
+
+// Import modelli e servizi DOPO setup database di test
+let User, Brewery, Beer, Review, ReviewService, AIService, app;
 
 /**
  * Test completo del sistema integrato
@@ -18,18 +18,33 @@ describe('🧪 Sistema Completo - Test Integrazione', () => {
     
     before(async function() {
         this.timeout(30000);
-        console.log('🔧 Setup test environment...');
+        console.log('🔧 Setup test environment SICURO...');
         
-        // Connessione database
-        await mongoose.connect(config.MONGODB_URL);
-        console.log('✅ Database connesso');
+        // Connessione database di TEST SICURO
+        await setupTestDatabase();
+        console.log('✅ Database di TEST connesso in modo sicuro');
         
-        // Crea utente admin per test
-        adminUser = await User.findOne({ role: { $in: ['administrator'] } });
-        if (!adminUser) {
-            throw new Error('❌ Nessun utente admin trovato nel database');
-        }
-        console.log(`✅ Admin user trovato: ${adminUser.username}`);
+        // Import modelli DOPO connessione test sicura
+        User = require('../src/models/User');
+        Brewery = require('../src/models/Brewery');
+        Beer = require('../src/models/Beer');
+        Review = require('../src/models/Review');
+        ReviewService = require('../src/services/reviewService');
+        AIService = require('../src/services/aiService');
+        app = require('../src/app');
+        
+        // Pulisci database test e crea dati di test
+        await cleanupTestDatabase();
+        
+        // Crea utente admin per test (NEL DATABASE DI TEST)
+        adminUser = new User({
+            username: 'test_admin',
+            email: 'test_admin@test.com',
+            password: 'password123',
+            role: ['administrator'],
+            defaultRole: 'customer' // Schema requirement
+        });
+        console.log(`✅ Admin user di test creato: ${adminUser.username}`);
         
         // Login admin per ottenere cookie sessione
         const loginResponse = await request(app)
@@ -46,8 +61,15 @@ describe('🧪 Sistema Completo - Test Integrazione', () => {
     });
     
     after(async function() {
-        await mongoose.disconnect();
-        console.log('🔌 Database disconnesso');
+        this.timeout(10000);
+        console.log('🧹 Cleanup test sicuro...');
+        
+        // Pulisci dati di test
+        await cleanupTestDatabase();
+        
+        // Chiudi connessione database di test
+        await closeTestDatabase();
+        console.log('🔌 Test completati in sicurezza');
     });
 
     describe('📊 PUNTO 7: Statistiche Birrifici - ReviewService', () => {

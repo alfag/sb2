@@ -80,150 +80,148 @@ async function validateImage(image, reviewId = null, userId = null, sessionId = 
       }
     ];
     
-    const prompt = `Analizza COMPLETAMENTE questa immagine per determinare se contiene prodotti birrari e estrarre TUTTE le informazioni possibili. Se le informazioni dall'etichetta sono incomplete, effettua ricerche web per completare i dati mancanti.
+    const prompt = `Analizza questa immagine seguendo RIGOROSAMENTE questo processo step-by-step per garantire dati ACCURATI e VERIFICATI:
 
-FASE 1 - VALIDAZIONE CONTENUTO:
-Determina se l'immagine contiene bottiglie di birra, lattine, o altri prodotti birrari chiaramente identificabili.
-
-FASE 2 - ESTRAZIONE INFORMAZIONI PRODOTTI:
-Per ogni prodotto birrario identificato, estrai dall'etichetta:
-- Nome completo della birra (dall'etichetta)
-- Nome del birrificio/brewery
-- Gradazione alcolica (% vol, ABV)
-- Tipologia/stile birrario (IPA, Lager, Stout, Weizen, Pilsner, etc.)
-- Volume della confezione (ml, cl, l)
-- Anno di produzione/scadenza se visibile
-- Descrizioni o claim presenti sulle etichette
-- Colore della birra se visibile
+STEP 1 - LETTURA ETICHETTA:
+Leggi SOLO ciò che è chiaramente visibile sulle etichette delle bottiglie/lattine:
+- Nome della birra (esatto come scritto)
+- Nome del birrificio (esatto come scritto) 
+- Gradazione alcolica se presente
+- Volume se presente
+- Stile/tipologia se indicato
+- Anno/data se visibile
+- Città/paese se indicato
 - Ingredienti se elencati
-- Certificazioni (biologico, artigianale, DOP, etc.)
-- Note di degustazione se presenti
-- Prezzo se visibile
+- Altri testi leggibili
 
-FASE 3 - RICERCA WEB INTEGRATIVA:
-Se hai identificato il nome della birra e/o del birrificio ma alcune informazioni sono mancanti o illeggibili, effettua una ricerca web per completare:
-- Dati tecnici della birra (ABV, IBU, stile, ingredienti specifici)
-- Informazioni complete del birrificio (indirizzo, contatti, storia)
-- Note di degustazione ufficiali o recensioni
-- Certificazioni e premi ricevuti
-- Informazioni nutrizionali se disponibili
-- Prezzo medio di mercato
-- Disponibilità geografica
-
-FASE 4 - ESTRAZIONE INFORMAZIONI BIRRIFICIO:
-Identifica dall'etichetta e integra con ricerca web:
-- Nome completo del birrificio
-- Logo o caratteristiche distintive del brand
-- Indirizzo completo (via, città, provincia, CAP, nazione)
+STEP 2 - RICERCA WEB VERIFICATA:
+PER OGNI birrificio identificato dall'etichetta, effettua ricerca web per verificare:
+- Esistenza reale del birrificio
 - Sito web ufficiale
-- Social media ufficiali (Facebook, Instagram, Twitter)
-- Contatti (email, telefono)
-- Anno di fondazione
-- Descrizione o mission aziendale
-- Numero di dipendenti se disponibile
-- Codici fiscali o partite IVA se leggibili
-- Storia e background del birrificio
-- Altri prodotti principali
+- Indirizzo completo verificato
+- Storia e informazioni aziendali
+- Lista prodotti ufficiali
+- Conferma che la birra dell'etichetta è realmente prodotta da questo birrificio
 
-FASE 5 - ANALISI QUALITATIVA E VERIFICA:
-- Qualità dell'immagine (ottima/buona/discreta/scarsa)
-- Leggibilità delle etichette
-- Completezza delle informazioni estratte
-- Livello di confidenza per ogni informazione
-- Distinzione tra informazioni dall'etichetta vs ricerca web
-- Verifica coerenza tra dati etichetta e dati web
+STEP 3 - VERIFICA MATCH DATI:
+Confronta i dati etichetta con quelli trovati online:
+- Il nome birrificio corrisponde ESATTAMENTE?
+- La birra è effettivamente nel catalogo del birrificio?
+- I dati tecnici (ABV, stile) sono coerenti?
+- L'indirizzo/paese corrisponde a quello dell'etichetta?
 
-Rispondi ESCLUSIVAMENTE in formato JSON valido con questa struttura completa:
+STEP 4 - CLASSIFICAZIONE RISULTATO:
+Per ogni birrificio/birra, classifica come:
+- "VERIFIED": Birrificio reale, dati confermati, birra nel catalogo
+- "PARTIAL": Birrificio reale ma alcuni dati non corrispondono
+- "UNVERIFIED": Non trovate conferme online dell'esistenza
+- "CONFLICTING": Dati etichetta in conflitto con quelli web
+
+STEP 5 - DATI COMPLETI SOLO SE VERIFICATI:
+Fornisci dati completi SOLO per birrifici "VERIFIED". Per altri casi, indica cosa richiede verifica manuale.
+
+Rispondi ESCLUSIVAMENTE in formato JSON con questa struttura ANTI-ALLUCINAZIONE:
 {
   "success": true/false,
-  "message": "descrizione dettagliata del risultato dell'analisi completa",
+  "message": "risultato dell'analisi step-by-step",
   "imageQuality": "ottima/buona/discreta/scarsa",
-  "analysisComplete": true/false,
-  "overallConfidence": 0.95,
-  "webSearchPerformed": true/false,
-  "dataSourceSummary": {
-    "fromLabel": ["campo1", "campo2"],
-    "fromWebSearch": ["campo3", "campo4"],
-    "notAvailable": ["campo5"]
+  "totalBottlesFound": 2,
+  "analysisSteps": {
+    "step1_labelReading": "descrizione di cosa è leggibile sulle etichette",
+    "step2_webSearch": "risultati delle ricerche web effettuate",
+    "step3_dataMatching": "confronto tra dati etichetta e web",
+    "step4_verification": "risultato della verifica per ogni birrificio/birra"
   },
   
   "bottles": [
     {
-      "bottleLabel": "nome completo della birra dall'etichetta",
-      "breweryName": "nome del birrificio/brewery",
-      "alcoholContent": "gradazione alcolica con unità (es: 5.2% vol)",
-      "ibu": "International Bitterness Units se disponibile",
-      "beerType": "tipologia specifica (es: American IPA, Czech Pilsner, Imperial Stout)",
-      "beerSubStyle": "sottocategoria più specifica se disponibile",
-      "volume": "volume con unità (es: 330ml, 0.5l)",
-      "productionYear": "anno se visibile",
-      "description": "descrizione completa o claim dall'etichetta e web",
-      "beerColor": "colore della birra (chiaro/ambrato/scuro/nero)",
-      "ingredients": "ingredienti principali e speciali",
-      "certifications": ["biologico", "artigianale", "DOP", "premi ricevuti"],
-      "tastingNotes": "note di degustazione ufficiali o da recensioni",
-      "nutritionalInfo": "informazioni nutrizionali se disponibili",
-      "price": "prezzo se visibile o prezzo medio di mercato",
-      "availability": "disponibilità geografica se nota",
-      "confidence": 0.95,
-      "dataSource": "label+web/label/web",
-      "additionalInfo": "altre informazioni rilevanti dal packaging o web"
+      "id": 1,
+      "labelData": {
+        "beerName": "nome esatto dall'etichetta o null se illeggibile",
+        "breweryName": "nome esatto dall'etichetta o null se illeggibile",
+        "alcoholContent": "gradazione dall'etichetta o null",
+        "volume": "volume dall'etichetta o null",
+        "beerStyle": "stile dall'etichetta o null",
+        "year": "anno dall'etichetta o null",
+        "location": "città/paese dall'etichetta o null",
+        "otherText": "altri testi leggibili"
+      },
+      "webVerification": {
+        "breweryExists": true/false,
+        "beerInCatalog": true/false,
+        "dataMatch": "VERIFIED/PARTIAL/UNVERIFIED/CONFLICTING",
+        "conflictingData": ["lista eventuali conflitti"],
+        "searchQueries": ["query usate per la ricerca"],
+        "sourcesFound": ["url delle fonti trovate"]
+      },
+      "verifiedData": {
+        "breweryName": "nome verificato o null se non verificato",
+        "beerName": "nome verificato o null se non verificato", 
+        "alcoholContent": "ABV verificato",
+        "beerType": "stile verificato",
+        "volume": "volume verificato",
+        "description": "descrizione verificata",
+        "ingredients": "ingredienti verificati",
+        "ibu": "IBU verificato",
+        "tastingNotes": "note degustazione verificate",
+        "confidence": 0.95
+      },
+      "requiresManualCheck": true/false,
+      "manualCheckReason": "motivo se richiede verifica manuale"
     }
   ],
   
-  "brewery": {
-    "breweryName": "nome completo birrificio",
-    "foundingYear": "anno di fondazione se disponibile",
-    "breweryDescription": "descrizione completa o mission aziendale",
-    "breweryLegalAddress": "indirizzo completo sede legale",
-    "breweryProductionAddress": "indirizzo stabilimento produttivo se diverso",
-    "breweryPhoneNumber": "telefono principale",
-    "breweryEmail": "email principale se disponibile",
-    "breweryWebsite": "sito web ufficiale",
-    "breweryLogo": "descrizione dettagliata del logo/brand",
-    "brewerySocialMedia": {
-      "facebook": "pagina Facebook ufficiale",
-      "instagram": "account Instagram ufficiale",
-      "twitter": "account Twitter ufficiale",
-      "linkedin": "profilo LinkedIn aziendale",
-      "youtube": "canale YouTube se presente"
-    },
-    "fiscalCodes": "codici fiscali/partite IVA/numeri registrazione",
-    "brewerySize": "dimensione (microbirrificio/birrificio artigianale/industriale)",
-    "employeeCount": "numero approssimativo dipendenti se disponibile",
-    "productionVolume": "volume produzione annuo se disponibile",
-    "mainProducts": ["lista dei prodotti principali"],
-    "awards": ["premi e riconoscimenti ricevuti"],
-    "distributionArea": "area di distribuzione principale",
-    "breweryHistory": "breve storia e background",
-    "masterBrewer": "nome mastro birraio se disponibile",
-    "confidence": 0.90,
-    "dataSource": "label+web/label/web"
-  },
-  
-  "extractionDetails": {
-    "totalProductsFound": 2,
-    "readabilityScore": "alta/media/bassa",
-    "webSearchQueries": ["query utilizzate per ricerca web"],
-    "missingInformation": ["informazioni non disponibili neanche via web"],
-    "technicalNotes": "note tecniche sull'estrazione e ricerca",
-    "processingTime": "tempo stimato per analisi completa"
+  "breweries": [
+    {
+      "id": 1,
+      "verification": "VERIFIED/PARTIAL/UNVERIFIED/CONFLICTING",
+      "labelName": "nome dall'etichetta",
+      "verifiedData": {
+        "breweryName": "nome completo verificato o null",
+        "foundingYear": "anno fondazione verificato o null",
+        "breweryWebsite": "sito ufficiale verificato o null",
+        "breweryEmail": "email verificata o null",
+        "breweryLegalAddress": "indirizzo completo verificato o null",
+        "breweryPhoneNumber": "telefono verificato o null",
+        "breweryDescription": "descrizione verificata o null",
+        "brewerySocialMedia": {
+          "facebook": "pagina verificata o null",
+          "instagram": "account verificato o null",
+          "twitter": "account verificato o null"
+        },
+        "mainProducts": ["prodotti verificati nel catalogo"],
+        "awards": ["premi verificati"],
+        "confidence": 0.90
+      },
+      "requiresManualCheck": true/false,
+      "manualCheckReason": "motivo se richiede verifica",
+      "suggestedActions": ["azioni consigliate per la verifica"]
+    }
+  ],
+
+  "summary": {
+    "verifiedBreweries": 1,
+    "unverifiedBreweries": 0,
+    "verifiedBeers": 2,
+    "unverifiedBeers": 0,
+    "requiresUserIntervention": true/false,
+    "interventionReason": "motivo se richiede intervento utente",
+    "readyToSave": true/false,
+    "nextSteps": ["azioni necessarie prima del salvataggio"]
   }
 }
 
-REGOLE CRITICHE:
-- Se l'immagine NON contiene chiaramente prodotti birrari: success = false, bottles = [], brewery = null
-- Se contiene birre: success = true e compila tutti i campi possibili
-- UTILIZZA LA RICERCA WEB solo se hai identificato almeno il nome della birra o del birrificio
-- Non inventare MAI informazioni: usa null per campi non disponibili
-- Distingui chiaramente tra informazioni dall'etichetta e dalla ricerca web
-- La confidence deve riflettere la fonte: etichetta=alta, web=media-alta, inferenza=bassa
-- Sii preciso nel riconoscimento di marchi, nomi e dettagli specifici
-- analysisComplete = true solo se hai estratto informazioni sostanziali
-- webSearchPerformed = true solo se hai effettivamente fatto ricerche
-- Per ogni informazione, indica chiaramente la fonte nel campo dataSource
-- Verifica sempre la coerenza tra dati dell'etichetta e dati web
-- Se trovi discrepanze, privilegia i dati dell'etichetta e annota le differenze`;
+REGOLE CRITICHE ANTI-ALLUCINAZIONE:
+1. Se l'immagine NON contiene chiaramente prodotti birrari: success = false
+2. NEVER invent data: usa null per qualsiasi informazione non chiaramente verificabile
+3. Effettua ricerca web SOLO dopo aver letto l'etichetta
+4. Marca come "VERIFIED" SOLO se i dati etichetta matchano perfettamente con fonti web attendibili
+5. Se hai dubbi sulla verifica, marca come "UNVERIFIED" e spiega il motivo
+6. Non creare mai birrifici o birre basandoti solo su supposizioni
+7. Privilegia SEMPRE la sicurezza: meglio richiedere verifica manuale che salvare dati falsi
+8. Per ogni birrificio/birra, indica chiaramente il livello di verifica raggiunto
+9. Se trovi conflitti tra etichetta e web, marca come "CONFLICTING" e richiedi intervento utente
+10. Fornisci sempre suggerimenti specifici per completare la verifica manuale`;
     
     logger.info('[GeminiAI] Avvio analisi con Gemini AI');
     
@@ -305,28 +303,8 @@ REGOLE CRITICHE:
       };
     }
 
-    // Salva i risultati su MongoDB se l'analisi ha avuto successo
-    if (aiResult.success && (aiResult.bottles?.length > 0 || aiResult.brewery)) {
-      try {
-        const saveResults = await saveAnalysisResults(aiResult, reviewId, userId, sessionId);
-        // Aggiungi gli ID generati al risultato AI per renderli disponibili al frontend
-        aiResult.breweryId = saveResults.breweryId;
-        aiResult.beerIds = saveResults.beerIds;
-        aiResult.dbSaveResults = saveResults;
-        
-        logger.info('[GeminiAI] Risultati salvati su MongoDB', { 
-          reviewId, 
-          sessionId,
-          breweryId: saveResults.breweryId,
-          beerIds: saveResults.beerIds,
-          beersProcessed: saveResults.beersProcessed
-        });
-      } catch (saveError) {
-        logger.error('[GeminiAI] Errore salvataggio MongoDB', { error: saveError.message, reviewId });
-        // Non bloccare il flusso se il salvataggio su DB fallisce
-        aiResult.dbSaveError = saveError.message;
-      }
-    }
+    // NON salvare i risultati su MongoDB qui - il salvataggio avviene nel controller dopo controllo ambiguità
+    // Questa funzione ora restituisce solo i risultati dell'analisi AI senza salvare su DB
     
     return aiResult;
     

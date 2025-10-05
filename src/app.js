@@ -14,6 +14,7 @@ const passport = require('../config/passport'); // Configurazione Passport.js: s
 const logWithFileName = require('./utils/logger'); // Logger centralizzato con Winston, log su file/console e tracciabilità per file
 const ErrorHandler = require('./utils/errorHandler'); // Gestione errori centralizzata: categorizzazione, logging e messaggi utente personalizzati
 const RateLimitService = require('./utils/rateLimitService'); // Rate limiting avanzato: limiti multi-layer per endpoint, logging dettagliato, skip admin
+const CleanupService = require('./services/cleanupService'); // Servizio pulizia automatica dati temporanei
 
 const baseRoutes = require('./routes/baseRoutes'); // Rotte principali pubbliche e di base dell'applicazione
 const administratorRoutes = require('./routes/administratorRoutes'); // Rotte amministrative (abilitabili, protette da middleware multi-ruolo)
@@ -70,6 +71,9 @@ env.addFilter('tojson', function(obj) {
 // Imposta Nunjucks come motore di template predefinito
 app.set('view engine', 'njk');
 
+// Configura trust proxy per rate limiting (necessario per leggere IP correttamente)
+app.set('trust proxy', true);
+
 // Middleware per la gestione delle sessioni
 app.use(sessionMiddleware); // Gestisce le sessioni degli utenti
 
@@ -94,6 +98,9 @@ app.use((req, res, next) => {
 
 // Middleware per rendere activeRole disponibile nelle viste
 app.use(authMiddleware.setActiveRole);
+
+// Middleware per pulizia automatica dati temporanei
+app.use(CleanupService.middleware());
 
 // Middleware per servire file statici
 app.use(express.static(path.join(__dirname, '../public'))); // Serve i file dalla cartella "public"
@@ -129,7 +136,6 @@ app.use('/review/create-multiple', RateLimitService.createReviewLimiter()); // R
 app.use('/auth/login', RateLimitService.createAuthLimiter()); // Rate limiting auth
 app.use('/auth/register', RateLimitService.createRegistrationLimiter()); // Rate limiting registrazione
 
-app.use(rateLimitMiddleware); // Limita la frequenza delle richieste per prevenire abusi (legacy)
 app.use(cookieParser()); // Analizza i cookie nelle richieste
 
 // Middleware unico per body parsing - ESCLUDE routes con upload multipart (Multer)
@@ -170,6 +176,7 @@ app.use('/', baseRoutes); // Gestisce le rotte di base dell'applicazione
 app.use('/administrator', administratorRoutes); // Gestisce le rotte amministrative
 app.use('/api/cache', cacheRoutes); // Gestisce le rotte cache (admin)
 // app.use('/', reviewRoutes); // RIMOSSO: Le rotte review sono già incluse in baseRoutes con prefisso /review
+app.use('/review', require('./routes/aiVerificationRoutes')); // Sistema Anti-Allucinazioni AI
 app.use('/content-moderation', contentModerationRoutes); // Gestisce le rotte di test moderazione contenuti (admin)
 
 module.exports = app;

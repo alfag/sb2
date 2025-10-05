@@ -8,6 +8,19 @@ const logWithFileName = require('../utils/logger'); // Importa logWithFileName
 
 const logger = logWithFileName(__filename); // Crea un logger con il nome del file
 
+// Funzione helper per determinare l'URL di redirect basato sul ruolo
+const getRedirectUrlByRole = (role) => {
+    switch (role) {
+        case 'administrator':
+            return '/administrator';
+        case 'brewery': 
+            return '/brewery/dashboard';
+        case 'customer':
+        default:
+            return '/'; // Home page per customer
+    }
+};
+
 // Register a new user
 exports.postRegister = async (req, res) => {
     // Estrai i dati dal body coerentemente con il model User e i dettagli customerDetails
@@ -32,12 +45,13 @@ exports.postRegister = async (req, res) => {
             });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // RIMOSSO: const hashedPassword = await bcrypt.hash(password, 10);
+        // Il middleware pre-save del modello User si occupa automaticamente dell'hash
 
         // Crea il nuovo utente con ruolo customer (array) e dettagli customerDetails
         const newUser = new User({
             username,
-            password: hashedPassword,
+            password, // Password in chiaro - verrà hashata dal middleware pre-save
             role: ['customer'],
             customerDetails: {
                 customerName,
@@ -109,7 +123,11 @@ exports.postLogin = (req, res, next) => {
                         
                         logger.info(`${user.role} - Utente ${populatedUser.username} loggato con successo`);
                         req.flash('info', 'Login effettuato con successo');
-                        return res.redirect('/'); // Redirect invece di render per permettere al middleware di gestire il routing
+                        
+                        // NUOVO: Redirect automatico alla home di ruolo basato su mainRole calcolato
+                        const redirectUrl = getRedirectUrlByRole(mainRole);
+                        logger.info(`Login redirect per ruolo ${mainRole}: ${redirectUrl}`);
+                        return res.redirect(redirectUrl);
                     });
                 })
                 .catch(err => {
@@ -129,7 +147,11 @@ exports.postLogin = (req, res, next) => {
                         
                         logger.info(`${user.role} - Utente ${populatedUser.username} loggato con successo`);
                         req.flash('info', 'Login effettuato con successo');
-                        return renderView(req, res, 'welcome', { user: populatedUser, type: 'info' });
+                        
+                        // NUOVO: Redirect automatico alla home di ruolo basato su mainRole calcolato  
+                        const redirectUrl = getRedirectUrlByRole(mainRole);
+                        logger.info(`Login redirect per ruolo ${mainRole}: ${redirectUrl}`);
+                        return res.redirect(redirectUrl);
                     });
                 })
                 .catch(err => {
@@ -145,7 +167,11 @@ exports.postLogin = (req, res, next) => {
                 
                 logger.info(`${user.role} - Utente ${user.username} loggato con successo`);
                 req.flash('info', 'Login effettuato con successo');
-                return renderView(req, res, 'welcome', { user: populatedUser, type: 'info' });
+                
+                // NUOVO: Redirect automatico alla home di ruolo basato su mainRole calcolato
+                const redirectUrl = getRedirectUrlByRole(mainRole);
+                logger.info(`Login redirect per ruolo ${mainRole}: ${redirectUrl}`);
+                return res.redirect(redirectUrl);
             });
         }
     })(req, res, next);

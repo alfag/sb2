@@ -342,6 +342,29 @@ router.get('/api/user/roles', isAuthenticated, async (req, res) => {
     }
 });
 
+// API Endpoint per ottenere tutti i birrifici (per disambiguation)
+router.get('/api/breweries/all', async (req, res) => {
+    try {
+        logger.info('Richiesta lista completa birrifici per disambiguation');
+        
+        const breweries = await Brewery.find({}, 'breweryName _id')
+            .sort({ breweryName: 1 })
+            .lean();
+        
+        res.json({
+            success: true,
+            breweries: breweries
+        });
+        
+    } catch (error) {
+        logger.error('Errore nel recupero lista birrifici:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Errore interno del server'
+        });
+    }
+});
+
 router.post('/api/user/roles', isAuthenticated, async (req, res) => {
     try {
         const { activeRole, defaultRole } = req.body;
@@ -491,5 +514,19 @@ router.post('/complete-profile', isAuthenticated, (req, res, next) => {
 router.post('/api/profile/brewery/logo', isAuthenticated, uploadMiddleware.breweryLogoUpload, profileController.uploadBreweryLogo);
 router.post('/api/profile/brewery/images', isAuthenticated, uploadMiddleware.breweryImagesUpload, profileController.uploadBreweryImages);
 router.delete('/api/profile/brewery/image', isAuthenticated, profileController.deleteBreweryImage);
+
+// Route per gestire rate limit exceeded
+router.get('/rate-limit-exceeded', (req, res) => {
+    logger.info('Accesso alla pagina di rate limit exceeded', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        user: req.user?.username || 'anonymous'
+    });
+    
+    res.render('rateLimitExceeded.njk', { 
+        user: req.user,
+        title: 'Limite Richieste Superato'
+    });
+});
 
 module.exports = router;
