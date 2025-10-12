@@ -1,9 +1,10 @@
 const request = require('supertest');
 const { expect } = require('chai');
-const app = require('../src/app');
-const mongoose = require('mongoose');
-const User = require('../src/models/User');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 const bcrypt = require('bcrypt');
+
+// Import modelli DOPO setup database per sicurezza
+let app, User;
 
 describe('Test Login Redirect per Ruolo', function() {
     let testUsers = {};
@@ -14,6 +15,13 @@ describe('Test Login Redirect per Ruolo', function() {
 
     before(async function() {
         console.log('🔧 Setup test login redirect...');
+        
+        // Setup database di test sicuro
+        await setupTestDatabase();
+        
+        // Import modelli DOPO connessione sicura
+        app = require('../src/app');
+        User = require('../src/models/User');
         
         // Crea utenti di test per ogni ruolo se non esistono
         const testUserData = [
@@ -164,7 +172,9 @@ describe('Test Login Redirect per Ruolo', function() {
 
     after(async function() {
         console.log('🧹 Cleanup test redirect...');
-        // Non eliminiamo gli utenti test per permettere test manuali
+        // Cleanup automatico database test
+        await cleanupTestDatabase();
+        await closeTestDatabase();
         console.log('✅ Test completati');
     });
 });

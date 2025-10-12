@@ -5,19 +5,31 @@
 
 const request = require('supertest');
 const { expect } = require('chai');
-const app = require('../src/app');
-const User = require('../src/models/User');
-const Brewery = require('../src/models/Brewery');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
+
+// Import modelli DOPO setup database per sicurezza
+let app, User, Brewery;
 
 describe('VALIDAZIONE COMPLETA: Sistema Multi-Ruolo Fase 1+2', function() {
     this.timeout(15000);
 
     let adminUser, breweryUser, customerUser, testBrewery;
-    let adminAgent = request.agent(app);
-    let breweryAgent = request.agent(app);
-    let customerAgent = request.agent(app);
+    let adminAgent, breweryAgent, customerAgent;
 
     before(async function() {
+        // Setup database di test sicuro
+        await setupTestDatabase();
+        
+        // Import modelli DOPO connessione sicura
+        app = require('../src/app');
+        User = require('../src/models/User');
+        Brewery = require('../src/models/Brewery');
+        
+        // Inizializza agents DOPO import app
+        adminAgent = request.agent(app);
+        breweryAgent = request.agent(app);
+        customerAgent = request.agent(app);
+        
         // Setup completo test data
         try {
             // Crea birrificio test
@@ -91,6 +103,10 @@ describe('VALIDAZIONE COMPLETA: Sistema Multi-Ruolo Fase 1+2', function() {
         } catch (error) {
             console.warn('Errore cleanup validazione completa:', error);
         }
+        
+        // Cleanup automatico database test
+        await cleanupTestDatabase();
+        await closeTestDatabase();
     });
 
     describe('🎯 FASE 1: Sicurezza e Gestione Ruoli', function() {

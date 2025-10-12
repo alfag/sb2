@@ -1,29 +1,97 @@
-<div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
-    <a class="navbar-brand" style="font-size:14px; color: #000; text-decoration: none;" href="/administrator/users/new">
-        <div style="display: flex; align-items: center;">
-            <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px" fill="#000000">
-                <path
-                    d="M726.67-400v-126.67H600v-66.66h126.67V-720h66.66v126.67H920v66.66H793.33V-400h-66.66ZM360-480.67q-66 0-109.67-43.66Q206.67-568 206.67-634t43.66-109.67Q294-787.33 360-787.33t109.67 43.66Q513.33-700 513.33-634t-43.66 109.67Q426-480.67 360-480.67ZM40-160v-100q0-34.67 17.5-63.17T106.67-366q70.66-32.33 131-46.5Q298-426.67 360-426.67t122 14.17q60 14.17 130.67 46.5 31.66 15 49.5 43.17Q680-294.67 680-260v100H40Z" />
-            </svg>
-            <span style="margin-left: 12px; display: flex; align-items: center; height: 40px;">Crea utente</span>
-        </div>
-    </a>
-    <!-- Nuova voce per modifica utente -->
-    <a class="navbar-brand" style="font-size:14px; color: #000; text-decoration: none;" href="/administrator/users/update">
-        <div style="display: flex; align-items: center;">
-            <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 0 24 24" width="40px" fill="#000000">
-                <path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4zm0-2a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>
-            </svg>
-            <span style="margin-left: 12px; display: flex; align-items: center; height: 40px;">Modifica utente</span>
-        </div>
-    </a>
-    <!-- Nuova voce per statistiche -->
-    <a class="navbar-brand" style="font-size:14px; color: #000; text-decoration: none;" href="/administrator/statistics">
-        <div style="display: flex; align-items: center;">
-            <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px" fill="#000000">
-                <path d="M280-280h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z"/>
-            </svg>
-            <span style="margin-left: 12px; display: flex; align-items: center; height: 40px;">Statistiche</span>
-        </div>
-    </a>
-</div>
+<!-- Admin Navigation Menu -->
+<nav class="admin-nav-menu" role="navigation" aria-label="Menu amministrazione">
+    <ul class="nav-menu-list">
+        <!-- Dashboard Administrator -->
+        <li class="nav-menu-item">
+            <a href="/administrator" class="nav-menu-link" aria-label="Dashboard Administrator">
+                <span class="nav-menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="24" height="24" fill="currentColor">
+                        <path d="M520-600v-240h320v240H520ZM120-440v-400h320v400H120Zm400 320v-400h320v400H520Zm-400 0v-240h320v240H120Zm80-400h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z"/>
+                    </svg>
+                </span>
+                <span class="nav-menu-text">Dashboard</span>
+            </a>
+        </li>
+
+        <!-- Statistiche -->
+        <li class="nav-menu-item">
+            <a href="/administrator/statistics" class="nav-menu-link" aria-label="Visualizza statistiche">
+                <span class="nav-menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="24" height="24" fill="currentColor">
+                        <path d="M280-280h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z"/>
+                    </svg>
+                </span>
+                <span class="nav-menu-text">Statistiche</span>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+<style>
+/* Admin Navigation Styles */
+.admin-nav-menu {
+    width: 100%;
+}
+
+.nav-menu-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.nav-menu-item {
+    margin: 0;
+}
+
+.nav-menu-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    color: var(--color-gray-700);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+}
+
+.nav-menu-link:hover {
+    background: var(--color-gray-100);
+    color: var(--color-primary);
+}
+
+.nav-menu-link:active {
+    background: var(--color-gray-200);
+}
+
+.nav-menu-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.nav-menu-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.nav-menu-text {
+    flex: 1;
+    white-space: nowrap;
+}
+
+/* Mobile responsive */
+@media (max-width: 639px) {
+    .nav-menu-link {
+        padding: var(--space-2);
+        font-size: var(--text-xs);
+    }
+}
+</style>

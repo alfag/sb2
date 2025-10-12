@@ -1,15 +1,19 @@
-const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-const User = require('../src/models/User');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
+
+// Import modelli DOPO setup database per sicurezza
+let User;
 
 async function testPasswordFix() {
     try {
         console.log('🧪 Test rapido fix doppio hash password...\n');
 
-        // Connessione al database di test (usando la configurazione sicura)
-        const testDbUrl = 'mongodb+srv://afaggion77:U4LsM4ppQ5AHTgdY@cluster0.qs4kh.mongodb.net/sb2_data_test?retryWrites=true&w=majority&appName=Cluster0';
-        await mongoose.connect(testDbUrl);
-        console.log('✅ Connesso al database di test');
+        // Setup database di test sicuro
+        await setupTestDatabase();
+        console.log('✅ Connesso al database di test sicuro');
+        
+        // Import User model DOPO connessione sicura
+        User = require('../src/models/User');
 
         // Pulisce eventuali utenti di test esistenti
         await User.deleteMany({ username: { $regex: /^testuser_/ } });
@@ -71,7 +75,9 @@ async function testPasswordFix() {
         console.error('❌ Errore durante il test:', error.message);
         console.error(error);
     } finally {
-        await mongoose.connection.close();
+        // Cleanup automatico database test
+        await cleanupTestDatabase();
+        await closeTestDatabase();
         console.log('\n🔌 Connessione database chiusa');
         process.exit(0);
     }

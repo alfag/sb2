@@ -1,8 +1,11 @@
-const mongoose = require('mongoose');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 const config = require('../config/config');
 const ReviewService = require('../src/services/reviewService');
 const AIService = require('../src/services/aiService');
 const assert = require('assert');
+
+// Import modelli DOPO setup database per sicurezza
+let mongoose;
 
 /**
  * Test rapido e funzionale del sistema
@@ -30,12 +33,13 @@ async function runQuickTests() {
     };
     
     try {
-        // Connessione database
-        console.log('🔗 Connessione al database...');
-        await mongoose.connect(config.MONGODB_URL, {
-            serverSelectionTimeoutMS: 5000
-        });
-        console.log('✅ Database connesso');
+        // Connessione database sicura
+        console.log('🔗 Connessione al database di test...');
+        await setupTestDatabase();
+        console.log('✅ Database di test connesso in modo sicuro');
+        
+        // Import mongoose DOPO setup
+        mongoose = require('mongoose');
         
         // Test 1: Verifica funzionalità AI Service
         await test('AI Service Rate Limiting', async () => {
@@ -137,10 +141,9 @@ async function runQuickTests() {
         failed++;
         total++;
     } finally {
-        if (mongoose.connection.readyState === 1) {
-            await mongoose.disconnect();
-            console.log('🔌 Database disconnesso');
-        }
+        await cleanupTestDatabase();
+        await closeTestDatabase();
+        console.log('🔌 Database di test disconnesso');
     }
     
     // Report finale

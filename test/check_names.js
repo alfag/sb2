@@ -1,11 +1,16 @@
 // Verifica esatta dei nomi nel database
-const mongoose = require('mongoose');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
+
+// Import modelli DOPO setup database per sicurezza
+let Brewery;
 
 async function checkExactNames() {
   try {
-    await mongoose.connect(process.env.MONGODB_URL_SB2 || 'mongodb://localhost:27017/sb2');
-
-    const Brewery = require('../src/models/Brewery');
+    await setupTestDatabase();
+    console.log('✅ Connesso al database di test sicuro\n');
+    
+    // Import Brewery model DOPO connessione sicura
+    Brewery = require('../src/models/Brewery');
     const breweries = await Brewery.find({}, 'breweryName').lean();
 
     console.log('=== VERIFICA ESATTA DEI NOMI ===');
@@ -56,7 +61,9 @@ async function checkExactNames() {
   } catch (error) {
     console.error('Errore:', error.message);
   } finally {
-    await mongoose.disconnect();
+    await cleanupTestDatabase();
+    await closeTestDatabase();
+    console.log('\n🔌 Connessione database chiusa');
   }
 }
 

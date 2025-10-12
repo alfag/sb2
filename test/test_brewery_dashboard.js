@@ -5,19 +5,31 @@
 
 const request = require('supertest');
 const { expect } = require('chai');
-const app = require('../src/app');
-const User = require('../src/models/User');
-const Brewery = require('../src/models/Brewery');
-const Beer = require('../src/models/Beer');
-const Review = require('../src/models/Review');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
+
+// Import modelli DOPO setup database per sicurezza
+let app, User, Brewery, Beer, Review;
 
 describe('FASE 2: Sistema Multi-Ruolo - Brewery Dashboard', function() {
     this.timeout(10000);
 
     let testUser, testBrewery, testBeer, testReview;
-    let agent = request.agent(app);
+    let agent;
 
     before(async function() {
+        // Setup database di test sicuro
+        await setupTestDatabase();
+        
+        // Import modelli DOPO connessione sicura
+        app = require('../src/app');
+        User = require('../src/models/User');
+        Brewery = require('../src/models/Brewery');
+        Beer = require('../src/models/Beer');
+        Review = require('../src/models/Review');
+        
+        // Inizializza agent DOPO import app
+        agent = request.agent(app);
+        
         // Setup test data
         try {
             // Crea birrificio test
@@ -93,6 +105,10 @@ describe('FASE 2: Sistema Multi-Ruolo - Brewery Dashboard', function() {
         } catch (error) {
             console.warn('Errore cleanup test data:', error);
         }
+        
+        // Cleanup automatico database test
+        await cleanupTestDatabase();
+        await closeTestDatabase();
     });
 
     describe('🏭 Brewery Dashboard Access', function() {

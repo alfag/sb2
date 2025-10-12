@@ -1,17 +1,22 @@
 // Test del servizio AIService completo con dati reali
-const mongoose = require('mongoose');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 const AIService = require('../src/services/aiService');
+
+// Import modelli DOPO setup database per sicurezza
+let Brewery;
 
 async function testAIServiceComplete() {
   try {
     console.log('=== TEST COMPLETO AISERVICE ===');
 
-    // Connetti al database
-    await mongoose.connect(process.env.MONGODB_URL_SB2 || 'mongodb://localhost:27017/sb2');
-    console.log('Connessione database riuscita');
+    // Setup database di test sicuro
+    await setupTestDatabase();
+    console.log('✅ Connesso al database di test sicuro');
+    
+    // Import Brewery model DOPO connessione sicura
+    Brewery = require('../src/models/Brewery');
 
     // Recupera birrifici reali
-    const Brewery = require('../src/models/Brewery');
     const allBreweries = await Brewery.find({}, 'breweryName breweryWebsite breweryEmail breweryLegalAddress breweryProductionAddress').lean();
     console.log('Birrifici recuperati:', allBreweries.length);
 
@@ -72,8 +77,10 @@ async function testAIServiceComplete() {
     console.error('Errore durante il test:', error.message);
     console.error(error.stack);
   } finally {
-    await mongoose.disconnect();
-    console.log('Connessione database chiusa');
+    // Cleanup automatico database test
+    await cleanupTestDatabase();
+    await closeTestDatabase();
+    console.log('\n🔌 Connessione database chiusa');
   }
 }
 

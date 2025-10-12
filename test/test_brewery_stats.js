@@ -1,6 +1,8 @@
-const mongoose = require('mongoose');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 const ReviewService = require('../src/services/reviewService');
-const config = require('../config/config');
+
+// Import modelli DOPO setup database per sicurezza
+let Review;
 
 /**
  * Test semplice per verificare i nuovi metodi di statistiche birrifici
@@ -9,12 +11,14 @@ async function testBreweryStats() {
   try {
     console.log('🧪 Test statistiche birrifici...');
     
-    // Connetti al database
-    await mongoose.connect(config.MONGODB_URL);
-    console.log('✅ Connesso al database');
+    // Setup database di test sicuro
+    await setupTestDatabase();
+    console.log('✅ Connesso al database di test sicuro');
+    
+    // Import Review model DOPO connessione sicura
+    Review = require('../src/models/Review');
     
     // Test 1: Trova un birrificio con recensioni esistenti
-    const Review = require('../src/models/Review');
     const sampleReview = await Review.findOne()
       .populate({
         path: 'ratings.beer',
@@ -72,8 +76,10 @@ async function testBreweryStats() {
     console.error('❌ Errore durante il test:', error.message);
     console.error(error.stack);
   } finally {
-    await mongoose.disconnect();
-    console.log('🔌 Disconnesso dal database');
+    // Cleanup automatico database test
+    await cleanupTestDatabase();
+    await closeTestDatabase();
+    console.log('\n🔌 Connessione database chiusa');
   }
 }
 

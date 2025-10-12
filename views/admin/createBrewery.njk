@@ -1,266 +1,968 @@
 {% extends "../layout.njk" %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1>{{ title }}</h1>
-    
-    <!-- Messaggi flash -->
+<!-- Modern Create Brewery Page -->
+<div class="modern-page-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <div class="header-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M5 12V7a1 1 0 011-1h4a1 1 0 011 1v5M8 21h8M12 3v3m0 15v-9m0 0l-2 2m2-2l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="header-text">
+                <h1 class="page-title">{{ title }}</h1>
+                <p class="page-subtitle">Crea un nuovo birrificio nel sistema</p>
+            </div>
+        </div>
+        
+        <!-- Modern Breadcrumb -->
+        <nav class="modern-breadcrumb" aria-label="breadcrumb">
+            <ol class="breadcrumb-list">
+                <li class="breadcrumb-item">
+                    <a href="/administrator" class="breadcrumb-link">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="/administrator/breweries" class="breadcrumb-link">Birrifici</a>
+                </li>
+                <li class="breadcrumb-item active">Crea Nuovo</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Flash Messages -->
     {% if message.success %}
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ message.success[0] }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert alert-success modern-alert" role="alert">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ message.success[0] }}</span>
+            <button type="button" class="alert-close" onclick="this.parentElement.remove()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
         </div>
     {% endif %}
     
     {% if message.error %}
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            {{ message.error[0] }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert alert-danger modern-alert" role="alert">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ message.error[0] }}</span>
+            <button type="button" class="alert-close" onclick="this.parentElement.remove()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
         </div>
     {% endif %}
-    
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/administrator">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="/administrator/breweries">Birrifici</a></li>
-            <li class="breadcrumb-item active">Crea Nuovo</li>
-        </ol>
-    </nav>
-    
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Informazioni Birrificio</h5>
+    <!-- Modern Form Container -->
+    <div class="modern-form-container">
+        <form method="POST" action="/administrator/breweries/new" class="modern-form">
+            
+            <!-- Basic Information Section -->
+            <div class="form-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="section-text">
+                        <h3 class="section-title">Informazioni Base</h3>
+                        <p class="section-subtitle">Dati principali del birrificio</p>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form method="POST" action="/administrator/breweries/new">
-                        
-                        <!-- Informazioni base -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Informazioni Base</h6>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryName" class="form-label">Nome Birrificio *</label>
-                                    <input type="text" class="form-control" id="breweryName" name="breweryName" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryEmail" class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="breweryEmail" name="breweryEmail">
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="mb-3">
-                                    <label for="breweryDescription" class="form-label">Descrizione</label>
-                                    <textarea class="form-control" id="breweryDescription" name="breweryDescription" rows="3"></textarea>
-                                </div>
+                
+                <div class="section-content">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="breweryName" class="form-label required">Nome Birrificio</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M5 12V7a1 1 0 011-1h4a1 1 0 011 1v5M8 21h8M12 3v3m0 15v-9m0 0l-2 2m2-2l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" class="form-input" id="breweryName" name="breweryName" required placeholder="Es. Birrificio della Montagna">
                             </div>
                         </div>
                         
-                        <!-- Dati legali -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Dati Legali</h6>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="breweryFiscalCode" class="form-label">Codice Fiscale</label>
-                                    <input type="text" class="form-control" id="breweryFiscalCode" name="breweryFiscalCode">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="breweryREAcode" class="form-label">Codice REA</label>
-                                    <input type="text" class="form-control" id="breweryREAcode" name="breweryREAcode">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="breweryacciseCode" class="form-label">Codice Accise</label>
-                                    <input type="text" class="form-control" id="breweryacciseCode" name="breweryacciseCode">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryFund" class="form-label">Fondo</label>
-                                    <input type="text" class="form-control" id="breweryFund" name="breweryFund">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="foundingYear" class="form-label">Anno di Fondazione</label>
-                                    <input type="number" class="form-control" id="foundingYear" name="foundingYear" min="1800" max="2025">
-                                </div>
+                        <div class="form-group">
+                            <label for="breweryEmail" class="form-label">Email</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="email" class="form-input" id="breweryEmail" name="breweryEmail" placeholder="info@birrificio.com">
                             </div>
                         </div>
                         
-                        <!-- Indirizzi e contatti -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Indirizzi e Contatti</h6>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryLegalAddress" class="form-label">Indirizzo Legale</label>
-                                    <textarea class="form-control" id="breweryLegalAddress" name="breweryLegalAddress" rows="2"></textarea>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryProductionAddress" class="form-label">Indirizzo Produzione</label>
-                                    <textarea class="form-control" id="breweryProductionAddress" name="breweryProductionAddress" rows="2"></textarea>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryPhoneNumber" class="form-label">Telefono</label>
-                                    <input type="tel" class="form-control" id="breweryPhoneNumber" name="breweryPhoneNumber">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryWebsite" class="form-label">Sito Web</label>
-                                    <input type="url" class="form-control" id="breweryWebsite" name="breweryWebsite">
-                                </div>
+                        <div class="form-group span-full">
+                            <label for="breweryDescription" class="form-label">Descrizione</label>
+                            <div class="textarea-wrapper">
+                                <textarea class="form-textarea" id="breweryDescription" name="breweryDescription" rows="3" placeholder="Descrivi il birrificio, la sua missione e i valori..."></textarea>
                             </div>
                         </div>
-                        
-                        <!-- Informazioni produttive -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Informazioni Produttive</h6>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="brewerySize" class="form-label">Dimensione Birrificio</label>
-                                    <select class="form-select" id="brewerySize" name="brewerySize">
-                                        <option value="">Seleziona...</option>
-                                        <option value="microbirrificio">Microbirrificio</option>
-                                        <option value="birrificio artigianale">Birrificio Artigianale</option>
-                                        <option value="industriale">Industriale</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="employeeCount" class="form-label">Numero Dipendenti</label>
-                                    <input type="text" class="form-control" id="employeeCount" name="employeeCount">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="productionVolume" class="form-label">Volume Produzione</label>
-                                    <input type="text" class="form-control" id="productionVolume" name="productionVolume" placeholder="es. 1000 hl/anno">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="distributionArea" class="form-label">Area Distribuzione</label>
-                                    <input type="text" class="form-control" id="distributionArea" name="distributionArea" placeholder="es. Regionale, Nazionale, Internazionale">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="masterBrewer" class="form-label">Mastro Birraio</label>
-                                    <input type="text" class="form-control" id="masterBrewer" name="masterBrewer">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Prodotti e riconoscimenti -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Prodotti e Riconoscimenti</h6>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="mainProducts" class="form-label">Prodotti Principali</label>
-                                    <textarea class="form-control" id="mainProducts" name="mainProducts" rows="2" 
-                                              placeholder="Separa con virgole (es. IPA, Lager, Stout)"></textarea>
-                                    <small class="form-text text-muted">Separa i prodotti con virgole</small>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="awards" class="form-label">Premi e Riconoscimenti</label>
-                                    <textarea class="form-control" id="awards" name="awards" rows="2" 
-                                              placeholder="Separa con virgole (es. World Beer Cup 2021, Italian Beer Award 2020)"></textarea>
-                                    <small class="form-text text-muted">Separa i premi con virgole</small>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="mb-3">
-                                    <label for="breweryHistory" class="form-label">Storia del Birrificio</label>
-                                    <textarea class="form-control" id="breweryHistory" name="breweryHistory" rows="3"></textarea>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Social Media -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Social Media</h6>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="facebook" class="form-label">Facebook</label>
-                                    <input type="url" class="form-control" id="facebook" name="facebook" placeholder="https://facebook.com/breweryname">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="instagram" class="form-label">Instagram</label>
-                                    <input type="url" class="form-control" id="instagram" name="instagram" placeholder="https://instagram.com/breweryname">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="twitter" class="form-label">Twitter</label>
-                                    <input type="url" class="form-control" id="twitter" name="twitter" placeholder="https://twitter.com/breweryname">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="linkedin" class="form-label">LinkedIn</label>
-                                    <input type="url" class="form-control" id="linkedin" name="linkedin" placeholder="https://linkedin.com/company/breweryname">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="youtube" class="form-label">YouTube</label>
-                                    <input type="url" class="form-control" id="youtube" name="youtube" placeholder="https://youtube.com/breweryname">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Pulsanti azione -->
-                        <div class="row">
-                            <div class="col-12">
-                                <hr>
-                                <div class="d-flex justify-content-between">
-                                    <a href="/administrator/breweries" class="btn btn-secondary">
-                                        <i class="fas fa-arrow-left"></i> Torna alla Lista
-                                    </a>
-                                    <div>
-                                        <button type="reset" class="btn btn-outline-secondary me-2">
-                                            <i class="fas fa-undo"></i> Reset
-                                        </button>
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-save"></i> Crea Birrificio
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
+                    </div>
                 </div>
             </div>
-        </div>
+            
+            <!-- Legal Information Section -->
+            <div class="form-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="section-text">
+                        <h3 class="section-title">Dati Legali</h3>
+                        <p class="section-subtitle">Informazioni fiscali e legali</p>
+                    </div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="form-grid form-grid-3">
+                        <div class="form-group">
+                            <label for="breweryFiscalCode" class="form-label">Codice Fiscale</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" class="form-input" id="breweryFiscalCode" name="breweryFiscalCode" placeholder="ABCDEF12A34B567C">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="breweryREAcode" class="form-label">Codice REA</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" class="form-input" id="breweryREAcode" name="breweryREAcode" placeholder="MI-123456">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="breweryacciseCode" class="form-label">Codice Accise</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" class="form-input" id="breweryacciseCode" name="breweryacciseCode" placeholder="IT123456789">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="breweryFund" class="form-label">Fondo</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" class="form-input" id="breweryFund" name="breweryFund" placeholder="€ 10.000">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="foundingYear" class="form-label">Anno di Fondazione</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                                <input type="number" class="form-input" id="foundingYear" name="foundingYear" min="1800" max="2025" placeholder="2020">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Contact & Location Section -->
+            <div class="form-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <div class="section-text">
+                        <h3 class="section-title">Indirizzi e Contatti</h3>
+                        <p class="section-subtitle">Informazioni di contatto e localizzazione</p>
+                    </div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="breweryLegalAddress" class="form-label">Indirizzo Legale</label>
+                            <div class="textarea-wrapper">
+                                <textarea class="form-textarea" id="breweryLegalAddress" name="breweryLegalAddress" rows="2" placeholder="Via Roma 123, 20100 Milano MI"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="breweryProductionAddress" class="form-label">Indirizzo Produzione</label>
+                            <div class="textarea-wrapper">
+                                <textarea class="form-textarea" id="breweryProductionAddress" name="breweryProductionAddress" rows="2" placeholder="Via della Birra 456, 20100 Milano MI"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="breweryPhoneNumber" class="form-label">Telefono</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22 16.92v3a2 2 0 01-2.18 2A19.79 19.79 0 015.63 5.63 2 2 0 017.6 3.82h3a2 2 0 012 1.72.5.5 0 010 .12c.44 1.37 1.89 2.86 3.4 3.4a2 2 0 011.72 2V16.92a2 2 0 01-.88 1.66l-1 .66a2 2 0 01-2.24 0l-1-.66A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="tel" class="form-input" id="breweryPhoneNumber" name="breweryPhoneNumber" placeholder="+39 02 123456">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="breweryWebsite" class="form-label">Sito Web</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                                <input type="url" class="form-input" id="breweryWebsite" name="breweryWebsite" placeholder="https://birrificio.com">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Production Info & Details Section -->
+            <div class="form-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 3l4 8 5-3-5 11-4-8-5 3 5-11z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="section-text">
+                        <h3 class="section-title">Informazioni Produttive & Dettagli</h3>
+                        <p class="section-subtitle">Capacità produttiva, storia e riconoscimenti</p>
+                    </div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="form-grid form-grid-3">
+                        <div class="form-group">
+                            <label for="brewerySize" class="form-label">Dimensione Birrificio</label>
+                            <div class="select-wrapper">
+                                <select class="form-select" id="brewerySize" name="brewerySize">
+                                    <option value="">Seleziona dimensione...</option>
+                                    <option value="microbirrificio">Microbirrificio</option>
+                                    <option value="birrificio artigianale">Birrificio Artigianale</option>
+                                    <option value="industriale">Industriale</option>
+                                </select>
+                                <svg class="select-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="employeeCount" class="form-label">Numero Dipendenti</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" class="form-input" id="employeeCount" name="employeeCount" placeholder="es. 5-10">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="productionVolume" class="form-label">Volume Produzione</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M5 12V7a1 1 0 011-1h4a1 1 0 011 1v5M8 21h8M12 3v3m0 15v-9m0 0l-2 2m2-2l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" class="form-input" id="productionVolume" name="productionVolume" placeholder="es. 1000 hl/anno">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="distributionArea" class="form-label">Area Distribuzione</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                                <input type="text" class="form-input" id="distributionArea" name="distributionArea" placeholder="Regionale, Nazionale, Internazionale">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="masterBrewer" class="form-label">Mastro Birraio</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" class="form-input" id="masterBrewer" name="masterBrewer" placeholder="Nome del mastro birraio">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="mainProducts" class="form-label">Prodotti Principali</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M5 12V7a1 1 0 011-1h4a1 1 0 011 1v5M8 21h8M12 3v3m0 15v-9m0 0l-2 2m2-2l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" class="form-input" id="mainProducts" name="mainProducts" placeholder="IPA, Lager, Stout (separa con virgole)">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group span-2">
+                            <label for="awards" class="form-label">Premi e Riconoscimenti</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" class="form-input" id="awards" name="awards" placeholder="World Beer Cup 2021, Italian Beer Award 2020 (separa con virgole)">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group span-full">
+                            <label for="breweryHistory" class="form-label">Storia del Birrificio</label>
+                            <div class="textarea-wrapper">
+                                <textarea class="form-textarea" id="breweryHistory" name="breweryHistory" rows="3" placeholder="Racconta la storia, l'origine e l'evoluzione del birrificio..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Media Section -->
+            <div class="form-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="section-text">
+                        <h3 class="section-title">Social Media</h3>
+                        <p class="section-subtitle">Presenza online e social network</p>
+                    </div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="form-grid form-grid-3">
+                        <div class="form-group">
+                            <label for="facebook" class="form-label">Facebook</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="url" class="form-input" id="facebook" name="facebook" placeholder="https://facebook.com/breweryname">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="instagram" class="form-label">Instagram</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                                <input type="url" class="form-input" id="instagram" name="instagram" placeholder="https://instagram.com/breweryname">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="youtube" class="form-label">YouTube</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22.54 6.42a2.78 2.78 0 00-1.94-2A29 29 0 0012 4a29 29 0 00-8.6.46 2.78 2.78 0 00-1.94 2A29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.94 2A29 29 0 0012 20a29 29 0 008.6-.46 2.78 2.78 0 001.94-2A29 29 0 0023 12a29 29 0 00-.46-5.58z" stroke="currentColor" stroke-width="2"/>
+                                    <polygon points="9.75,8.52 15.5,12 9.75,15.48" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                                <input type="url" class="form-input" id="youtube" name="youtube" placeholder="https://youtube.com/breweryname">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <div class="actions-left">
+                    <a href="/administrator/breweries" class="btn btn-secondary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 12H6m0 0l7 7m-7-7l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>Torna alla Lista</span>
+                    </a>
+                </div>
+                
+                <div class="actions-right">
+                    <button type="reset" class="btn btn-outline">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M21 3v5h-5M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M3 21v-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>Reset Form</span>
+                    </button>
+                    
+                    <button type="submit" class="btn btn-primary btn-large">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>Crea Birrificio</span>
+                        <div class="btn-shimmer"></div>
+                    </button>
+                </div>
+            </div>
+            
+        </form>
     </div>
 </div>
+
+<!-- Modern Styles for Create Brewery -->
+<style>
+/* Modern Design System Variables */
+:root {
+    --color-primary: #667eea;
+    --color-primary-light: #818cf8;
+    --color-primary-dark: #4f46e5;
+    --color-secondary: #6b7280;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    
+    --color-text-primary: #1f2937;
+    --color-text-secondary: #6b7280;
+    --color-text-muted: #9ca3af;
+    
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f9fafb;
+    --color-bg-tertiary: #f3f4f6;
+    
+    --border-radius-sm: 8px;
+    --border-radius-md: 12px;
+    --border-radius-lg: 16px;
+    --border-radius-xl: 20px;
+    
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    
+    --transition-fast: all 0.15s ease;
+    --transition-normal: all 0.3s ease;
+}
+
+/* Page Layout */
+.modern-page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-6);
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+/* Page Header */
+.page-header {
+    background: var(--color-bg-primary);
+    border-radius: var(--border-radius-xl);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.header-icon {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+    border-radius: var(--border-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.page-title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.page-subtitle {
+    font-size: 1.125rem;
+    color: var(--color-text-secondary);
+    margin: var(--space-2) 0 0;
+    line-height: 1.4;
+}
+
+/* Modern Breadcrumb */
+.modern-breadcrumb {
+    border-top: 1px solid #e5e7eb;
+    padding-top: var(--space-4);
+}
+
+.breadcrumb-list {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.breadcrumb-item:not(:last-child)::after {
+    content: '›';
+    margin-left: var(--space-2);
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.breadcrumb-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: var(--transition-fast);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--border-radius-sm);
+}
+
+.breadcrumb-link:hover {
+    background: rgba(102, 126, 234, 0.1);
+    color: var(--color-primary-dark);
+}
+
+.breadcrumb-item.active {
+    color: var(--color-text-primary);
+    font-weight: 500;
+}
+
+/* Modern Alerts */
+.modern-alert {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    border-radius: var(--border-radius-lg);
+    margin-bottom: var(--space-6);
+    border: none;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.modern-alert::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: currentColor;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+    border-left: 4px solid var(--color-success);
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
+    border-left: 4px solid var(--color-danger);
+}
+
+.alert-close {
+    background: none;
+    border: none;
+    padding: var(--space-2);
+    cursor: pointer;
+    color: currentColor;
+    opacity: 0.7;
+    transition: var(--transition-fast);
+    border-radius: var(--border-radius-sm);
+    margin-left: auto;
+}
+
+.alert-close:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* Form Container */
+.modern-form-container {
+    background: var(--color-bg-primary);
+    border-radius: var(--border-radius-xl);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    overflow: hidden;
+}
+
+.modern-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    padding: var(--space-8);
+}
+
+/* Form Sections */
+.form-section {
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: var(--space-8);
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.section-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+    border-radius: var(--border-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.section-subtitle {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin: var(--space-2) 0 0;
+    line-height: 1.4;
+}
+
+/* Form Grid */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-6);
+}
+
+.form-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.form-group.span-full {
+    grid-column: 1 / -1;
+}
+
+.form-group.span-2 {
+    grid-column: span 2;
+}
+
+/* Form Labels */
+.form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.form-label.required::after {
+    content: '*';
+    color: var(--color-danger);
+    font-weight: 600;
+}
+
+/* Input Wrappers */
+.input-wrapper,
+.textarea-wrapper,
+.select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon,
+.select-icon {
+    position: absolute;
+    left: var(--space-3);
+    color: var(--color-text-muted);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.select-icon {
+    right: var(--space-3);
+    left: auto;
+}
+
+/* Form Inputs */
+.form-input,
+.form-textarea,
+.form-select {
+    width: 100%;
+    padding: var(--space-3);
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius-md);
+    font-size: 0.875rem;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    transition: var(--transition-fast);
+    outline: none;
+}
+
+.form-input {
+    height: 44px;
+    padding-left: 48px;
+}
+
+.form-select {
+    padding-left: var(--space-3);
+    padding-right: 48px;
+    cursor: pointer;
+    appearance: none;
+    background-image: none;
+}
+
+.form-textarea {
+    padding-left: var(--space-3);
+    resize: vertical;
+    min-height: 44px;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    background: #fefefe;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+    color: var(--color-text-muted);
+}
+
+/* Form Actions */
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: var(--space-6);
+    border-top: 1px solid #e5e7eb;
+    gap: var(--space-4);
+}
+
+.actions-right {
+    display: flex;
+    gap: var(--space-3);
+}
+
+/* Modern Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-5);
+    border: none;
+    border-radius: var(--border-radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+}
+
+.btn-secondary {
+    background: var(--color-secondary);
+    color: white;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:hover {
+    background: #4b5563;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid #d1d5db;
+}
+
+.btn-outline:hover {
+    background: var(--color-bg-secondary);
+    border-color: var(--color-text-secondary);
+    color: var(--color-text-primary);
+}
+
+.btn-large {
+    padding: var(--space-4) var(--space-6);
+    font-size: 1rem;
+}
+
+/* Button shimmer effect */
+.btn-shimmer {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .modern-page-container {
+        padding: var(--space-4);
+    }
+    
+    .page-header {
+        padding: var(--space-4);
+    }
+    
+    .header-content {
+        flex-direction: column;
+        text-align: center;
+        gap: var(--space-3);
+    }
+    
+    .page-title {
+        font-size: 1.875rem;
+    }
+    
+    .modern-form {
+        padding: var(--space-4);
+        gap: var(--space-6);
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-grid-3 {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        gap: var(--space-4);
+    }
+    
+    .actions-right {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .breadcrumb-list {
+        flex-wrap: wrap;
+    }
+    
+    .form-section {
+        gap: var(--space-4);
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+
 {% endblock %}

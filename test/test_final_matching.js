@@ -1,16 +1,20 @@
 // Test finale: simula esattamente il flusso che dovrebbe funzionare
-const mongoose = require('mongoose');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 const AIService = require('../src/services/aiService');
+
+// Import modelli DOPO setup database per sicurezza
+let Brewery;
 
 async function finalTest() {
   try {
     console.log('=== TEST FINALE: SIMULAZIONE FLUSSO COMPLETO ===');
 
-    // Connetti al database
-    await mongoose.connect(process.env.MONGODB_URL_SB2 || 'mongodb://localhost:27017/sb2');
+    // Setup database di test sicuro
+    await setupTestDatabase();
+    console.log('✅ Connesso al database di test sicuro');
 
-    // Recupera birrifici dal database
-    const Brewery = require('../src/models/Brewery');
+    // Import modelli DOPO connessione sicura
+    Brewery = require('../src/models/Brewery');
     const allBreweries = await Brewery.find({}, 'breweryName breweryWebsite breweryEmail breweryLegalAddress breweryProductionAddress').lean();
 
     console.log('Database connesso. Birrifici trovati:', allBreweries.length);
@@ -79,8 +83,16 @@ async function finalTest() {
     console.error('ERRORE durante il test:', error.message);
     console.error(error.stack);
   } finally {
-    await mongoose.disconnect();
+    // Cleanup automatico database test
+    await cleanupTestDatabase();
+    await closeTestDatabase();
+    console.log('\n🔌 Connessione database chiusa');
   }
 }
 
-finalTest();
+// Esegui test se chiamato direttamente
+if (require.main === module) {
+  finalTest();
+}
+
+module.exports = { finalTest };

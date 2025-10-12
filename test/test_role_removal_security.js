@@ -1,11 +1,11 @@
 const chai = require('chai');
 const request = require('supertest');
-const app = require('../src/app');
-const User = require('../src/models/User');
-const Brewery = require('../src/models/Brewery');
-const mongoose = require('mongoose');
+const { setupTestDatabase, cleanupTestDatabase, closeTestDatabase } = require('./testHelper');
 
 const expect = chai.expect;
+
+// Import modelli DOPO setup database per sicurezza
+let app, User, Brewery;
 
 describe('🔒 Security Tests - Role Removal Controls', function() {
     this.timeout(30000);
@@ -15,6 +15,13 @@ describe('🔒 Security Tests - Role Removal Controls', function() {
     let adminAgent;
 
     before(async function() {
+        // Setup database di test sicuro
+        await setupTestDatabase();
+        
+        // Import modelli DOPO connessione sicura
+        app = require('../src/app');
+        User = require('../src/models/User');
+        Brewery = require('../src/models/Brewery');
         // Crea utente di test con ruoli multipli
         testUser = new User({
             username: 'multiRoleUser',
@@ -57,6 +64,10 @@ describe('🔒 Security Tests - Role Removal Controls', function() {
         if (testUser) await User.findByIdAndDelete(testUser._id);
         if (testBrewery) await Brewery.findByIdAndDelete(testBrewery._id);
         if (adminAgent) adminAgent.close();
+        
+        // Cleanup automatico database test
+        await cleanupTestDatabase();
+        await closeTestDatabase();
     });
 
     describe('Customer Role Removal Protection', function() {

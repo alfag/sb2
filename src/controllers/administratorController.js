@@ -77,12 +77,37 @@ async function createUser({
     }
 }
 
-// Get all users
+// Get all users with proper sorting and populated details
 async function getAllUsers(req, res, next) {
     try {
-        const users = await User.find();
-        logger.info(`Utenti recuperati con successo: ${users.length} utenti trovati compreso l'utente collegato`); // Log con il numero di utenti
-        return users; // Restituisci gli utenti
+        // Recupera tutti gli utenti con i dettagli popolati e ordinamento personalizzato
+        const users = await User.find()
+            .populate('customerDetails')
+            .populate('administratorDetails') 
+            .populate('breweryDetails')
+            .lean(); // Usa lean() per performance migliori con dati read-only
+
+        // Ordinamento custom: non-administrator prima, poi administrator, poi per username
+        const sortedUsers = users.sort((a, b) => {
+            const aIsAdmin = a.role.includes('administrator');
+            const bIsAdmin = b.role.includes('administrator');
+            
+            // Prima i non-administrator
+            if (aIsAdmin && !bIsAdmin) return 1;
+            if (!aIsAdmin && bIsAdmin) return -1;
+            
+            // Se entrambi sono dello stesso tipo (admin o non-admin), ordina per username
+            return a.username.localeCompare(b.username);
+        });
+
+        logger.info(`Utenti recuperati con successo: ${sortedUsers.length} utenti trovati e ordinati`);
+        
+        // Se ha parametro raw, restituisce solo i dati (per compatibilità)
+        if (req && res && next && typeof next === 'object' && next.raw) {
+            return sortedUsers;
+        }
+        
+        return sortedUsers;
     } catch (error) {
         logger.error('Errore durante il recupero degli utenti', error);
         throw error; // Propaga l'errore al middleware di gestione degli errori

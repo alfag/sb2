@@ -27,6 +27,762 @@
         {% endif %}
     </div>
 
+    <!-- 🖼️ Sezione Immagine Analizzata e Dati AI Rilevati -->
+    <div class="ai-analysis-overview">
+        <div class="analysis-image-section">
+            <h2><i class="fas fa-image"></i> Immagine Analizzata</h2>
+            {% if sessionData.originalImage or sessionData.imageDataUrl %}
+            <div class="uploaded-image-container">
+                <img src="{% if sessionData.originalImage %}data:{{ sessionData.originalImage.mimeType }};base64,{{ sessionData.originalImage.base64 }}{% elif sessionData.imageDataUrl %}{{ sessionData.imageDataUrl }}{% endif %}" 
+                     alt="Immagine della birra caricata" 
+                     class="analysis-image">
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="ai-detected-data">
+            <h2><i class="fas fa-brain"></i> Dati Rilevati dall'AI</h2>
+            
+            <!-- Debug Info (solo in sviluppo) -->
+            <div class="debug-info" style="background: #f8f9fa; padding: 10px; margin: 10px 0; border: 1px solid #dee2e6; border-radius: 5px; font-family: monospace; font-size: 12px;">
+                <strong>🔧 Debug Info:</strong><br>
+                sessionData exists: {{ '✅ Yes' if sessionData else '❌ No' }}<br>
+                sessionData.bottles exists: {{ '✅ Yes' if sessionData.bottles else '❌ No' }}<br>
+                sessionData.bottles length: {{ sessionData.bottles.length if sessionData.bottles else 'N/A' }}<br>
+                sessionData.breweries exists: {{ '✅ Yes' if sessionData.breweries else '❌ No' }}<br>
+                sessionData.breweries length: {{ sessionData.breweries.length if sessionData.breweries else 'N/A' }}<br>
+                validation exists: {{ '✅ Yes' if validation else '❌ No' }}<br>
+                {% if sessionData %}
+                sessionData has bottles: {{ 'True' if sessionData.bottles else 'False' }}<br>
+                sessionData has breweries: {{ 'True' if sessionData.breweries else 'False' }}<br>
+                sessionData has processedData: {{ 'True' if sessionData.processedData else 'False' }}<br>
+                {% endif %}
+                {% if validation %}
+                validation.bottles exists: {{ '✅ Yes' if validation.bottles else '❌ No' }}<br>
+                validation.breweries exists: {{ '✅ Yes' if validation.breweries else '❌ No' }}<br>
+                validation has requiresUserConfirmation: {{ 'True' if validation.requiresUserConfirmation else 'False' }}<br>
+                validation has requiresUserCompletion: {{ 'True' if validation.requiresUserCompletion else 'False' }}<br>
+                {% endif %}
+            </div>
+            
+            <!-- Prova prima sessionData.bottles, poi validation.bottles come fallback -->
+            {% set bottlesData = sessionData.bottles if sessionData.bottles and sessionData.bottles.length > 0 else (validation.bottles if validation.bottles and validation.bottles.length > 0 else []) %}
+            
+            {% if bottlesData and bottlesData.length > 0 %}
+            <div class="detected-bottles">
+                <h3><i class="fas fa-beer"></i> Birre Identificate ({{ bottlesData.length }})</h3>
+                {% for bottle in bottlesData %}
+                <div class="bottle-detection-card">
+                    <div class="bottle-thumbnail">
+                        {% if bottle.thumbnail %}
+                        <img src="{{ bottle.thumbnail }}" alt="Thumbnail {{ bottle.bottleLabel or bottle.beerName }}" class="bottle-thumb">
+                        {% else %}
+                        <div class="placeholder-thumb">
+                            <i class="fas fa-beer"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="bottle-info">
+                        <h4>{{ bottle.bottleLabel or bottle.beerName or 'Birra rilevata' }}</h4>
+                        <div class="bottle-details">
+                            {% if bottle.breweryName %}<span class="detail-item"><i class="fas fa-industry"></i> {{ bottle.breweryName }}</span>{% endif %}
+                            {% if bottle.beerType %}<span class="detail-item"><i class="fas fa-tag"></i> {{ bottle.beerType }}</span>{% endif %}
+                            {% if bottle.alcoholContent %}<span class="detail-item"><i class="fas fa-percentage"></i> {{ bottle.alcoholContent }}</span>{% endif %}
+                            {% if bottle.volume %}<span class="detail-item"><i class="fas fa-flask"></i> {{ bottle.volume }}</span>{% endif %}
+                        </div>
+                        <div class="confidence-indicator">
+                            <span class="confidence-label">Confidenza AI:</span>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: {{ (bottle.confidence * 100) if bottle.confidence else 75 }}%"></div>
+                            </div>
+                            <span class="confidence-value">{{ ((bottle.confidence * 100) | round(0)) if bottle.confidence else 75 }}%</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Prova prima sessionData.breweries, poi validation.breweries come fallback -->
+            {% set breweriesData = sessionData.breweries if sessionData.breweries and sessionData.breweries.length > 0 else (validation.breweries if validation.breweries and validation.breweries.length > 0 else []) %}
+            
+            {% if breweriesData and breweriesData.length > 0 %}
+            <div class="detected-breweries">
+                <h3><i class="fas fa-industry"></i> Birrifici Identificati ({{ breweriesData.length }})</h3>
+                {% for brewery in breweriesData %}
+                <div class="brewery-detection-card">
+                    <div class="brewery-info">
+                        <h4>{{ brewery.breweryName or brewery.name or 'Birrificio rilevato' }}</h4>
+                        <div class="brewery-details">
+                            {% if brewery.breweryWebsite %}<span class="detail-item"><i class="fas fa-globe"></i> {{ brewery.breweryWebsite }}</span>{% endif %}
+                            {% if brewery.breweryLegalAddress %}<span class="detail-item"><i class="fas fa-map-marker-alt"></i> {{ brewery.breweryLegalAddress }}</span>{% endif %}
+                            {% if brewery.breweryEmail %}<span class="detail-item"><i class="fas fa-envelope"></i> {{ brewery.breweryEmail }}</span>{% endif %}
+                        </div>
+                        <div class="confidence-indicator">
+                            <span class="confidence-label">Confidenza AI:</span>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: {{ (brewery.confidence * 100) if brewery.confidence else 70 }}%"></div>
+                            </div>
+                            <span class="confidence-value">{{ ((brewery.confidence * 100) | round(0)) if brewery.confidence else 70 }}%</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <!-- Messaggio se non ci sono dati AI -->
+            {% if not bottlesData or bottlesData.length == 0 %}
+            {% if not breweriesData or breweriesData.length == 0 %}
+            <div class="no-ai-data">
+                <div class="alert alert-warning">
+                    <h4><i class="fas fa-exclamation-triangle"></i> Nessun Dato Rilevato</h4>
+                    <p>L'AI non è riuscita a identificare birre o birrifici dall'immagine caricata.</p>
+                    <p>Prova a caricare un'immagine più chiara dell'etichetta della birra.</p>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+
+        </div>
+    </div>
+
+    <!-- 📝 Sezione Form per Arricchimento Dati -->
+    {% if validation.requiresUserConfirmation or validation.requiresUserCompletion %}
+    <div class="enrichment-form-section">
+        <div class="section-header">
+            <h2><i class="fas fa-edit"></i> Completa le Informazioni Mancanti</h2>
+            <p class="section-description">Arricchisci i dati rilevati dall'AI per garantire informazioni complete e accurate</p>
+        </div>
+
+        <form id="enrichmentForm" class="enrichment-form" method="POST" action="/api/ai-verification/confirm-ai-analysis">
+            
+            <!-- Arricchimento Birrifici -->
+            {% if breweriesData and breweriesData.length > 0 %}
+            <div class="form-section brewery-enrichment">
+                <h3><i class="fas fa-industry"></i> Informazioni Birrifici</h3>
+                
+                {% for brewery in breweriesData %}
+                <div class="enrichment-card brewery-card" data-type="brewery" data-id="{{ loop.index }}">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <h4>{{ brewery.breweryName or brewery.name or "Birrificio" }}</h4>
+                            <div class="completeness-indicator">
+                                <span class="completeness-label">Completezza:</span>
+                                <div class="completeness-bar">
+                                    <div class="completeness-fill" data-completeness="{{ brewery.completeness or 40 }}"></div>
+                                </div>
+                                <span class="completeness-value">{{ brewery.completeness or 40 }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Riepilogo Dati AI Recuperati -->
+                    <div class="ai-data-summary">
+                        <h5><i class="fas fa-robot text-info"></i> Dati Recuperati dall'AI</h5>
+                        <div class="ai-data-grid">
+                            {% if brewery.breweryName or brewery.name %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-building"></i> Nome:</span>
+                                <span class="data-value">{{ brewery.breweryName or brewery.name }}</span>
+                            </div>
+                            {% endif %}
+                            {% if brewery.breweryWebsite %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-globe"></i> Sito Web:</span>
+                                <span class="data-value">{{ brewery.breweryWebsite }}</span>
+                            </div>
+                            {% endif %}
+                            {% if brewery.breweryLegalAddress %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-map-marker-alt"></i> Indirizzo:</span>
+                                <span class="data-value">{{ brewery.breweryLegalAddress }}</span>
+                            </div>
+                            {% endif %}
+                            {% if brewery.breweryEmail %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-envelope"></i> Email:</span>
+                                <span class="data-value">{{ brewery.breweryEmail }}</span>
+                            </div>
+                            {% endif %}
+                            {% if brewery.breweryPhone %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-phone"></i> Telefono:</span>
+                                <span class="data-value">{{ brewery.breweryPhone }}</span>
+                            </div>
+                            {% endif %}
+                            {% if brewery.foundingYear %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-calendar"></i> Anno Fondazione:</span>
+                                <span class="data-value">{{ brewery.foundingYear }}</span>
+                            </div>
+                            {% endif %}
+                            {% if brewery.breweryDescription %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-info-circle"></i> Descrizione:</span>
+                                <span class="data-value">{{ brewery.breweryDescription | truncate(100) }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Campi mancanti -->
+                        <div class="missing-fields">
+                            <h6><i class="fas fa-exclamation-triangle text-warning"></i> Campi da Completare</h6>
+                            <div class="missing-list">
+                                {% if not (brewery.breweryName or brewery.name) %}
+                                <span class="missing-field required"><i class="fas fa-building"></i> Nome Birrificio</span>
+                                {% endif %}
+                                {% if not brewery.breweryWebsite %}
+                                <span class="missing-field optional"><i class="fas fa-globe"></i> Sito Web</span>
+                                {% endif %}
+                                {% if not brewery.breweryLegalAddress %}
+                                <span class="missing-field optional"><i class="fas fa-map-marker-alt"></i> Indirizzo</span>
+                                {% endif %}
+                                {% if not brewery.breweryEmail %}
+                                <span class="missing-field optional"><i class="fas fa-envelope"></i> Email</span>
+                                {% endif %}
+                                {% if not brewery.breweryPhone %}
+                                <span class="missing-field optional"><i class="fas fa-phone"></i> Telefono</span>
+                                {% endif %}
+                                {% if not brewery.foundingYear %}
+                                <span class="missing-field optional"><i class="fas fa-calendar"></i> Anno Fondazione</span>
+                                {% endif %}
+                                {% if not brewery.breweryDescription %}
+                                <span class="missing-field optional"><i class="fas fa-info-circle"></i> Descrizione</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-content">
+                        <div class="form-grid">
+                            <!-- Nome Birrificio - OBBLIGATORIO -->
+                            {% set breweryNameValue = brewery.breweryName or brewery.name or '' %}
+                            <div class="form-group {% if breweryNameValue %}field-populated{% else %}field-required-missing{% endif %}">
+                                <label for="brewery_name_{{ loop.index }}">
+                                    {% if breweryNameValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-exclamation-circle text-danger"></i>
+                                    {% endif %}
+                                    <i class="fas fa-building"></i> Nome Birrificio *
+                                </label>
+                                <input type="text" 
+                                       id="brewery_name_{{ loop.index }}" 
+                                       name="brewery_name_{{ loop.index }}" 
+                                       class="form-control required {% if breweryNameValue %}populated{% else %}missing-required{% endif %}" 
+                                       value="{{ breweryNameValue }}" 
+                                       placeholder="Nome completo del birrificio"
+                                       {% if not breweryNameValue %}data-required="true"{% endif %}
+                                       required>
+                                <div class="field-hint">
+                                    {% if breweryNameValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - Il nome ufficiale del birrificio
+                                    {% else %}
+                                    ❗ <strong>Campo obbligatorio mancante</strong> - Inserisci il nome ufficiale del birrificio
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Sito Web - OPZIONALE -->
+                            {% set breweryWebsiteValue = brewery.breweryWebsite or brewery.website or '' %}
+                            <div class="form-group {% if breweryWebsiteValue %}field-populated{% else %}field-optional{% endif %}">
+                                <label for="brewery_website_{{ loop.index }}">
+                                    {% if breweryWebsiteValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                    <i class="fas fa-globe"></i> Sito Web
+                                </label>
+                                <input type="url" 
+                                       id="brewery_website_{{ loop.index }}" 
+                                       name="brewery_website_{{ loop.index }}" 
+                                       class="form-control {% if breweryWebsiteValue %}populated{% else %}optional{% endif %}" 
+                                       value="{{ breweryWebsiteValue }}" 
+                                       placeholder="https://www.birrificio.it">
+                                <div class="field-hint">
+                                    {% if breweryWebsiteValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - URL del sito web ufficiale
+                                    {% else %}
+                                    ⚪ <strong>Campo opzionale</strong> - URL del sito web ufficiale del birrificio
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Indirizzo - IMPORTANTE ma non obbligatorio -->
+                            {% set breweryAddressValue = brewery.breweryLegalAddress or brewery.address or '' %}
+                            <div class="form-group full-width {% if breweryAddressValue %}field-populated{% else %}field-optional{% endif %}">
+                                <label for="brewery_address_{{ loop.index }}">
+                                    {% if breweryAddressValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                    <i class="fas fa-map-marker-alt"></i> Indirizzo Completo
+                                </label>
+                                <textarea id="brewery_address_{{ loop.index }}" 
+                                          name="brewery_address_{{ loop.index }}" 
+                                          class="form-control {% if breweryAddressValue %}populated{% else %}optional{% endif %}" 
+                                          rows="2" 
+                                          placeholder="Via/Piazza, Numero, CAP Città, Provincia, Nazione">{{ breweryAddressValue }}</textarea>
+                                <div class="field-hint">
+                                    {% if breweryAddressValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - Indirizzo legale completo
+                                    {% else %}
+                                    ⚪ <strong>Campo importante</strong> - Indirizzo legale completo del birrificio
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Email - OPZIONALE -->
+                            {% set breweryEmailValue = brewery.breweryEmail or brewery.email or '' %}
+                            <div class="form-group {% if breweryEmailValue %}field-populated{% else %}field-optional{% endif %}">
+                                <label for="brewery_email_{{ loop.index }}">
+                                    {% if breweryEmailValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                    <i class="fas fa-envelope"></i> Email
+                                </label>
+                                <input type="email" 
+                                       id="brewery_email_{{ loop.index }}" 
+                                       name="brewery_email_{{ loop.index }}" 
+                                       class="form-control {% if breweryEmailValue %}populated{% else %}optional{% endif %}" 
+                                       value="{{ breweryEmailValue }}" 
+                                       placeholder="info@birrificio.it">
+                                <div class="field-hint">
+                                    {% if breweryEmailValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - Email di contatto principale
+                                    {% else %}
+                                    ⚪ <strong>Campo opzionale</strong> - Email di contatto principale
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Telefono - OPZIONALE -->
+                            {% set breweryPhoneValue = brewery.breweryPhoneNumber or brewery.phone or '' %}
+                            <div class="form-group {% if breweryPhoneValue %}field-populated{% else %}field-optional{% endif %}">
+                                <label for="brewery_phone_{{ loop.index }}">
+                                    {% if breweryPhoneValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                    <i class="fas fa-phone"></i> Telefono
+                                </label>
+                                <input type="tel" 
+                                       id="brewery_phone_{{ loop.index }}" 
+                                       name="brewery_phone_{{ loop.index }}" 
+                                       class="form-control {% if breweryPhoneValue %}populated{% else %}optional{% endif %}" 
+                                       value="{{ breweryPhoneValue }}" 
+                                       placeholder="+39 123 456789">
+                                <div class="field-hint">
+                                    {% if breweryPhoneValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - Numero di telefono principale
+                                    {% else %}
+                                    ⚪ <strong>Campo opzionale</strong> - Numero di telefono principale
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Anno di Fondazione - OPZIONALE -->
+                            {% set breweryFoundedValue = brewery.foundingYear or brewery.founded or '' %}
+                            <div class="form-group {% if breweryFoundedValue %}field-populated{% else %}field-optional{% endif %}">
+                                <label for="brewery_founded_{{ loop.index }}">
+                                    {% if breweryFoundedValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                    <i class="fas fa-calendar-alt"></i> Anno di Fondazione
+                                </label>
+                                <input type="number" 
+                                       id="brewery_founded_{{ loop.index }}" 
+                                       name="brewery_founded_{{ loop.index }}" 
+                                       class="form-control {% if breweryFoundedValue %}populated{% else %}optional{% endif %}" 
+                                       value="{{ breweryFoundedValue }}" 
+                                       placeholder="2010" 
+                                       min="1800" 
+                                       max="2025">
+                                <div class="field-hint">
+                                    {% if breweryFoundedValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - Anno di fondazione del birrificio
+                                    {% else %}
+                                    ⚪ <strong>Campo opzionale</strong> - Anno di fondazione del birrificio
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Descrizione - OPZIONALE -->
+                            {% set breweryDescriptionValue = brewery.description or '' %}
+                            <div class="form-group full-width {% if breweryDescriptionValue %}field-populated{% else %}field-optional{% endif %}">
+                                <label for="brewery_description_{{ loop.index }}">
+                                    {% if breweryDescriptionValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                    <i class="fas fa-info-circle"></i> Descrizione
+                                </label>
+                                <textarea id="brewery_description_{{ loop.index }}" 
+                                          name="brewery_description_{{ loop.index }}" 
+                                          class="form-control {% if breweryDescriptionValue %}populated{% else %}optional{% endif %}" 
+                                          rows="3" 
+                                          placeholder="Breve descrizione del birrificio, storia e caratteristiche distintive...">{{ breweryDescriptionValue }}</textarea>
+                                <div class="field-hint">
+                                    {% if breweryDescriptionValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - Descrizione del birrificio
+                                    {% else %}
+                                    ⚪ <strong>Campo opzionale</strong> - Descrizione breve del birrificio e delle sue caratteristiche
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ai-suggestion-section">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="searchBrewerySuggestions({{ loop.index }})">
+                                <i class="fas fa-search"></i> Cerca Suggerimenti Online
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-sm" onclick="validateBreweryData({{ loop.index }})">
+                                <i class="fas fa-check-circle"></i> Valida Dati
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Arricchimento Birre -->
+            {% if bottlesData and bottlesData.length > 0 %}
+            <div class="form-section beer-enrichment">
+                <h3><i class="fas fa-beer"></i> Informazioni Birre</h3>
+                
+                {% for bottle in bottlesData %}
+                <div class="enrichment-card beer-card" data-type="beer" data-id="{{ loop.index }}">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="beer-title-section">
+                                {% if bottle.thumbnail %}
+                                <div class="beer-thumbnail-mini">
+                                    <img src="{{ bottle.thumbnail }}" alt="Thumbnail" class="thumb-mini">
+                                </div>
+                                {% endif %}
+                                <h4>{{ bottle.bottleLabel or bottle.beerName or bottle.name or "Birra" }}</h4>
+                            </div>
+                            <div class="completeness-indicator">
+                                <span class="completeness-label">Completeness:</span>
+                                <div class="completeness-bar">
+                                    <div class="completeness-fill" data-completeness="{{ bottle.completeness or 60 }}"></div>
+                                </div>
+                                <span class="completeness-value">{{ bottle.completeness or 60 }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Riepilogo Dati AI Recuperati per Birra -->
+                    <div class="ai-data-summary">
+                        <h5><i class="fas fa-robot text-info"></i> Dati Recuperati dall'AI per questa Birra</h5>
+                        <div class="ai-data-grid beer-data">
+                            {% if bottle.bottleLabel or bottle.beerName or bottle.name %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-tag"></i> Nome:</span>
+                                <span class="data-value">{{ bottle.bottleLabel or bottle.beerName or bottle.name }}</span>
+                            </div>
+                            {% endif %}
+                            {% if bottle.beerType or bottle.type or bottle.style %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-list"></i> Tipologia:</span>
+                                <span class="data-value">{{ (bottle.beerType or bottle.type or bottle.style) | cleantext }}</span>
+                            </div>
+                            {% endif %}
+                            {% if bottle.alcoholContent or bottle.abv %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-percentage"></i> Gradazione:</span>
+                                <span class="data-value">{{ (bottle.alcoholContent | replace('%', '')) or bottle.abv }}%</span>
+                            </div>
+                            {% endif %}
+                            {% if bottle.volume %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-wine-bottle"></i> Volume:</span>
+                                <span class="data-value">{{ bottle.volume | replace('ml', '') | replace('cl', '') }}ml</span>
+                            </div>
+                            {% endif %}
+                            {% if bottle.ibu %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-thermometer-half"></i> IBU:</span>
+                                <span class="data-value">{{ bottle.ibu }}</span>
+                            </div>
+                            {% endif %}
+                            {% if bottle.color or bottle.srm %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-eye"></i> Colore:</span>
+                                <span class="data-value">{{ bottle.color or bottle.srm }} SRM</span>
+                            </div>
+                            {% endif %}
+                            {% if bottle.description %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-align-left"></i> Descrizione:</span>
+                                <span class="data-value">{{ bottle.description | truncate(100) }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Campi birra mancanti -->
+                        <div class="missing-fields">
+                            <h6><i class="fas fa-exclamation-triangle text-warning"></i> Campi da Completare</h6>
+                            <div class="missing-list">
+                                {% if not (bottle.bottleLabel or bottle.beerName or bottle.name) %}
+                                <span class="missing-field required"><i class="fas fa-tag"></i> Nome Birra</span>
+                                {% endif %}
+                                {% if not (bottle.beerType or bottle.type or bottle.style) %}
+                                <span class="missing-field optional"><i class="fas fa-list"></i> Tipologia</span>
+                                {% endif %}
+                                {% if not (bottle.alcoholContent or bottle.abv) %}
+                                <span class="missing-field optional"><i class="fas fa-percentage"></i> Gradazione</span>
+                                {% endif %}
+                                {% if not bottle.volume %}
+                                <span class="missing-field optional"><i class="fas fa-wine-bottle"></i> Volume</span>
+                                {% endif %}
+                                {% if not bottle.ibu %}
+                                <span class="missing-field optional"><i class="fas fa-thermometer-half"></i> IBU</span>
+                                {% endif %}
+                                {% if not (bottle.color or bottle.srm) %}
+                                <span class="missing-field optional"><i class="fas fa-eye"></i> Colore SRM</span>
+                                {% endif %}
+                                {% if not bottle.description %}
+                                <span class="missing-field optional"><i class="fas fa-align-left"></i> Descrizione</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-content">
+                        <div class="form-grid">
+                            <!-- Nome Birra - OBBLIGATORIO -->
+                            {% set beerNameValue = bottle.bottleLabel or bottle.beerName or bottle.name or '' %}
+                            <div class="form-group {% if beerNameValue %}field-populated{% else %}field-required-missing{% endif %}">
+                                <label for="beer_name_{{ loop.index }}">
+                                    {% if beerNameValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-exclamation-circle text-danger"></i>
+                                    {% endif %}
+                                    <i class="fas fa-tag"></i> Nome Birra *
+                                </label>
+                                <input type="text" 
+                                       id="beer_name_{{ loop.index }}" 
+                                       name="beer_name_{{ loop.index }}" 
+                                       class="form-control required {% if beerNameValue %}populated{% else %}missing-required{% endif %}" 
+                                       value="{{ beerNameValue }}" 
+                                       placeholder="Nome completo della birra"
+                                       {% if not beerNameValue %}data-required="true"{% endif %}
+                                       required>
+                                <div class="field-hint">
+                                    {% if beerNameValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - Nome ufficiale della birra
+                                    {% else %}
+                                    ❗ <strong>Campo obbligatorio mancante</strong> - Inserisci il nome ufficiale della birra
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Tipologia - IMPORTANTE ma non obbligatorio -->
+                            {% set beerTypeValue = bottle.beerType or bottle.type or bottle.style or '' %}
+                            {% set cleanBeerType = beerTypeValue | cleantext %}
+                            <div class="form-group {% if beerTypeValue %}field-populated{% else %}field-optional{% endif %}">
+                                <label for="beer_type_{{ loop.index }}">
+                                    {% if beerTypeValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                    <i class="fas fa-list"></i> Tipologia
+                                </label>
+                                <select id="beer_type_{{ loop.index }}" 
+                                        name="beer_type_{{ loop.index }}" 
+                                        class="form-control {% if beerTypeValue %}populated{% else %}optional{% endif %}">
+                                    <option value="">Seleziona tipologia...</option>
+                                    <option value="IPA" {% if cleanBeerType == 'IPA' or cleanBeerType | lower == 'ipa' %}selected{% endif %}>IPA (India Pale Ale)</option>
+                                    <option value="Lager" {% if cleanBeerType == 'Lager' or cleanBeerType | lower == 'lager' %}selected{% endif %}>Lager</option>
+                                    <option value="Pilsner" {% if cleanBeerType == 'Pilsner' or cleanBeerType | lower == 'pilsner' %}selected{% endif %}>Pilsner</option>
+                                    <option value="Weizen" {% if cleanBeerType == 'Weizen' or cleanBeerType | lower == 'weizen' %}selected{% endif %}>Weizen</option>
+                                    <option value="Stout" {% if cleanBeerType == 'Stout' or cleanBeerType | lower == 'stout' %}selected{% endif %}>Stout</option>
+                                    <option value="Porter" {% if cleanBeerType == 'Porter' or cleanBeerType | lower == 'porter' %}selected{% endif %}>Porter</option>
+                                    <option value="Saison" {% if cleanBeerType == 'Saison' or cleanBeerType | lower == 'saison' %}selected{% endif %}>Saison</option>
+                                    <option value="Blonde Ale" {% if cleanBeerType == 'Blonde Ale' or cleanBeerType | lower == 'blonde ale' %}selected{% endif %}>Blonde Ale</option>
+                                    <option value="Brown Ale" {% if cleanBeerType == 'Brown Ale' or cleanBeerType | lower == 'brown ale' %}selected{% endif %}>Brown Ale</option>
+                                    <option value="Altro" {% if beerTypeValue and cleanBeerType | lower not in ['ipa', 'lager', 'pilsner', 'weizen', 'stout', 'porter', 'saison', 'blonde ale', 'brown ale'] %}selected{% endif %}>Altro</option>
+                                </select>
+                                <div class="field-hint">
+                                    {% if beerTypeValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - Categoria: <span class="beer-type-display">{{ cleanBeerType | e }}</span>
+                                    {% else %}
+                                    ⚪ <strong>Campo importante</strong> - Categoria o stile della birra
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Gradazione Alcolica - IMPORTANTE -->
+                            {% set beerAlcoholValue = bottle.alcoholContent | replace('%', '') or bottle.abv or '' %}
+                            <div class="form-group {% if beerAlcoholValue %}field-populated{% else %}field-optional{% endif %}">
+                                <label for="beer_alcohol_{{ loop.index }}">
+                                    {% if beerAlcoholValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                    <i class="fas fa-percentage"></i> Gradazione Alcolica
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" 
+                                           id="beer_alcohol_{{ loop.index }}" 
+                                           name="beer_alcohol_{{ loop.index }}" 
+                                           class="form-control {% if beerAlcoholValue %}populated{% else %}optional{% endif %}" 
+                                           value="{{ beerAlcoholValue }}" 
+                                           placeholder="5.2" 
+                                           step="0.1" 
+                                           min="0" 
+                                           max="20">
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <div class="field-hint">
+                                    {% if beerAlcoholValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - {{ beerAlcoholValue }}% ABV
+                                    {% else %}
+                                    ⚪ <strong>Campo importante</strong> - Percentuale di alcol per volume (ABV)
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Volume - OPZIONALE -->
+                            {% set beerVolumeValue = bottle.volume | replace('ml', '') | replace('cl', '') or '' %}
+                            <div class="form-group {% if beerVolumeValue %}field-populated{% else %}field-optional{% endif %}">
+                                <label for="beer_volume_{{ loop.index }}">
+                                    {% if beerVolumeValue %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                    <i class="fas fa-wine-bottle"></i> Volume
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" 
+                                           id="beer_volume_{{ loop.index }}" 
+                                           name="beer_volume_{{ loop.index }}" 
+                                           class="form-control {% if beerVolumeValue %}populated{% else %}optional{% endif %}" 
+                                           value="{{ beerVolumeValue }}" 
+                                           placeholder="330">
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">ml</span>
+                                    </div>
+                                </div>
+                                <div class="field-hint">
+                                    {% if beerVolumeValue %}
+                                    ✅ <strong>Dato recuperato automaticamente</strong> - {{ beerVolumeValue }}ml
+                                    {% else %}
+                                    ⚪ <strong>Campo opzionale</strong> - Volume della bottiglia in millilitri
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="beer_ibu_{{ loop.index }}">
+                                    <i class="fas fa-thermometer-half"></i> IBU (Amarezza)
+                                </label>
+                                <input type="number" 
+                                       id="beer_ibu_{{ loop.index }}" 
+                                       name="beer_ibu_{{ loop.index }}" 
+                                       class="form-control" 
+                                       value="{{ bottle.ibu or '' }}" 
+                                       placeholder="25" 
+                                       min="0" 
+                                       max="120">
+                                <div class="field-hint">International Bitterness Units (0-120)</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="beer_color_{{ loop.index }}">
+                                    <i class="fas fa-palette"></i> Colore (SRM)
+                                </label>
+                                <input type="number" 
+                                       id="beer_color_{{ loop.index }}" 
+                                       name="beer_color_{{ loop.index }}" 
+                                       class="form-control" 
+                                       value="{{ bottle.srm or bottle.color or '' }}" 
+                                       placeholder="8" 
+                                       min="1" 
+                                       max="40" 
+                                       step="0.5">
+                                <div class="field-hint">Standard Reference Method (1-40)</div>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label for="beer_description_{{ loop.index }}">
+                                    <i class="fas fa-align-left"></i> Descrizione
+                                </label>
+                                <textarea id="beer_description_{{ loop.index }}" 
+                                          name="beer_description_{{ loop.index }}" 
+                                          class="form-control" 
+                                          rows="3" 
+                                          placeholder="Descrizione della birra, note di degustazione, caratteristiche distintive...">{{ bottle.description or '' }}</textarea>
+                                <div class="field-hint">Descrizione dettagliata della birra e delle sue caratteristiche organolettiche</div>
+                            </div>
+                        </div>
+
+                        <div class="ai-suggestion-section">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="searchBeerSuggestions({{ loop.index }})">
+                                <i class="fas fa-search"></i> Cerca Informazioni Online
+                            </button>
+                            <button type="button" class="btn btn-outline-info btn-sm" onclick="analyzeLabel({{ loop.index }})">
+                                <i class="fas fa-eye"></i> Analizza Etichetta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Pulsanti di Azione -->
+            <div class="form-actions">
+                <div class="action-buttons-grid">
+                    <button type="button" id="saveAsDraftBtn" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-save"></i> Salva come Bozza
+                    </button>
+                    <button type="button" id="validateAllBtn" class="btn btn-outline-primary btn-lg">
+                        <i class="fas fa-check-double"></i> Valida Tutto
+                    </button>
+                    <button type="submit" id="submitEnrichmentBtn" class="btn btn-success btn-lg">
+                        <i class="fas fa-paper-plane"></i> Completa Arricchimento
+                    </button>
+                </div>
+                
+                <div class="form-progress">
+                    <div class="progress-info">
+                        <span class="progress-label">Completezza Globale:</span>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="globalProgressBar">
+                                <div class="progress-fill" data-progress="0"></div>
+                            </div>
+                            <span class="progress-percentage" id="globalProgressPercentage">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden fields -->
+            <input type="hidden" name="confirmVerified" value="false">
+            <input type="hidden" name="userCompletions" id="userCompletionsData" value="">
+            <input type="hidden" name="sessionData" value="{{ sessionData | escapejs }}">
+        </form>
+    </div>
+    {% endif %}
+
     {% if validation.canSaveDirectly %}
     <!-- Caso 1: Tutto verificato - Conferma salvataggio -->
     <div class="verification-section success-section">
@@ -302,6 +1058,7 @@
 
 {% block scripts %}
 <script src="/js/aiVerification.js"></script>
+<script src="/js/enrichmentManager.js"></script>
 <script>
     // Inizializza con dati dalla sessione (sicuro da HTML attributes)
     try {

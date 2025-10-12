@@ -3,46 +3,134 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="/css/admin.css">
+<link rel="stylesheet" href="/css/variables.css">
+<link rel="stylesheet" href="/css/components.css">
+<link rel="stylesheet" href="/css/statistics.css">
 <link rel="stylesheet" href="/css/libs/fontawesome.min.css">
 {% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<div class="hero-section">
-    <div class="container">
-        <div class="hero-content animate-fade-scale">
-            <h1 class="hero-title">
-                <i class="fas fa-chart-line"></i> {{ title }}
-            </h1>
-            <p class="hero-subtitle">
-                Dashboard completa per analisi e monitoraggio della piattaforma
-            </p>
-            
-            <div class="hero-stats">
-                <div class="hero-stat">
-                    <span class="hero-stat-number">{{ summary.totalBreweries or 0 }}</span>
-                    <span class="hero-stat-label">Birrifici Attivi</span>
+<div class="container" style="padding-top: var(--space-6);">
+    
+    <!-- Panoramica Sistema - 4 Card Separate -->
+    {% if not summary %}
+        <!-- Stato di errore globale -->
+        <div class="modern-card mb-6">
+            <div class="card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                <div class="card-title">
+                    <div class="card-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    Errore nel Caricamento Statistiche
                 </div>
-                <div class="hero-stat">
-                    <span class="hero-stat-number">{{ summary.totalBeers or 0 }}</span>
-                    <span class="hero-stat-label">Birre Catalogate</span>
+            </div>
+            <div style="padding: var(--space-6); text-align: center;">
+                <div style="font-size: var(--text-6xl); opacity: 0.3; margin-bottom: var(--space-4);">📊</div>
+                <h3 style="color: var(--color-gray-700); margin-bottom: var(--space-3);">Statistiche Temporaneamente Non Disponibili</h3>
+                <p style="color: var(--color-gray-600); margin-bottom: var(--space-6);">
+                    Si è verificato un errore durante il caricamento delle statistiche della piattaforma. 
+                    Questo potrebbe essere dovuto a un problema temporaneo del database o della connessione.
+                </p>
+                <button onclick="window.location.reload()" class="btn-modern btn-primary-modern">
+                    <i class="fas fa-redo me-2"></i>
+                    Ricarica Pagina
+                </button>
+            </div>
+        </div>
+    {% else %}
+    <div class="grid grid-cols-4 gap-4 mb-6">
+        <!-- Card Birrifici -->
+        <div class="modern-card stats-card border-primary" data-stat-type="breweries">
+            <div class="stats-card-body">
+                <div class="stats-icon primary">
+                    <i class="fas fa-industry"></i>
                 </div>
-                <div class="hero-stat">
-                    <span class="hero-stat-number">{{ summary.totalReviews or 0 }}</span>
-                    <span class="hero-stat-label">Recensioni Totali</span>
+                <div class="stats-content">
+                    {% if summary and summary.totalBreweries !== undefined %}
+                        <div class="stats-number primary">{{ summary.totalBreweries }}</div>
+                        <div class="stats-label">Birrifici Attivi</div>
+                        <div class="stats-sublabel">nella piattaforma</div>
+                    {% else %}
+                        <div class="stats-error">
+                            <div class="stats-error-icon">⚠️</div>
+                            <div class="stats-error-text">Dati non disponibili</div>
+                            <div class="stats-error-subtext">Riprova più tardi</div>
+                        </div>
+                    {% endif %}
                 </div>
-                <div class="hero-stat">
-                    <span class="hero-stat-number">{{ summary.totalUsers or 0 }}</span>
-                    <span class="hero-stat-label">Utenti Registrati</span>
+            </div>
+        </div>
+
+        <!-- Card Birre -->
+        <div class="modern-card stats-card border-success" data-stat-type="beers">
+            <div class="stats-card-body">
+                <div class="stats-icon success">
+                    <i class="fas fa-beer"></i>
+                </div>
+                <div class="stats-content">
+                    {% if summary and summary.totalBeers !== undefined %}
+                        <div class="stats-number success">{{ summary.totalBeers }}</div>
+                        <div class="stats-label">Birre Catalogate</div>
+                        <div class="stats-sublabel">nel database</div>
+                    {% else %}
+                        <div class="stats-error">
+                            <div class="stats-error-icon">⚠️</div>
+                            <div class="stats-error-text">Dati non disponibili</div>
+                            <div class="stats-error-subtext">Riprova più tardi</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Recensioni -->
+        <div class="modern-card stats-card border-warning" data-stat-type="reviews">
+            <div class="stats-card-body">
+                <div class="stats-icon warning">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stats-content">
+                    {% if summary and summary.totalReviews !== undefined %}
+                        <div class="stats-number warning">{{ summary.totalReviews }}</div>
+                        <div class="stats-label">Recensioni Totali</div>
+                        <div class="stats-sublabel">dagli utenti</div>
+                    {% else %}
+                        <div class="stats-error">
+                            <div class="stats-error-icon">⚠️</div>
+                            <div class="stats-error-text">Dati non disponibili</div>
+                            <div class="stats-error-subtext">Riprova più tardi</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Utenti -->
+        <div class="modern-card stats-card border-info" data-stat-type="users">
+            <div class="stats-card-body">
+                <div class="stats-icon info">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stats-content">
+                    {% if summary and summary.totalUsers !== undefined %}
+                        <div class="stats-number info">{{ summary.totalUsers }}</div>
+                        <div class="stats-label">Utenti Registrati</div>
+                        <div class="stats-sublabel">attivi e inattivi</div>
+                    {% else %}
+                        <div class="stats-error">
+                            <div class="stats-error-icon">⚠️</div>
+                            <div class="stats-error-text">Dati non disponibili</div>
+                            <div class="stats-error-subtext">Riprova più tardi</div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
-</div>
+    {% endif %}
 
-<div class="container">
     <!-- Sezione Grafici Principali -->
+    {% if summary and (summary.totalReviews > 0 or summary.totalBreweries > 0) %}
     <div class="modern-card animate-slide-up">
         <div class="card-header">
             <div class="card-title">
@@ -56,50 +144,134 @@
         
         <div class="charts-grid">
             <!-- Grafico Distribuzione Rating -->
-            <div class="chart-card">
+            <div class="chart-card" data-chart-type="ratings">
                 <div class="chart-header">
                     <h4 class="chart-title">Distribuzione Rating</h4>
                     <p class="chart-subtitle">Analisi delle valutazioni degli utenti</p>
                 </div>
                 <div class="chart-container">
-                    <canvas id="ratingsChart"></canvas>
+                    {% if summary.totalReviews > 0 %}
+                        <canvas id="ratingsChart"></canvas>
+                    {% else %}
+                        <div class="chart-error">
+                            <div class="chart-error-icon">📊</div>
+                            <div class="chart-error-title">Nessuna Recensione</div>
+                            <div class="chart-error-message">Non ci sono ancora recensioni per generare il grafico delle valutazioni</div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
             
             <!-- Grafico Top Birrifici -->
-            <div class="chart-card">
+            <div class="chart-card" data-chart-type="breweries">
                 <div class="chart-header">
                     <h4 class="chart-title">Top Birrifici</h4>
                     <p class="chart-subtitle">Birrifici più recensiti</p>
                 </div>
                 <div class="chart-container">
-                    <canvas id="breweriesChart"></canvas>
+                    {% if summary.totalBreweries > 0 and summary.totalReviews > 0 %}
+                        <canvas id="breweriesChart"></canvas>
+                    {% else %}
+                        <div class="chart-error">
+                            <div class="chart-error-icon">🏭</div>
+                            <div class="chart-error-title">
+                                {% if summary.totalBreweries == 0 %}Nessun Birrificio{% else %}Nessuna Recensione{% endif %}
+                            </div>
+                            <div class="chart-error-message">
+                                {% if summary.totalBreweries == 0 %}
+                                    Non ci sono ancora birrifici registrati nella piattaforma
+                                {% else %}
+                                    I birrifici non hanno ancora ricevuto recensioni
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
             
             <!-- Grafico Trend Temporale -->
-            <div class="chart-card">
+            <div class="chart-card" data-chart-type="trend">
                 <div class="chart-header">
                     <h4 class="chart-title">Trend Recensioni</h4>
                     <p class="chart-subtitle">Andamento negli ultimi 6 mesi</p>
                 </div>
                 <div class="chart-container">
-                    <canvas id="trendChart"></canvas>
+                    {% if summary.totalReviews > 0 %}
+                        <canvas id="trendChart"></canvas>
+                    {% else %}
+                        <div class="chart-error">
+                            <div class="chart-error-icon">📈</div>
+                            <div class="chart-error-title">Dati Insufficienti</div>
+                            <div class="chart-error-message">Servono più recensioni per mostrare il trend temporale</div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
             
             <!-- Grafico Tipologie Birre -->
-            <div class="chart-card">
+            <div class="chart-card" data-chart-type="beertypes">
                 <div class="chart-header">
                     <h4 class="chart-title">Rating per Tipologia</h4>
                     <p class="chart-subtitle">Valutazioni medie per stile</p>
                 </div>
                 <div class="chart-container">
-                    <canvas id="beerTypesChart"></canvas>
+                    {% if summary.totalBeers > 0 and summary.totalReviews > 0 %}
+                        <canvas id="beerTypesChart"></canvas>
+                    {% else %}
+                        <div class="chart-error">
+                            <div class="chart-error-icon">🍺</div>
+                            <div class="chart-error-title">
+                                {% if summary.totalBeers == 0 %}Nessuna Birra{% else %}Nessuna Recensione{% endif %}
+                            </div>
+                            <div class="chart-error-message">
+                                {% if summary.totalBeers == 0 %}
+                                    Non ci sono ancora birre catalogate nel database
+                                {% else %}
+                                    Le birre non hanno ancora ricevuto valutazioni
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
+    {% else %}
+    <!-- Stato di errore per intera sezione grafici -->
+    <div class="modern-card animate-slide-up">
+        <div class="card-header" style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);">
+            <div class="card-title">
+                <div class="card-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                Grafici Non Disponibili
+            </div>
+            <div class="badge" style="background: rgba(255,255,255,0.2);">Nessun dato</div>
+        </div>
+        <div style="padding: var(--space-8); text-align: center;">
+            <div style="font-size: 5rem; opacity: 0.3; margin-bottom: var(--space-4);">📊</div>
+            <h3 style="color: var(--color-gray-700); margin-bottom: var(--space-3);">Nessun Dato Disponibile per i Grafici</h3>
+            <p style="color: var(--color-gray-600); margin-bottom: var(--space-6); max-width: 600px; margin-left: auto; margin-right: auto;">
+                Per visualizzare i grafici statistici sono necessari dati di base come birrifici registrati, birre catalogate e recensioni degli utenti. 
+                Una volta che la piattaforma inizierà ad avere contenuti, i grafici appariranno automaticamente qui.
+            </p>
+            <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+                <div style="background: var(--color-gray-100); padding: var(--space-4); border-radius: var(--radius-lg); text-align: center; min-width: 140px;">
+                    <div style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">🏭</div>
+                    <div style="font-weight: var(--font-semibold); color: var(--color-gray-700);">Aggiungi Birrifici</div>
+                </div>
+                <div style="background: var(--color-gray-100); padding: var(--space-4); border-radius: var(--radius-lg); text-align: center; min-width: 140px;">
+                    <div style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">🍺</div>
+                    <div style="font-weight: var(--font-semibold); color: var(--color-gray-700);">Cataloga Birre</div>
+                </div>
+                <div style="background: var(--color-gray-100); padding: var(--space-4); border-radius: var(--radius-lg); text-align: center; min-width: 140px;">
+                    <div style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">⭐</div>
+                    <div style="font-weight: var(--font-semibold); color: var(--color-gray-700);">Invita Utenti</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Filtri Avanzati -->
     <div class="filters-panel animate-slide-up">
@@ -483,6 +655,8 @@
     <script src="/js/chart.umd.js"></script>
     <!-- Statistics Manager Script -->
     <script src="/js/statisticsManager.js"></script>
+    <!-- Modern Statistics Page Script (NEW) -->
+    <script src="/js/modernStatistics.js"></script>
     <!-- Statistics Data Script -->
     <script src="/js/statisticsData.js"></script>
     <!-- VU Meter Animation Script -->

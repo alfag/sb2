@@ -14,6 +14,37 @@ router.get('/', authMiddleware.isAdmin, (req, res) => {
     res.render('admin/index', { title: 'Dashboard Amministrativa', user: req.user });
 });
 
+// Lista tutti gli utenti
+router.get('/users', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info('Accesso alla lista completa utenti');
+        const users = await adminController.getAllUsers();
+        
+        // Calcola statistiche reali dal database
+        const stats = {
+            totalUsers: users.length,
+            customers: users.filter(u => u.role.includes('customer')).length,
+            breweries: users.filter(u => u.role.includes('brewery')).length,
+            administrators: users.filter(u => u.role.includes('administrator')).length
+        };
+        
+        logger.info(`Statistiche utenti calcolate: ${JSON.stringify(stats)}`);
+        
+        res.render('admin/listUsers', {
+            title: 'Lista Utenti',
+            users: users,
+            stats: stats,
+            user: req.user,        // Per il layout/menu di autenticazione
+            currentUser: req.user, // Per i controlli nella tabella utenti
+            message: req.flash()
+        });
+    } catch (error) {
+        logger.error(`Errore durante il recupero degli utenti: ${error.message}`);
+        req.flash('error', 'Errore durante il recupero della lista utenti');
+        res.redirect('/administrator');
+    }
+});
+
 // Mostra il form per creare un nuovo utente
 router.get('/users/new', authMiddleware.isAdmin, (req, res) => {
     logger.info('Accesso al form di creazione nuovo utente');
@@ -305,10 +336,23 @@ router.get('/breweries', authMiddleware.isAdmin, async (req, res) => {
     try {
         logger.info('Accesso alla gestione brewery');
         const breweries = await adminController.getAllBreweries();
+        
+        // Calcola statistiche reali dal database
+        const stats = {
+            totalBreweries: breweries.length,
+            withEmail: breweries.filter(b => b.breweryEmail).length,
+            withWebsite: breweries.filter(b => b.breweryWebsite).length,
+            incompleteData: breweries.filter(b => !b.breweryEmail || !b.breweryWebsite || !b.breweryPhoneNumber).length
+        };
+        
+        logger.info(`Statistiche birrifici calcolate: ${JSON.stringify(stats)}`);
+        
         res.render('admin/breweries', { 
             title: 'Gestione Birrifici', 
-            breweries, 
+            breweries,
+            stats: stats,
             user: req.user,
+            currentUser: req.user, // Per controlli nella tabella
             message: req.flash() 
         });
     } catch (error) {

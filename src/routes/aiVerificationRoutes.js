@@ -41,17 +41,30 @@ router.get('/verify-ai-analysis', allowGuestAccess, async function(req, res) {
     // Recupera dati di validazione dalla sessione
     const validationResult = req.session.aiValidationResult;
     const sessionData = req.session.aiAnalysisData;
+    const imageData = req.session.aiImageData;
 
     if (!validationResult || !sessionData) {
       req.flash('error', 'Nessun dato di analisi AI disponibile. Riprova l\'upload.');
       return res.redirect('/');
     }
 
+    // Aggiungi dati immagine ai sessionData per il template
+    const enrichedSessionData = {
+      ...sessionData,
+      originalImage: imageData ? {
+        base64: imageData.base64,
+        mimeType: imageData.mimeType,
+        timestamp: imageData.timestamp
+      } : null,
+      // Crea imageDataUrl se disponibile
+      imageDataUrl: imageData ? `data:${imageData.mimeType};base64,${imageData.base64}` : null
+    };
+
     // Prepara dati per il template
     const templateData = {
       title: 'Verifica Analisi AI',
       validation: validationResult,
-      sessionData: sessionData,
+      sessionData: enrichedSessionData,
       user: req.user || null,
       isGuest: req.isGuest || false,
       guestId: req.guestId || null,

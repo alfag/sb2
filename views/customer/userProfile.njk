@@ -1,64 +1,554 @@
 {% extends "../layout.njk" %}
 
-{% block title %}Profilo Utente{% endblock %}
+{% block title %}Impostazioni Profilo - SharingBeer 2.0{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Gestione Ruolo Attivo</h1>
-    {% if message %}
-        <div class="alert alert-info">{{ message }}</div>
-    {% endif %}
-    {% if user.role is string %}
-        {% set userRoles = [user.role] %}
-    {% else %}
-        {% set userRoles = user.role or [] %}
-    {% endif %}
-    {# SECURITY FIX: Escludere administrator da selezione UI per conformità specifiche #}
-    {% set selectableRoles = [] %}
-    {% for role in userRoles %}
-        {% if role != 'administrator' %}
-            {% set selectableRoles = (selectableRoles.push(role), selectableRoles) %}
-        {% endif %}
-    {% endfor %}
-    {% set selectedRole = activeRole or (selectableRoles | first) %}
+<!-- Modern Profile Container -->
+<div class="profile-container">
+    <div class="profile-card">
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-avatar">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
+                </svg>
+            </div>
+            <div class="profile-info">
+                <h1>{{ user.username }}</h1>
+                <div class="role-badges">
+                    {% if user.role is string %}
+                        {% set userRoles = [user.role] %}
+                    {% else %}
+                        {% set userRoles = user.role or [] %}
+                    {% endif %}
+                    {% for role in userRoles %}
+                        {% if role != 'administrator' %}
+                            <span class="role-badge {{ role }} {% if activeRole == role %}active{% endif %}">
+                                {% if role == 'customer' %}
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="currentColor"/>
+                                    </svg>
+                                {% elif role == 'brewery' %}
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
+                                    </svg>
+                                {% endif %}
+                                {{ role|capitalize }}
+                            </span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
 
-    <div class="section" style="margin-bottom: 32px;">
-        <h2>Ruoli disponibili per cambio ruolo</h2>
-        {% if selectableRoles|length > 1 %}
-            <form id="changeRoleForm" method="post" action="/profile">
-                <input type="hidden" name="changeRoleOnly" value="1">
+        <!-- Alert Messages -->
+        {% if message %}
+            <div class="alert alert-info">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+                </svg>
+                {{ message }}
+            </div>
+        {% endif %}
+
+        <!-- Role Management Section -->
+        <div class="form-section">
+            <h2 class="section-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
+                </svg>
+                Gestione Ruoli
+            </h2>
+            <p class="section-description">Gestisci i tuoi ruoli attivi e le preferenze di accesso</p>
+
+            <!-- Active Role Selection -->
+            {% set selectableRoles = [] %}
+            {% for role in userRoles %}
+                {% if role != 'administrator' %}
+                    {% set selectableRoles = (selectableRoles.push(role), selectableRoles) %}
+                {% endif %}
+            {% endfor %}
+            {% set selectedRole = activeRole or (selectableRoles | first) %}
+
+            {% if selectableRoles|length > 1 %}
+                <div class="role-switcher">
+                    <h3 class="subsection-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+                        </svg>
+                        Ruolo Correntemente Attivo
+                    </h3>
+                    <form id="changeRoleForm" class="role-form" method="post" action="/profile">
+                        <input type="hidden" name="changeRoleOnly" value="1">
+                        <div class="role-selector">
+                            {% for r in selectableRoles %}
+                                <label class="role-option {% if r == selectedRole %}selected{% endif %}">
+                                    <input type="radio" name="activeRole" value="{{ r }}" {% if r == selectedRole %}checked{% endif %}>
+                                    <div class="role-card">
+                                        {% if r == 'customer' %}
+                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
+                                            </svg>
+                                            <h4>Cliente</h4>
+                                            <p>Esplora e recensisci birre</p>
+                                        {% elif r == 'brewery' %}
+                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
+                                            </svg>
+                                            <h4>Birrificio</h4>
+                                            <p>Gestisci il tuo birrificio</p>
+                                        {% endif %}
+                                    </div>
+                                </label>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-secondary">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" fill="currentColor"/>
+                            </svg>
+                            Cambia Ruolo Attivo
+                        </button>
+                    </form>
+                </div>
+            {% else %}
+                <div class="single-role">
+                    <div class="role-display">
+                        {% if selectedRole == 'customer' %}
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
+                            </svg>
+                        {% elif selectedRole == 'brewery' %}
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
+                            </svg>
+                        {% endif %}
+                        <h3>{{ selectedRole|capitalize }}</h3>
+                        <p>Il tuo unico ruolo attivo</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Default Role Configuration -->
+        <div class="form-section">
+            <h2 class="section-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 1l3.09 6.26L22 8.27l-5 4.87 1.18 6.88L12 16.77l-6.18 3.25L7 13.14 2 8.27l6.91-1.01L12 1z" fill="currentColor"/>
+                </svg>
+                Configurazione Login
+            </h2>
+            <p class="section-description">Seleziona il ruolo predefinito che verrà utilizzato automaticamente quando accedi</p>
+
+            <form class="default-role-form" method="post" action="/profile">
+                <input type="hidden" name="updateDefaultRole" value="1">
                 <div class="form-group">
-                    <label for="activeRole">Seleziona ruolo attivo:</label>
-                    <select id="activeRole" name="activeRole" required>
-                        {% for r in selectableRoles %}
-                            <option value="{{ r }}" {% if r == selectedRole %}selected{% endif %}>{{ r|capitalize }}</option>
+                    <label for="defaultRole" class="form-label">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" fill="currentColor"/>
+                        </svg>
+                        Ruolo Predefinito al Login
+                    </label>
+                    <select id="defaultRole" name="defaultRole" class="form-select" required>
+                        {% for role in selectableRoles %}
+                            <option value="{{ role }}" {% if role == user.defaultRole %}selected{% endif %}>
+                                {{ role|capitalize }}
+                                {% if role == 'customer' %} - Modalità Cliente{% elif role == 'brewery' %} - Modalità Birrificio{% endif %}
+                            </option>
                         {% endfor %}
                     </select>
+                    <small class="form-hint">Questo ruolo sarà attivato automaticamente quando accedi al sistema</small>
                 </div>
+                <button type="submit" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" fill="currentColor"/>
+                    </svg>
+                    Salva Preferenze
+                </button>
             </form>
-        {% endif %}
-        {% if selectableRoles|length == 1 %}
-            <div class="form-group">
-                <span>{{ selectedRole|capitalize }}</span>
-            </div>
-        {% endif %}
-    </div>
+        </div>
 
-    <div class="section" style="margin-bottom: 32px;">
-        <h2>Configurazione Ruolo Default</h2>
-        <p>Seleziona il ruolo che vuoi utilizzare automaticamente al login:</p>
-        <form method="post" action="/profile">
-            <input type="hidden" name="updateDefaultRole" value="1">
-            <div class="form-group">
-                <label for="defaultRole">Ruolo predefinito:</label>
-                <select id="defaultRole" name="defaultRole" required>
-                    {% for role in selectableRoles %}
-                        <option value="{{ role }}" {% if role == user.defaultRole %}selected{% endif %}>{{ role|capitalize }}</option>
-                    {% endfor %}
-                </select>
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <h2 class="section-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" fill="currentColor"/>
+                </svg>
+                Azioni Rapide
+            </h2>
+            <div class="actions-grid">
+                <a href="/complete-profile" class="action-card">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+                    </svg>
+                    <h3>Completa Profilo</h3>
+                    <p>Aggiungi e modifica i tuoi dati personali</p>
+                </a>
+                {% if selectableRoles.includes('brewery') %}
+                <a href="/brewery/dashboard" class="action-card brewery">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
+                    </svg>
+                    <h3>Dashboard Birrificio</h3>
+                    <p>Gestisci il tuo birrificio e le tue birre</p>
+                </a>
+                {% endif %}
+                <a href="/review" class="action-card customer">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="currentColor"/>
+                    </svg>
+                    <h3>Crea Recensione</h3>
+                    <p>Recensisci le tue birre preferite</p>
+                </a>
             </div>
-            <button type="submit">Salva Ruolo Default</button>
-        </form>
+        </div>
     </div>
 </div>
+
+<!-- Enhanced Profile Styles -->
+<style>
+.profile-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--space-6);
+}
+
+.profile-card {
+    background: var(--color-white);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+    margin-bottom: var(--space-8);
+}
+
+.profile-header {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-info) 100%);
+    padding: var(--space-8);
+    color: var(--color-white);
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+}
+
+.profile-avatar {
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.profile-info h1 {
+    margin: 0 0 var(--space-2) 0;
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+}
+
+.role-badges {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.role-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--color-white);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.role-badge.active {
+    background: var(--color-white);
+    color: var(--color-primary);
+    transform: scale(1.05);
+}
+
+.form-section {
+    padding: var(--space-8);
+    border-bottom: 1px solid var(--color-gray-100);
+}
+
+.form-section:last-child {
+    border-bottom: none;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    color: var(--color-gray-900);
+    margin: 0 0 var(--space-2) 0;
+}
+
+.section-description {
+    color: var(--color-gray-600);
+    margin: 0 0 var(--space-6) 0;
+    line-height: 1.6;
+}
+
+.subsection-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--color-gray-800);
+    margin: 0 0 var(--space-4) 0;
+}
+
+.role-switcher {
+    margin-bottom: var(--space-8);
+}
+
+.role-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.role-option {
+    cursor: pointer;
+    position: relative;
+}
+
+.role-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.role-card {
+    padding: var(--space-6);
+    border: 2px solid var(--color-gray-200);
+    border-radius: var(--radius-xl);
+    text-align: center;
+    transition: all var(--transition-base);
+    background: var(--color-white);
+}
+
+.role-card:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.role-option.selected .role-card {
+    border-color: var(--color-primary);
+    background: var(--color-primary-50);
+}
+
+.role-card svg {
+    color: var(--color-gray-500);
+    margin-bottom: var(--space-3);
+}
+
+.role-option.selected .role-card svg {
+    color: var(--color-primary);
+}
+
+.role-card h4 {
+    margin: 0 0 var(--space-1) 0;
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--color-gray-900);
+}
+
+.role-card p {
+    margin: 0;
+    color: var(--color-gray-600);
+    font-size: var(--text-sm);
+}
+
+.single-role {
+    text-align: center;
+    padding: var(--space-8);
+    background: var(--color-gray-50);
+    border-radius: var(--radius-xl);
+}
+
+.role-display svg {
+    color: var(--color-primary);
+    margin-bottom: var(--space-4);
+}
+
+.role-display h3 {
+    margin: 0 0 var(--space-2) 0;
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--color-gray-900);
+}
+
+.role-display p {
+    margin: 0;
+    color: var(--color-gray-600);
+}
+
+.default-role-form .form-group {
+    margin-bottom: var(--space-6);
+}
+
+.quick-actions {
+    padding: var(--space-8);
+    background: var(--color-gray-50);
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+}
+
+.action-card {
+    display: block;
+    padding: var(--space-6);
+    background: var(--color-white);
+    border-radius: var(--radius-xl);
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid var(--color-gray-200);
+    transition: all var(--transition-base);
+    text-align: center;
+}
+
+.action-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--color-primary);
+}
+
+.action-card svg {
+    color: var(--color-primary);
+    margin-bottom: var(--space-3);
+}
+
+.action-card.brewery svg {
+    color: var(--color-warning);
+}
+
+.action-card.customer svg {
+    color: var(--color-info);
+}
+
+.action-card h3 {
+    margin: 0 0 var(--space-2) 0;
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--color-gray-900);
+}
+
+.action-card p {
+    margin: 0;
+    color: var(--color-gray-600);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
+@media (max-width: 639px) {
+    .profile-container {
+        padding: var(--space-4);
+    }
+    
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+        gap: var(--space-4);
+    }
+    
+    .form-section {
+        padding: var(--space-6) var(--space-4);
+    }
+    
+    .role-selector {
+        grid-template-columns: 1fr;
+    }
+    
+    .actions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<!-- Enhanced Role Management Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleOptions = document.querySelectorAll('.role-option');
+    const changeRoleForm = document.getElementById('changeRoleForm');
+    
+    // Handle role selection
+    roleOptions.forEach(option => {
+        const radio = option.querySelector('input[type="radio"]');
+        const card = option.querySelector('.role-card');
+        
+        option.addEventListener('click', function() {
+            // Remove selected class from all options
+            roleOptions.forEach(opt => opt.classList.remove('selected'));
+            
+            // Add selected class to clicked option
+            this.classList.add('selected');
+            
+            // Check the radio button
+            radio.checked = true;
+        });
+        
+        // Visual feedback on hover
+        card.addEventListener('mouseenter', function() {
+            if (!option.classList.contains('selected')) {
+                card.style.borderColor = 'var(--color-primary)';
+            }
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            if (!option.classList.contains('selected')) {
+                card.style.borderColor = 'var(--color-gray-200)';
+            }
+        });
+    });
+    
+    // Form validation and confirmation
+    if (changeRoleForm) {
+        changeRoleForm.addEventListener('submit', function(e) {
+            const selectedRole = this.querySelector('input[name="activeRole"]:checked');
+            
+            if (!selectedRole) {
+                e.preventDefault();
+                alert('Seleziona un ruolo prima di procedere');
+                return;
+            }
+            
+            // Optional confirmation for role change
+            const roleName = selectedRole.value;
+            const confirmChange = confirm(`Vuoi davvero cambiare il tuo ruolo attivo a "${roleName.charAt(0).toUpperCase() + roleName.slice(1)}"?`);
+            
+            if (!confirmChange) {
+                e.preventDefault();
+            }
+        });
+    }
+    
+    // Default role form validation
+    const defaultRoleForm = document.querySelector('.default-role-form');
+    if (defaultRoleForm) {
+        defaultRoleForm.addEventListener('submit', function(e) {
+            const selectedDefault = this.querySelector('select[name="defaultRole"]').value;
+            
+            if (!selectedDefault) {
+                e.preventDefault();
+                alert('Seleziona un ruolo predefinito');
+                return;
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

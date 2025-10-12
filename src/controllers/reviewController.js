@@ -225,6 +225,25 @@ exports.firstCheckAI = async (req, res) => {
       // 🖼️ Aggiungi thumbnail dell'immagine caricata per sistema anti-allucinazioni
       const imageDataUrl = `data:${mimeType};base64,${base64Image}`;
 
+      // 💾 Salva dati di validazione e analisi nella sessione per l'interfaccia
+      req.session.aiValidationResult = aiResult.validation || {
+        canSaveDirectly: false,
+        requiresUserConfirmation: true,
+        requiresUserCompletion: false,
+        blockedByValidation: false,
+        userActions: aiResult.userActions || [],
+        messages: aiResult.messages || {}
+      };
+
+      req.session.aiAnalysisData = {
+        bottles: aiResult.bottles || [],
+        breweries: aiResult.breweries || [],
+        processedData: aiResult.processedData || {},
+        userFlowType: aiResult.userFlowType,
+        messages: aiResult.messages || {},
+        timestamp: new Date().toISOString()
+      };
+
       // Risposta JSON che indica necessità di verifica
       return res.json({
         success: true,

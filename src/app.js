@@ -68,6 +68,76 @@ env.addFilter('tojson', function(obj) {
     }
 });
 
+// Filtro custom cleantext - pulisce caratteri strani da encoding problemi
+env.addFilter('cleantext', function(str) {
+    if (typeof str !== 'string') return str;
+    
+    return str
+        // Fix caratteri UTF-8 mal codificati comuni
+        .replace(/â/g, 'a')
+        .replace(/ã/g, 'a')
+        .replace(/à/g, 'a')
+        .replace(/á/g, 'a')
+        .replace(/è/g, 'e')
+        .replace(/é/g, 'e')
+        .replace(/ì/g, 'i')
+        .replace(/í/g, 'i')
+        .replace(/ò/g, 'o')
+        .replace(/ó/g, 'o')
+        .replace(/ù/g, 'u')
+        .replace(/ú/g, 'u')
+        .replace(/ñ/g, 'n')
+        .replace(/ç/g, 'c')
+        // Rimuove caratteri di controllo invisibili
+        .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+        // Normalizza spazi
+        .replace(/\s+/g, ' ')
+        .trim();
+});
+
+// Filtro custom date - formatta le date usando JavaScript nativo
+env.addFilter('date', function(date, format) {
+    if (!date) return '';
+    
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    
+    // Formati supportati
+    switch (format) {
+        case 'DD/MM/YYYY':
+            return d.toLocaleDateString('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        case 'd/m/Y':
+            return d.toLocaleDateString('it-IT', {
+                day: 'numeric',
+                month: 'numeric',
+                year: 'numeric'
+            });
+        case 'd/m/Y H:i':
+            return d.toLocaleString('it-IT', {
+                day: 'numeric',
+                month: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        case 'DD/MM/YYYY HH:mm':
+            return d.toLocaleString('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        default:
+            // Formato di default
+            return d.toLocaleDateString('it-IT');
+    }
+});
+
 // Imposta Nunjucks come motore di template predefinito
 app.set('view engine', 'njk');
 

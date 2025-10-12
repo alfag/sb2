@@ -1,216 +1,263 @@
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% endblock %}</title>
+    <meta name="description" content="SharingBeer 2.0 - La piattaforma per gli amanti della birra artigianale">
+    <title>{% block title %}SharingBeer 2.0{% endblock %}</title>
     
-    <!-- Bootstrap CSS (locale) -->
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    
+    <!-- CSS Framework (Bootstrap) -->
     <link href="/css/libs/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome 7.0.1 (locale) -->
     <link rel="stylesheet" href="/css/libs/fontawesome-7.0.1.min.css">
     
-    <!-- CSS Personalizzati -->
+    <!-- Design System -->
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    
+    <!-- Legacy CSS (da migrare) -->
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/toggle.css">
     <link rel="stylesheet" href="/css/roleSelector.css">
+    
     {% block head %}{% endblock %}
 </head>
 
-<body style="display: flex; flex-direction: column; min-height: 100vh;">
-    <!-- Gestione dei message -->
+<body>
+    <!-- Alert Messages -->
     {% if message %}
-    {% if message.error %}  
-    <div class="alert alert-danger">
-        {{ message.error }}
+    <div class="alert-container" role="alert" aria-live="polite">
+        {% if message.error %}
+        <div class="alert alert-error alert-dismissible">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-content">
+                <div class="alert-message">{{ message.error }}</div>
+            </div>
+            <button class="alert-close" aria-label="Chiudi">×</button>
+        </div>
+        {% endif %}
+        
+        {% if message.success %}
+        <div class="alert alert-success alert-dismissible">
+            <div class="alert-icon">✓</div>
+            <div class="alert-content">
+                <div class="alert-message">{{ message.success }}</div>
+            </div>
+            <button class="alert-close" aria-label="Chiudi">×</button>
+        </div>
+        {% endif %}
+        
+        {% if message.info %}
+        <div class="alert alert-info alert-dismissible">
+            <div class="alert-icon">ℹ️</div>
+            <div class="alert-content">
+                <div class="alert-message">{{ message.info }}</div>
+            </div>
+            <button class="alert-close" aria-label="Chiudi">×</button>
+        </div>
+        {% endif %}
+        
+        {% if message.warning %}
+        <div class="alert alert-warning alert-dismissible">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-content">
+                <div class="alert-message">{{ message.warning }}</div>
+            </div>
+            <button class="alert-close" aria-label="Chiudi">×</button>
+        </div>
+        {% endif %}
     </div>
-    <script>
-        console.error('Errore dal server:', '{{ message.error | escapejs }}');
-    </script>
     {% endif %}
-    {% if message.info %}
-    <div class="alert alert-info">
-        {{ message.info }}
-    </div>
-    {% endif %}
-    {% if message.warning %}
-    <div class="alert alert-warning">
-        {{ message.warning }}
-    </div>
-    {% endif %}
-    {% endif %}
-    <header>
-        <h1>{% block header %}{% endblock %}</h1>
-    </header>
-    <main style="flex: 1 0 auto; padding-bottom: 120px;">
-        {% block content %}{% endblock %}
-    </main>
-    {% if showDisclaimer %}
-      {% include "partials/disclaimer.njk" %}
-    {% endif %}
-    <footer style="width: 100%; flex-shrink: 0; position: fixed; left: 0; bottom: 0; background: #fff;">
-        <table width="100%" style="border-top: 1px solid black; vertical-align:middle;">
-            <tr>
-                <td width="75%" style="text-align: left; font-size: 14px; color: #000; position: relative;">
-                    <div style="display: flex; align-items: center; gap: 8px; position: relative;">
-                        <!-- Sandwich icon -->
-                        <div id="sandwich-menu-toggle" style="vertical-align:bottom;cursor:pointer; display:inline-block; margin-left: 5px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="36px" height="36px" fill="#000"
-                                viewBox="0 0 24 24">
-                                <rect y="4" width="20" height="2" />
-                                <rect y="11" width="20" height="2" />
-                                <rect y="18" width="20" height="2" />
+
+    <!-- Navigation -->
+        <!-- Navigation -->
+    <nav class="navbar" role="navigation" aria-label="Navigazione principale">
+        <div class="navbar-container">
+            <!-- Left Section: Hamburger Menu -->
+            <div class="navbar-left">
+                <!-- Mobile Menu Toggle -->
+                <button class="navbar-toggle" aria-label="Menu" aria-expanded="false" id="navbar-toggle">
+                    <span class="navbar-toggle-icon"></span>
+                </button>
+            </div>
+
+            <!-- Center Section: Brand -->
+            <div class="navbar-center">
+                <a href="/" class="navbar-brand" aria-label="Torna alla home">
+                    <span class="navbar-brand-text">SharingBeer</span>
+                </a>
+            </div>
+
+            <!-- Right Section: Auth -->
+            <div class="navbar-right">
+                {% if user %}
+                    <!-- User Profile Dropdown with Gradient Background -->
+                    <div class="dropdown">
+                        <button class="btn navbar-user-btn" id="profile-dropdown" aria-haspopup="true" aria-expanded="false">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor" aria-hidden="true">
+                                <path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"/>
                             </svg>
-                        </div>
-                        <!-- Sandwich menu content (hidden by default, opens upward) -->
-                        <div id="sandwich-menu-content"
-                            style="display:none; position:absolute; bottom:36px; left:5px; background:#fff; border:1px solid #ccc; box-shadow:0 2px 8px rgba(0,0,0,0.15); padding:12px; z-index:100;">
-                            <!-- Icona Home -->
-                            {% set homeUrl = "/" %}
-                            {% if user and activeRole %}
-                                {% if activeRole == 'brewery' and user.breweryDetails %}
-                                    {% set homeUrl = "/brewery/dashboard" %}
-                                {% elif activeRole == 'administrator' %}
-                                    {% set homeUrl = "/administrator" %}
-                                {% elif activeRole == 'customer' %}
-                                    {% set homeUrl = "/" %}
-                                {% endif %}
-                            {% endif %}
-                            <a class="navbar-brand"
-                                style="font-size:14px; color: #000; text-decoration: none; display: flex; align-items: center;"
-                                href="{{ homeUrl }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="36px" height="36px" fill="#000"
-                                    viewBox="0 0 24 24">
-                                    <path
-                                        d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" />
-                                </svg>
-                                <span
-                                    style="margin-left: 12px; display: flex; align-items: center; height: 36px;">Home</span>
-                            </a>
-                            {% if user and user.role and (user.role | length > 0) %}
-                            <hr>
-                            {% set rolePriority = ['administrator', 'brewery', 'customer'] %}
-                            {% set sortedRoles = ([] ) %}
-                            {% for role in rolePriority %}
-                                {% if user.role is defined and (user.role is iterable and role in user.role or user.role == role) %}
-                                    {% set sortedRoles = sortedRoles.concat([role]) %}
-                                {% endif %}
-                            {% endfor %}
-                            {% set currentRole = (activeRole if activeRole is defined and activeRole else (sortedRoles | first)) %}
-                            {% if currentRole == 'administrator' %}
-                                {% include 'partials/navbar_admin.njk' %}
-                            {% elif currentRole == 'brewery' %}
-                                {% include 'partials/navbar_brewery.njk' %}
-                            {% elif currentRole == 'customer' %}
-                                {% include 'partials/navbar_customer.njk' %}
-                            {% endif %}
-                        {% endif %}
-                        </div>
-                    </div>
-                </td>
-                <!-- Auth icons cell (right) -->
-                <td width="25%" style="text-align: right; font-size: 14px; color: #000;">
-                    {% if user %}
-                    <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-right: 5px;">
-                        <!-- Profile dropdown -->
-                        <div style="position: relative; display: inline-block;">
-                            <div id="profile-menu-toggle" style="cursor: pointer;">
-                                <svg style="vertical-align:bottom" xmlns="http://www.w3.org/2000/svg" height="36px" viewBox="0 -960 960 960"
-                                    width="36px" fill="#000000">
-                                    <path
-                                        d="M230.8-265.45q59.24-38.85 119.17-58.95 59.94-20.1 130.03-20.1t130.47 20.38q60.38 20.38 119.66 58.75 41.28-50.74 59.38-103.14t18.1-111.45q0-138.64-94.5-233.14-94.5-94.51-233.08-94.51-138.59 0-233.11 94.51-94.53 94.5-94.53 233.14 0 58.96 18.32 111.32 18.32 52.36 60.09 103.19Zm249.15-180.72q-58.44 0-98.32-39.91-39.89-39.9-39.89-98.24 0-58.33 39.94-98.31 39.93-39.98 98.37-39.98 58.44 0 98.32 40.03 39.89 40.03 39.89 98.36 0 58.34-39.94 98.19-39.93 39.86-98.37 39.86Zm-.22 366.2q-82.53 0-155.83-31.58-73.29-31.58-127.36-85.98-54.06-54.41-85.32-127.18-31.25-72.78-31.25-155.56 0-82.87 31.62-155.79 31.61-72.91 85.97-127.01 54.36-54.09 127.15-85.6 72.78-31.52 155.58-31.52 82.88 0 155.78 31.61 72.91 31.6 127 85.72 54.09 54.11 85.6 127.01 31.52 72.89 31.52 155.63 0 82.82-31.53 155.67t-85.72 127.12q-54.19 54.26-127.19 85.86-72.99 31.6-156.02 31.6Z" />
-                                </svg>
-                            </div>
-                            <!-- Profile dropdown menu (hidden by default, opens upward) -->
-                            <div id="profile-menu-content"
-                                style="display:none; position:absolute; bottom:40px; right:0; background:#fff; border:1px solid #ccc; box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:0; z-index:100; min-width:200px; border-radius:6px;">
-                                <!-- User info header -->
-                                <div style="padding:12px 16px; border-bottom:1px solid #eee; background:#f8f9fa; border-radius:6px 6px 0 0;">
-                                    <div style="font-weight:600; color:#333;">{{ user.username }}</div>
-                                    <div style="font-size:12px; color:#666;">
-                                        {% if activeRole %}{{ activeRole | capitalize }}{% else %}{{ user.defaultRole | capitalize }}{% endif %}
+                            <span class="user-name">{{ user.username }}</span>
+                        </button>
+                        <div class="dropdown-menu user-dropdown-menu" id="profile-menu">
+                            <!-- User Header -->
+                            <div class="dropdown-header">
+                                <div class="user-info">
+                                    <div class="font-semibold user-name-large">{{ user.username }}</div>
+                                    <div class="text-sm text-gray-500">
+                                        Ruolo attivo: {% if activeRole %}{{ activeRole | capitalize }}{% else %}{{ user.defaultRole | capitalize }}{% endif %}
                                     </div>
                                 </div>
-                                <!-- Menu items -->
-                                <div style="padding:8px 0;">
-                                    <table style="width:100%; border-collapse:collapse; border-spacing:0;">
-                                        <tbody>
-                                            <!-- Riga "I tuoi dati" -->
-                                            <tr style="cursor:pointer;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
-                                                <td style="width:32px; padding:8px 12px 8px 16px; vertical-align:middle; border:none; text-align:left;">
-                                                    <div style="width:20px; height:20px; display:flex; align-items:center; justify-content:center;">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
-                                                            <path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"/>
-                                                        </svg>
-                                                    </div>
-                                                </td>
-                                                <td style="padding:8px 16px 8px 0; vertical-align:middle; border:none; text-align:left;">
-                                                    <a href="/complete-profile" style="color:#333; text-decoration:none; font-size:14px; display:block; width:100%; height:100%; line-height:20px; text-align:left;">
-                                                        I tuoi dati
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                            {% set currentUserRole = (activeRole if activeRole is defined and activeRole else (user.defaultRole if user.defaultRole is defined else '')) %}
-                                            {% if currentUserRole != 'administrator' %}
-                                            <!-- Riga "Cambia ruolo" -->
-                                            <tr style="cursor:pointer;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">
-                                                <td style="width:32px; padding:8px 12px 8px 16px; vertical-align:middle; border:none; text-align:left;">
-                                                    <div style="width:20px; height:20px; display:flex; align-items:center; justify-content:center;">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
-                                                            <path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm-40-82v-78q-33 0-56.5-23.5T360-320v-40L168-552q-3 18-5.5 36t-2.5 36q0 121 79.5 212T440-162Zm276-102q20-22 36-47.5t26.5-53q10.5-27.5 16-56.5t5.5-59q0-98-54.5-179T600-776v16q0 33-23.5 56.5T520-680h-80v80q0 17-11.5 28.5T400-560h-80v80h240q17 0 28.5 11.5T600-440v120h40q26 0 47 15.5t29 40.5Z"/>
-                                                        </svg>
-                                                    </div>
-                                                </td>
-                                                <td style="padding:8px 16px 8px 0; vertical-align:middle; border:none; text-align:left;">
-                                                    <a href="/profile" style="color:#333; text-decoration:none; font-size:14px; display:block; width:100%; height:100%; line-height:20px; text-align:left;">
-                                                        Cambia ruolo
-                                                    </a>
-                                                </td>
-                                            </tr>
+                            </div>
+                            
+                            <!-- Role Management Section -->
+                            {% if user.role and (user.role | length > 0) %}
+                            <div class="dropdown-section">
+                                <div class="dropdown-section-title">Gestione Ruoli</div>
+                                
+                                <!-- Active Role Selector -->
+                                <div class="role-selector-container">
+                                    {% set rolePriority = ['administrator', 'brewery', 'customer'] %}
+                                    {% set sortedRoles = [] %}
+                                    {% for role in rolePriority %}
+                                        {% if user.role is defined and (user.role is iterable and role in user.role or user.role == role) %}
+                                            {% set sortedRoles = sortedRoles.concat([role]) %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% set currentRole = (activeRole if activeRole is defined and activeRole else (sortedRoles | first)) %}
+                                    
+                                    <label for="dropdown-role-selector" class="role-label">Ruolo Attivo:</label>
+                                    <select id="dropdown-role-selector" class="dropdown-role-selector" onchange="changeRole(this.value)">
+                                        {% for role in sortedRoles %}
+                                        <option value="{{ role }}" {% if role == currentRole %}selected{% endif %}>
+                                            {{ role | capitalize }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <!-- Default Role Selector -->
+                                <div class="role-selector-container">
+                                    <label for="dropdown-default-role" class="role-label">Ruolo Predefinito:</label>
+                                    <select id="dropdown-default-role" class="dropdown-role-selector" onchange="changeDefaultRole(this.value)">
+                                        {% for role in sortedRoles %}
+                                            {% if role != 'administrator' %}
+                                            <option value="{{ role }}" {% if role == user.defaultRole %}selected{% endif %}>
+                                                {{ role | capitalize }}
+                                            </option>
                                             {% endif %}
-                                        </tbody>
-                                    </table>
+                                        {% endfor %}
+                                    </select>
                                 </div>
                             </div>
-                        </div>
-                        <a style="color:#000;font-size:14px; text-decoration: none;" href="/logout">
-                            <div> <!-- Icona esci -->
-                                <span>
-                                    <svg style="vertical-align:bottom" xmlns="http://www.w3.org/2000/svg" width="36px"
-                                        height="36px" fill="#000" viewbox="0 0 24 24">
-                                        <path
-                                            d="M5,5h6c0.55,0,1-0.45,1-1v0c0-0.55-0.45-1-1-1H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h6c0.55,0,1-0.45,1-1v-1 c0-0.55-0.45-1-1-1H5V5z" />
-                                        <path
-                                            d="M20.65,11.65l-2.79-2.79C17.54,8.54,17,8.76,17,9.21V11h-7c-0.55,0-1,0.45-1,1v0c0,0.55,0.45,1,1,1h7v1.79 c0,0.45,0.54,0.67,0.85,0.35l2.79-2.79C20.84,12.16,20.84,11.84,20.65,11.65z" />
-                                    </svg>
-                                </span>
-                            </div>
-                        </a>
-                    </div>
-                    {% else %}
-                    <a style="color:#000;font-size:14px;text-decoration: none;" href="/login">
-                        <div style="margin-right: 5px;"> <!-- Icona Entra -->
-                            <span>
-                                <svg style="vertical-align:bottom" xmlns="http://www.w3.org/2000/svg" width="36px"
-                                    height="36px" fill="#000" viewbox="0 0 24 24">
-                                    <path
-                                        d="M10.3,7.7L10.3,7.7c-0.39,0.39-0.39,1.01,0,1.4l1.9,1.9H3c-0.55,0-1,0.45-1,1v0c0,0.55,0.45,1,1,1h9.2l-1.9,1.9 c-0.39,0.39-0.39,1.01,0,1.4l0,0c0.39,0.39,1.01,0.39,1.4,0l3.59-3.59c0.39-0.39,0.39-1.02,0-1.41L11.7,7.7 C11.31,7.31,10.69,7.31,10.3,7.7z M20,19h-7c-0.55,0-1,0.45-1,1v0c0,0.55,0.45,1,1,1h7c1.1,0,2-0.9,2-2V5c0-1.1-0.9-2-2-2h-7 c-0.55,0-1,0.45-1,1v0c0,0.55,0.45,1,1,1h7V19z" />
+                            {% endif %}
+                            
+                            <div class="dropdown-divider"></div>
+                            
+                            <!-- Profile Actions -->
+                            <a href="/complete-profile" class="dropdown-item">
+                                <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor">
+                                    <path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"/>
                                 </svg>
-                            </span>
+                                I tuoi dati
+                            </a>
+                            
+                            <div class="dropdown-divider"></div>
+                            
+                            <a href="/logout" class="dropdown-item text-error">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewbox="0 0 24 24">
+                                    <path d="M5,5h6c0.55,0,1-0.45,1-1v0c0-0.55-0.45-1-1-1H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h6c0.55,0,1-0.45,1-1v-1 c0-0.55-0.45-1-1-1H5V5z"/>
+                                    <path d="M20.65,11.65l-2.79-2.79C17.54,8.54,17,8.76,17,9.21V11h-7c-0.55,0-1,0.45-1,1v0c0,0.55,0.45,1,1,1h7v1.79 c0,0.45,0.54,0.67,0.85,0.35l2.79-2.79C20.84,12.16,20.84,11.84,20.65,11.65z"/>
+                                    </svg>
+                                    Esci
+                                </a>
+                            </div>
                         </div>
+                    </div>
+                {% else %}
+                    <!-- Login Button (when not logged in) -->
+                    <a href="/login" class="btn navbar-auth-btn">
+                        <!-- Hidden SVG gradient definition -->
+                        <svg width="0" height="0" style="position: absolute;">
+                            <defs>
+                                <linearGradient id="loginGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                        </svg>
+                        <span>Accedi</span>
                     </a>
+                {% endif %}
+            </div>            <!-- Mobile/Desktop Navigation Menu -->
+            <ul class="navbar-menu" id="navbar-menu">
+                {% if user %}
+                    <!-- Menu Items based on current role -->
+                    {% set rolePriority = ['administrator', 'brewery', 'customer'] %}
+                    {% set sortedRoles = [] %}
+                    {% for role in rolePriority %}
+                        {% if user.role is defined and (user.role is iterable and role in user.role or user.role == role) %}
+                            {% set sortedRoles = sortedRoles.concat([role]) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% set currentRole = (activeRole if activeRole is defined and activeRole else (sortedRoles | first)) %}
+                    
+                    {% if currentRole == 'administrator' %}
+                        {% include 'partials/navbar_admin.njk' %}
+                    {% elif currentRole == 'brewery' %}
+                        {% include 'partials/navbar_brewery.njk' %}
+                    {% elif currentRole == 'customer' %}
+                        {% include 'partials/navbar_customer.njk' %}
                     {% endif %}
-                </td>
-            </tr>
-        </table>
-        <div style="text-align: center; font-size: 8px;">&copy; 2023 SharingBeer2_0. Tutti i diritti riservati.</div>
+                {% else %}
+                    <!-- Guest menu items -->
+                    <li class="nav-menu-item">
+                        <a href="/" class="nav-menu-link">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                            </svg>
+                            <span>Home</span>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" role="main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer" role="contentinfo">
+        <div class="footer-container container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <strong>SharingBeer 2.0</strong>
+                </div>
+                <div class="footer-links">
+                    <a href="/privacy" class="footer-link">Privacy</a>
+                    <a href="/terms" class="footer-link">Termini</a>
+                    <a href="/contact" class="footer-link">Contatti</a>
+                </div>
+                <div class="footer-copyright">
+                    © {{ year if year else 2025 }} SharingBeer 2.0. Tutti i diritti riservati.
+                </div>
+            </div>
+        </div>
     </footer>
-    
-    <!-- Overlay spinner per AI con bottiglia di birra -->
-    <div id="ai-loading-overlay" class="ai-loading-overlay">
+
+    <!-- AI Loading Overlay -->
+    <div id="ai-loading-overlay" class="ai-loading-overlay" role="status" aria-live="polite" aria-hidden="true">
         <div class="beer-bottle-spinner">
             <div class="bottle-container">
                 <div class="bottle-neck"></div>
@@ -221,9 +268,8 @@
             <h3 class="loading-text">Attendere...</h3>
         </div>
     </div>
-    
+
     <!-- Scripts -->
-    <!-- Bootstrap JS (locale) -->
     <script src="/js/libs/bootstrap.bundle.min.js"></script>
     
     <!-- Core modules -->
@@ -234,49 +280,104 @@
     <script src="/js/modules/utilsModule.js"></script>
     <script src="/js/modules/aiModule.js"></script>
     <script src="/js/modules/reviewModule.js"></script>
-    
-    <!-- Role Selector Module -->
     <script src="/js/roleSelector.js"></script>
-    
-    <!-- Modular app coordinator -->
     <script src="/js/modularApp.js"></script>
-    
-    <!-- Legacy scripts (deprecated - will be removed) -->
     <script src="/js/scripts.js"></script>
-    
-    <!-- Profile dropdown functionality -->
-    <script>
-        // Gestione dropdown profilo
-        document.addEventListener('DOMContentLoaded', function() {
-            const profileToggle = document.getElementById('profile-menu-toggle');
-            const profileMenu = document.getElementById('profile-menu-content');
-            
-            if (profileToggle && profileMenu) {
-                profileToggle.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const isVisible = profileMenu.style.display === 'block';
-                    profileMenu.style.display = isVisible ? 'none' : 'block';
-                });
-                
-                // Chiudi dropdown quando si clicca fuori
-                document.addEventListener('click', function(e) {
-                    if (!profileToggle.contains(e.target) && !profileMenu.contains(e.target)) {
-                        profileMenu.style.display = 'none';
-                    }
-                });
-                
-                // Chiudi dropdown quando si preme ESC
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'Escape') {
-                        profileMenu.style.display = 'none';
-                    }
-                });
-            }
-        });
-    </script>
-    
-    <!-- Page-specific scripts -->
-    {% block scripts %}{% endblock %}
-</body>
 
+    <!-- UI Enhancements -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mobile menu toggle
+        const navbarToggle = document.getElementById('navbar-toggle');
+        const navbarMenu = document.getElementById('navbar-menu');
+        
+        if (navbarToggle && navbarMenu) {
+            navbarToggle.addEventListener('click', function() {
+                const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                this.setAttribute('aria-expanded', !isExpanded);
+                navbarMenu.classList.toggle('active');
+            });
+        }
+        
+        // Profile dropdown
+        const profileDropdown = document.getElementById('profile-dropdown');
+        const profileMenu = document.getElementById('profile-menu');
+        
+        if (profileDropdown && profileMenu) {
+            profileDropdown.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                this.setAttribute('aria-expanded', !isExpanded);
+                profileMenu.classList.toggle('show');
+            });
+            
+            // Close on click outside
+            document.addEventListener('click', function(e) {
+                if (!profileDropdown.contains(e.target) && !profileMenu.contains(e.target)) {
+                    profileDropdown.setAttribute('aria-expanded', 'false');
+                    profileMenu.classList.remove('show');
+                }
+            });
+            
+            // Close on ESC
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && profileMenu.classList.contains('show')) {
+                    profileDropdown.setAttribute('aria-expanded', 'false');
+                    profileMenu.classList.remove('show');
+                    profileDropdown.focus();
+                }
+            });
+        }
+        
+        // Role selector
+        const roleSelector = document.getElementById('role-selector');
+        if (roleSelector) {
+            window.changeRole = function(newRole) {
+                fetch('/profile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'activeRole=' + encodeURIComponent(newRole)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Errore nel cambio ruolo');
+                    }
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    alert('Errore nel cambio ruolo');
+                });
+            };
+        }
+        
+        // Alert dismissible
+        const alertCloseButtons = document.querySelectorAll('.alert-close');
+        alertCloseButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                this.closest('.alert').remove();
+            });
+        });
+        
+        // Auto-dismiss alerts after 5 seconds
+        const alerts = document.querySelectorAll('.alert-dismissible');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                alert.style.animation = 'fadeOut 300ms ease';
+                setTimeout(() => alert.remove(), 300);
+            }, 5000);
+        });
+    });
+    </script>
+
+    {% block scripts %}{% endblock %}
+
+    <!-- Disclaimer Maggiore Età -->
+    {% if showDisclaimer %}
+        {% include "partials/disclaimer.njk" %}
+    {% endif %}
+</body>
 </html>

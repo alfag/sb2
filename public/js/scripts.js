@@ -2513,6 +2513,22 @@ document.addEventListener('DOMContentLoaded', function () {
             changeRoleForm.submit();
         });
     }
+    
+    // Gestione dropdown role selector per menu utente
+    const dropdownRoleSelector = document.getElementById('dropdown-role-selector');
+    if (dropdownRoleSelector) {
+        dropdownRoleSelector.addEventListener('change', function() {
+            changeRole(this.value);
+        });
+    }
+    
+    // Gestione default role selector per menu utente
+    const dropdownDefaultRole = document.getElementById('dropdown-default-role');
+    if (dropdownDefaultRole) {
+        dropdownDefaultRole.addEventListener('change', function() {
+            changeDefaultRole(this.value);
+        });
+    }
 });
 
 window.onerror = function (message, source, lineno, colno, error) {
@@ -3019,4 +3035,65 @@ if (!window.iosFixListenersAdded) {
     
     window.iosFixListenersAdded = true;
     console.log('[iOS Fix] Event listeners registered');
+}
+
+// Funzione per cambiare il ruolo attivo
+function changeRole(newRole) {
+    if (!newRole) return;
+    
+    // Invia richiesta POST per cambiare il ruolo attivo
+    fetch('/profile', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            activeRole: newRole
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Ricarica la pagina per applicare il nuovo ruolo
+            window.location.reload();
+        } else {
+            console.error('Errore nel cambio ruolo:', data.message);
+            alert('Errore nel cambio ruolo: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Errore nel cambio ruolo:', error);
+        alert('Errore nel cambio ruolo. Riprova.');
+    });
+}
+
+// Funzione per cambiare il ruolo predefinito
+function changeDefaultRole(newDefaultRole) {
+    if (!newDefaultRole) return;
+    
+    // Invia richiesta POST per cambiare il ruolo predefinito
+    fetch('/profile', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            defaultRole: newDefaultRole
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mostra messaggio di successo
+            console.log('Ruolo predefinito aggiornato con successo');
+            // Opzionalmente potresti mostrare un toast o un messaggio
+        } else {
+            console.error('Errore nel cambio ruolo predefinito:', data.message);
+            alert('Errore nel cambio ruolo predefinito: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Errore nel cambio ruolo predefinito:', error);
+        alert('Errore nel cambio ruolo predefinito. Riprova.');
+    });
 }
