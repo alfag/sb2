@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Cache - SharingBeer 2.0</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 { margin: 0 0 1rem; }
+        .status {
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 0.5rem;
+            font-family: monospace;
+        }
+        button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Clear Cache</h1>
+        <p>Pulizia cache e Service Worker per SharingBeer 2.0</p>
+        
+        <div class="status" id="status">
+            Pronto per pulire la cache...
+        </div>
+        
+        <button id="clearBtn" onclick="clearAll()">
+            Pulisci Cache e Ricarica
+        </button>
+        
+        <div style="margin-top: 1.5rem; font-size: 0.875rem; opacity: 0.8;">
+            <p>Questo strumento:</p>
+            <ul style="text-align: left; display: inline-block;">
+                <li>Elimina tutte le cache</li>
+                <li>Disregistra i Service Worker</li>
+                <li>Pulisce localStorage e sessionStorage</li>
+                <li>Ricarica forzatamente la pagina</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const status = document.getElementById('status');
+        const clearBtn = document.getElementById('clearBtn');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+            status.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            console.log(`[Clear-Cache] ${message}`);
+        }
+        
+        async function clearAll() {
+            clearBtn.disabled = true;
+            status.innerHTML = '';
+            
+            try {
+                // 1. Elimina tutte le cache
+                log('🗑️ Eliminazione cache...');
+                const cacheNames = await caches.keys();
+                log(`Trovate ${cacheNames.length} cache`);
+                
+                for (const cacheName of cacheNames) {
+                    await caches.delete(cacheName);
+                    log(`✓ Eliminata: ${cacheName}`, 'success');
+                }
+                
+                // 2. Disregistra Service Workers
+                log('🔧 Disregistrazione Service Workers...');
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    log(`Trovati ${registrations.length} Service Workers`);
+                    
+                    for (const registration of registrations) {
+                        await registration.unregister();
+                        log(`✓ Disregistrato: ${registration.scope}`, 'success');
+                    }
+                }
+                
+                // 3. Pulisci storage
+                log('🧹 Pulizia localStorage e sessionStorage...');
+                localStorage.clear();
+                sessionStorage.clear();
+                log('✓ Storage pulito', 'success');
+                
+                // 4. Reload forzato
+                log('🔄 Ricaricamento forzato tra 2 secondi...', 'success');
+                setTimeout(() => {
+                    window.location.href = '/?nocache=' + Date.now();
+                }, 2000);
+                
+            } catch (error) {
+                log(`❌ Errore: ${error.message}`, 'error');
+                clearBtn.disabled = false;
+            }
+        }
+        
+        // Log info iniziali
+        window.addEventListener('load', async () => {
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                log(`Service Workers attivi: ${registrations.length}`);
+            }
+            
+            const cacheNames = await caches.keys();
+            log(`Cache attive: ${cacheNames.length}`);
+        });
+    </script>
+</body>
+</html>

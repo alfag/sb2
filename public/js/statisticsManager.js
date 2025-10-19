@@ -76,7 +76,17 @@ class StatisticsManager {
     // Grafico distribuzione rating avanzato
     createRatingsChart() {
         const ctx = document.getElementById('ratingsChart');
-        if (!ctx) return;
+        if (!ctx) {
+            console.warn('⚠️ Canvas #ratingsChart NON trovato nel DOM - controlla condizioni template');
+            console.log('Canvas presenti:', Array.from(document.querySelectorAll('canvas')).map(c => c.id));
+            return;
+        }
+        
+        // DEBUG: Verifica dimensioni canvas
+        console.log('📊 Canvas #ratingsChart trovato');
+        console.log('📊 Canvas parent:', ctx.parentElement);
+        console.log('📊 Parent dimensions:', ctx.parentElement.offsetWidth, 'x', ctx.parentElement.offsetHeight);
+        console.log('📊 Canvas dimensions:', ctx.offsetWidth, 'x', ctx.offsetHeight);
 
         // Utilizza i dati reali se disponibili
         const realData = this.extractRatingDistribution();
@@ -196,6 +206,12 @@ class StatisticsManager {
                     }
                 }
             }
+        });
+        
+        console.log('✅ Grafico Rating creato con successo:', {
+            chartInstance: !!this.charts.ratings,
+            hasData: hasData,
+            dataPoints: chartData
         });
     }
 

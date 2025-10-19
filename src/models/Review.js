@@ -27,23 +27,6 @@ const reviewSchema = new mongoose.Schema({
         rating: { type: Number, min: 1, max: 5 },
         notes: String // Note su corpo, carbonazione, astringenza
       }
-    },
-    // Dati AI aggiuntivi per ogni bottiglia
-    aiData: {
-      alcoholContent: String,
-      beerType: String,
-      beerSubStyle: String,
-      volume: String,
-      description: String,
-      ingredients: String,
-      tastingNotes: String,
-      confidence: Number,
-      dataSource: String, // 'label', 'web', 'label+web'
-      ibu: String,
-      nutritionalInfo: String,
-      price: String,
-      availability: String,
-      bottleLabel: String // Nome birra dai dati AI
     }
   }],
   location: {

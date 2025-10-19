@@ -301,10 +301,22 @@ class AIModule {
 
   /**
    * 🎯 METODO CENTRALIZZATO: Gestione di tutte le risposte AI
-   * Gestisce anti-allucinazioni, disambiguazione e flussi normali
+   * Gestisce anti-allucinazioni, disambiguazione, web search e flussi normali
    */
   static handleAIResponse(data, options = {}) {
     console.log('[AIModule] 🎯 Gestione centralizzata risposta AI:', data);
+    
+    // 🌐 PRIORITÀ 0.5: Web Search Automatica (se dati incompleti e flag attivo)
+    if (data.requiresWebSearch && data.brewery && window.WebSearchModule) {
+      console.log('[AIModule] 🌐 Dati incompleti - avvio ricerca web automatica');
+      
+      // Avvia ricerca web automatica in background
+      setTimeout(() => {
+        AIModule.handleAutomaticWebSearch(data, options);
+      }, 500);
+      
+      return { handled: true, action: 'web-search-initiated' };
+    }
     
     // 🛡️ PRIORITÀ 1: Sistema Anti-Allucinazioni
     if (data.antiHallucinationActive && data.needsVerification) {
@@ -622,6 +634,187 @@ class AIModule {
    */
   getCurrentAnalysis() {
     return this.currentAnalysisData;
+  }
+
+  /**
+   * 🌐 Gestione ricerca web automatica quando AI restituisce dati incompleti
+   */
+  static async handleAutomaticWebSearch(aiData, options = {}) {
+    console.log('[AIModule] 🌐 Avvio ricerca web automatica per:', aiData.brewery);
+    
+    // Mostra loading overlay
+    if (window.WebSearchModule) {
+      window.WebSearchModule.showSearchingOverlay('🔍 Ricerca informazioni sul web...');
+    }
+    
+    try {
+      // Estrai dati parziali dal risultato AI
+      const partialBreweryData = {
+        name: aiData.brewery?.name || aiData.brewery?.breweryName,
+        location: aiData.brewery?.location || aiData.brewery?.breweryLegalAddress,
+        website: aiData.brewery?.website || aiData.brewery?.breweryWebsite
+      };
+      
+      console.log('[AIModule] 📡 Ricerca birrificio con dati:', partialBreweryData);
+      
+      // Chiama API web search
+      const webSearchResult = await window.WebSearchModule.searchBrewery(partialBreweryData);
+      
+      // Nascondi loading
+      window.WebSearchModule.hideSearchingOverlay();
+      
+      // Gestisci risultato
+      if (webSearchResult.found && webSearchResult.confidence >= 0.5) {
+        console.log('[AIModule] ✅ Birrificio trovato sul web:', webSearchResult);
+        
+        // Mostra UI conferma all'utente
+        window.WebSearchModule.showConfirmationUI(
+          webSearchResult,
+          // onConfirm - Utente conferma i dati
+          (confirmedResult) => {
+            console.log('[AIModule] ✅ Utente ha confermato:', confirmedResult);
+            AIModule.saveReviewWithWebData(aiData, confirmedResult, options);
+          },
+          // onReject - Utente rifiuta, cerca alternative
+          (rejectedResult) => {
+            console.log('[AIModule] ❌ Utente ha rifiutato, cerca alternative');
+            AIModule.searchAlternativeBreweries(partialBreweryData.name);
+          },
+          // onManual - Fallback input manuale
+          () => {
+            console.log('[AIModule] ✏️ Utente sceglie input manuale');
+            // Chiudi modal e torna al flusso normale (o mostra form)
+            if (options.closeModal) {
+              options.closeModal();
+            }
+          }
+        );
+        
+      } else {
+        // Non trovato o confidence bassa
+        console.warn('[AIModule] ⚠️ Birrificio non trovato o confidence bassa');
+        
+        // Fallback: continua con sistema anti-allucinazioni esistente
+        if (aiData.antiHallucinationActive && aiData.needsVerification) {
+          // Redirect a verifica manuale
+          setTimeout(() => {
+            window.location.href = aiData.redirectUrl + '?sessionId=' + encodeURIComponent(Date.now());
+          }, 1500);
+        } else {
+          // Mostra messaggio e chiudi modal
+          if (options.showWarningMessage) {
+            options.showWarningMessage('Birrificio non trovato automaticamente. Verifica i dati manualmente.');
+          }
+          if (options.closeModal) {
+            options.closeModal();
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('[AIModule] ❌ Errore ricerca web:', error);
+      
+      // Nascondi loading
+      if (window.WebSearchModule) {
+        window.WebSearchModule.hideSearchingOverlay();
+      }
+      
+      // Fallback al flusso normale
+      if (options.showWarningMessage) {
+        options.showWarningMessage('Errore durante la ricerca automatica. Riprova.');
+      }
+      if (options.closeModal) {
+        options.closeModal();
+      }
+    }
+  }
+
+  /**
+   * Salva recensione con dati web confermati dall'utente
+   */
+  static async saveReviewWithWebData(aiData, webSearchResult, options = {}) {
+    console.log('[AIModule] 💾 Salvataggio recensione con dati web:', webSearchResult);
+    
+    try {
+      // Combina dati AI + dati web confermati
+      const combinedData = {
+        ...aiData,
+        brewery: {
+          ...aiData.brewery,
+          ...webSearchResult.brewery,
+          source: 'WEB_SEARCH_CONFIRMED',
+          confidence: webSearchResult.confidence
+        }
+      };
+      
+      // Chiama endpoint di creazione recensione
+      const response = await fetch('/review/create-multiple', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(combinedData)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('[AIModule] ✅ Recensione salvata con successo!');
+        
+        // Mostra messaggio successo
+        if (options.showSuccessMessage) {
+          options.showSuccessMessage('Recensione pubblicata con successo!');
+        }
+        
+        // Redirect alla pagina recensioni
+        setTimeout(() => {
+          window.location.href = '/review/my-reviews';
+        }, 2000);
+        
+      } else {
+        console.error('[AIModule] ❌ Errore salvataggio:', result.error);
+        if (options.showWarningMessage) {
+          options.showWarningMessage('Errore durante il salvataggio. Riprova.');
+        }
+      }
+      
+    } catch (error) {
+      console.error('[AIModule] ❌ Errore salvataggio recensione:', error);
+      if (options.showWarningMessage) {
+        options.showWarningMessage('Errore di connessione. Riprova.');
+      }
+    }
+  }
+
+  /**
+   * Cerca birrifici alternativi nel database
+   */
+  static async searchAlternativeBreweries(breweryName) {
+    console.log('[AIModule] 🔄 Ricerca birrifici alternativi per:', breweryName);
+    
+    try {
+      const response = await fetch('/api/breweries/all');
+      const allBreweries = await response.json();
+      
+      // Filtra birrifici che contengono il nome cercato
+      const matches = allBreweries.filter(b => 
+        b.breweryName.toLowerCase().includes(breweryName.toLowerCase())
+      );
+      
+      if (matches.length > 0) {
+        console.log('[AIModule] 📋 Trovati birrifici alternativi:', matches);
+        // TODO: Mostra lista per selezione manuale
+        // Per ora redirect a disambiguazione
+        window.location.href = '/review';
+      } else {
+        console.warn('[AIModule] ⚠️ Nessuna alternativa trovata');
+        window.location.href = '/review';
+      }
+      
+    } catch (error) {
+      console.error('[AIModule] ❌ Errore ricerca alternative:', error);
+      window.location.href = '/review';
+    }
   }
 }
 

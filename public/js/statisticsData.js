@@ -4,9 +4,9 @@ console.log('📊 Caricamento dati analytics nel frontend...');
 
 try {
     window.analyticsData = {
-        ratingDistribution: [],
-        monthlyTrend: [],
-        beerTypesStats: []
+        ratingDistribution: [{"_id":1,"count":1},{"_id":2,"count":2},{"_id":3,"count":1},{"_id":4,"count":2},{"_id":5,"count":3}],
+        monthlyTrend: [{"_id":{"year":2025,"month":10},"count":9}],
+        beerTypesStats: [{"_id":"Lager","count":9,"avgRating":3.4444444444444446}]
     };
     console.log('✅ Dati analytics caricati nel frontend:', window.analyticsData);
     console.log('🔍 Rating distribution:', window.analyticsData.ratingDistribution);
@@ -21,13 +21,5 @@ try {
     };
 }
 
-// Inizializza il gestore delle statistiche quando il DOM è pronto
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inizializzazione StatisticsManager...');
-    try {
-        window.statisticsManager = new StatisticsManager();
-        console.log('✅ StatisticsManager inizializzato con successo');
-    } catch (error) {
-        console.error('❌ Errore nell\'inizializzazione StatisticsManager:', error);
-    }
-});
+// NOTA: StatisticsManager viene inizializzato automaticamente da statisticsManager.js
+// Non è necessario inizializzarlo qui per evitare doppia inizializzazione

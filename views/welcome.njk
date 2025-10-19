@@ -2,465 +2,135 @@
 
 {% block title %}Benvenuto in SharingBeer 2.0{% endblock %}
 
-{% block content %}
-<!-- Modern Welcome Container -->
-<div class="modern-welcome-container">
-    <!-- Hero Section -->
-    <section class="welcome-hero">
-        <div class="hero-background">
-            <div class="hero-pattern"></div>
-        </div>
-        <div class="hero-content">
-            <div class="welcome-icon">
-                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
-                </svg>
-            </div>
-            <h1 class="hero-title">
-                Benvenuto{% if user %}, {{ user.username }}{% endif %}!
-            </h1>
-            <p class="hero-subtitle">
-                {% if user %}
-                    Bentornato nella tua comunità di amanti della birra artigianale
-                {% else %}
-                    Unisciti alla nostra comunità di amanti della birra artigianale
-                {% endif %}
-            </p>
-            <div class="hero-description">
-                <p>Esplora una vasta gamma di birre dai migliori birrifici locali, condividi le tue esperienze e scopri nuovi sapori attraverso la potenza dell'intelligenza artificiale.</p>
-            </div>
-            
-            {% if not user %}
-                <div class="hero-actions">
-                    <a href="/register" class="btn btn-primary btn-large">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
-                        </svg>
-                        Registrati Gratis
-                    </a>
-                    <a href="/login" class="btn btn-secondary btn-large">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v12z" fill="currentColor"/>
-                        </svg>
-                        Accedi
-                    </a>
-                </div>
-            {% endif %}
-        </div>
-    </section>
+{% block head %}
+<link rel="stylesheet" href="/css/tailwind-input.css">
+<link rel="stylesheet" href="/css/breweriesModule.css">
+{% endblock %}
 
-    <!-- Review Action Section - Moved to top -->
+{% block content %}
+<!-- Minimal Welcome Container -->
+<div class="max-w-6xl mx-auto px-4 py-6">
+    
+    <!-- Hero Section - Compact -->
+    <div class="mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+            {% if user %}Ciao {{ user.username }}{% else %}Benvenuto su SharingBeer{% endif %}
+        </h1>
+        <p class="text-gray-600">
+            {% if user %}Condividi, scopri e vivi la birra artigianale{% else %}La community per gli amanti della birra artigianale{% endif %}
+        </p>
+    </div>
+
+    <!-- Quick Actions - Minimal -->
     {% if not user or (user and 'customer' in user.role) %}
-    <section class="review-cta-section">
-        <div class="cta-card">
-            <div class="cta-content">
-                <div class="cta-icon">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 2l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1 3-6z" fill="currentColor"/>
+    <section class="mb-8">
+        <div class="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg p-6">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C9 4.5 9 4.5 9 4.5l-3 1.5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-2l-3-1.5S15 4.5 12 4.5z"/>
                     </svg>
+                    <div>
+                        <div class="font-semibold text-lg">Recensisci una birra</div>
+                        <div class="text-sm opacity-90">Scatta, analizza, condividi</div>
+                    </div>
                 </div>
-                <div class="cta-text">
-                    <h3>Condividi la tua Esperienza</h3>
-                    <p>Scatta una foto alle tue birre e lascia una recensione per aiutare altri appassionati a scoprire nuovi sapori!</p>
-                </div>
-                <div class="cta-action">
-                    <button id="start-review-process" class="btn btn-primary btn-xl">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM9 20C7.9 20 7 19.1 7 18V6C7 4.9 7.9 4 9 4H10C10 2.9 10.9 2 12 2S14 2.9 14 2H15C16.1 4 17 4.9 17 6V18C17 19.1 16.1 20 15 20H9ZM9 18H15V6H9V18Z" fill="currentColor"/>
-                        </svg>
-                        Pubblica una Recensione
-                    </button>
-                </div>
+                <button id="start-review-process" class="px-6 py-2.5 bg-white text-green-600 font-semibold rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap">
+                    Inizia ora
+                </button>
             </div>
         </div>
         
         {% include 'customer/review.njk' %}
         
-        <!-- Review Process Area -->
-        <div id="review-process" class="review-process-container">
-            <div id="ai-feedback" class="ai-feedback-section"></div>
-            <div id="image-preview" class="image-preview-section"></div>
-            <div id="bottle-ratings" class="bottle-ratings-section"></div>
-            <div class="review-actions">
-                <button id="publish-review" class="btn btn-success btn-large">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
-                    </svg>
-                    Pubblica Recensione
-                </button>
-                <button id="restart-review" class="btn btn-secondary btn-large">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/>
-                        </svg>
+        <!-- Review Process Area - Minimal -->
+        <div id="review-process" class="hidden mt-6 bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <div id="ai-feedback" class="mb-4"></div>
+            <div id="image-preview" class="mb-4"></div>
+            <div id="bottle-ratings" class="mb-4"></div>
+            <div class="flex gap-3 justify-end">
+                <button id="restart-review" class="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors">
                     Ricomincia
+                </button>
+                <button id="publish-review" class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors">
+                    Pubblica
                 </button>
             </div>
         </div>
     </section>
     {% endif %}
 
-    <!-- Features Grid -->
-    <section class="features-section">
-        <div class="features-header">
-            <h2>Perché SharingBeer 2.0?</h2>
-            <p>La piattaforma più avanzata per gli amanti della birra artigianale</p>
+    <!-- Breweries Section - Minimal -->
+    <section class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl font-bold text-gray-900">Birrifici</h2>
+            {% if user and 'brewery' in user.role %}
+                <a href="/brewery/dashboard" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                    Dashboard →
+                </a>
+            {% endif %}
         </div>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 5.5V6.5C15 7.3 14.3 8 13.5 8H10.5C9.7 8 9 7.3 9 6.5V5.5L3 7V9H21ZM18 10H6C4.9 10 4 10.9 4 12V22H7V19H17V22H20V12C20 10.9 19.1 10 18 10Z" fill="currentColor"/>
-                    </svg>
-                </div>
-                <h3>AI-Powered Reviews</h3>
-                <p>Scatta una foto e lascia che l'intelligenza artificiale analizzi la tua birra, identificando birrificio, stile e caratteristiche</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
-                    </svg>
-                </div>
-                <h3>Birrifici Locali</h3>
-                <p>Scopri e supporta i birrifici artigianali della tua zona, con informazioni dettagliate e recensioni della comunità</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z" fill="currentColor"/>
-                    </svg>
-                </div>
-                <h3>Analytics Avanzate</h3>
-                <p>Dashboard complete per monitorare trends, preferenze e statistiche dettagliate sulla community</p>
-            </div>
-        </div>
-    </section>    <!-- Breweries Section -->
-    <section class="breweries-showcase">
-        <div class="breweries-header">
-            <h2>Birrifici in Evidenza</h2>
-            <p>Scopri i migliori birrifici artigianali della nostra community</p>
-        </div>
-        <div id="brewery-list" class="breweries-grid">
+        <div id="brewery-list">
             <!-- Dynamic brewery content will be inserted here -->
         </div>
-        {% if user and 'brewery' in user.role %}
-            <div class="brewery-cta">
-                <a href="/brewery/dashboard" class="btn btn-primary btn-large">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
-                    </svg>
-                    Gestisci il tuo Birrificio
-                </a>
+    </section>
+
+    <!-- Auth Section - Only for guests -->
+    {% if not user %}
+    <section class="mb-8">
+        <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg p-6">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-xl font-bold mb-1">Unisciti alla community</h3>
+                    <p class="text-sm opacity-90">Scopri, condividi e vivi la birra artigianale</p>
+                </div>
+                <div class="flex gap-3">
+                    <a href="/register" class="px-5 py-2 bg-white text-purple-700 font-semibold text-sm rounded-lg hover:bg-gray-50 transition-colors">
+                        Registrati
+                    </a>
+                    <a href="/login" class="px-5 py-2 border-2 border-white text-white font-semibold text-sm rounded-lg hover:bg-white hover:text-purple-700 transition-colors">
+                        Accedi
+                    </a>
+                </div>
             </div>
-        {% endif %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Features - Minimal Grid -->
+    <section class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Caratteristiche</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
+                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="text-blue-600">
+                        <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 5.5V6.5C15 7.3 14.3 8 13.5 8H10.5C9.7 8 9 7.3 9 6.5V5.5L3 7V9H21ZM18 10H6C4.9 10 4 10.9 4 12V22H7V19H17V22H20V12C20 10.9 19.1 10 18 10Z"/>
+                    </svg>
+                </div>
+                <h3 class="font-bold text-gray-900 mb-2">AI Reviews</h3>
+                <p class="text-sm text-gray-600">Analisi automatica delle birre tramite foto</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-5 hover:border-amber-300 transition-colors">
+                <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mb-3">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="text-amber-600">
+                        <path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4V6zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9h2v1a1 1 0 0 0 2 0V9h4v1a1 1 0 0 0 2 0V9h2v10z"/>
+                    </svg>
+                </div>
+                <h3 class="font-bold text-gray-900 mb-2">Birrifici Locali</h3>
+                <p class="text-sm text-gray-600">Scopri e supporta i produttori artigianali</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-5 hover:border-green-300 transition-colors">
+                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mb-3">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="text-green-600">
+                        <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/>
+                    </svg>
+                </div>
+                <h3 class="font-bold text-gray-900 mb-2">Analytics</h3>
+                <p class="text-sm text-gray-600">Statistiche dettagliate e trends</p>
+            </div>
+        </div>
     </section>
 </div>
-
-<!-- Modern Welcome Styles -->
-<style>
-.modern-welcome-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0;
-}
-
-.welcome-hero {
-    position: relative;
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-info) 100%);
-    color: var(--color-white);
-    padding: var(--space-1) var(--space-4);
-    text-align: center;
-    overflow: hidden;
-}
-
-.hero-background {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    opacity: 0.1;
-}
-
-.hero-pattern {
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    width: 100%;
-    height: 100%;
-}
-
-.hero-content {
-    position: relative;
-    z-index: 2;
-}
-
-.welcome-icon {
-    margin-bottom: var(--space-1);
-}
-
-.hero-title {
-    font-size: clamp(2rem, 5vw, 3.5rem);
-    font-weight: var(--font-bold);
-    margin: 0 0 var(--space-1) 0;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.hero-subtitle {
-    font-size: var(--text-xl);
-    margin: 0 0 var(--space-1) 0;
-    opacity: 0.9;
-    font-weight: var(--font-medium);
-}
-
-.hero-description {
-    max-width: 600px;
-    margin: 0 auto var(--space-1) auto;
-}
-
-.hero-description p {
-    font-size: var(--text-lg);
-    line-height: 1.6;
-    opacity: 0.9;
-    margin: 0;
-}
-
-.hero-actions {
-    display: flex;
-    gap: var(--space-3);
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.features-section {
-    padding: var(--space-4) var(--space-6);
-    background: var(--color-gray-50);
-}
-
-.features-header {
-    text-align: center;
-    margin-bottom: var(--space-4);
-}
-
-.features-header h2 {
-    font-size: var(--text-3xl);
-    font-weight: var(--font-bold);
-    color: var(--color-gray-900);
-    margin: 0 0 var(--space-2) 0;
-}
-
-.features-header p {
-    font-size: var(--text-lg);
-    color: var(--color-gray-600);
-    margin: 0;
-}
-
-.features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: var(--space-3);
-}
-
-.feature-card {
-    background: var(--color-white);
-    padding: var(--space-4);
-    border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-lg);
-    text-align: center;
-    transition: all var(--transition-base);
-    border: 1px solid var(--color-gray-200);
-}
-
-.feature-card:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-xl);
-    border-color: var(--color-primary);
-}
-
-.feature-icon {
-    width: 48px;
-    height: 48px;
-    background: var(--color-primary-50);
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto var(--space-2) auto;
-    color: var(--color-primary);
-}
-
-.feature-card h3 {
-    font-size: var(--text-xl);
-    font-weight: var(--font-bold);
-    color: var(--color-gray-900);
-    margin: 0 0 var(--space-2) 0;
-}
-
-.feature-card p {
-    color: var(--color-gray-600);
-    line-height: 1.6;
-    margin: 0;
-}
-
-.review-cta-section {
-    padding: var(--space-4) var(--space-6);
-    background: var(--color-white);
-}
-
-.cta-card {
-    background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%);
-    color: var(--color-white);
-    border-radius: var(--radius-2xl);
-    padding: var(--space-4);
-    text-align: center;
-    box-shadow: var(--shadow-xl);
-    margin-bottom: var(--space-4);
-}
-
-.cta-content {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.cta-icon {
-    flex-shrink: 0;
-}
-
-.cta-text {
-    flex: 1;
-    text-align: left;
-    min-width: 300px;
-}
-
-.cta-text h3 {
-    font-size: var(--text-2xl);
-    font-weight: var(--font-bold);
-    margin: 0 0 var(--space-1) 0;
-}
-
-.cta-text p {
-    font-size: var(--text-lg);
-    margin: 0;
-    opacity: 0.9;
-    line-height: 1.6;
-}
-
-.cta-action {
-    flex-shrink: 0;
-}
-
-.review-process-container {
-    display: none;
-    background: var(--color-white);
-    border-radius: var(--radius-2xl);
-    padding: var(--space-4);
-    box-shadow: var(--shadow-lg);
-    border: 1px solid var(--color-gray-200);
-}
-
-.review-actions {
-    display: flex;
-    gap: var(--space-3);
-    justify-content: center;
-    margin-top: var(--space-4);
-    flex-wrap: wrap;
-}
-
-.breweries-showcase {
-    padding: var(--space-4) var(--space-6);
-    background: var(--color-gray-50);
-}
-
-.breweries-header {
-    text-align: center;
-    margin-bottom: var(--space-4);
-}
-
-.breweries-header h2 {
-    font-size: var(--text-3xl);
-    font-weight: var(--font-bold);
-    color: var(--color-gray-900);
-    margin: 0 0 var(--space-2) 0;
-}
-
-.breweries-header p {
-    font-size: var(--text-lg);
-    color: var(--color-gray-600);
-    margin: 0;
-}
-
-.breweries-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: var(--space-3);
-    margin-bottom: var(--space-4);
-}
-
-.brewery-cta {
-    text-align: center;
-    margin-top: var(--space-3);
-}
-
-.btn-xl {
-    padding: var(--space-6) var(--space-8);
-    font-size: var(--text-lg);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .welcome-hero {
-        padding: var(--space-1) var(--space-4);
-    }
-    
-    .features-section,
-    .review-cta-section,
-    .breweries-showcase {
-        padding: var(--space-3) var(--space-4);
-    }
-    
-    .features-grid {
-        grid-template-columns: 1fr;
-        gap: var(--space-3);
-    }
-    
-    .cta-content {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .cta-text {
-        text-align: center;
-        min-width: auto;
-    }
-    
-    .hero-actions {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .hero-actions .btn {
-        width: 100%;
-        max-width: 300px;
-    }
-}
-
-@media (max-width: 480px) {
-    .review-actions {
-        flex-direction: column;
-    }
-    
-    .review-actions .btn {
-        width: 100%;
-    }
-    
-    .feature-card,
-    .cta-card,
-    .review-process-container {
-        padding: var(--space-3);
-    }
-}
-</style>
 
 {% endblock %}
 

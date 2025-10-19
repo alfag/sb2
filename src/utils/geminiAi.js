@@ -2,11 +2,115 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { GoogleAuth } = require('google-auth-library');
 const { GEMINI_API_KEY } = require('../../config/config');
+const { IMAGE_ANALYSIS_PROMPT } = require('../../config/aiPrompts');
 const Review = require('../models/Review');
 const Brewery = require('../models/Brewery');
 const Beer = require('../models/Beer');
 const logWithFileName = require('./logger');
 const logger = logWithFileName(__filename);
+
+// Utility per retry con backoff exponential migliorato
+async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 2000, description = 'Operazione') {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries;
+      const errorMessage = error.message || error.toString();
+      
+      // Categorie di errori retry-able più complete
+      const isRetryableError = errorMessage && (
+        errorMessage.includes('overloaded') || 
+        errorMessage.includes('503') ||
+        errorMessage.includes('Service Unavailable') ||
+        errorMessage.includes('429') ||
+        errorMessage.includes('Too Many Requests') ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('fetch failed') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('ECONNRESET') ||
+        errorMessage.includes('ETIMEDOUT') ||
+        errorMessage.includes('ENOTFOUND') ||
+        errorMessage.includes('500') ||
+        errorMessage.includes('502') ||
+        errorMessage.includes('504') ||
+        errorMessage.includes('Gateway') ||
+        errorMessage.includes('temporarily unavailable')
+      );
+      
+      if (isRetryableError && !isLastAttempt) {
+        // Backoff exponential con jitter più aggressivo per API overload
+        const baseDelayAdjusted = errorMessage.includes('overloaded') ? baseDelay * 2 : baseDelay;
+        const exponentialDelay = baseDelayAdjusted * Math.pow(2, attempt - 1);
+        const jitter = Math.random() * 2000; // Jitter fino a 2 secondi
+        const delay = exponentialDelay + jitter;
+        
+        logger.warn(`[GeminiAI] ⚠️ ${description} - tentativo ${attempt}/${maxRetries} fallito. Retry tra ${Math.round(delay)}ms...`, {
+          errorMessage: errorMessage,
+          errorType: error.constructor?.name || 'Unknown',
+          attempt,
+          maxRetries,
+          nextRetryIn: `${Math.round(delay)}ms`,
+          isOverloadError: errorMessage.includes('overloaded'),
+          retryStrategy: errorMessage.includes('overloaded') ? 'aggressive_backoff' : 'standard_backoff'
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      } else {
+        if (isLastAttempt && isRetryableError) {
+          logger.error(`[GeminiAI] ❌ ${description} - tutti i ${maxRetries} tentativi falliti:`, {
+            errorMessage: errorMessage,
+            errorType: error.constructor?.name || 'Unknown',
+            totalAttempts: maxRetries,
+            finalErrorCategory: categorizeError(errorMessage),
+            suggestedAction: getSuggestedAction(errorMessage)
+          });
+        }
+        throw error;
+      }
+    }
+  }
+}
+
+// Categorizza gli errori per debugging e logging
+function categorizeError(errorMessage) {
+  if (!errorMessage) return 'unknown';
+  
+  const msg = errorMessage.toLowerCase();
+  if (msg.includes('overloaded') || msg.includes('503')) return 'service_overloaded';
+  if (msg.includes('429') || msg.includes('too many requests')) return 'rate_limited';
+  if (msg.includes('fetch failed') || msg.includes('network')) return 'network_error';
+  if (msg.includes('timeout')) return 'timeout_error';
+  if (msg.includes('500') || msg.includes('502') || msg.includes('504')) return 'server_error';
+  if (msg.includes('quota') || msg.includes('billing')) return 'quota_exceeded';
+  if (msg.includes('unauthorized') || msg.includes('api key')) return 'auth_error';
+  return 'other_error';
+}
+
+// Suggerisce azioni per diversi tipi di errore
+function getSuggestedAction(errorMessage) {
+  const category = categorizeError(errorMessage);
+  
+  switch (category) {
+    case 'service_overloaded':
+      return 'Wait longer before retry, API is experiencing high load';
+    case 'rate_limited':
+      return 'Implement request queuing or reduce request frequency';
+    case 'network_error':
+      return 'Check network connectivity and DNS resolution';
+    case 'timeout_error':
+      return 'Increase timeout duration or reduce image size';
+    case 'server_error':
+      return 'Google API server issue, monitor status page';
+    case 'quota_exceeded':
+      return 'Check billing settings and API quotas';
+    case 'auth_error':
+      return 'Verify API key configuration and permissions';
+    default:
+      return 'Check error logs for specific resolution steps';
+  }
+}
 
 // Inizializza autenticazione Google Cloud
 let genAI;
@@ -80,148 +184,8 @@ async function validateImage(image, reviewId = null, userId = null, sessionId = 
       }
     ];
     
-    const prompt = `Analizza questa immagine seguendo RIGOROSAMENTE questo processo step-by-step per garantire dati ACCURATI e VERIFICATI:
-
-STEP 1 - LETTURA ETICHETTA:
-Leggi SOLO ciò che è chiaramente visibile sulle etichette delle bottiglie/lattine:
-- Nome della birra (esatto come scritto)
-- Nome del birrificio (esatto come scritto) 
-- Gradazione alcolica se presente
-- Volume se presente
-- Stile/tipologia se indicato
-- Anno/data se visibile
-- Città/paese se indicato
-- Ingredienti se elencati
-- Altri testi leggibili
-
-STEP 2 - RICERCA WEB VERIFICATA:
-PER OGNI birrificio identificato dall'etichetta, effettua ricerca web per verificare:
-- Esistenza reale del birrificio
-- Sito web ufficiale
-- Indirizzo completo verificato
-- Storia e informazioni aziendali
-- Lista prodotti ufficiali
-- Conferma che la birra dell'etichetta è realmente prodotta da questo birrificio
-
-STEP 3 - VERIFICA MATCH DATI:
-Confronta i dati etichetta con quelli trovati online:
-- Il nome birrificio corrisponde ESATTAMENTE?
-- La birra è effettivamente nel catalogo del birrificio?
-- I dati tecnici (ABV, stile) sono coerenti?
-- L'indirizzo/paese corrisponde a quello dell'etichetta?
-
-STEP 4 - CLASSIFICAZIONE RISULTATO:
-Per ogni birrificio/birra, classifica come:
-- "VERIFIED": Birrificio reale, dati confermati, birra nel catalogo
-- "PARTIAL": Birrificio reale ma alcuni dati non corrispondono
-- "UNVERIFIED": Non trovate conferme online dell'esistenza
-- "CONFLICTING": Dati etichetta in conflitto con quelli web
-
-STEP 5 - DATI COMPLETI SOLO SE VERIFICATI:
-Fornisci dati completi SOLO per birrifici "VERIFIED". Per altri casi, indica cosa richiede verifica manuale.
-
-Rispondi ESCLUSIVAMENTE in formato JSON con questa struttura ANTI-ALLUCINAZIONE:
-{
-  "success": true/false,
-  "message": "risultato dell'analisi step-by-step",
-  "imageQuality": "ottima/buona/discreta/scarsa",
-  "totalBottlesFound": 2,
-  "analysisSteps": {
-    "step1_labelReading": "descrizione di cosa è leggibile sulle etichette",
-    "step2_webSearch": "risultati delle ricerche web effettuate",
-    "step3_dataMatching": "confronto tra dati etichetta e web",
-    "step4_verification": "risultato della verifica per ogni birrificio/birra"
-  },
-  
-  "bottles": [
-    {
-      "id": 1,
-      "labelData": {
-        "beerName": "nome esatto dall'etichetta o null se illeggibile",
-        "breweryName": "nome esatto dall'etichetta o null se illeggibile",
-        "alcoholContent": "gradazione dall'etichetta o null",
-        "volume": "volume dall'etichetta o null",
-        "beerStyle": "stile dall'etichetta o null",
-        "year": "anno dall'etichetta o null",
-        "location": "città/paese dall'etichetta o null",
-        "otherText": "altri testi leggibili"
-      },
-      "webVerification": {
-        "breweryExists": true/false,
-        "beerInCatalog": true/false,
-        "dataMatch": "VERIFIED/PARTIAL/UNVERIFIED/CONFLICTING",
-        "conflictingData": ["lista eventuali conflitti"],
-        "searchQueries": ["query usate per la ricerca"],
-        "sourcesFound": ["url delle fonti trovate"]
-      },
-      "verifiedData": {
-        "breweryName": "nome verificato o null se non verificato",
-        "beerName": "nome verificato o null se non verificato", 
-        "alcoholContent": "ABV verificato",
-        "beerType": "stile verificato",
-        "volume": "volume verificato",
-        "description": "descrizione verificata",
-        "ingredients": "ingredienti verificati",
-        "ibu": "IBU verificato",
-        "tastingNotes": "note degustazione verificate",
-        "confidence": 0.95
-      },
-      "requiresManualCheck": true/false,
-      "manualCheckReason": "motivo se richiede verifica manuale"
-    }
-  ],
-  
-  "breweries": [
-    {
-      "id": 1,
-      "verification": "VERIFIED/PARTIAL/UNVERIFIED/CONFLICTING",
-      "labelName": "nome dall'etichetta",
-      "verifiedData": {
-        "breweryName": "nome completo verificato o null",
-        "foundingYear": "anno fondazione verificato o null",
-        "breweryWebsite": "sito ufficiale verificato o null",
-        "breweryEmail": "email verificata o null",
-        "breweryLegalAddress": "indirizzo completo verificato o null",
-        "breweryPhoneNumber": "telefono verificato o null",
-        "breweryDescription": "descrizione verificata o null",
-        "brewerySocialMedia": {
-          "facebook": "pagina verificata o null",
-          "instagram": "account verificato o null",
-          "twitter": "account verificato o null"
-        },
-        "mainProducts": ["prodotti verificati nel catalogo"],
-        "awards": ["premi verificati"],
-        "confidence": 0.90
-      },
-      "requiresManualCheck": true/false,
-      "manualCheckReason": "motivo se richiede verifica",
-      "suggestedActions": ["azioni consigliate per la verifica"]
-    }
-  ],
-
-  "summary": {
-    "verifiedBreweries": 1,
-    "unverifiedBreweries": 0,
-    "verifiedBeers": 2,
-    "unverifiedBeers": 0,
-    "requiresUserIntervention": true/false,
-    "interventionReason": "motivo se richiede intervento utente",
-    "readyToSave": true/false,
-    "nextSteps": ["azioni necessarie prima del salvataggio"]
-  }
-}
-
-REGOLE CRITICHE ANTI-ALLUCINAZIONE:
-1. Se l'immagine NON contiene chiaramente prodotti birrari: success = false
-2. NEVER invent data: usa null per qualsiasi informazione non chiaramente verificabile
-3. Effettua ricerca web SOLO dopo aver letto l'etichetta
-4. Marca come "VERIFIED" SOLO se i dati etichetta matchano perfettamente con fonti web attendibili
-5. Se hai dubbi sulla verifica, marca come "UNVERIFIED" e spiega il motivo
-6. Non creare mai birrifici o birre basandoti solo su supposizioni
-7. Privilegia SEMPRE la sicurezza: meglio richiedere verifica manuale che salvare dati falsi
-8. Per ogni birrificio/birra, indica chiaramente il livello di verifica raggiunto
-9. Se trovi conflitti tra etichetta e web, marca come "CONFLICTING" e richiedi intervento utente
-10. Fornisci sempre suggerimenti specifici per completare la verifica manuale`;
+    // Usa il prompt centralizzato dal file di configurazione
+    const prompt = IMAGE_ANALYSIS_PROMPT;
     
     logger.info('[GeminiAI] Avvio analisi con Gemini AI');
     
@@ -252,11 +216,31 @@ REGOLE CRITICHE ANTI-ALLUCINAZIONE:
       safetySettings,
     });
     
+    // 🔧 DEBUG: Log completo prompt e risposta per debugging
+    logger.info('[GeminiAI] 📤 PROMPT COMPLETO INVIATO AD AI:', {
+      prompt: prompt.substring(0, 2000) + (prompt.length > 2000 ? '...[TRONCATO]' : ''),
+      promptLength: prompt.length,
+      imagePartsCount: imageParts.length
+    });
+    
     logger.info('[GeminiAI] Generazione contenuto in corso...');
 
-    const result = await model.generateContent([prompt, ...imageParts]);
-    const response = await result.response;
-    const text = response.text();
+    // Usa retry con backoff per gestire sovraccarichi API
+    const { result, response, text } = await retryWithBackoff(async () => {
+      const result = await model.generateContent([prompt, ...imageParts]);
+      const response = await result.response;
+      const text = response.text();
+      
+      return { result, response, text };
+    }, 3, 2000, 'Generazione contenuto AI');
+
+    // 🔧 DEBUG: Log completo risposta AI per debugging
+    logger.info('[GeminiAI] 📥 RISPOSTA COMPLETA RICEVUTA DA AI:', {
+      response: text,
+      responseLength: text.length,
+      startsWith: text.substring(0, 100),
+      endsWith: text.substring(Math.max(0, text.length - 100))
+    });
 
     logger.info('[GeminiAI] Risposta ricevuta, parsing JSON...');
     
@@ -309,15 +293,133 @@ REGOLE CRITICHE ANTI-ALLUCINAZIONE:
     return aiResult;
     
   } catch (err) {
-    logger.error('[GeminiAI] Errore durante analisi', { 
-      error: err.message || 'Errore sconosciuto',
-      type: err.constructor?.name,
-      reviewId
+    // Gestione specifica per diversi tipi di errori con fallback migliorati
+    const errorType = err.constructor?.name || 'UnknownError';
+    const errorMessage = err.message || err.toString() || 'Errore sconosciuto';
+    const errorCategory = categorizeError(errorMessage);
+    
+    // Classifica il tipo di errore per messaggi utente più chiari e azioni appropriate
+    let userMessage = 'Errore durante l\'analisi dell\'immagine';
+    let logLevel = 'error';
+    let shouldReturnFallback = false;
+    let fallbackResponse = null;
+    
+    switch (errorCategory) {
+      case 'service_overloaded':
+        userMessage = '🔄 Il servizio AI è temporaneamente sovraccarico. La tua immagine è stata salvata e verrà analizzata appena possibile.';
+        logLevel = 'warn';
+        shouldReturnFallback = true;
+        break;
+        
+      case 'rate_limited':
+        userMessage = '⏱️ Troppe richieste simultanee. Attendi 30 secondi prima di riprovare.';
+        logLevel = 'warn';
+        break;
+        
+      case 'network_error':
+        userMessage = '🌐 Problema di connessione. Verifica la tua connessione internet e riprova.';
+        logLevel = 'warn';
+        shouldReturnFallback = true;  
+        break;
+        
+      case 'timeout_error':
+        userMessage = '⏰ Timeout nell\'analisi. L\'immagine potrebbe essere troppo grande o complessa. Prova con un\'immagine più piccola.';
+        logLevel = 'warn';
+        break;
+        
+      case 'server_error':
+        userMessage = '🔧 Problema temporaneo del servizio AI. Riprova tra qualche minuto.';
+        logLevel = 'warn';
+        shouldReturnFallback = true;
+        break;
+        
+      case 'quota_exceeded':
+        userMessage = '💳 Quota AI giornaliera esaurita. Contatta l\'amministratore o riprova domani.';
+        logLevel = 'error';
+        break;
+        
+      case 'auth_error':
+        userMessage = '🔑 Errore di configurazione del servizio AI. Contatta l\'amministratore.';
+        logLevel = 'error';
+        break;
+        
+      default:
+        if (errorMessage.includes('image') || errorMessage.includes('format')) {
+          userMessage = '📷 Formato immagine non supportato. Usa JPG, PNG o WebP.';
+        } else if (errorMessage.includes('fetch failed')) {
+          userMessage = '🌐 Errore di connessione al servizio AI. Riprova tra qualche minuto.';
+          logLevel = 'warn';
+          shouldReturnFallback = true;
+        }
+        break;
+    }
+    
+    // Crea risposta di fallback per errori temporanei
+    if (shouldReturnFallback) {
+      fallbackResponse = {
+        success: true,
+        message: 'Immagine salvata - analisi AI temporaneamente non disponibile',
+        fallbackMode: true,
+        bottles: [{
+          id: 1,
+          bottleLabel: 'Birra non identificata',
+          needsManualReview: true,
+          aiData: {
+            bottleLabel: 'Birra non identificata',
+            confidence: 0.1,
+            analysisStatus: 'fallback_mode',
+            fallbackReason: errorCategory
+          }
+        }],
+        brewery: {
+          id: 1,
+          breweryName: 'Birrificio non identificato',
+          needsManualReview: true,
+          confidence: 0.1
+        },
+        summary: {
+          verifiedBreweries: 0,
+          unverifiedBreweries: 1,
+          verifiedBeers: 0,
+          unverifiedBeers: 1,
+          requiresUserIntervention: true,
+          interventionReason: 'Analisi AI fallita - inserimento manuale richiesto',
+          readyToSave: false,
+          nextSteps: ['Compila manualmente i dati della birra e del birrificio']
+        }
+      };
+    }
+    
+    // Log con livello appropriato e dettagli per debugging
+    logger[logLevel]('[GeminiAI] Errore durante analisi', { 
+      error: errorMessage,
+      type: errorType,
+      category: errorCategory,
+      reviewId,
+      sessionId,
+      userMessage,
+      isRetryable: logLevel === 'warn',
+      suggestedAction: getSuggestedAction(errorMessage),
+      hasFallback: shouldReturnFallback,
+      fallbackActivated: !!fallbackResponse
     });
+    
+    // Ritorna fallback se disponibile, altrimenti errore standard
+    if (fallbackResponse) {
+      logger.info('[GeminiAI] Modalità fallback attivata', {
+        reason: errorCategory,
+        fallbackType: 'manual_review_required'
+      });
+      return fallbackResponse;
+    }
     
     return { 
       success: false, 
-      message: 'Errore durante l\'analisi dell\'immagine: ' + (err.message || 'Errore sconosciuto') 
+      message: userMessage,
+      errorType: errorType,
+      errorCategory: errorCategory,
+      isRetryable: logLevel === 'warn',
+      suggestedRetryDelay: logLevel === 'warn' ? (errorCategory === 'rate_limited' ? 30000 : 60000) : null
     };
   }
 };

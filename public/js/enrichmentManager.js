@@ -371,6 +371,38 @@ class EnrichmentManager {
         return data;
     }
     
+    populateForm(data) {
+        try {
+            // Popola i dati dei birrifici
+            if (data.breweries) {
+                Object.entries(data.breweries).forEach(([index, breweryData]) => {
+                    Object.entries(breweryData).forEach(([fieldName, value]) => {
+                        const input = document.querySelector(`[name="brewery_${fieldName}_${index}"]`);
+                        if (input && value) {
+                            input.value = value;
+                        }
+                    });
+                });
+            }
+            
+            // Popola i dati delle birre
+            if (data.beers) {
+                Object.entries(data.beers).forEach(([index, beerData]) => {
+                    Object.entries(beerData).forEach(([fieldName, value]) => {
+                        const input = document.querySelector(`[name="beer_${fieldName}_${index}"]`);
+                        if (input && value) {
+                            input.value = value;
+                        }
+                    });
+                });
+            }
+            
+            console.log('✅ Form popolato con dati bozza:', data);
+        } catch (error) {
+            console.error('❌ Errore nel popolare il form:', error);
+        }
+    }
+    
     validateAll() {
         let isValid = true;
         const fields = document.querySelectorAll('.form-control');

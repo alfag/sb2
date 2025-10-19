@@ -185,6 +185,14 @@ class AIService {
       
       const analysisResult = await GeminiAI.validateImage(base64Image, null, userId, session.id);
       
+      // 🔧 DEBUG: Log per debugging in console (rimuovere in produzione)
+      console.log('🤖 [AI DEBUG] ANALISI COMPLETATA:');
+      console.log('📊 Bottles trovate:', analysisResult?.bottles?.length || 0);
+      console.log('🏭 Breweries trovate:', analysisResult?.breweries?.length || 0);
+      console.log('✅ Success:', analysisResult?.success);
+      console.log('📋 Richiede intervento:', analysisResult?.summary?.requiresUserIntervention);
+      console.log('🔍 Risultato completo:', JSON.stringify(analysisResult, null, 2));
+      
       logger.info('[AIService] GeminiAI.validateImage completata', {
         sessionId: session.id,
         userId,

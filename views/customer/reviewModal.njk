@@ -1,0 +1,633 @@
+{# Modal Popup per Recensioni - Creato: 17 Ottobre 2025 #}
+
+<!-- Review Modal Overlay -->
+<div id="reviewModalOverlay" class="review-modal-overlay">
+  <div class="review-modal-container">
+    
+    <!-- Header -->
+    <div class="review-modal-header">
+      <h2 class="review-modal-title">
+        <i class="fas fa-star"></i>
+        Valuta le Tue Birre
+      </h2>
+      <button 
+        type="button" 
+        id="closeReviewModal" 
+        class="review-modal-close"
+        aria-label="Chiudi"
+      >
+        ×
+      </button>
+    </div>
+
+    <!-- Body - Scrollable -->
+    <div class="review-modal-body" id="reviewModalBody">
+      <!-- Contenuto generato dinamicamente via JavaScript -->
+      <div id="bottleRatingsContainer"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="review-modal-footer">
+      <div class="review-progress-info" id="reviewProgressInfo" style="display: none;">
+        <i class="fas fa-info-circle"></i>
+        <span id="reviewProgressText"></span>
+      </div>
+      <div class="footer-buttons">
+        <button 
+          type="button" 
+          id="cancelReviewBtn" 
+          class="modal-btn modal-btn-cancel"
+        >
+          <i class="fas fa-times"></i>
+          Annulla
+        </button>
+        <button 
+          type="button" 
+          id="submitReviewBtn" 
+          class="modal-btn modal-btn-submit"
+        >
+          <i class="fas fa-check"></i>
+          Pubblica Recensioni
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Inizializzazione Modal Recensioni
+(function() {
+  console.log('🎬 Review Modal Script Loaded');
+  
+  // Riferimenti DOM
+  const modalOverlay = document.getElementById('reviewModalOverlay');
+  const modalBody = document.getElementById('reviewModalBody');
+  const bottleContainer = document.getElementById('bottleRatingsContainer');
+  const closeBtn = document.getElementById('closeReviewModal');
+  const cancelBtn = document.getElementById('cancelReviewBtn');
+  const submitBtn = document.getElementById('submitReviewBtn');
+  
+  // Stato globale recensioni
+  window.reviewModalState = {
+    bottles: [],
+    ratings: {}
+  };
+  
+  /**
+   * Apre il modal con i dati delle bottiglie
+   * @param {Array} bottles - Array di bottiglie da recensire
+   */
+  window.openReviewModal = function(bottles) {
+    console.log('📖 Opening review modal with bottles:', bottles);
+    
+    if (!bottles || bottles.length === 0) {
+      console.error('❌ Nessuna bottiglia da recensire');
+      return;
+    }
+    
+    window.reviewModalState.bottles = bottles;
+    window.reviewModalState.ratings = {};
+    
+    // Genera HTML per ogni bottiglia
+    renderBottles(bottles);
+    
+    // Mostra modal
+    modalOverlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    // 🎯 Nascondi il bottone "Recensisci una birra" quando il modal si apre
+    const startReviewBtn = document.getElementById('start-review-process');
+    if (startReviewBtn) {
+      startReviewBtn.style.display = 'none';
+      console.log('✅ Bottone "Recensisci una birra" nascosto');
+    }
+    
+    // Setup event listeners per le stelle
+    setupStarRatings();
+    
+    // Mostra progress info se più bottiglie
+    updateProgressInfo();
+  };
+  
+  /**
+   * Chiude il modal
+   */
+  function closeModal() {
+    modalOverlay.classList.remove('active');
+    document.body.style.overflow = '';
+    
+    // Reset contenuto
+    bottleContainer.innerHTML = '';
+    window.reviewModalState = { bottles: [], ratings: {} };
+    
+    // 🧹 CLEANUP: Rimuovi la vecchia UI inline di recensione se esiste
+    const legacyReviewProcess = document.getElementById('review-process');
+    if (legacyReviewProcess) {
+      legacyReviewProcess.classList.add('hidden');
+      legacyReviewProcess.innerHTML = ''; // Pulisci contenuto
+    }
+    
+    // Ripulisci anche eventuali messaggi di errore/warning
+    const dynamicAlerts = document.querySelectorAll('.dynamic-alert, .alert-warning, .alert-danger');
+    dynamicAlerts.forEach(alert => alert.remove());
+    
+    // 🔄 RIPRISTINA interfaccia iniziale con bottone "Recensisci una birra"
+    const startReviewBtn = document.getElementById('start-review-process');
+    if (startReviewBtn) {
+      startReviewBtn.style.display = 'inline-flex';
+      console.log('✅ Bottone "Recensisci una birra" ripristinato');
+    }
+    
+    // Ripulisci anche notifiche globali se presenti
+    if (window.utils && window.utils.clearNotifications) {
+      window.utils.clearNotifications();
+    }
+  }
+  
+  /**
+   * Mostra notifica moderna nel modal
+   */
+  function showModalNotification(message, type = 'info') {
+    // Rimuovi notifiche esistenti nel modal body
+    const existingNotifications = modalBody.querySelectorAll('.modal-notification');
+    existingNotifications.forEach(n => n.remove());
+    
+    // Crea nuova notifica
+    const notification = document.createElement('div');
+    notification.className = `modal-notification modal-notification-${type}`;
+    
+    const icons = {
+      error: '❌',
+      warning: '⚠️',
+      info: 'ℹ️',
+      success: '✅'
+    };
+    
+    notification.innerHTML = `
+      <span class="modal-notification-icon">${icons[type] || icons.info}</span>
+      <span class="modal-notification-message">${message}</span>
+      <button class="modal-notification-close">×</button>
+    `;
+    
+    // Inserisci all'inizio del modal body
+    modalBody.insertBefore(notification, modalBody.firstChild);
+    
+    // Animazione entrata
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    // Close button
+    const closeBtnNotif = notification.querySelector('.modal-notification-close');
+    closeBtnNotif.addEventListener('click', () => {
+      notification.classList.remove('show');
+      setTimeout(() => notification.remove(), 300);
+    });
+    
+    // Auto-dismiss dopo 8 secondi per errori, 5 per gli altri
+    const dismissTime = type === 'error' ? 8000 : 5000;
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.classList.remove('show');
+        setTimeout(() => {
+          if (notification.parentNode) notification.remove();
+        }, 300);
+      }
+    }, dismissTime);
+    
+    // Scroll al top per vedere la notifica
+    modalBody.scrollTop = 0;
+  }
+  
+  /**
+   * Renderizza le bottiglie nel modal
+   */
+  function renderBottles(bottles) {
+    console.log(`📦 Rendering ${bottles.length} bottle(s) in modal`);
+    
+    const html = bottles.map((bottle, index) => `
+      <div class="review-bottle-card" data-bottle-index="${index}">
+        ${bottles.length > 1 ? `<div class="bottle-counter">Birra ${index + 1} di ${bottles.length}</div>` : ''}
+        <div class="bottle-header-inline">
+          <img src="${bottle.thumbnail || '/images/default-beer.svg'}" 
+               alt="${bottle.beerName}" 
+               class="bottle-thumbnail-inline"
+               onerror="this.src='/images/default-beer.svg'">
+          <div class="bottle-info-inline">
+            <h3 class="bottle-name-inline">
+              <i class="fas fa-beer"></i>
+              ${bottle.beerName || 'Birra Sconosciuta'}
+            </h3>
+            <p class="bottle-brewery-inline">
+              <i class="fas fa-industry"></i>
+              ${bottle.breweryName || 'Birrificio Sconosciuto'}
+            </p>
+          </div>
+        </div>
+
+        <!-- Valutazione Generale -->
+        <div class="rating-section">
+          <label class="rating-label">
+            <i class="fas fa-star"></i> Valutazione Generale
+          </label>
+          <div class="rating-wrapper">
+            <div class="star-rating-container" data-bottle="${index}" data-category="overall">
+              ${[1, 2, 3, 4, 5].map(rating => `
+                <span class="star-icon" data-rating="${rating}">★</span>
+              `).join('')}
+            </div>
+            <div class="rating-value-display" data-bottle="${index}" data-category="overall">0</div>
+          </div>
+        </div>
+
+        <!-- Note Generali -->
+        <div class="rating-section">
+          <label class="rating-label">
+            <i class="fas fa-comment"></i> Impressioni Generali
+          </label>
+          <textarea 
+            class="review-notes-textarea" 
+            placeholder="Condividi le tue impressioni su questa birra..."
+            rows="3"
+            data-bottle="${index}" 
+            data-category="general"
+          ></textarea>
+        </div>
+
+        <!-- Toggle Valutazioni Dettagliate -->
+        <button 
+          type="button" 
+          class="toggle-detailed-btn" 
+          data-bottle="${index}"
+        >
+          <i class="fas fa-chevron-down"></i>
+          Valutazione Dettagliata
+        </button>
+
+        <!-- Valutazioni Dettagliate (nascoste) -->
+        <div class="detailed-ratings-container" data-bottle="${index}">
+          
+          <!-- Aspetto -->
+          <div class="rating-section">
+            <label class="rating-label">
+              <i class="fas fa-eye"></i> Aspetto (colore, limpidezza, schiuma)
+            </label>
+            <div class="rating-wrapper">
+              <div class="star-rating-container" data-bottle="${index}" data-category="appearance">
+                ${[1, 2, 3, 4, 5].map(rating => `
+                  <span class="star-icon" data-rating="${rating}">★</span>
+                `).join('')}
+              </div>
+              <div class="rating-value-display" data-bottle="${index}" data-category="appearance">0</div>
+            </div>
+            <textarea 
+              class="review-notes-textarea" 
+              placeholder="Note sull'aspetto..."
+              rows="2"
+              data-bottle="${index}" 
+              data-category="appearance"
+            ></textarea>
+          </div>
+
+          <!-- Aroma -->
+          <div class="rating-section">
+            <label class="rating-label">
+              <i class="fas fa-wind"></i> Aroma (profumi e odori)
+            </label>
+            <div class="rating-wrapper">
+              <div class="star-rating-container" data-bottle="${index}" data-category="aroma">
+                ${[1, 2, 3, 4, 5].map(rating => `
+                  <span class="star-icon" data-rating="${rating}">★</span>
+                `).join('')}
+              </div>
+              <div class="rating-value-display" data-bottle="${index}" data-category="aroma">0</div>
+            </div>
+            <textarea 
+              class="review-notes-textarea" 
+              placeholder="Note sull'aroma..."
+              rows="2"
+              data-bottle="${index}" 
+              data-category="aroma"
+            ></textarea>
+          </div>
+
+          <!-- Gusto -->
+          <div class="rating-section">
+            <label class="rating-label">
+              <i class="fas fa-glass-cheers"></i> Gusto (sapore e bilanciamento)
+            </label>
+            <div class="rating-wrapper">
+              <div class="star-rating-container" data-bottle="${index}" data-category="taste">
+                ${[1, 2, 3, 4, 5].map(rating => `
+                  <span class="star-icon" data-rating="${rating}">★</span>
+                `).join('')}
+              </div>
+              <div class="rating-value-display" data-bottle="${index}" data-category="taste">0</div>
+            </div>
+            <textarea 
+              class="review-notes-textarea" 
+              placeholder="Note sul gusto..."
+              rows="2"
+              data-bottle="${index}" 
+              data-category="taste"
+            ></textarea>
+          </div>
+
+          <!-- Mouthfeel -->
+          <div class="rating-section">
+            <label class="rating-label">
+              <i class="fas fa-hand-holding-water"></i> Sensazione in bocca (corpo, carbonazione)
+            </label>
+            <div class="rating-wrapper">
+              <div class="star-rating-container" data-bottle="${index}" data-category="mouthfeel">
+                ${[1, 2, 3, 4, 5].map(rating => `
+                  <span class="star-icon" data-rating="${rating}">★</span>
+                `).join('')}
+              </div>
+              <div class="rating-value-display" data-bottle="${index}" data-category="mouthfeel">0</div>
+            </div>
+            <textarea 
+              class="review-notes-textarea" 
+              placeholder="Note sulla sensazione in bocca..."
+              rows="2"
+              data-bottle="${index}" 
+              data-category="mouthfeel"
+            ></textarea>
+          </div>
+
+        </div>
+      </div>
+    `).join('');
+    
+    bottleContainer.innerHTML = html;
+  }
+  
+  /**
+   * Setup event listeners per le stelle
+   */
+  function setupStarRatings() {
+    // Stelle di rating
+    const starContainers = document.querySelectorAll('.star-rating-container');
+    
+    starContainers.forEach(container => {
+      const stars = container.querySelectorAll('.star-icon');
+      const bottleIndex = container.dataset.bottle;
+      const category = container.dataset.category;
+      
+      stars.forEach((star, index) => {
+        // Click per selezionare rating
+        star.addEventListener('click', function() {
+          const rating = parseInt(this.dataset.rating);
+          selectRating(container, rating, bottleIndex, category);
+        });
+        
+        // Hover preview
+        star.addEventListener('mouseenter', function() {
+          const rating = parseInt(this.dataset.rating);
+          previewRating(container, rating);
+        });
+        
+        // Reset hover quando mouse esce dalla stella
+        star.addEventListener('mouseleave', function() {
+          resetHoverPreview(container);
+        });
+      });
+      
+      // Reset hover quando mouse esce dal container
+      container.addEventListener('mouseleave', function() {
+        resetHoverPreview(container);
+      });
+    });
+    
+    // Toggle valutazioni dettagliate
+    const toggleBtns = document.querySelectorAll('.toggle-detailed-btn');
+    toggleBtns.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const bottleIndex = this.dataset.bottle;
+        const detailedContainer = document.querySelector(`.detailed-ratings-container[data-bottle="${bottleIndex}"]`);
+        
+        if (detailedContainer.classList.contains('active')) {
+          detailedContainer.classList.remove('active');
+          this.classList.remove('expanded');
+          this.innerHTML = '<i class="fas fa-chevron-down"></i> Valutazione Dettagliata';
+        } else {
+          detailedContainer.classList.add('active');
+          this.classList.add('expanded');
+          this.innerHTML = '<i class="fas fa-chevron-up"></i> Nascondi Dettagli';
+        }
+      });
+    });
+  }
+  
+  /**
+   * Seleziona rating e illumina stelle
+   */
+  function selectRating(container, rating, bottleIndex, category) {
+    const stars = container.querySelectorAll('.star-icon');
+    const valueDisplay = document.querySelector(`.rating-value-display[data-bottle="${bottleIndex}"][data-category="${category}"]`);
+    
+    // Rimuovi classe active e stili inline da tutte le stelle
+    stars.forEach(star => {
+      star.classList.remove('active');
+      star.style.color = ''; // Reset inline styles
+      star.style.opacity = '';
+    });
+    
+    // Aggiungi classe active alle stelle selezionate (da 1 a rating)
+    stars.forEach((star, index) => {
+      if (index < rating) {
+        star.classList.add('active');
+      }
+    });
+    
+    // Aggiorna valore display
+    if (valueDisplay) {
+      valueDisplay.textContent = rating;
+      valueDisplay.classList.add('has-rating');
+    }
+    
+    // Salva nel state
+    if (!window.reviewModalState.ratings[bottleIndex]) {
+      window.reviewModalState.ratings[bottleIndex] = {};
+    }
+    window.reviewModalState.ratings[bottleIndex][category] = rating;
+    
+    console.log('⭐ Rating selezionato:', { bottleIndex, category, rating });
+    
+    // Aggiorna progress info
+    updateProgressInfo();
+  }
+  
+  /**
+   * Aggiorna l'indicatore di progresso nel footer
+   */
+  function updateProgressInfo() {
+    const progressInfo = document.getElementById('reviewProgressInfo');
+    const progressText = document.getElementById('reviewProgressText');
+    const totalBottles = window.reviewModalState.bottles.length;
+    
+    if (!progressInfo || !progressText || totalBottles <= 1) return;
+    
+    let completedCount = 0;
+    for (let i = 0; i < totalBottles; i++) {
+      const ratings = window.reviewModalState.ratings[i] || {};
+      if (ratings.overall && ratings.overall > 0) {
+        completedCount++;
+      }
+    }
+    
+    progressInfo.style.display = 'flex';
+    progressText.textContent = `${completedCount} di ${totalBottles} birre recensite`;
+    
+    // Cambia colore se tutte completate
+    if (completedCount === totalBottles) {
+      progressInfo.style.background = 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)';
+      progressInfo.style.color = '#065f46';
+    } else {
+      progressInfo.style.background = 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)';
+      progressInfo.style.color = '#1e40af';
+    }
+  }
+  
+  /**
+   * Preview rating on hover
+   */
+  function previewRating(container, rating) {
+    const stars = container.querySelectorAll('.star-icon');
+    stars.forEach((star, index) => {
+      if (index < rating && !star.classList.contains('active')) {
+        star.style.color = '#fbbf24';
+        star.style.opacity = '0.7';
+      }
+    });
+  }
+  
+  /**
+   * Reset hover preview
+   */
+  function resetHoverPreview(container) {
+    const stars = container.querySelectorAll('.star-icon');
+    stars.forEach(star => {
+      if (!star.classList.contains('active')) {
+        star.style.color = '';
+        star.style.opacity = '';
+      }
+    });
+  }
+  
+  /**
+   * Raccogli tutti i dati delle recensioni
+   */
+  function collectReviewData() {
+    const reviews = [];
+    const bottles = window.reviewModalState.bottles;
+    
+    bottles.forEach((bottle, index) => {
+      const ratings = window.reviewModalState.ratings[index] || {};
+      const notes = {};
+      
+      // Raccogli note da tutti i textarea
+      document.querySelectorAll(`textarea[data-bottle="${index}"]`).forEach(textarea => {
+        const category = textarea.dataset.category;
+        notes[category] = textarea.value.trim();
+      });
+      
+      reviews.push({
+        ...bottle,
+        overallRating: ratings.overall || 0,
+        appearanceRating: ratings.appearance || 0,
+        aromaRating: ratings.aroma || 0,
+        tasteRating: ratings.taste || 0,
+        mouthfeelRating: ratings.mouthfeel || 0,
+        generalNotes: notes.general || '',
+        appearanceNotes: notes.appearance || '',
+        aromaNotes: notes.aroma || '',
+        tasteNotes: notes.taste || '',
+        mouthfeelNotes: notes.mouthfeel || ''
+      });
+    });
+    
+    return reviews;
+  }
+  
+  /**
+   * Valida che almeno il rating generale sia presente
+   */
+  function validateReviews() {
+    const bottles = window.reviewModalState.bottles;
+    console.log(`🔍 Validating ${bottles.length} bottle review(s)...`);
+    
+    for (let i = 0; i < bottles.length; i++) {
+      const ratings = window.reviewModalState.ratings[i] || {};
+      console.log(`  Bottle ${i + 1} ratings:`, ratings);
+      
+      if (!ratings.overall || ratings.overall === 0) {
+        const bottleName = bottles[i].beerName || 'senza nome';
+        const message = bottles.length > 1 
+          ? `Per favore, dai una valutazione generale alla birra ${i + 1} di ${bottles.length}: "${bottleName}"`
+          : `Per favore, dai una valutazione generale alla birra "${bottleName}"`;
+        
+        console.warn(`❌ Validation failed for bottle ${i + 1}`);
+        return { valid: false, message };
+      }
+    }
+    
+    console.log('✅ All reviews validated successfully');
+    return { valid: true };
+  }
+  
+  // Event Listeners
+  closeBtn?.addEventListener('click', closeModal);
+  cancelBtn?.addEventListener('click', closeModal);
+  
+  submitBtn?.addEventListener('click', function() {
+    const validation = validateReviews();
+    
+    if (!validation.valid) {
+      // ✨ Usa notifica moderna invece di alert
+      showModalNotification(validation.message, 'error');
+      return; // ❌ NON chiudere il modal - lascialo aperto per correzioni
+    }
+    
+    const reviews = collectReviewData();
+    console.log('📤 Submitting reviews:', reviews);
+    
+    // Chiama funzione globale se esiste (da scripts.js)
+    if (typeof window.submitReviews === 'function') {
+      // Passa anche callback per gestire successo/errore
+      window.submitReviews(reviews, {
+        onSuccess: () => {
+          console.log('✅ Recensioni pubblicate - chiudo modal');
+          closeModal(); // ✅ Chiudi SOLO se successo
+        },
+        onError: (errorMessage) => {
+          console.error('❌ Errore pubblicazione - modal rimane aperto');
+          // Mostra errore nel modal (non chiudere!)
+          showModalNotification(errorMessage, 'error');
+        }
+      });
+    } else {
+      console.error('❌ window.submitReviews() non trovata');
+      showModalNotification('Errore tecnico: funzione di invio non disponibile', 'error');
+      return; // ❌ NON chiudere il modal
+    }
+    
+    // ⚠️ NON chiudere qui - chiudi solo nel callback onSuccess
+  });
+  
+  // Chiudi con ESC
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && modalOverlay.classList.contains('active')) {
+      closeModal();
+    }
+  });
+  
+  // Chiudi cliccando fuori dal modal
+  modalOverlay?.addEventListener('click', function(e) {
+    if (e.target === modalOverlay) {
+      closeModal();
+    }
+  });
+  
+  console.log('✅ Review Modal initialized');
+})();
+</script>

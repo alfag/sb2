@@ -175,6 +175,27 @@ app.use(CleanupService.middleware());
 // Middleware per servire file statici
 app.use(express.static(path.join(__dirname, '../public'))); // Serve i file dalla cartella "public"
 
+// Middleware NO-CACHE per development (disabilita completamente la cache)
+// Attivo per: localhost, 127.0.0.1, e reti locali private (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+        const host = req.hostname || req.get('host') || '';
+        const isLocalNetwork = host === 'localhost' || 
+                               host === '127.0.0.1' ||
+                               /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host) ||
+                               /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host) ||
+                               /^172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(host);
+        
+        if (isLocalNetwork) {
+            res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            res.set('Pragma', 'no-cache');
+            res.set('Expires', '0');
+        }
+        next();
+    });
+    logger.info('NO-CACHE headers abilitati per development (localhost + reti locali)');
+}
+
 // Middleware per disclaimer maggiore età
 app.use(authMiddleware.disclaimerMiddleware);
 
@@ -247,6 +268,7 @@ app.use('/administrator', administratorRoutes); // Gestisce le rotte amministrat
 app.use('/api/cache', cacheRoutes); // Gestisce le rotte cache (admin)
 // app.use('/', reviewRoutes); // RIMOSSO: Le rotte review sono già incluse in baseRoutes con prefisso /review
 app.use('/review', require('./routes/aiVerificationRoutes')); // Sistema Anti-Allucinazioni AI
+app.use('/api/web-search', require('./routes/webSearchRoutes')); // Sistema Ricerca Web Automatica
 app.use('/content-moderation', contentModerationRoutes); // Gestisce le rotte di test moderazione contenuti (admin)
 
 module.exports = app;

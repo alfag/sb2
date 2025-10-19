@@ -724,16 +724,8 @@ try {
     };
 }
 
-// Inizializza il gestore delle statistiche quando il DOM è pronto
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inizializzazione StatisticsManager...');
-    try {
-        window.statisticsManager = new StatisticsManager();
-        console.log('✅ StatisticsManager inizializzato con successo');
-    } catch (error) {
-        console.error('❌ Errore nell\\'inizializzazione StatisticsManager:', error);
-    }
-});`;
+// NOTA: StatisticsManager viene inizializzato automaticamente da statisticsManager.js
+// Non è necessario inizializzarlo qui per evitare doppia inizializzazione`;
             
             fs.writeFileSync(statisticsDataPath, jsContent, 'utf8');
             logger.info('File statisticsData.js generato dinamicamente con successo');
@@ -749,11 +741,12 @@ document.addEventListener('DOMContentLoaded', function() {
             breweries: breweriesStats.breweries,
             pagination: breweriesStats.pagination,
             summary: {
-                ...breweriesStats.summary,
-                totalUsers,
-                totalBeers: totalBeers,
-                totalReviews: totalReviews,
-                totalBreweriesInDB // Aggiungiamo il totale assoluto dei birrifici
+                totalBreweries: breweriesStats.summary.totalBreweries || 0,
+                totalUsers: totalUsers || 0,
+                totalBeers: totalBeers || 0,
+                totalReviews: totalReviews || 0, // Usa il totale REALE dal database, non quello filtrato
+                totalBreweriesInDB: totalBreweriesInDB || 0, // Totale assoluto dei birrifici
+                averageRating: breweriesStats.summary.averageRating || 0
             },
             filters: {
                 page,

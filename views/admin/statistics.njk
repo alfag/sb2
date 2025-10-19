@@ -653,12 +653,12 @@
 {% block scripts %}
     <!-- Chart.js locale UMD -->
     <script src="/js/chart.umd.js"></script>
+    <!-- Statistics Data Script - DEVE ESSERE CARICATO PRIMA DI statisticsManager.js -->
+    <script src="/js/statisticsData.js"></script>
     <!-- Statistics Manager Script -->
     <script src="/js/statisticsManager.js"></script>
     <!-- Modern Statistics Page Script (NEW) -->
     <script src="/js/modernStatistics.js"></script>
-    <!-- Statistics Data Script -->
-    <script src="/js/statisticsData.js"></script>
     <!-- VU Meter Animation Script -->
     <script src="/js/vuMeterAnimation.js"></script>
 {% endblock %}

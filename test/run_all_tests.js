@@ -63,6 +63,11 @@ class TestRunner {
                 name: 'Test Multi-Ruolo Validazione Completa',
                 file: 'test_multiruolo_validation.js',
                 description: 'Validazione sistema multi-ruolo Fase 1 + Fase 2'
+            },
+            {
+                name: 'Test Ricerca Web Gemini AI',
+                file: 'test_gemini_web_search.js',
+                description: 'Test ricerca web automatica con Gemini AI per validazione birrifici/birre'
             }
         ];
 
@@ -116,7 +121,8 @@ class TestRunner {
             'test_frontend_e2e.js',
             'test_brewery_stats.js',
             'test_brewery_dashboard.js',
-            'test_multiruolo_validation.js'
+            'test_multiruolo_validation.js',
+            'test_gemini_web_search.js'
         ]) {
             const testFile = path.join(testDir, suite);
             if (fs.existsSync(testFile)) {
@@ -304,6 +310,7 @@ class TestRunner {
         console.log('✅ Dashboard Brewery Unificato Fase 2');
         console.log('✅ Performance e cache sistema');
         console.log('✅ Integrità dati e scalabilità');
+        console.log('✅ Ricerca Web Automatica Gemini AI (16 Ottobre 2025)');
 
         const successRate = (this.results.passedTests / this.results.totalTests) * 100;
         if (successRate >= 90) {

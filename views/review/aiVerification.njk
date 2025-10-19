@@ -8,6 +8,7 @@
 {% endblock %}
 
 {% block content %}
+<div class="ai-verification-overlay" onclick="closeVerificationModal()"></div>
 <div class="ai-verification-container">
     <div class="verification-header">
         <h1><i class="fas fa-robot"></i> Verifica Analisi AI</h1>
@@ -43,26 +44,54 @@
         <div class="ai-detected-data">
             <h2><i class="fas fa-brain"></i> Dati Rilevati dall'AI</h2>
             
-            <!-- Debug Info (solo in sviluppo) -->
-            <div class="debug-info" style="background: #f8f9fa; padding: 10px; margin: 10px 0; border: 1px solid #dee2e6; border-radius: 5px; font-family: monospace; font-size: 12px;">
-                <strong>🔧 Debug Info:</strong><br>
-                sessionData exists: {{ '✅ Yes' if sessionData else '❌ No' }}<br>
-                sessionData.bottles exists: {{ '✅ Yes' if sessionData.bottles else '❌ No' }}<br>
-                sessionData.bottles length: {{ sessionData.bottles.length if sessionData.bottles else 'N/A' }}<br>
-                sessionData.breweries exists: {{ '✅ Yes' if sessionData.breweries else '❌ No' }}<br>
-                sessionData.breweries length: {{ sessionData.breweries.length if sessionData.breweries else 'N/A' }}<br>
-                validation exists: {{ '✅ Yes' if validation else '❌ No' }}<br>
-                {% if sessionData %}
-                sessionData has bottles: {{ 'True' if sessionData.bottles else 'False' }}<br>
-                sessionData has breweries: {{ 'True' if sessionData.breweries else 'False' }}<br>
-                sessionData has processedData: {{ 'True' if sessionData.processedData else 'False' }}<br>
-                {% endif %}
-                {% if validation %}
-                validation.bottles exists: {{ '✅ Yes' if validation.bottles else '❌ No' }}<br>
-                validation.breweries exists: {{ '✅ Yes' if validation.breweries else '❌ No' }}<br>
-                validation has requiresUserConfirmation: {{ 'True' if validation.requiresUserConfirmation else 'False' }}<br>
-                validation has requiresUserCompletion: {{ 'True' if validation.requiresUserCompletion else 'False' }}<br>
-                {% endif %}
+            <!-- Debug Info Completo -->
+            <div class="debug-info" style="background: #f8f9fa; padding: 15px; margin: 15px 0; border: 2px solid #007bff; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 11px;">
+                <details open>
+                    <summary style="font-weight: bold; color: #007bff; cursor: pointer; margin-bottom: 10px;">🔧 Debug Info AI Analysis</summary>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <strong style="color: #28a745;">📊 Data Structure Status:</strong><br>
+                        sessionData exists: {{ '✅ Yes' if sessionData else '❌ No' }}<br>
+                        sessionData.bottles exists: {{ '✅ Yes' if sessionData.bottles else '❌ No' }}<br>
+                        sessionData.bottles length: {{ sessionData.bottles.length if sessionData.bottles else 'N/A' }}<br>
+                        sessionData.breweries exists: {{ '✅ Yes' if sessionData.breweries else '❌ No' }}<br>
+                        sessionData.breweries length: {{ sessionData.breweries.length if sessionData.breweries else 'N/A' }}<br>
+                        validation exists: {{ '✅ Yes' if validation else '❌ No' }}<br>
+                    </div>
+                    
+                    {% if sessionData %}
+                    <div style="margin-bottom: 15px;">
+                        <strong style="color: #17a2b8;">🗂️ SessionData Properties:</strong><br>
+                        has bottles: {{ 'True' if sessionData.bottles else 'False' }}<br>
+                        has breweries: {{ 'True' if sessionData.breweries else 'False' }}<br>
+                        has processedData: {{ 'True' if sessionData.processedData else 'False' }}<br>
+                        has timestamp: {{ 'True' if sessionData.timestamp else 'False' }}<br>
+                        has userFlowType: {{ sessionData.userFlowType if sessionData.userFlowType else 'N/A' }}<br>
+                        has messages: {{ 'True' if sessionData.messages else 'False' }}<br>
+                    </div>
+                    {% endif %}
+                    
+                    {% if validation %}
+                    <div style="margin-bottom: 15px;">
+                        <strong style="color: #dc3545;">🔍 Validation Properties:</strong><br>
+                        bottles exists: {{ '✅ Yes' if validation.bottles else '❌ No' }}<br>
+                        breweries exists: {{ '✅ Yes' if validation.breweries else '❌ No' }}<br>
+                        requiresUserConfirmation: {{ 'True' if validation.requiresUserConfirmation else 'False' }}<br>
+                        requiresUserCompletion: {{ 'True' if validation.requiresUserCompletion else 'False' }}<br>
+                        antiHallucinationActive: {{ 'True' if validation.antiHallucinationActive else 'False' }}<br>
+                        needsVerification: {{ 'True' if validation.needsVerification else 'False' }}<br>
+                    </div>
+                    {% endif %}
+                    
+                    <div style="background: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffc107;">
+                        <strong style="color: #856404;">⚠️ Perché richiede sempre completamento?</strong><br>
+                        Controlla i log della console (F12) per vedere:<br>
+                        • 📤 Prompt completo inviato all'AI<br>
+                        • 📥 Risposta completa ricevuta dall'AI<br>
+                        • 🔍 Analisi del sistema anti-allucinazioni<br>
+                        • 🎯 Motivo specifico del reindirizzamento a questa pagina
+                    </div>
+                </details>
             </div>
             
             <!-- Prova prima sessionData.bottles, poi validation.bottles come fallback -->
@@ -75,7 +104,7 @@
                 <div class="bottle-detection-card">
                     <div class="bottle-thumbnail">
                         {% if bottle.thumbnail %}
-                        <img src="{{ bottle.thumbnail }}" alt="Thumbnail {{ bottle.bottleLabel or bottle.beerName }}" class="bottle-thumb">
+                        <img src="{{ bottle.thumbnail }}" alt="Thumbnail {{ bottle.labelData.beerName or bottle.bottleLabel or bottle.beerName }}" class="bottle-thumb">
                         {% else %}
                         <div class="placeholder-thumb">
                             <i class="fas fa-beer"></i>
@@ -83,12 +112,14 @@
                         {% endif %}
                     </div>
                     <div class="bottle-info">
-                        <h4>{{ bottle.bottleLabel or bottle.beerName or 'Birra rilevata' }}</h4>
-                        <div class="bottle-details">
-                            {% if bottle.breweryName %}<span class="detail-item"><i class="fas fa-industry"></i> {{ bottle.breweryName }}</span>{% endif %}
-                            {% if bottle.beerType %}<span class="detail-item"><i class="fas fa-tag"></i> {{ bottle.beerType }}</span>{% endif %}
-                            {% if bottle.alcoholContent %}<span class="detail-item"><i class="fas fa-percentage"></i> {{ bottle.alcoholContent }}</span>{% endif %}
-                            {% if bottle.volume %}<span class="detail-item"><i class="fas fa-flask"></i> {{ bottle.volume }}</span>{% endif %}
+                        <h4>{{ bottle.labelData.beerName or bottle.bottleLabel or bottle.beerName or 'Birra rilevata' }}</h4>
+                        <p class="brewery-name">
+                            <i class="fas fa-industry"></i> 
+                            {{ bottle.breweryName or 'Birrificio in verifica' }}
+                        </p>
+                        <div class="bottle-summary">
+                            {% if bottle.beerType %}<span class="tag"><i class="fas fa-tag"></i> {{ bottle.beerType }}</span>{% endif %}
+                            {% if bottle.alcoholContent %}<span class="tag"><i class="fas fa-percentage"></i> {{ bottle.alcoholContent }}</span>{% endif %}
                         </div>
                         <div class="confidence-indicator">
                             <span class="confidence-label">Confidenza AI:</span>
@@ -470,7 +501,7 @@
                                     <img src="{{ bottle.thumbnail }}" alt="Thumbnail" class="thumb-mini">
                                 </div>
                                 {% endif %}
-                                <h4>{{ bottle.bottleLabel or bottle.beerName or bottle.name or "Birra" }}</h4>
+                                <h4>{{ bottle.labelData.beerName or bottle.bottleLabel or bottle.beerName or bottle.name or "Birra" }}</h4>
                             </div>
                             <div class="completeness-indicator">
                                 <span class="completeness-label">Completeness:</span>
@@ -486,10 +517,10 @@
                     <div class="ai-data-summary">
                         <h5><i class="fas fa-robot text-info"></i> Dati Recuperati dall'AI per questa Birra</h5>
                         <div class="ai-data-grid beer-data">
-                            {% if bottle.bottleLabel or bottle.beerName or bottle.name %}
+                            {% if bottle.labelData.beerName or bottle.bottleLabel or bottle.beerName or bottle.name %}
                             <div class="ai-data-item populated">
                                 <span class="data-label"><i class="fas fa-tag"></i> Nome:</span>
-                                <span class="data-value">{{ bottle.bottleLabel or bottle.beerName or bottle.name }}</span>
+                                <span class="data-value">{{ bottle.labelData.beerName or bottle.bottleLabel or bottle.beerName or bottle.name }}</span>
                             </div>
                             {% endif %}
                             {% if bottle.beerType or bottle.type or bottle.style %}
@@ -508,6 +539,12 @@
                             <div class="ai-data-item populated">
                                 <span class="data-label"><i class="fas fa-wine-bottle"></i> Volume:</span>
                                 <span class="data-value">{{ bottle.volume | replace('ml', '') | replace('cl', '') }}ml</span>
+                            </div>
+                            {% endif %}
+                            {% if bottle.verifiedData.description %}
+                            <div class="ai-data-item populated">
+                                <span class="data-label"><i class="fas fa-info-circle"></i> Descrizione:</span>
+                                <span class="data-value">{{ bottle.verifiedData.description }}</span>
                             </div>
                             {% endif %}
                             {% if bottle.ibu %}
@@ -534,7 +571,7 @@
                         <div class="missing-fields">
                             <h6><i class="fas fa-exclamation-triangle text-warning"></i> Campi da Completare</h6>
                             <div class="missing-list">
-                                {% if not (bottle.bottleLabel or bottle.beerName or bottle.name) %}
+                                {% if not (bottle.labelData.beerName or bottle.bottleLabel or bottle.beerName or bottle.name) %}
                                 <span class="missing-field required"><i class="fas fa-tag"></i> Nome Birra</span>
                                 {% endif %}
                                 {% if not (bottle.beerType or bottle.type or bottle.style) %}
@@ -562,7 +599,7 @@
                     <div class="card-content">
                         <div class="form-grid">
                             <!-- Nome Birra - OBBLIGATORIO -->
-                            {% set beerNameValue = bottle.bottleLabel or bottle.beerName or bottle.name or '' %}
+                            {% set beerNameValue = bottle.labelData.beerName or bottle.bottleLabel or bottle.beerName or bottle.name or '' %}
                             <div class="form-group {% if beerNameValue %}field-populated{% else %}field-required-missing{% endif %}">
                                 <label for="beer_name_{{ loop.index }}">
                                     {% if beerNameValue %}
@@ -1049,9 +1086,9 @@
 <form id="confirmationForm" method="POST" action="/api/ai-verification/confirm-ai-analysis" style="display: none;">
     <input type="hidden" name="confirmVerified" id="confirmVerified">
     <input type="hidden" name="userCompletions" id="userCompletions">
-    <input type="hidden" name="sessionData" id="sessionData" value="{{ sessionData | escapejs }}" 
-           data-validation="{{ validation | escapejs }}" 
-           data-session-data="{{ sessionData | escapejs }}">
+    <input type="hidden" name="sessionData" id="sessionData" value="{{ sessionData | dump }}" 
+           data-validation="{{ validation | dump }}" 
+           data-session-data="{{ sessionData | dump }}">
 </form>
 
 {% endblock %}
@@ -1060,18 +1097,124 @@
 <script src="/js/aiVerification.js"></script>
 <script src="/js/enrichmentManager.js"></script>
 <script>
-    // Inizializza con dati dalla sessione (sicuro da HTML attributes)
+    // Inizializza con dati dalla sessione (sicuro con error handling)
     try {
-        const validationData = document.querySelector('#sessionData').dataset.validation;
-        const sessionDataStr = document.querySelector('#sessionData').dataset.sessionData;
+        const sessionElement = document.querySelector('#sessionData');
+        let validationData = '';
+        let sessionDataStr = '';
+        
+        // Prova prima i dataset attributes
+        if (sessionElement.dataset.validation) {
+            validationData = sessionElement.dataset.validation;
+        }
+        if (sessionElement.dataset.sessionData) {
+            sessionDataStr = sessionElement.dataset.sessionData;
+        }
+        
+        // 🔧 DEBUG: Log raw data prima del parsing
+        console.group('🔍 RAW DATA DEBUG');
+        console.log('Raw validation data:', validationData ? validationData.substring(0, 200) + '...' : 'EMPTY');
+        console.log('Raw session data:', sessionDataStr ? sessionDataStr.substring(0, 200) + '...' : 'EMPTY');
+        console.groupEnd();
+        
+        // Safe JSON parsing con error handling
+        let parsedValidation = {};
+        let parsedSessionData = {};
+        
+        if (validationData) {
+            try {
+                parsedValidation = JSON.parse(validationData);
+            } catch (validationError) {
+                console.error('❌ Validation JSON Parse Error:', validationError);
+                console.log('Problematic validation data:', validationData);
+                parsedValidation = {};
+            }
+        }
+        
+        if (sessionDataStr) {
+            try {
+                parsedSessionData = JSON.parse(sessionDataStr);
+            } catch (sessionError) {
+                console.error('❌ Session JSON Parse Error:', sessionError);
+                console.log('Problematic session data:', sessionDataStr);
+                parsedSessionData = {};
+            }
+        }
         
         window.aiVerificationData = {
-            validation: validationData ? JSON.parse(validationData) : {},
-            sessionData: sessionDataStr ? JSON.parse(sessionDataStr) : {}
+            validation: parsedValidation,
+            sessionData: parsedSessionData
         };
+        
+        // 🔧 DEBUG: Logging completo dati AI per debugging
+        console.group('🤖 AI VERIFICATION DEBUG');
+        console.log('📊 ValidationData:', window.aiVerificationData.validation);
+        console.log('🗂️ SessionData:', window.aiVerificationData.sessionData);
+        console.log('🍺 Bottles found:', window.aiVerificationData.sessionData.bottles?.length || 0);
+        console.log('🏭 Breweries found:', window.aiVerificationData.sessionData.breweries?.length || 0);
+        console.log('⚠️ Requires User Confirmation:', window.aiVerificationData.validation.requiresUserConfirmation);
+        console.log('✏️ Requires User Completion:', window.aiVerificationData.validation.requiresUserCompletion);
+        console.log('🛡️ Anti-Hallucination Active:', window.aiVerificationData.validation.antiHallucinationActive);
+        console.log('🔍 Needs Verification:', window.aiVerificationData.validation.needsVerification);
+        
+        // Detailed analysis
+        if (window.aiVerificationData.sessionData.bottles) {
+            console.log('🍺 BOTTLES DETAILS:');
+            window.aiVerificationData.sessionData.bottles.forEach((bottle, i) => {
+                console.log(`  Bottle ${i+1}:`, {
+                    // Struttura corretta dai dati raw
+                    beerName: bottle.labelData?.beerName,
+                    breweryName: bottle.labelData?.breweryName || bottle.verifiedData?.breweryName,
+                    alcoholContent: bottle.labelData?.alcoholContent,
+                    beerStyle: bottle.labelData?.beerStyle,
+                    volume: bottle.labelData?.volume,
+                    description: bottle.verifiedData?.description,
+                    confidence: bottle.confidence,
+                    // Legacy fields per compatibilità
+                    legacy_name: bottle.beerName || bottle.bottleLabel || bottle.name,
+                    legacy_brewery: bottle.breweryName || bottle.brewery
+                });
+            });
+        }
+        
+        if (window.aiVerificationData.sessionData.breweries) {
+            console.log('🏭 BREWERIES DETAILS:');
+            window.aiVerificationData.sessionData.breweries.forEach((brewery, i) => {
+                console.log(`  Brewery ${i+1}:`, {
+                    // Struttura corretta dai dati raw
+                    breweryName: brewery.originalData?.verifiedData?.breweryName,
+                    breweryWebsite: brewery.originalData?.verifiedData?.breweryWebsite,
+                    breweryDescription: brewery.originalData?.verifiedData?.breweryDescription,
+                    confidence: brewery.originalData?.verifiedData?.confidence,
+                    requiresManualCheck: brewery.originalData?.requiresManualCheck,
+                    manualCheckReason: brewery.originalData?.manualCheckReason,
+                    // Legacy fields per compatibilità
+                    legacy_name: brewery.breweryName || brewery.name,
+                    legacy_website: brewery.breweryWebsite,
+                    legacy_address: brewery.breweryLegalAddress
+                });
+            });
+        }
+        
+        console.groupEnd();
+        
     } catch (e) {
-        console.error('Errore parsing dati AI verification:', e);
+        console.error('❌ Errore parsing dati AI verification:', e);
         window.aiVerificationData = { validation: {}, sessionData: {} };
     }
+    
+    // Funzione per chiudere il modal
+    function closeVerificationModal() {
+        if (confirm('Sei sicuro di voler chiudere la verifica? I dati potrebbero essere persi.')) {
+            window.history.back();
+        }
+    }
+    
+    // Previeni chiusura accidentale con ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeVerificationModal();
+        }
+    });
 </script>
 {% endblock %}

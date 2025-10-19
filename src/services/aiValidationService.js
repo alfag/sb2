@@ -57,7 +57,10 @@ class AIValidationService {
         for (const brewery of aiResult.breweries) {
           const breweryValidation = await this.validateBrewery(brewery, existingBreweries);
           
-          if (breweryValidation.isValid && breweryValidation.action === 'SAVE_DIRECTLY') {
+          // ✅ Considera validi sia SAVE_DIRECTLY che UPDATE_EXISTING
+          if (breweryValidation.isValid && 
+              (breweryValidation.action === 'SAVE_DIRECTLY' || 
+               breweryValidation.action === 'UPDATE_EXISTING')) {
             validationResults.verifiedData.breweries.push(breweryValidation);
             validationResults.summary.verifiedBreweries++;
           } else {
@@ -163,19 +166,28 @@ class AIValidationService {
         // Check 3: Nuovo birrificio verificato - controllo qualità dati
         const qualityScore = this.assessDataQuality(breweryData.verifiedData);
         
-        if (qualityScore >= 0.8) {
+        // 🎯 Soglia abbassata a 0.7 (70%) per permettere più salvataggi automatici
+        // quando l'AI ha recuperato dati sufficienti e verificati
+        if (qualityScore >= 0.7) {
           validation.isValid = true;
           validation.action = 'SAVE_DIRECTLY';
           validation.confidence = qualityScore;
           
           logger.info('[AIValidation] Nuovo birrificio verificato - salvataggio diretto', {
             breweryName: breweryData.verifiedData.breweryName,
-            qualityScore: qualityScore
+            qualityScore: qualityScore,
+            threshold: 0.7
           });
           
           return validation;
         } else {
-          validation.issues.push('Dati di qualità insufficiente nonostante la verifica AI');
+          validation.issues.push(`Dati di qualità insufficiente (score: ${qualityScore.toFixed(2)}, richiesto: 0.70)`);
+          logger.warn('[AIValidation] Quality score insufficiente per salvataggio automatico', {
+            breweryName: breweryData.verifiedData.breweryName,
+            qualityScore: qualityScore,
+            threshold: 0.7,
+            missingFields: this.findMissingFields(breweryData.verifiedData)
+          });
         }
       }
 
@@ -265,9 +277,31 @@ class AIValidationService {
 
     try {
       // Check 1: Il birrificio della birra deve essere verificato
-      const brewery = verifiedBreweries.find(b => 
-        b.originalData.labelName === beerData.labelData.breweryName
-      );
+      // Cerca birrificio usando diversi criteri di matching
+      const brewery = verifiedBreweries.find(b => {
+        const breweryLabelName = b.originalData.labelName?.toLowerCase();
+        const breweryVerifiedName = b.originalData.verifiedData?.breweryName?.toLowerCase();
+        
+        const beerBreweryName = beerData.labelData.breweryName?.toLowerCase();
+        const beerVerifiedBreweryName = beerData.verifiedData?.breweryName?.toLowerCase();
+        
+        // Match per nome da etichetta
+        if (beerBreweryName && (breweryLabelName === beerBreweryName || breweryVerifiedName?.includes(beerBreweryName))) {
+          return true;
+        }
+        
+        // Match per nome verificato dall'AI
+        if (beerVerifiedBreweryName && (breweryVerifiedName?.includes(beerVerifiedBreweryName) || breweryLabelName === beerVerifiedBreweryName)) {
+          return true;
+        }
+        
+        // Se solo un birrificio verificato e questa è l'unica birra, probabilmente è correlato
+        if (verifiedBreweries.length === 1 && beerData.labelData.beerName) {
+          return true;
+        }
+        
+        return false;
+      });
       
       if (!brewery) {
         validation.issues.push('Birrificio non verificato - impossibile validare la birra');
@@ -282,29 +316,33 @@ class AIValidationService {
         return validation;
       }
 
-      // Check 2: Verifica se è marcata come VERIFIED dall'AI
-      if (beerData.webVerification?.dataMatch === 'VERIFIED') {
-        const qualityScore = this.assessBeerDataQuality(beerData.verifiedData);
+      // Check 2: Verifica qualità dati birra (da AI o da web)
+      const beerDataToValidate = beerData.verifiedData || beerData.labelData;
+      const qualityScore = this.assessBeerDataQuality(beerDataToValidate);
+      
+      // Se il birrificio è verificato e i dati birra sono di qualità sufficiente → SALVA
+      if (qualityScore >= 0.7) {
+        validation.isValid = true;
+        validation.action = 'SAVE_DIRECTLY';
+        validation.confidence = qualityScore;
+        validation.brewery = brewery;
         
-        if (qualityScore >= 0.7) {
-          validation.isValid = true;
-          validation.action = 'SAVE_DIRECTLY';
-          validation.confidence = qualityScore;
-          validation.brewery = brewery;
-          
-          logger.info('[AIValidation] Birra verificata - salvataggio diretto', {
-            beerName: beerData.verifiedData.beerName,
-            breweryName: brewery.originalData.labelName,
-            qualityScore: qualityScore
-          });
-          
-          return validation;
-        } else {
-          validation.issues.push('Dati birra di qualità insufficiente');
-        }
+        logger.info('[AIValidation] Birra validata - salvataggio diretto', {
+          beerName: beerDataToValidate.beerName,
+          breweryName: brewery.originalData.labelName,
+          qualityScore: qualityScore,
+          source: beerData.webVerification ? 'web_verification' : 'ai_analysis'
+        });
+        
+        return validation;
+      }
+      
+      // Check 3: Qualità insufficiente - verifica se ci sono conflitti web
+      if (beerData.webVerification?.dataMatch === 'VERIFIED' && qualityScore < 0.7) {
+        validation.issues.push('Dati birra di qualità insufficiente');
       }
 
-      // Check 3: Gestione casi non verificati
+      // Check 4: Gestione casi non verificati o con problemi
       validation.requiresUserAction = true;
       
       if (beerData.webVerification?.dataMatch === 'UNVERIFIED') {
@@ -335,11 +373,15 @@ class AIValidationService {
         };
       }
 
-      logger.info('[AIValidation] Birra richiede intervento utente', {
-        beerName: beerData.labelData.beerName,
-        verification: beerData.webVerification?.dataMatch,
-        actionType: validation.userAction?.type
-      });
+      // Log solo se effettivamente richiede intervento
+      if (validation.requiresUserAction) {
+        logger.info('[AIValidation] Birra richiede intervento utente', {
+          beerName: beerData.labelData.beerName,
+          verification: beerData.webVerification?.dataMatch,
+          actionType: validation.userAction?.type,
+          reason: validation.issues.join('; ')
+        });
+      }
 
       return validation;
 
@@ -361,6 +403,16 @@ class AIValidationService {
    */
   static determineUserFlow(validationResults) {
     const { summary, userActions, verifiedData, unverifiedData } = validationResults;
+    
+    logger.debug('[AIValidation] determineUserFlow - Check condizioni', {
+      verifiedBreweries: summary.verifiedBreweries,
+      unverifiedBreweries: summary.unverifiedBreweries,
+      verifiedBeers: summary.verifiedBeers,
+      unverifiedBeers: summary.unverifiedBeers,
+      userActionsCount: userActions.length,
+      caso1Check: summary.verifiedBreweries > 0 && summary.unverifiedBreweries === 0 && 
+                   summary.verifiedBeers > 0 && summary.unverifiedBeers === 0
+    });
     
     // Caso 1: Tutto verificato - salvataggio diretto
     if (summary.verifiedBreweries > 0 && summary.unverifiedBreweries === 0 && 
@@ -423,51 +475,162 @@ class AIValidationService {
   }
 
   static assessDataQuality(breweryData) {
+    // 🎯 NUOVO ALGORITMO: Più permissivo ma intelligente
+    // Requirement minimo: breweryName + (website OR legalAddress OR description)
+    
     let score = 0;
-    let maxScore = 5;
+    let maxScore = 10; // Aumentato per granularità maggiore
 
-    // Componenti essenziali
-    if (breweryData.breweryName) score += 1;
-    if (breweryData.breweryWebsite) score += 1;
-    if (breweryData.breweryLegalAddress) score += 1;
+    // CAMPO OBBLIGATORIO (blocca se manca)
+    if (!breweryData.breweryName) {
+      return 0; // Senza nome non si salva MAI
+    }
+    score += 3; // Nome presente = 30% base score
 
-    // Componenti di qualità
-    if (breweryData.breweryEmail) score += 0.5;
-    if (breweryData.breweryPhoneNumber) score += 0.5;
-    if (breweryData.foundingYear) score += 0.3;
-    if (breweryData.breweryDescription && breweryData.breweryDescription.length > 50) score += 0.7;
+    // DATI IDENTIFICATIVI (almeno 1 deve essere presente)
+    let hasIdentifiers = false;
+    if (breweryData.breweryWebsite) {
+      score += 2; // 20%
+      hasIdentifiers = true;
+    }
+    if (breweryData.breweryLegalAddress && breweryData.breweryLegalAddress !== 'Non specificato') {
+      score += 2; // 20%
+      hasIdentifiers = true;
+    }
+    if (breweryData.breweryDescription && breweryData.breweryDescription.length > 50) {
+      score += 1.5; // 15%
+      hasIdentifiers = true;
+    }
+    
+    // Se non ha NESSUN identificativo oltre al nome, score basso
+    if (!hasIdentifiers) {
+      return 0.3; // 30% - Troppo poco per salvataggio automatico
+    }
 
-    // Penalità per dati mancanti critici
-    if (!breweryData.breweryWebsite && !breweryData.breweryEmail) score -= 1;
+    // DATI DI CONTATTO (bonus points)
+    if (breweryData.breweryEmail) score += 1; // 10%
+    if (breweryData.breweryPhoneNumber) score += 0.5; // 5%
 
-    return Math.max(0, Math.min(1, score / maxScore));
+    // DATI STORICI/DESCRITTIVI (bonus points)
+    if (breweryData.foundingYear) score += 0.5; // 5%
+    if (breweryData.mainProducts && breweryData.mainProducts.length > 0) score += 0.5; // 5%
+    if (breweryData.brewerySocialMedia && 
+        (breweryData.brewerySocialMedia.facebook || 
+         breweryData.brewerySocialMedia.instagram)) {
+      score += 0.5; // 5%
+    }
+
+    // BONUS per alta confidence AI
+    if (breweryData.confidence && breweryData.confidence >= 0.9) {
+      score += 0.5; // 5% bonus per alta confidence
+    }
+
+    const finalScore = Math.min(1, score / maxScore);
+    
+    // Log per debugging
+    const logger = require('../utils/logger').logWithFileName(__filename);
+    logger.debug('[assessDataQuality] Score calcolato', {
+      breweryName: breweryData.breweryName,
+      hasWebsite: !!breweryData.breweryWebsite,
+      hasAddress: !!breweryData.breweryLegalAddress,
+      hasDescription: !!breweryData.breweryDescription,
+      hasIdentifiers: hasIdentifiers,
+      rawScore: score,
+      maxScore: maxScore,
+      finalScore: finalScore,
+      threshold: 0.7
+    });
+
+    return finalScore;
   }
 
   static assessBeerDataQuality(beerData) {
-    let score = 0;
-    let maxScore = 4;
+    // DATI OBBLIGATORI (devono essere presenti)
+    if (!beerData.beerName) {
+      return 0; // Senza nome birra non possiamo salvare
+    }
 
-    if (beerData.beerName) score += 1;
-    if (beerData.alcoholContent) score += 1;
-    if (beerData.beerType) score += 1;
-    if (beerData.volume) score += 0.5;
-    if (beerData.description) score += 0.5;
-
-    return Math.max(0, Math.min(1, score / maxScore));
+    // Score base per dati obbligatori presenti
+    let score = 1.0; // beerName presente = 100% base score
+    
+    // DATI OPZIONALI (migliorano lo score ma non sono necessari)
+    let bonusScore = 0;
+    let maxBonus = 0.5; // Max 50% bonus per dati extra
+    
+    if (beerData.alcoholContent) bonusScore += 0.15;
+    if (beerData.beerType) bonusScore += 0.15;
+    if (beerData.volume) bonusScore += 0.10;
+    if (beerData.description) bonusScore += 0.10;
+    
+    // Score finale = base + bonus (cappato a 1.0)
+    const finalScore = Math.min(1.0, score + bonusScore);
+    
+    return finalScore;
   }
 
   static findMissingFields(data) {
-    const requiredFields = ['breweryName', 'breweryWebsite', 'breweryLegalAddress'];
-    const optionalFields = ['breweryEmail', 'breweryPhoneNumber', 'foundingYear'];
-    
     const missing = [];
     
-    requiredFields.forEach(field => {
-      if (!data[field]) missing.push({ field, priority: 'high', label: this.getFieldLabel(field) });
-    });
+    // OBBLIGATORIO ASSOLUTO
+    if (!data.breweryName) {
+      missing.push({ 
+        field: 'breweryName', 
+        priority: 'critical', 
+        label: this.getFieldLabel('breweryName'),
+        reason: 'Campo obbligatorio - impossibile salvare senza nome'
+      });
+    }
     
-    optionalFields.forEach(field => {
-      if (!data[field]) missing.push({ field, priority: 'low', label: this.getFieldLabel(field) });
+    // IDENTIFICATIVI (almeno 1 richiesto)
+    const hasIdentifiers = 
+      data.breweryWebsite || 
+      (data.breweryLegalAddress && data.breweryLegalAddress !== 'Non specificato') ||
+      (data.breweryDescription && data.breweryDescription.length > 50);
+    
+    if (!hasIdentifiers) {
+      if (!data.breweryWebsite) {
+        missing.push({ 
+          field: 'breweryWebsite', 
+          priority: 'high', 
+          label: this.getFieldLabel('breweryWebsite'),
+          reason: 'Almeno un identificativo richiesto (website, indirizzo o descrizione)'
+        });
+      }
+      if (!data.breweryLegalAddress || data.breweryLegalAddress === 'Non specificato') {
+        missing.push({ 
+          field: 'breweryLegalAddress', 
+          priority: 'high', 
+          label: this.getFieldLabel('breweryLegalAddress'),
+          reason: 'Almeno un identificativo richiesto (website, indirizzo o descrizione)'
+        });
+      }
+      if (!data.breweryDescription || data.breweryDescription.length <= 50) {
+        missing.push({ 
+          field: 'breweryDescription', 
+          priority: 'high', 
+          label: this.getFieldLabel('breweryDescription'),
+          reason: 'Almeno un identificativo richiesto (website, indirizzo o descrizione > 50 caratteri)'
+        });
+      }
+    }
+    
+    // OPZIONALI CONSIGLIATI (migliorano score)
+    const optionalFields = [
+      { field: 'breweryEmail', priority: 'medium', reason: 'Contatto utile per comunicazioni' },
+      { field: 'breweryPhoneNumber', priority: 'low', reason: 'Contatto alternativo' },
+      { field: 'foundingYear', priority: 'low', reason: 'Info storica interessante' },
+      { field: 'mainProducts', priority: 'low', reason: 'Lista prodotti birrificio' }
+    ];
+    
+    optionalFields.forEach(({ field, priority, reason }) => {
+      if (!data[field] || (Array.isArray(data[field]) && data[field].length === 0)) {
+        missing.push({ 
+          field, 
+          priority, 
+          label: this.getFieldLabel(field),
+          reason
+        });
+      }
     });
     
     return missing;

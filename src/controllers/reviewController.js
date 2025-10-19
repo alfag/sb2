@@ -7,6 +7,7 @@ const GeminiAI = require('../utils/geminiAi');
 const ValidationService = require('../utils/validationService');
 const AIService = require('../services/aiService');
 const CleanupService = require('../services/cleanupService');
+const WebSearchService = require('../services/webSearchService');
 const logWithFileName = require('../utils/logger');
 const logger = logWithFileName(__filename);
 
@@ -300,17 +301,25 @@ exports.firstCheckAI = async (req, res) => {
         verified: true,
         message: aiResult.messages?.success || 'Tutti i dati sono stati verificati e possono essere salvati.',
         // Aggiungi thumbnail e normalizza nomi campi per frontend
-        bottles: aiResult.bottles ? aiResult.bottles.map(bottle => ({
-          ...bottle,
-          // Thumbnail integration
-          thumbnail: bottle.thumbnail || imageDataUrl,
-          originalImageUrl: imageDataUrl,
-          // Field mapping per frontend compatibility 
-          bottleLabel: bottle.beerName || bottle.bottleLabel || bottle.name || 'Birra sconosciuta',
-          breweryName: bottle.breweryName || bottle.brewery || 'Birrificio sconosciuto', 
-          beerType: bottle.beerType || bottle.type || bottle.style || 'Tipo non specificato',
-          alcoholContent: bottle.alcoholContent || bottle.abv || bottle.alcohol || 'N/A'
-        })) : [],
+        bottles: aiResult.bottles ? aiResult.bottles.map((bottle, index) => {
+          // 🔧 DEBUG: Log struttura bottle per debugging
+          logger.info(`[DIRECT SAVE DEBUG] Bottle ${index + 1} structure:`, JSON.stringify(bottle, null, 2));
+          
+          return {
+            ...bottle,
+            // Thumbnail integration
+            thumbnail: bottle.thumbnail || imageDataUrl,
+            originalImageUrl: imageDataUrl,
+            // Field mapping per frontend compatibility - usa verifiedData quando disponibile
+            bottleLabel: bottle.verifiedData?.beerName || bottle.labelData?.beerName || bottle.beerName || bottle.bottleLabel || bottle.name || 'Birra sconosciuta',
+            breweryName: bottle.verifiedData?.breweryName || bottle.labelData?.breweryName || bottle.breweryName || bottle.brewery || 'Birrificio sconosciuto',
+            beerType: bottle.verifiedData?.beerType || bottle.labelData?.beerStyle || bottle.beerType || bottle.type || bottle.style || 'Tipo non specificato',
+            alcoholContent: bottle.verifiedData?.alcoholContent || bottle.labelData?.alcoholContent || bottle.alcoholContent || bottle.abv || bottle.alcohol || 'N/A',
+            // Aggiungi campi aggiuntivi dai verified data
+            description: bottle.verifiedData?.description || bottle.description,
+            ingredients: bottle.verifiedData?.ingredients || bottle.ingredients
+          };
+        }) : [],
         rateLimitInfo: {
           remainingRequests: Math.max(0, (AIService.canMakeRequest(req.session, req.user?._id).remainingRequests || 0) - 1),
           maxRequests: AIService.canMakeRequest(req.session, req.user?._id).maxRequests,
@@ -800,11 +809,24 @@ exports.createMultipleReviews = async (req, res) => {
         userId: req.user?._id
       });
       
+      // DEBUG: Log completo aiAnalysisData per capire cosa c'è
+      logger.debug('[createMultipleReviews] DEBUG aiAnalysisData completo', {
+        aiAnalysisData: aiAnalysisData,
+        hasBottles: !!aiAnalysisData?.bottles,
+        hasBreweryId: !!aiAnalysisData?.breweryId,
+        hasBeerIds: !!aiAnalysisData?.beerIds,
+        bottlesCount: aiAnalysisData?.bottles?.length,
+        keys: aiAnalysisData ? Object.keys(aiAnalysisData) : []
+      });
+      
       // Fallback: usa i dati dal payload se disponibili
-      if (aiAnalysisData && aiAnalysisData.bottles && aiAnalysisData.breweryId) {
-        logger.info('[createMultipleReviews] Uso dati fallback dal payload', {
+      // FIX: breweryId e beerIds potrebbero non esserci se è il primo tentativo o dopo errore moderazione
+      // Accettiamo anche con solo bottles - creeremo le birre al volo
+      if (aiAnalysisData && aiAnalysisData.bottles && aiAnalysisData.bottles.length > 0) {
+        logger.info('[createMultipleReviews] ✅ Uso dati fallback dal payload', {
           bottlesCount: aiAnalysisData.bottles?.length || 0,
-          breweryId: aiAnalysisData.breweryId,
+          breweryId: aiAnalysisData.breweryId || 'non presente (creerò al volo)',
+          hasBeerIds: !!aiAnalysisData.beerIds,
           sessionId: req.sessionID
         });
         
@@ -813,7 +835,7 @@ exports.createMultipleReviews = async (req, res) => {
             ...aiAnalysisData,
             processed: true,
             tempData: false,
-            beerIds: aiAnalysisData.beerIds || []
+            beerIds: aiAnalysisData.beerIds || [] // Può essere vuoto, creeremo le birre
           }
         };
         usingFallbackData = true;
@@ -821,18 +843,334 @@ exports.createMultipleReviews = async (req, res) => {
         logger.error('[createMultipleReviews] CRITICO: Nessun dato disponibile né in sessione né nel payload', {
           hasSessionData: !!sessionAiData,
           hasPayloadAiData: !!aiAnalysisData,
+          hasBottles: !!aiAnalysisData?.bottles,
+          hasBreweryId: !!aiAnalysisData?.breweryId,
+          hasBeerIds: !!aiAnalysisData?.beerIds,
+          payloadKeys: aiAnalysisData ? Object.keys(aiAnalysisData) : [],
           sessionId: req.sessionID,
           userId: req.user?._id
         });
         
         return res.status(400).json({
           error: 'I dati di analisi non sono disponibili. Ricarica la pagina e riprova.',
-          needsReanalysis: true
+          needsReanalysis: true,
+          debug: {
+            hasPayload: !!aiAnalysisData,
+            missingFields: []
+              .concat(!aiAnalysisData?.bottles ? ['bottles'] : [])
+          }
         });
       }
     }
     
-    const beerIds = sessionAiData?.data?.beerIds || [];
+    let beerIds = sessionAiData?.data?.beerIds || [];
+    
+    // 🔧 ARRICCHIMENTO UNIVERSALE: Esegui arricchimento dati SEMPRE quando abbiamo bottles
+    // Non solo nel fallback, ma anche nel flusso normale con dati in sessione
+    if (aiAnalysisData?.bottles && aiAnalysisData.bottles.length > 0) {
+      const needsEnrichment = beerIds.length === 0 || usingFallbackData || true; // SEMPRE arricchisci
+      
+      logger.info('[createMultipleReviews] 🔧 Esecuzione arricchimento dati birrificio e birre', {
+        bottlesCount: aiAnalysisData.bottles.length,
+        beerIdsCount: beerIds.length,
+        usingFallback: usingFallbackData,
+        sessionId: req.sessionID
+      });
+      
+      try {
+        const Brewery = require('../models/Brewery');
+        const Beer = require('../models/Beer');
+        
+        // Estrai dati birrificio dalla prima bottiglia
+        const firstBottle = aiAnalysisData.bottles[0];
+        const breweryName = firstBottle.breweryName || firstBottle.brewery || 'Birrificio Sconosciuto';
+        
+        // Cerca o crea birrificio
+        let brewery = await Brewery.findOne({ breweryName: breweryName });
+        if (!brewery) {
+          // 🎯 MAPPATURA COMPLETA: Salviamo TUTTI i dati disponibili dall'AI
+          // FIX: I dati AI possono essere in brewery o breweries[0].verifiedData
+          const breweryAiData = firstBottle.brewery || 
+                               aiAnalysisData.brewery || 
+                               aiAnalysisData.breweries?.[0]?.verifiedData || 
+                               {};
+          
+          brewery = new Brewery({
+            breweryName: breweryName,
+            breweryDescription: firstBottle.breweryDescription || breweryAiData.breweryDescription || '',
+            breweryLegalAddress: firstBottle.breweryLocation || firstBottle.breweryLegalAddress || breweryAiData.breweryLegalAddress || 'Non specificato',
+            breweryPhoneNumber: firstBottle.breweryPhoneNumber || breweryAiData.breweryPhoneNumber || '',
+            breweryWebsite: firstBottle.breweryWebsite || breweryAiData.breweryWebsite || '',
+            breweryEmail: firstBottle.breweryEmail || breweryAiData.breweryEmail || '',
+            breweryLogo: firstBottle.breweryLogo || breweryAiData.breweryLogo || '',
+            brewerySocialMedia: firstBottle.brewerySocialMedia || breweryAiData.brewerySocialMedia || {},
+            
+            // Campi AI aggiuntivi
+            foundingYear: firstBottle.foundingYear || breweryAiData.foundingYear,
+            breweryProductionAddress: firstBottle.breweryProductionAddress || breweryAiData.breweryProductionAddress,
+            brewerySize: firstBottle.brewerySize || breweryAiData.brewerySize,
+            employeeCount: firstBottle.employeeCount || breweryAiData.employeeCount,
+            productionVolume: firstBottle.productionVolume || breweryAiData.productionVolume,
+            distributionArea: firstBottle.distributionArea || breweryAiData.distributionArea,
+            breweryHistory: firstBottle.breweryHistory || breweryAiData.breweryHistory,
+            masterBrewer: firstBottle.masterBrewer || breweryAiData.masterBrewer,
+            mainProducts: firstBottle.mainProducts || breweryAiData.mainProducts || [],
+            awards: firstBottle.awards || breweryAiData.awards || [],
+            
+            // Metadati AI
+            aiExtracted: true,
+            aiConfidence: firstBottle.confidence || breweryAiData.confidence || 0.5,
+            lastAiUpdate: new Date()
+          });
+          await brewery.save();
+          logger.info('[createMultipleReviews] ✅ Birrificio creato da fallback con dati completi AI', {
+            breweryId: brewery._id,
+            breweryName: breweryName,
+            hasWebsite: !!brewery.breweryWebsite,
+            hasEmail: !!brewery.breweryEmail,
+            hasDescription: !!brewery.breweryDescription,
+            foundingYear: brewery.foundingYear
+          });
+        } else {
+          // 🔄 ARRICCHIMENTO INTELLIGENTE: Aggiorna solo campi vuoti/mancanti con dati AI
+          let updated = false;
+          const updates = {};
+          
+          // DEBUG: Log stato brewery corrente
+          logger.debug('[createMultipleReviews] DEBUG: Stato brewery corrente prima arricchimento', {
+            breweryId: brewery._id,
+            breweryName: brewery.breweryName,
+            hasWebsite: !!brewery.breweryWebsite,
+            website: brewery.breweryWebsite,
+            websiteType: typeof brewery.breweryWebsite,
+            hasEmail: !!brewery.breweryEmail,
+            email: brewery.breweryEmail,
+            hasDescription: !!brewery.breweryDescription,
+            description: brewery.breweryDescription ? brewery.breweryDescription.substring(0, 50) : null,
+            hasSocialMedia: !!brewery.brewerySocialMedia,
+            socialMedia: brewery.brewerySocialMedia,
+            hasMainProducts: !!brewery.mainProducts,
+            mainProducts: brewery.mainProducts
+          });
+          
+          // Helper per aggiornare campo solo se vuoto/mancante nel DB
+          // MIGLIORIA: Gestisce sia campi undefined che stringhe vuote ''
+          const updateIfEmpty = (field, value) => {
+            const fieldValue = brewery[field];
+            const isEmpty = !fieldValue || 
+                           fieldValue === '' || 
+                           fieldValue === 'Non specificato' ||
+                           (Array.isArray(fieldValue) && fieldValue.length === 0) ||
+                           (typeof fieldValue === 'object' && !Array.isArray(fieldValue) && Object.keys(fieldValue).length === 0);
+            
+            // DEBUG: Log per ogni campo controllato
+            logger.debug('[createMultipleReviews] DEBUG: Check campo brewery', {
+              field: field,
+              currentValue: fieldValue,
+              newValue: value,
+              isEmpty: isEmpty,
+              willUpdate: value && isEmpty
+            });
+            
+            if (value && isEmpty) {
+              updates[field] = value;
+              updated = true;
+              return true;
+            }
+            return false;
+          };
+          
+          // 🔧 FIX: I dati AI possono essere in brewery (vecchia struttura) o breweries[0].verifiedData (nuova struttura)
+          const breweryAiData = firstBottle.brewery || 
+                               aiAnalysisData.brewery || 
+                               aiAnalysisData.breweries?.[0]?.verifiedData || 
+                               {};
+          
+          logger.debug('[createMultipleReviews] DEBUG: Sorgente dati AI brewery', {
+            hasFirstBottleBrewery: !!firstBottle.brewery,
+            hasAiAnalysisBrewery: !!aiAnalysisData.brewery,
+            hasAiAnalysisBreweries: !!aiAnalysisData.breweries,
+            breweriesCount: aiAnalysisData.breweries?.length || 0,
+            usingData: breweryAiData
+          });
+          
+          // Aggiorna campi stringa se vuoti
+          updateIfEmpty('breweryDescription', firstBottle.breweryDescription || breweryAiData.breweryDescription);
+          updateIfEmpty('breweryLegalAddress', firstBottle.breweryLocation || firstBottle.breweryLegalAddress || breweryAiData.breweryLegalAddress);
+          updateIfEmpty('breweryPhoneNumber', firstBottle.breweryPhoneNumber || breweryAiData.breweryPhoneNumber);
+          updateIfEmpty('breweryWebsite', firstBottle.breweryWebsite || breweryAiData.breweryWebsite);
+          updateIfEmpty('breweryEmail', firstBottle.breweryEmail || breweryAiData.breweryEmail);
+          updateIfEmpty('breweryLogo', firstBottle.breweryLogo || breweryAiData.breweryLogo);
+          updateIfEmpty('foundingYear', firstBottle.foundingYear || breweryAiData.foundingYear);
+          updateIfEmpty('breweryProductionAddress', firstBottle.breweryProductionAddress || breweryAiData.breweryProductionAddress);
+          updateIfEmpty('brewerySize', firstBottle.brewerySize || breweryAiData.brewerySize);
+          updateIfEmpty('employeeCount', firstBottle.employeeCount || breweryAiData.employeeCount);
+          updateIfEmpty('productionVolume', firstBottle.productionVolume || breweryAiData.productionVolume);
+          updateIfEmpty('distributionArea', firstBottle.distributionArea || breweryAiData.distributionArea);
+          updateIfEmpty('breweryHistory', firstBottle.breweryHistory || breweryAiData.breweryHistory);
+          updateIfEmpty('masterBrewer', firstBottle.masterBrewer || breweryAiData.masterBrewer);
+          
+          // Aggiorna social media se vuoti
+          updateIfEmpty('brewerySocialMedia', firstBottle.brewerySocialMedia || breweryAiData.brewerySocialMedia);
+          
+          // Aggiorna array se vuoti
+          updateIfEmpty('mainProducts', firstBottle.mainProducts || breweryAiData.mainProducts);
+          updateIfEmpty('awards', firstBottle.awards || breweryAiData.awards);
+          
+          // Applica aggiornamenti se necessario
+          if (updated) {
+            updates.lastAiUpdate = new Date();
+            updates.aiExtracted = true;
+            
+            await Brewery.findByIdAndUpdate(brewery._id, { $set: updates });
+            logger.info('[createMultipleReviews] 🔄 Birrificio esistente arricchito con nuovi dati AI', {
+              breweryId: brewery._id,
+              breweryName: breweryName,
+              updatedFields: Object.keys(updates)
+            });
+          } else {
+            logger.info('[createMultipleReviews] ℹ️ Birrificio esistente già completo - nessun aggiornamento necessario', {
+              breweryId: brewery._id,
+              breweryName: breweryName
+            });
+          }
+        }
+        
+        // Crea array beerIds recuperando o creando le birre
+        for (const bottle of aiAnalysisData.bottles) {
+          const beerName = bottle.beerName || bottle.bottleLabel || bottle.verifiedData?.beerName || bottle.labelData?.beerName || 'Birra Sconosciuta';
+          
+          // 🔧 FIX: I dati AI possono essere in verifiedData (nuova struttura) o direttamente in bottle
+          const beerAiData = bottle.verifiedData || bottle;
+          
+          // Cerca birra esistente
+          let beer = await Beer.findOne({ beerName: beerName, brewery: brewery._id });
+          if (!beer) {
+            // 🎯 MAPPATURA COMPLETA: Salviamo TUTTI i dati AI disponibili
+            beer = new Beer({
+              beerName: beerName,
+              brewery: brewery._id,
+              
+              // Caratteristiche tecniche dalla AI
+              alcoholContent: beerAiData.alcoholContent || bottle.aiData?.alcoholContent || '',
+              beerType: beerAiData.beerType || bottle.aiData?.beerType || 'Non specificato',
+              beerSubStyle: beerAiData.beerSubStyle || bottle.aiData?.beerSubStyle || '',
+              ibu: beerAiData.ibu || bottle.aiData?.ibu || '',
+              volume: beerAiData.volume || bottle.aiData?.volume || '',
+              
+              // Descrizioni e note dalla AI
+              description: beerAiData.description || bottle.aiData?.description || '',
+              ingredients: beerAiData.ingredients || bottle.aiData?.ingredients || '',
+              tastingNotes: beerAiData.tastingNotes || bottle.aiData?.tastingNotes || '',
+              nutritionalInfo: beerAiData.nutritionalInfo || bottle.aiData?.nutritionalInfo || '',
+              
+              // Informazioni commerciali dalla AI
+              price: beerAiData.price || bottle.aiData?.price || '',
+              availability: beerAiData.availability || bottle.aiData?.availability || '',
+              
+              // Metadati AI
+              aiExtracted: true,
+              aiConfidence: beerAiData.confidence || bottle.confidence || bottle.aiData?.confidence || 0.5,
+              dataSource: beerAiData.dataSource || bottle.dataSource || bottle.aiData?.dataSource || 'label',
+              lastAiUpdate: new Date()
+            });
+            await beer.save();
+            logger.info('[createMultipleReviews] ✅ Birra creata da fallback con dati completi AI', {
+              beerId: beer._id,
+              beerName: beerName,
+              beerType: beer.beerType,
+              alcoholContent: beer.alcoholContent,
+              hasDescription: !!beer.description,
+              hasTastingNotes: !!beer.tastingNotes,
+              confidence: beer.aiConfidence
+            });
+          } else {
+            // 🔄 ARRICCHIMENTO INTELLIGENTE: Aggiorna solo campi vuoti/mancanti con dati AI
+            let updated = false;
+            const updates = {};
+            
+            // Helper per aggiornare campo solo se vuoto/mancante nel DB
+            // MIGLIORIA: Gestisce sia campi undefined che stringhe vuote ''
+            const updateIfEmpty = (field, value) => {
+              const fieldValue = beer[field];
+              const isEmpty = !fieldValue || 
+                             fieldValue === '' || 
+                             fieldValue === 'Non specificato' ||
+                             (Array.isArray(fieldValue) && fieldValue.length === 0) ||
+                             (typeof fieldValue === 'object' && !Array.isArray(fieldValue) && Object.keys(fieldValue).length === 0);
+              
+              if (value && isEmpty) {
+                updates[field] = value;
+                updated = true;
+                return true;
+              }
+              return false;
+            };
+            
+            // Aggiorna caratteristiche tecniche se vuote
+            updateIfEmpty('alcoholContent', beerAiData.alcoholContent || bottle.aiData?.alcoholContent);
+            updateIfEmpty('beerType', beerAiData.beerType || bottle.aiData?.beerType);
+            updateIfEmpty('beerSubStyle', beerAiData.beerSubStyle || bottle.aiData?.beerSubStyle);
+            updateIfEmpty('ibu', beerAiData.ibu || bottle.aiData?.ibu);
+            updateIfEmpty('volume', beerAiData.volume || bottle.aiData?.volume);
+            
+            // Aggiorna descrizioni se vuote
+            updateIfEmpty('description', beerAiData.description || bottle.aiData?.description);
+            updateIfEmpty('ingredients', beerAiData.ingredients || bottle.aiData?.ingredients);
+            updateIfEmpty('tastingNotes', beerAiData.tastingNotes || bottle.aiData?.tastingNotes);
+            updateIfEmpty('nutritionalInfo', beerAiData.nutritionalInfo || bottle.aiData?.nutritionalInfo);
+            
+            // Aggiorna info commerciali se vuote
+            updateIfEmpty('price', beerAiData.price || bottle.aiData?.price);
+            updateIfEmpty('availability', beerAiData.availability || bottle.aiData?.availability);
+            
+            // Applica aggiornamenti se necessario
+            if (updated) {
+              updates.lastAiUpdate = new Date();
+              updates.aiExtracted = true;
+              updates.dataSource = bottle.dataSource || bottle.aiData?.dataSource || 'label';
+              
+              await Beer.findByIdAndUpdate(beer._id, { $set: updates });
+              logger.info('[createMultipleReviews] 🔄 Birra esistente arricchita con nuovi dati AI', {
+                beerId: beer._id,
+                beerName: beerName,
+                updatedFields: Object.keys(updates)
+              });
+            } else {
+              logger.info('[createMultipleReviews] ℹ️ Birra esistente già completa - nessun aggiornamento necessario', {
+                beerId: beer._id,
+                beerName: beerName
+              });
+            }
+          }
+          
+          beerIds.push(beer._id);
+        }
+        
+        // Aggiorna sessionAiData con i nuovi IDs se erano vuoti
+        if (!sessionAiData.data.beerIds || sessionAiData.data.beerIds.length === 0) {
+          sessionAiData.data.beerIds = beerIds;
+        }
+        if (!sessionAiData.data.breweryId) {
+          sessionAiData.data.breweryId = brewery._id;
+        }
+        
+        logger.info('[createMultipleReviews] ✅ Arricchimento completato', {
+          breweryId: brewery._id,
+          beerIdsCount: beerIds.length,
+          wasCreation: beerIds.length > 0,
+          wasEnrichment: beerIds.length === 0
+        });
+        
+      } catch (enrichmentError) {
+        logger.error('[createMultipleReviews] ❌ Errore durante arricchimento dati', {
+          error: enrichmentError.message,
+          stack: enrichmentError.stack
+        });
+        // Non bloccare il salvataggio - continua con i dati esistenti
+        logger.warn('[createMultipleReviews] ⚠️ Continuo con dati esistenti nonostante errore arricchimento');
+      }
+    }
     
     for (const [index, reviewData] of validatedReviews.entries()) {
       // Verifica che reviewData sia definito e abbia le proprietà necessarie
@@ -855,7 +1193,27 @@ exports.createMultipleReviews = async (req, res) => {
       const beerId = reviewData.beerId || beerIds[index] || null;
       
       // Recupera l'ID del birrificio dalla sessione di analisi (breweryId è aggiunto dopo il salvataggio)
-      const breweryId = sessionAiData?.data?.breweryId || aiAnalysisData?.breweryId || null;
+      let breweryId = sessionAiData?.data?.breweryId || aiAnalysisData?.breweryId || null;
+      
+      // FIX: Se breweryId non è disponibile, recuperalo dalla birra
+      if (!breweryId && beerId) {
+        try {
+          const Beer = require('../models/Beer');
+          const beer = await Beer.findById(beerId).select('brewery');
+          if (beer && beer.brewery) {
+            breweryId = beer.brewery;
+            logger.info('[createMultipleReviews] BreweryId recuperato dalla birra', {
+              beerId: beerId,
+              breweryId: breweryId
+            });
+          }
+        } catch (error) {
+          logger.error('[createMultipleReviews] Errore recupero brewery dalla birra', {
+            beerId: beerId,
+            error: error.message
+          });
+        }
+      }
 
       // Aggiungi alla array ratings
       ratingsArray.push({
@@ -961,6 +1319,17 @@ exports.createMultipleReviews = async (req, res) => {
         sessionId: req.sessionID
       });
     }
+
+    // 🎉 MESSAGGIO DI RINGRAZIAMENTO: Aggiungi messaggio flash per utente
+    const totalBeers = ratingsArray.length;
+    const beersText = totalBeers === 1 ? '1 birra' : `${totalBeers} birre`;
+    req.flash('success', `🎉 Grazie per il tuo contributo! Hai recensito ${beersText}. Le tue opinioni aiutano la community a scoprire nuove birre artigianali!`);
+    
+    logger.info('[createMultipleReviews] Messaggio di ringraziamento impostato per utente', {
+      userId: req.user?._id,
+      sessionId: req.sessionID,
+      totalBeers: totalBeers
+    });
 
     return res.status(201).json({
       success: true,

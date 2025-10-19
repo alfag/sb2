@@ -21,6 +21,198 @@ function logDebug(message, data = null) {
     }
 }
 
+// Funzione per mostrare dialog di scelta sorgente foto su mobile
+function showPhotoSourceDialog(reviewPhotoInput) {
+  // Crea un dialog per scegliere la sorgente della foto su mobile
+  const dialog = document.createElement('div');
+  dialog.className = 'photo-source-dialog-overlay';
+  dialog.innerHTML = `
+    <div class="photo-source-dialog">
+      <h3>📷 Come vuoi aggiungere la foto?</h3>
+      <div class="photo-source-options">
+        <button id="use-camera" class="photo-source-btn camera-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C9 4.5 9 4.5 9 4.5l-3 1.5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-2l-3-1.5S15 4.5 12 4.5z" fill="currentColor"/>
+          </svg>
+          Scatta Foto
+        </button>
+        <button id="use-gallery" class="photo-source-btn gallery-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8.5 13.5l2.5 3 3.5-4.5 4.5 6H5m16 1V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z" fill="currentColor"/>
+          </svg>
+          Scegli da Galleria
+        </button>
+      </div>
+      <button id="cancel-photo-source" class="photo-source-btn cancel-btn">Annulla</button>
+    </div>
+  `;
+  
+  // Aggiungi il CSS per il dialog se non esiste già
+  if (!document.getElementById('photo-source-dialog-styles')) {
+    const style = document.createElement('style');
+    style.id = 'photo-source-dialog-styles';
+    style.textContent = `
+      .photo-source-dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        backdrop-filter: blur(4px);
+      }
+      
+      .photo-source-dialog {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        max-width: 320px;
+        width: 90%;
+        text-align: center;
+        animation: slideInUp 0.3s ease;
+      }
+      
+      @keyframes slideInUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      
+      .photo-source-dialog h3 {
+        margin: 0 0 20px 0;
+        color: #333;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      
+      .photo-source-options {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      
+      .photo-source-btn {
+        border: none;
+        padding: 16px 20px;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        transition: all 0.2s ease;
+      }
+      
+      .camera-btn {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+      }
+      
+      .camera-btn:hover, .camera-btn:active {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+      }
+      
+      .gallery-btn {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+      }
+      
+      .gallery-btn:hover, .gallery-btn:active {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+      }
+      
+      .cancel-btn {
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+      }
+      
+      .cancel-btn:hover, .cancel-btn:active {
+        background: #e2e8f0;
+      }
+      
+      @media (max-width: 480px) {
+        .photo-source-dialog {
+          max-width: 280px;
+          padding: 20px;
+        }
+        
+        .photo-source-btn {
+          padding: 14px 16px;
+          font-size: 15px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  document.body.appendChild(dialog);
+  
+  // Event listeners per i pulsanti
+  document.getElementById('use-camera').addEventListener('click', () => {
+    document.body.removeChild(dialog);
+    openFileInputWithMode(reviewPhotoInput, true); // con fotocamera
+  });
+  
+  document.getElementById('use-gallery').addEventListener('click', () => {
+    document.body.removeChild(dialog);
+    openFileInputWithMode(reviewPhotoInput, false); // senza fotocamera
+  });
+  
+  document.getElementById('cancel-photo-source').addEventListener('click', () => {
+    document.body.removeChild(dialog);
+  });
+  
+  // Chiudi se si clicca fuori dal dialog
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog) {
+      document.body.removeChild(dialog);
+    }
+  });
+}
+
+function openFileInputWithMode(reviewPhotoInput, useCamera = false) {
+  if (!reviewPhotoInput) {
+    console.error('reviewPhotoInput non disponibile');
+    return;
+  }
+  
+  console.log('Apertura file input con modalità:', { useCamera });
+  
+  // Prepara il file input
+  reviewPhotoInput.value = "";
+  reviewPhotoInput.setAttribute('accept', 'image/*');
+  
+  if (useCamera) {
+    reviewPhotoInput.setAttribute('capture', 'environment');
+  } else {
+    reviewPhotoInput.removeAttribute('capture');
+  }
+  
+  console.log('Tentativo di aprire file picker...', { 
+    capture: reviewPhotoInput.getAttribute('capture'),
+    accept: reviewPhotoInput.getAttribute('accept')
+  });
+  
+  try {
+    reviewPhotoInput.click();
+    console.log('File picker cliccato con successo');
+    logDebug('File picker avviato', { useCamera });
+  } catch (error) {
+    console.error('Errore nell\'aprire file picker:', error);
+    logError('Errore nell\'aprire file picker', error);
+  }
+}
+
 function logError(message, error = null) {
     console.error(`[Photo Crop Error] ${message}`);
     if (error) console.error(error);
@@ -198,18 +390,26 @@ function handleReviewButtonClick(e) {
         // Prepara il file input
         reviewPhotoInput.value = "";
         reviewPhotoInput.setAttribute('accept', 'image/*');
-        reviewPhotoInput.removeAttribute('capture');
         
-        console.log('Tentativo di aprire file picker...');
+        // Rileva se siamo su mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
-        // Avvia direttamente il file picker
-        try {
-            reviewPhotoInput.click();
-            console.log('File picker cliccato con successo');
-            logDebug('File picker avviato direttamente dal bottone principale');
-        } catch (error) {
-            console.error('Errore nell\'aprire file picker:', error);
-            logError('Errore nell\'aprire file picker', error);
+        if (isMobile) {
+            // Su mobile, mostra il dialog per scegliere la sorgente
+            showPhotoSourceDialog(reviewPhotoInput);
+        } else {
+            // Su desktop, apri direttamente il file picker senza capture
+            reviewPhotoInput.removeAttribute('capture');
+            console.log('Tentativo di aprire file picker (desktop)...');
+            
+            try {
+                reviewPhotoInput.click();
+                console.log('File picker cliccato con successo');
+                logDebug('File picker avviato direttamente dal bottone principale');
+            } catch (error) {
+                console.error('Errore nell\'aprire file picker:', error);
+                logError('Errore nell\'aprire file picker', error);
+            }
         }
     } else {
         console.error('reviewPhotoInput non trovato nel DOM');
@@ -256,8 +456,16 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('File servito direttamente da network');
     }
     
-    // Registrazione Service Worker per PWA con strategie intelligenti
-    if ('serviceWorker' in navigator) {
+    // Registrazione Service Worker DISABILITATA in development
+    // NOTA: Service Worker può causare problemi di cache durante lo sviluppo
+    // Riattivare solo in produzione
+    const isDevelopment = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1' ||
+                          /^192\.168\.\d{1,3}\.\d{1,3}$/.test(window.location.hostname) ||
+                          /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(window.location.hostname) ||
+                          /^172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(window.location.hostname);
+    
+    if ('serviceWorker' in navigator && !isDevelopment) {
         window.addEventListener('load', function() {
             navigator.serviceWorker.register('/service-worker.js')
                 .then(function(registration) {
@@ -279,8 +487,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.log('[ERROR] Registrazione Service Worker fallita:', error);
                 });
         });
+        console.log('[DEBUG] Service Worker attivato con strategie intelligenti');
+    } else if (isDevelopment) {
+        console.log('[DEV] Service Worker DISABILITATO in development per evitare problemi di cache');
+        
+        // Disregistra eventuali Service Worker esistenti
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for (let registration of registrations) {
+                    registration.unregister().then(function(success) {
+                        if (success) {
+                            console.log('[DEV] Service Worker disregistrato:', registration.scope);
+                        }
+                    });
+                }
+            });
+        }
     }
-    console.log('[DEBUG] Service Worker attivato con strategie intelligenti');
     
     // Controlli di compatibilità browser
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -498,13 +721,45 @@ document.addEventListener('DOMContentLoaded', function () {
                 logDebug('Feedback AI popolato');
             }
             
-            // Mostra l'area di rating per le bottiglie
-            const bottleRatings = document.getElementById('bottle-ratings');
-            if (bottleRatings && aiData.bottles && aiData.bottles.length > 0) {
-                let ratingsHtml = '<h3>Valuta le birre:</h3>';
-                aiData.bottles.forEach((bottle, index) => {
-                    // Genera thumbnail dell'immagine originale per questa birra
-                    const thumbnailSrc = generateThumbnail(bottle, index);
+            // 🎉 NUOVO: Apri modal recensioni invece di interfaccia inline
+            if (aiData.bottles && aiData.bottles.length > 0) {
+                logDebug('Apertura modal recensioni', { bottleCount: aiData.bottles.length });
+                
+                // Usa l'immagine originale o croppata come thumbnail
+                const thumbnailImage = croppedImageForAI || originalImageSrc || document.getElementById('photoPreview')?.src;
+                
+                // Prepara dati bottiglie con thumbnail
+                const bottlesWithThumbnails = aiData.bottles.map((bottle, index) => {
+                    return {
+                        ...bottle,
+                        thumbnail: bottle.imageDataUrl || thumbnailImage, // Usa imageDataUrl dal backend o l'immagine locale
+                        beerName: bottle.bottleLabel || `Birra #${index + 1}`
+                    };
+                });
+                
+                logDebug('Bottles preparate con thumbnail', { 
+                    bottleCount: bottlesWithThumbnails.length,
+                    hasThumbnail: !!bottlesWithThumbnails[0]?.thumbnail 
+                });
+                
+                // Apri il modal di recensione
+                if (typeof window.openReviewModal === 'function') {
+                    window.openReviewModal(bottlesWithThumbnails);
+                    
+                    // Nascondi l'area di review process inline (ora usiamo il modal)
+                    const reviewProcess = document.getElementById('review-process');
+                    if (reviewProcess) {
+                        reviewProcess.style.display = 'none';
+                    }
+                } else {
+                    console.error('❌ window.openReviewModal non trovato - fallback al sistema legacy');
+                    // Fallback al sistema legacy se il modal non è disponibile
+                    const bottleRatings = document.getElementById('bottle-ratings');
+                    if (!bottleRatings) return;
+                    
+                    let ratingsHtml = '<h3>Valuta le birre:</h3>';
+                    aiData.bottles.forEach((bottle, index) => {
+                        const thumbnailSrc = generateThumbnail(bottle, index);
                     
                     ratingsHtml += `
                         <div class="bottle-rating" data-bottle-index="${index}">
@@ -520,94 +775,104 @@ document.addEventListener('DOMContentLoaded', function () {
                             </div>
                             
                             <!-- Rating generale (semplificato) -->
-                            <div class="overall-rating">
-                                <label>Valutazione generale:</label>
-                                <div class="rating-stars" data-bottle="${index}" data-category="overall">
-                                    <span class="star" data-rating="1">★</span>
-                                    <span class="star" data-rating="2">★</span>
-                                    <span class="star" data-rating="3">★</span>
-                                    <span class="star" data-rating="4">★</span>
-                                    <span class="star" data-rating="5">★</span>
+                            <div class="rating-row-sb">
+                                <label class="rating-label-sb">Valutazione generale:</label>
+                                <div class="star-rating-sb" data-bottle="${index}" data-category="overall">
+                                    <span class="star-sb" data-rating="1">★</span>
+                                    <span class="star-sb" data-rating="2">★</span>
+                                    <span class="star-sb" data-rating="3">★</span>
+                                    <span class="star-sb" data-rating="4">★</span>
+                                    <span class="star-sb" data-rating="5">★</span>
                                 </div>
+                                <div class="rating-value-sb" data-bottle="${index}" data-category="overall">0</div>
                             </div>
                             
                             <!-- Impressioni generali -->
-                            <div class="general-notes">
-                                <label>Impressioni generali:</label>
-                                <textarea placeholder="Impressioni generali sulla birra..." rows="3" data-notes="${index}" data-category="general"></textarea>
+                            <div class="rating-row-sb">
+                                <label class="rating-label-sb">Impressioni generali:</label>
+                                <textarea class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" placeholder="Impressioni generali sulla birra..." rows="3" data-notes="${index}" data-category="general"></textarea>
                             </div>
                             
                             <!-- Toggle per valutazioni dettagliate -->
-                            <div class="detailed-ratings-toggle">
-                                <button type="button" class="btn-toggle-detailed" data-bottle="${index}">
-                                    + Valutazione dettagliata
+                            <div class="flex justify-center mt-4">
+                                <button type="button" class="btn-sb btn-sb-secondary" data-bottle="${index}">
+                                    <i class="fas fa-plus mr-2"></i>
+                                    Valutazione dettagliata
                                 </button>
                             </div>
                             
                             <!-- Valutazioni dettagliate (nascoste di default) -->
-                            <div class="detailed-ratings" data-bottle="${index}" style="display: none;">
-                                <div class="rating-category">
-                                    <label>Aspetto (colore, limpidezza, schiuma):</label>
-                                    <div class="rating-stars" data-bottle="${index}" data-category="appearance">
-                                        <span class="star" data-rating="1">★</span>
-                                        <span class="star" data-rating="2">★</span>
-                                        <span class="star" data-rating="3">★</span>
-                                        <span class="star" data-rating="4">★</span>
-                                        <span class="star" data-rating="5">★</span>
+                            <div class="rating-container-sb hidden" data-bottle="${index}">
+                                <div class="rating-row-sb">
+                                    <label class="rating-label-sb">Aspetto (colore, limpidezza, schiuma):</label>
+                                    <div class="star-rating-sb" data-bottle="${index}" data-category="appearance">
+                                        <span class="star-sb" data-rating="1">★</span>
+                                        <span class="star-sb" data-rating="2">★</span>
+                                        <span class="star-sb" data-rating="3">★</span>
+                                        <span class="star-sb" data-rating="4">★</span>
+                                        <span class="star-sb" data-rating="5">★</span>
                                     </div>
-                                    <textarea placeholder="Note sull'aspetto..." rows="2" data-notes="${index}" data-category="appearance"></textarea>
+                                    <div class="rating-value-sb" data-bottle="${index}" data-category="appearance">0</div>
                                 </div>
+                                <textarea class="w-full px-3 py-2 mt-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" placeholder="Note sull'aspetto..." rows="2" data-notes="${index}" data-category="appearance"></textarea>
                                 
-                                <div class="rating-category">
-                                    <label>Aroma (profumi e odori):</label>
-                                    <div class="rating-stars" data-bottle="${index}" data-category="aroma">
-                                        <span class="star" data-rating="1">★</span>
-                                        <span class="star" data-rating="2">★</span>
-                                        <span class="star" data-rating="3">★</span>
-                                        <span class="star" data-rating="4">★</span>
-                                        <span class="star" data-rating="5">★</span>
+                                <div class="rating-row-sb">
+                                    <label class="rating-label-sb">Aroma (profumi e odori):</label>
+                                    <div class="star-rating-sb" data-bottle="${index}" data-category="aroma">
+                                        <span class="star-sb" data-rating="1">★</span>
+                                        <span class="star-sb" data-rating="2">★</span>
+                                        <span class="star-sb" data-rating="3">★</span>
+                                        <span class="star-sb" data-rating="4">★</span>
+                                        <span class="star-sb" data-rating="5">★</span>
                                     </div>
-                                    <textarea placeholder="Note sull'aroma..." rows="2" data-notes="${index}" data-category="aroma"></textarea>
+                                    <div class="rating-value-sb" data-bottle="${index}" data-category="aroma">0</div>
                                 </div>
+                                <textarea class="w-full px-3 py-2 mt-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" placeholder="Note sull'aroma..." rows="2" data-notes="${index}" data-category="aroma"></textarea>
                                 
-                                <div class="rating-category">
-                                    <label>Gusto (sapore e bilanciamento):</label>
-                                    <div class="rating-stars" data-bottle="${index}" data-category="taste">
-                                        <span class="star" data-rating="1">★</span>
-                                        <span class="star" data-rating="2">★</span>
-                                        <span class="star" data-rating="3">★</span>
-                                        <span class="star" data-rating="4">★</span>
-                                        <span class="star" data-rating="5">★</span>
+                                <div class="rating-row-sb">
+                                    <label class="rating-label-sb">Gusto (sapore e bilanciamento):</label>
+                                    <div class="star-rating-sb" data-bottle="${index}" data-category="taste">
+                                        <span class="star-sb" data-rating="1">★</span>
+                                        <span class="star-sb" data-rating="2">★</span>
+                                        <span class="star-sb" data-rating="3">★</span>
+                                        <span class="star-sb" data-rating="4">★</span>
+                                        <span class="star-sb" data-rating="5">★</span>
                                     </div>
-                                    <textarea placeholder="Note sul gusto..." rows="2" data-notes="${index}" data-category="taste"></textarea>
+                                    <div class="rating-value-sb" data-bottle="${index}" data-category="taste">0</div>
                                 </div>
+                                <textarea class="w-full px-3 py-2 mt-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" placeholder="Note sul gusto..." rows="2" data-notes="${index}" data-category="taste"></textarea>
                                 
-                                <div class="rating-category">
-                                    <label>Sensazione in bocca (corpo, carbonazione):</label>
-                                    <div class="rating-stars" data-bottle="${index}" data-category="mouthfeel">
-                                        <span class="star" data-rating="1">★</span>
-                                        <span class="star" data-rating="2">★</span>
-                                        <span class="star" data-rating="3">★</span>
-                                        <span class="star" data-rating="4">★</span>
-                                        <span class="star" data-rating="5">★</span>
+                                <div class="rating-row-sb">
+                                    <label class="rating-label-sb">Sensazione in bocca (corpo, carbonazione):</label>
+                                    <div class="star-rating-sb" data-bottle="${index}" data-category="mouthfeel">
+                                        <span class="star-sb" data-rating="1">★</span>
+                                        <span class="star-sb" data-rating="2">★</span>
+                                        <span class="star-sb" data-rating="3">★</span>
+                                        <span class="star-sb" data-rating="4">★</span>
+                                        <span class="star-sb" data-rating="5">★</span>
                                     </div>
-                                    <textarea placeholder="Note sulla sensazione in bocca..." rows="2" data-notes="${index}" data-category="mouthfeel"></textarea>
+                                    <div class="rating-value-sb" data-bottle="${index}" data-category="mouthfeel">0</div>
                                 </div>
+                                <textarea class="w-full px-3 py-2 mt-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" placeholder="Note sulla sensazione in bocca..." rows="2" data-notes="${index}" data-category="mouthfeel"></textarea>
                             </div>
                         </div>
                     `;
-                });
-                
-                bottleRatings.innerHTML = ratingsHtml;
-                
-                // Aggiungi event listeners per le stelle di rating
-                addRatingEventListeners();
-                logDebug('Interfaccia rating popolata');
+                    });
+                    
+                    bottleRatings.innerHTML = ratingsHtml;
+                    
+                    // Aggiungi event listeners per le stelle di rating
+                    addRatingEventListeners();
+                    logDebug('Interfaccia rating popolata (legacy)');
+                    
+                    // Mostra l'area di review process
+                    const reviewProcess = document.getElementById('review-process');
+                    if (reviewProcess) {
+                        reviewProcess.style.display = 'block';
+                        reviewProcess.scrollIntoView({ behavior: 'smooth' });
+                    }
+                }
             }
-            
-            // Mostra l'area di review process
-            reviewProcess.style.display = 'block';
-            reviewProcess.scrollIntoView({ behavior: 'smooth' });
             
             // Salva i dati AI globalmente per l'invio finale
             window.currentReviewData = aiData;
@@ -669,7 +934,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('=== INIZIALIZZAZIONE EVENT LISTENERS STELLE ===');
         
         // Event listeners per le stelle di rating
-        const stars = document.querySelectorAll('.star');
+        const stars = document.querySelectorAll('.star-sb');
         console.log('Stelle trovate:', stars.length);
         
         // Verifica disponibilità EventManager
@@ -691,15 +956,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log('Container:', ratingContainer);
                 
                 // Reset tutte le stelle di questo rating
-                ratingContainer.querySelectorAll('.star').forEach(s => s.classList.remove('selected'));
+                ratingContainer.querySelectorAll('.star-sb').forEach(s => s.classList.remove('active'));
                 
                 // Seleziona le stelle fino al rating cliccato
                 for (let i = 1; i <= rating; i++) {
                     const targetStar = ratingContainer.querySelector(`[data-rating="${i}"]`);
                     if (targetStar) {
-                        targetStar.classList.add('selected');
+                        targetStar.classList.add('active');
                         console.log(`Stella ${i} selezionata`);
                     }
+                }
+                
+                // Aggiorna il display del valore se esiste
+                const ratingDisplay = ratingContainer.parentElement.querySelector('.rating-value-sb');
+                if (ratingDisplay) {
+                    ratingDisplay.textContent = rating;
                 }
                 
                 logDebug('Rating selezionato', { bottleIndex, category, rating });
@@ -716,13 +987,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         
         // Event listeners per i toggle delle valutazioni dettagliate
-        const toggleButtons = document.querySelectorAll('.btn-toggle-detailed');
+        const toggleButtons = document.querySelectorAll('.btn-sb[data-bottle]');
         console.log('Toggle buttons trovati:', toggleButtons.length);
         
         toggleButtons.forEach((button, buttonIndex) => {
             const toggleHandler = function() {
                 const bottleIndex = this.dataset.bottle;
-                const detailedRatings = document.querySelector(`.detailed-ratings[data-bottle="${bottleIndex}"]`);
+                const detailedRatings = document.querySelector(`.rating-container-sb[data-bottle="${bottleIndex}"]`);
                 
                 console.log(`=== TOGGLE VALUTAZIONE DETTAGLIATA ===`);
                 console.log('Button index:', buttonIndex);
@@ -730,15 +1001,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log('Detailed ratings element:', detailedRatings);
                 
                 if (detailedRatings) {
-                    const isVisible = detailedRatings.style.display !== 'none';
+                    const isVisible = !detailedRatings.classList.contains('hidden');
                     
                     if (isVisible) {
-                        detailedRatings.style.display = 'none';
-                        this.textContent = '+ Valutazione dettagliata';
+                        detailedRatings.classList.add('hidden');
+                        this.innerHTML = '<i class="fas fa-plus mr-2"></i>Valutazione dettagliata';
                         this.classList.remove('expanded');
                     } else {
-                        detailedRatings.style.display = 'block';
-                        this.textContent = '- Nascondi valutazione dettagliata';
+                        detailedRatings.classList.remove('hidden');
+                        this.innerHTML = '<i class="fas fa-minus mr-2"></i>Nascondi dettagli';
                         this.classList.add('expanded');
                     }
                     
@@ -763,6 +1034,157 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Funzione per pubblicare le recensioni (LEGACY - usata solo se ReviewModule non disponibile)
+    /**
+     * Funzione globale per submit recensioni dal modal
+     * Chiamata da reviewModal.njk quando l'utente clicca "Pubblica"
+     * @param {Array} reviews - Array di recensioni da pubblicare
+     * @param {Object} callbacks - { onSuccess: Function, onError: Function }
+     */
+    window.submitReviews = function(reviews, callbacks = {}) {
+        console.log('📤 Submit reviews dal modal:', reviews);
+        
+        if (!reviews || reviews.length === 0) {
+            const errorMsg = 'Nessuna recensione da pubblicare';
+            if (callbacks.onError) {
+                callbacks.onError(errorMsg);
+            } else {
+                alert(errorMsg);
+            }
+            return;
+        }
+        
+        // Prepara payload per backend
+        const payload = {
+            reviews: reviews.map(review => {
+                const detailedRatings = {};
+                
+                // Aggiungi solo i rating dettagliati che hanno valore > 0
+                if (review.appearanceRating > 0) {
+                    detailedRatings.appearance = { 
+                        rating: review.appearanceRating, 
+                        notes: review.appearanceNotes || '' 
+                    };
+                }
+                if (review.aromaRating > 0) {
+                    detailedRatings.aroma = { 
+                        rating: review.aromaRating, 
+                        notes: review.aromaNotes || '' 
+                    };
+                }
+                if (review.tasteRating > 0) {
+                    detailedRatings.taste = { 
+                        rating: review.tasteRating, 
+                        notes: review.tasteNotes || '' 
+                    };
+                }
+                if (review.mouthfeelRating > 0) {
+                    detailedRatings.mouthfeel = { 
+                        rating: review.mouthfeelRating, 
+                        notes: review.mouthfeelNotes || '' 
+                    };
+                }
+                
+                return {
+                    // NON inviare beerId - il backend lo recupera da beerIds[index] in sessione
+                    beerName: review.beerName,
+                    breweryName: review.breweryName,
+                    breweryId: review.breweryId,
+                    rating: review.overallRating,
+                    notes: review.generalNotes || '',
+                    detailedRatings: Object.keys(detailedRatings).length > 0 ? detailedRatings : undefined,
+                    aiData: review.aiData,
+                    thumbnail: review.thumbnail
+                };
+            }),
+            // 🔧 FIX: Includi dati AI completi come fallback per sessioni scadute
+            // Mappa la struttura che il backend si aspetta
+            aiAnalysisData: window.currentReviewData ? {
+                bottles: window.currentReviewData.bottles,
+                brewery: window.currentReviewData.brewery,
+                breweryId: window.currentReviewData.breweryId,
+                beerIds: window.currentReviewData.beerIds,
+                // Include anche i dati grezzi per compatibilità
+                ...window.currentReviewData
+            } : null
+        };
+        
+        console.log('📦 Payload preparato:', payload);
+        
+        // Mostra loading
+        if (window.utils && window.utils.showNotification) {
+            window.utils.showNotification('Pubblicazione recensioni in corso...', 'info', 3000);
+        }
+        
+        // Invia al backend
+        fetch('/review/create-multiple', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('✅ Risposta backend:', data);
+            
+            if (data.success) {
+                if (window.utils && window.utils.showNotification) {
+                    window.utils.showNotification('Recensioni pubblicate con successo!', 'success', 3000);
+                }
+                
+                // Callback di successo
+                if (callbacks.onSuccess) {
+                    callbacks.onSuccess();
+                }
+                
+                // Redirect alla pagina di successo o reload
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+            } else {
+                // 🔧 FIX: Backend risponde con data.error quando fallisce
+                let errorMessage = data.error || data.message || 'Errore sconosciuto durante il salvataggio';
+                
+                if (data.inappropriateContent) {
+                    errorMessage = '⚠️ Contenuto inappropriato rilevato. Rivedi le tue note ed evita linguaggio offensivo.';
+                } else if (data.needsReanalysis) {
+                    errorMessage = '⚠️ I dati della recensione sono scaduti. Ricarica la pagina e riprova l\'analisi dell\'immagine.';
+                }
+                
+                // Callback di errore (NON chiude il modal)
+                if (callbacks.onError) {
+                    callbacks.onError(errorMessage);
+                }
+                
+                // Mostra anche notifica globale
+                if (window.utils && window.utils.showNotification) {
+                    window.utils.showNotification(errorMessage, 'error', 10000);
+                }
+                
+                throw new Error(errorMessage);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Errore pubblicazione:', error);
+            
+            const errorMsg = 'Errore durante la pubblicazione delle recensioni: ' + error.message;
+            
+            // Callback di errore (NON chiude il modal)
+            if (callbacks.onError) {
+                callbacks.onError(errorMsg);
+            }
+            
+            // Usa notifica moderna invece di alert (solo se non c'è callback)
+            if (!callbacks.onError) {
+                if (window.utils && window.utils.showNotification) {
+                    window.utils.showNotification(errorMsg, 'error', 8000);
+                } else {
+                    alert(errorMsg);
+                }
+            }
+        });
+    };
+    
     function publishReviews() {
         // Se il ReviewModule è disponibile, non usare questo sistema legacy
         if (window.ReviewModule && typeof window.ReviewModule === 'function') {
@@ -801,7 +1223,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log('Textarea note generali:', generalNotesTextarea);
             
             if (overallRatingContainer) {
-                const selectedStars = overallRatingContainer.querySelectorAll('.star.selected');
+                const selectedStars = overallRatingContainer.querySelectorAll('.star-sb.active');
                 const overallRating = selectedStars.length;
                 
                 console.log('Stelle selezionate:', selectedStars);
@@ -825,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         const categoryNotesTextarea = document.querySelector(`[data-notes="${index}"][data-category="${category}"]`);
                         
                         if (categoryRatingContainer) {
-                            const categorySelectedStars = categoryRatingContainer.querySelectorAll('.star.selected');
+                            const categorySelectedStars = categoryRatingContainer.querySelectorAll('.star-sb.active');
                             const categoryRating = categorySelectedStars.length;
                             const categoryNotes = categoryNotesTextarea ? categoryNotesTextarea.value.trim() : '';
                             
@@ -868,7 +1290,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         const categoryNotesTextarea = document.querySelector(`[data-notes="${index}"][data-category="${category}"]`);
                         
                         if (categoryRatingContainer) {
-                            const categorySelectedStars = categoryRatingContainer.querySelectorAll('.star.selected');
+                            const categorySelectedStars = categoryRatingContainer.querySelectorAll('.star-sb.active');
                             const categoryRating = categorySelectedStars.length;
                             const categoryNotes = categoryNotesTextarea ? categoryNotesTextarea.value.trim() : '';
                             
@@ -1514,53 +1936,66 @@ document.addEventListener('DOMContentLoaded', function () {
         // Gestione selezione rettangolo libero sul canvas e drag immagine
         let isDragging = false;
         let startX, startY, endX, endY;
-        function drawImageOnCanvas() {
+        // Funzione per aggiornare l'overlay crop usando canvas drawing
+        function updateCropOverlayHTML() {
             const ctx = photoCanvas.getContext('2d');
             ctx.clearRect(0, 0, photoCanvas.width, photoCanvas.height);
-            
+
             // Se stiamo mostrando un'immagine croppata, non disegnare mai alcun bordo
             if (croppedImageForAI) {
-                // Quando è mostrata l'immagine croppata, il canvas resta completamente trasparente
                 return;
             }
-            
+
             // Canvas trasparente per vedere l'immagine sottostante
             ctx.save();
             ctx.translate(imgOffsetX, imgOffsetY);
             ctx.scale(imgScale, imgScale);
-            // Non disegniamo l'immagine sul canvas, usiamo il canvas solo per l'overlay
             ctx.restore();
-            
+
             // Se è attivo il crop mode (touch o desktop), applica l'overlay di trasparenza con finestra di selezione
             if ((touchCropMode || isDragging) && (isDragging || (cropRect && cropRect.w > 0 && cropRect.h > 0))) {
                 ctx.save();
-                
+
                 // Disegna overlay di trasparenza su tutta l'immagine
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; // Overlay scuro per contrasto
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
                 ctx.fillRect(0, 0, photoCanvas.width, photoCanvas.height);
-                
+
                 // Calcola area di selezione
                 const rectX = isDragging ? Math.min(startX, endX) : cropRect.x;
                 const rectY = isDragging ? Math.min(startY, endY) : cropRect.y;
                 const rectW = isDragging ? Math.abs(endX - startX) : cropRect.w;
                 const rectH = isDragging ? Math.abs(endY - startY) : cropRect.h;
-                
+
                 // Rimuovi l'overlay dall'area selezionata usando globalCompositeOperation
                 ctx.globalCompositeOperation = 'destination-out';
                 ctx.fillStyle = 'rgba(0, 0, 0, 1)';
                 ctx.fillRect(rectX, rectY, rectW, rectH);
-                
+
                 // Ripristina modalità di composizione normale
                 ctx.globalCompositeOperation = 'source-over';
-                
+
                 // Disegna il bordo della selezione
                 ctx.strokeStyle = '#FFD600';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([6, 4]);
                 ctx.strokeRect(rectX, rectY, rectW, rectH);
-                
+
                 ctx.restore();
             }
+        }
+
+        function drawImageOnCanvas() {
+            // Se stiamo mostrando un'immagine croppata, non disegnare mai alcun bordo
+            if (croppedImageForAI) {
+                return;
+            }
+            
+            // Pulisci e ridisegna il canvas overlay
+            const ctx = photoCanvas.getContext('2d');
+            ctx.clearRect(0, 0, photoCanvas.width, photoCanvas.height);
+            
+            // Gestione overlay disegno su canvas
+            updateCropOverlayHTML();
         }
 
         // Crop selection
@@ -1582,6 +2017,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 endX = startX;
                 endY = startY;
                 cropRect = null;
+                
                 drawImageOnCanvas();
                 photoCanvas.style.cursor = 'crosshair';
             } else {
@@ -2910,7 +3346,7 @@ function addGlobalNavigationListeners() {
             clickedElement.closest('#review-process') ||
             clickedElement.id === 'start-review-process' ||
             clickedElement.classList.contains('star') ||
-            clickedElement.classList.contains('btn-toggle-detailed');
+            clickedElement.classList.contains('btn-sb');
         
         if (isNavigationElement && !isModalElement) {
             const targetUrl = clickedElement.href || clickedElement.action || 'unknown';

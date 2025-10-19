@@ -1,311 +1,70 @@
-<!-- Modern Age Verification Modal -->
-<div id="disclaimer-modal" class="modern-disclaimer-overlay" role="dialog" aria-labelledby="disclaimer-title" aria-describedby="disclaimer-desc" aria-modal="true">
-    <div class="disclaimer-backdrop"></div>
-    <div class="modern-disclaimer-container">
+<!-- Modern Age Verification Modal con Tailwind -->
+<div id="disclaimer-modal" class="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black bg-opacity-95 backdrop-blur-xl" role="dialog" aria-labelledby="disclaimer-title" aria-describedby="disclaimer-desc" aria-modal="true">
+    <div class="absolute inset-0 bg-black bg-opacity-98 backdrop-blur-3xl w-screen h-screen min-w-screen min-h-screen"></div>
+    <div class="relative z-10 w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden animate-modal-slide-in">
         <!-- Modal Header -->
-        <div class="disclaimer-header">
-            <div class="disclaimer-icon-large">
+        <div class="px-8 py-6 bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-700 text-white text-center relative overflow-hidden">
+            <div class="w-18 h-18 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z" fill="currentColor"/>
                 </svg>
             </div>
-            <h1 id="disclaimer-title" class="disclaimer-title">Verifica dell'Età</h1>
-            <p class="disclaimer-subtitle">Accesso riservato ai maggiorenni</p>
+            <h1 id="disclaimer-title" class="text-3xl font-bold mb-2">Verifica dell'Età</h1>
+            <p class="text-lg opacity-90 font-medium">Accesso riservato ai maggiorenni</p>
         </div>
 
         <!-- Modal Body -->
-        <div class="disclaimer-body">
-            <div id="disclaimer-desc" class="disclaimer-content">
-                <div class="age-requirement">
-                    <div class="requirement-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div class="p-8">
+            <div id="disclaimer-desc">
+                <div class="flex items-start gap-4 p-6 bg-gradient-to-r from-amber-50 to-amber-100 rounded-2xl border-l-4 border-amber-500 mb-6">
+                    <div class="flex-shrink-0 w-9 h-9 bg-amber-500 rounded-full flex items-center justify-center">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white">
                             <path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z" fill="currentColor"/>
                         </svg>
                     </div>
-                    <div class="requirement-text">
-                        <h3>Età Minima: 18 Anni</h3>
-                        <p>Confermo di avere <strong>almeno 18 anni</strong> e di poter accedere a contenuti relativi a <strong>bevande alcoliche</strong> secondo la normativa del mio Stato di residenza.</p>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-2">Età Minima: 18 Anni</h3>
+                        <p class="text-gray-700 text-sm leading-relaxed">Confermo di avere <strong>almeno 18 anni</strong> e di poter accedere a contenuti relativi a <strong>bevande alcoliche</strong> secondo la normativa del mio Stato di residenza.</p>
                     </div>
                 </div>
 
-                <div class="platform-benefits">
-                    <div class="benefits-compact">
-                        <div class="benefit-item">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
-                            </svg>
-                            <span>Recensioni AI-powered</span>
-                        </div>
-                        <div class="benefit-item">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z" fill="currentColor"/>
-                            </svg>
-                            <span>Community di appassionati</span>
-                        </div>
-                        <div class="benefit-item">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 5.5V6.5C15 7.3 14.3 8 13.5 8H10.5C9.7 8 9 7.3 9 6.5V5.5L3 7V9H21ZM18 10H6C4.9 10 4 10.9 4 12V22H7V19H17V22H20V12C20 10.9 19.1 10 18 10Z" fill="currentColor"/>
-                            </svg>
-                            <span>Birrifici artigianali</span>
-                        </div>
+                <div class="flex flex-wrap gap-4">
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-amber-500">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
+                        </svg>
+                        <span>Recensioni AI-powered</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-green-500">
+                            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z" fill="currentColor"/>
+                        </svg>
+                        <span>Community di appassionati</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-blue-500">
+                            <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 5.5V6.5C15 7.3 14.3 8 13.5 8H10.5C9.7 8 9 7.3 9 6.5V5.5L3 7V9H21ZM18 10H6C4.9 10 4 10.9 4 12V22H7V19H17V22H20V12C20 10.9 19.1 10 18 10Z" fill="currentColor"/>
+                        </svg>
+                        <span>Birrifici artigianali</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Modal Footer -->
-        <div class="disclaimer-footer">
-            <div class="footer-actions">
-                <button id="accept-disclaimer" class="btn btn-primary btn-extra-large" aria-label="Conferma di essere maggiorenne">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
-                    </svg>
-                    <span>Confermo di essere maggiorenne</span>
-                    <div class="btn-shimmer"></div>
-                </button>
-            </div>
+        <div class="px-8 py-6 bg-gray-50 border-t border-gray-200">
+            <button id="accept-disclaimer" class="relative w-full inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold text-lg rounded-xl hover:from-blue-700 hover:to-blue-800 transform hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 overflow-hidden" aria-label="Conferma di essere maggiorenne">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+                </svg>
+                <span>Confermo di essere maggiorenne</span>
+                <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white to-transparent opacity-30 -translate-x-full animate-shimmer"></div>
+            </button>
         </div>
     </div>
 </div>
 
-<style>
-/* SIMPLE DISCLAIMER SYSTEM CSS */
-:root {
-    --color-primary: #3b82f6;
-    --color-primary-light: #60a5fa;
-    --color-success: #10b981;
-    --color-warning: #f59e0b;
-    --color-danger: #ef4444;
-    --color-text-primary: #1f2937;
-    --color-text-secondary: #6b7280;
-    --z-modal: 2147483646;
-    --z-overlay: 2147483647;
-    --border-radius-md: 12px;
-    --border-radius-lg: 16px;
-    --space-3: 0.75rem;
-    --space-4: 1rem;
-    --space-5: 1.25rem;
-    --font-size-base: 1rem;
-    --font-size-lg: 1.125rem;
-    --font-size-2xl: 1.5rem;
-    --font-weight-medium: 500;
-    --font-weight-semibold: 600;
-    --font-weight-bold: 700;
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-}
 
-/* SIMPLE DISCLAIMER SYSTEM - NO BLOCKING, JUST OVERLAY */
-.modern-disclaimer-overlay {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    z-index: var(--z-overlay) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: rgba(0, 0, 0, 0.95) !important;
-    backdrop-filter: blur(10px) !important;
-}
-
-.modern-disclaimer-overlay[style*="display: none"] {
-    display: none !important;
-}
-
-.disclaimer-backdrop {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.98);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    z-index: var(--z-modal);
-    width: 100vw;
-    height: 100vh;
-    min-width: 100vw;
-    min-height: 100vh;
-}
-
-.modern-disclaimer-container {
-    position: relative;
-    z-index: calc(var(--z-modal) + 1);
-    
-    width: 100%;
-    max-width: 600px;
-    margin: 0 auto;
-    
-    background: white;
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--shadow-xl);
-    overflow: hidden;
-    
-    animation: modalSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.disclaimer-header {
-    padding: var(--space-5);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-}
-
-.disclaimer-icon-large {
-    width: 72px;
-    height: 72px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto var(--space-3);
-    backdrop-filter: blur(10px);
-}
-
-.disclaimer-title {
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-bold);
-    margin: 0 0 var(--space-1);
-    color: white;
-}
-
-.disclaimer-subtitle {
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
-    margin: 0;
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.disclaimer-body {
-    padding: var(--space-5);
-}
-
-.age-requirement {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
-    padding: var(--space-4);
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border-radius: var(--border-radius-lg);
-    border-left: 4px solid var(--color-warning);
-    margin-bottom: var(--space-4);
-}
-
-.requirement-icon {
-    flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-    background: var(--color-warning);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-}
-
-.requirement-text h3 {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--color-text-primary);
-    margin: 0 0 var(--space-1);
-}
-
-.requirement-text p {
-    font-size: 0.875rem;
-    color: var(--color-text-secondary);
-    margin: 0;
-    line-height: 1.5;
-}
-
-.benefits-compact {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-}
-
-.benefit-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.875rem;
-    color: var(--color-text-secondary);
-}
-
-.disclaimer-footer {
-    padding: var(--space-5);
-    background: #f9fafb;
-    border-top: 1px solid #e5e7eb;
-}
-
-.btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 16px 32px;
-    border: none;
-    border-radius: var(--border-radius-md);
-    font-weight: var(--font-weight-semibold);
-    font-size: var(--font-size-base);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    width: 100%;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
-    color: white;
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
-}
-
-.btn-shimmer {
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-    animation: shimmer 2s infinite;
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-50px) scale(0.9);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-@keyframes shimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
-}
-
-@media (max-width: 768px) {
-    .modern-disclaimer-container {
-        margin: 20px;
-        max-width: calc(100% - 40px);
-    }
-    
-    .benefits-compact {
-        flex-direction: column;
-        gap: var(--space-2);
-    }
-}
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

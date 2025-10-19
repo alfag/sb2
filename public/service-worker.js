@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sb2-cache-v6-smart-strategies';
+const CACHE_NAME = 'sb2-cache-v8-crop-fix';
 const OFFLINE_URL = '/offline';
 
 // File essenziali da cachare immediatamente
@@ -7,15 +7,17 @@ const STATIC_FILES = [
   '/offline',
   '/css/styles.css',
   '/css/toggle.css',
+  '/css/tailwind-custom.css',
+  '/js/tailwind-standalone.js',
   '/manifest.json',
   '/images/visibility.svg',
   '/images/visibility_off.svg'
-  // NOTA: JS esclusi dal pre-cache per essere sempre fresh
+  // NOTA: Altri JS esclusi dal pre-cache per essere sempre fresh
 ];
 
 // Installazione - cache solo i file essenziali (esclusi JS)
 self.addEventListener('install', event => {
-  console.log('[SW] Installing Service Worker v6 with smart strategies');
+  console.log('[SW] Installing Service Worker v8 with crop fix');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -34,7 +36,7 @@ self.addEventListener('install', event => {
 
 // Attivazione - pulisci cache vecchie
 self.addEventListener('activate', event => {
-  console.log('[SW] Activating Service Worker v6');
+  console.log('[SW] Activating Service Worker v8');
   event.waitUntil(
     caches.keys()
       .then(cacheNames => {
@@ -65,7 +67,32 @@ self.addEventListener('fetch', event => {
   }
 
   // STRATEGIA 1: JavaScript - SEMPRE FRESH (Network Only)
+  // ECCEZIONE: Framework stabili come Tailwind possono essere cachati
   if (isJavaScriptFile(request.url)) {
+    // Tailwind standalone è un framework stabile - può essere cachato
+    if (request.url.includes('tailwind-standalone.js')) {
+      console.log('[SW] Tailwind Framework - Cache First:', request.url);
+      event.respondWith(
+        caches.match(request)
+          .then(cachedResponse => {
+            if (cachedResponse) {
+              console.log('[SW] Tailwind served from cache:', request.url);
+              return cachedResponse;
+            }
+            return fetch(request)
+              .then(response => {
+                if (response.status === 200) {
+                  caches.open(CACHE_NAME)
+                    .then(cache => cache.put(request, response.clone()));
+                }
+                return response;
+              });
+          })
+      );
+      return;
+    }
+    
+    // Altri JS - sempre fresh
     console.log('[SW] JS file - Network Only (always fresh):', request.url);
     event.respondWith(
       fetch(request)

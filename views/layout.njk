@@ -15,15 +15,25 @@
     <link href="/css/libs/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/libs/fontawesome-7.0.1.min.css">
     
+    <!-- Tailwind CSS Framework (Standalone Local) -->
+    <script src="/js/tailwind-standalone.js"></script>
+    
+    <!-- Tailwind Custom Components SharingBeer -->
+    <link rel="stylesheet" href="/css/tailwind-custom.css">
+    
     <!-- Design System -->
     <link rel="stylesheet" href="/css/variables.css">
     <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/layout.css";
     
     <!-- Legacy CSS (da migrare) -->
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/toggle.css">
     <link rel="stylesheet" href="/css/roleSelector.css">
+    <link rel="stylesheet" href="/css/webSearch.css">
+    
+    <!-- Review Modal CSS -->
+    <link rel="stylesheet" href="/css/reviewModal.css">
     
     {% block head %}{% endblock %}
 </head>
@@ -279,7 +289,9 @@
     <!-- Feature modules -->
     <script src="/js/modules/utilsModule.js"></script>
     <script src="/js/modules/aiModule.js"></script>
+    <script src="/js/modules/webSearchModule.js"></script>
     <script src="/js/modules/reviewModule.js"></script>
+    <script src="/js/modules/breweriesModule.js"></script>
     <script src="/js/roleSelector.js"></script>
     <script src="/js/modularApp.js"></script>
     <script src="/js/scripts.js"></script>
@@ -374,6 +386,9 @@
     </script>
 
     {% block scripts %}{% endblock %}
+
+    <!-- Review Modal -->
+    {% include "customer/reviewModal.njk" %}
 
     <!-- Disclaimer Maggiore Età -->
     {% if showDisclaimer %}
