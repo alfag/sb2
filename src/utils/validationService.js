@@ -332,10 +332,20 @@ class ValidationService {
       // Controllo parole inappropriate - ricerca più efficace anche se "attaccate"
       for (const inappropriateWord of inappropriateWords) {
         if (inappropriateWord && inappropriateWord.length > 2) {
-          // Ricerca la parola inappropriata all'interno del testo normalizzato
-          // anche se è attaccata ad altre parole
-          const wordRegex = new RegExp(inappropriateWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-          const matches = normalizedText.match(wordRegex);
+          // 🔧 FIX FALSI POSITIVI: Cerca la parola con word boundaries per evitare match parziali
+          // Es: "commerciale" non deve matchare "merda" dentro "comMERciale"
+          // Ma "porcomerda" o "merdaccia" devono matchare
+          
+          // Prima prova con word boundaries (più preciso)
+          const wordBoundaryRegex = new RegExp(`\\b${inappropriateWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+          let matches = normalizedText.match(wordBoundaryRegex);
+          
+          // Se non trova con boundaries, prova senza MA solo per parole corte (< 5 caratteri)
+          // per catturare evasioni tipo "porcod1o" ma evitare falsi positivi in parole lunghe
+          if (!matches && inappropriateWord.length < 5) {
+            const wordRegex = new RegExp(inappropriateWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            matches = normalizedText.match(wordRegex);
+          }
           
           if (matches && matches.length > 0) {
             violations.push({
@@ -348,15 +358,22 @@ class ValidationService {
             });
             
             // Sostituisci tutte le occorrenze nel testo originale
-            const originalWordRegex = new RegExp(inappropriateWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            const originalWordRegex = new RegExp(`\\b${inappropriateWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
             cleanText = cleanText.replace(originalWordRegex, '*'.repeat(inappropriateWord.length));
           }
 
           // Controllo anche varianti leet speak e con sostituzioni
           const leetVariants = this.generateLeetVariants([inappropriateWord]);
           for (const variant of leetVariants) {
-            const variantRegex = new RegExp(variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-            const variantMatches = normalizedText.match(variantRegex);
+            // 🔧 FIX FALSI POSITIVI: Usa word boundaries anche per varianti
+            const variantBoundaryRegex = new RegExp(`\\b${variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+            let variantMatches = normalizedText.match(variantBoundaryRegex);
+            
+            // Se non trova con boundaries, prova senza MA solo per varianti corte
+            if (!variantMatches && variant.length < 5) {
+              const variantRegex = new RegExp(variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+              variantMatches = normalizedText.match(variantRegex);
+            }
             
             if (variantMatches && variantMatches.length > 0) {
               violations.push({
@@ -369,7 +386,7 @@ class ValidationService {
               });
               
               // Sostituisci anche le varianti
-              const originalVariantRegex = new RegExp(variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+              const originalVariantRegex = new RegExp(`\\b${variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
               cleanText = cleanText.replace(originalVariantRegex, '*'.repeat(variant.length));
             }
           }

@@ -893,22 +893,38 @@ async function updateExistingBrewery(existingBrewery, newBreweryData) {
 // Crea un nuovo birrificio
 async function createNewBrewery(breweryData) {
   try {
-    const newBrewery = new Brewery({
+    // 🔒 PROTEZIONE INTELLIGENTE: Salva tutti i campi MA con flag se non grounded
+    const AIValidationService = require('../services/aiValidationService');
+    const grounded = AIValidationService.isGrounded({ 
+      verifiedData: breweryData, 
+      webVerification: breweryData.webVerification 
+    });
+
+    // ✅ Salviamo TUTTI i campi AI disponibili (estratti da immagine/analisi reale)
+    const newBreweryDoc = {
       breweryName: breweryData.breweryName.trim(),
+      
+      // Campi descrittivi
       breweryDescription: breweryData.breweryDescription || '',
-      breweryFiscalCode: breweryData.fiscalCodes || '', // Non impostiamo placeholder
-      breweryREAcode: breweryData.reaCode || '', // Solo se estratto dall'AI
-      breweryacciseCode: breweryData.acciseCode || '', // Solo se estratto dall'AI
-      breweryFund: breweryData.fund || '', // Solo se estratto dall'AI
       breweryLegalAddress: breweryData.breweryLegalAddress || '',
+      
+      // Campi di contatto
       breweryPhoneNumber: breweryData.breweryPhoneNumber || '',
       breweryWebsite: breweryData.breweryWebsite || '',
+      breweryEmail: breweryData.breweryEmail || '',
+      
+      // Codici fiscali/amministrativi
+      breweryFiscalCode: breweryData.fiscalCodes || '',
+      breweryREAcode: breweryData.reaCode || '',
+      breweryacciseCode: breweryData.acciseCode || '',
+      breweryFund: breweryData.fund || '',
+      
+      // Logo e social media
       breweryLogo: breweryData.breweryLogo || '',
       brewerySocialMedia: breweryData.brewerySocialMedia || {},
       
       // Campi AI aggiuntivi
       foundingYear: breweryData.foundingYear,
-      breweryEmail: breweryData.breweryEmail,
       breweryProductionAddress: breweryData.breweryProductionAddress,
       brewerySize: breweryData.brewerySize,
       employeeCount: breweryData.employeeCount,
@@ -922,17 +938,36 @@ async function createNewBrewery(breweryData) {
       // Metadati AI
       aiExtracted: true,
       aiConfidence: breweryData.confidence,
-      lastAiUpdate: new Date()
-    });
+      lastAiUpdate: new Date(),
+      
+      // ⚠️ Flag validazione se non grounded
+      needsValidation: !grounded,
+      validationNotes: grounded 
+        ? 'Creato da AI con dati grounded da fonti web verificate' 
+        : 'Creato da AI - dati estratti da immagine ma non completamente verificati da fonti web - verifica consigliata'
+    };
 
+    const newBrewery = new Brewery(newBreweryDoc);
     const savedBrewery = await newBrewery.save();
-    logger.info('[GeminiAI] Nuovo birrificio creato con successo', { 
-      breweryId: savedBrewery._id, 
-      name: breweryData.breweryName,
-      hasWebsite: !!breweryData.breweryWebsite,
-      hasEmail: !!breweryData.breweryEmail,
-      confidence: breweryData.confidence
-    });
+    
+    if (grounded) {
+      logger.info('[GeminiAI] ✅ Nuovo birrificio con dati grounded', { 
+        breweryId: savedBrewery._id, 
+        name: breweryData.breweryName,
+        fieldsCount: Object.keys(newBreweryDoc).filter(k => newBreweryDoc[k]).length,
+        hasWebsite: !!breweryData.breweryWebsite,
+        hasEmail: !!breweryData.breweryEmail,
+        sourcesFound: breweryData.webVerification?.sourcesFound?.length || 0
+      });
+    } else {
+      logger.warn('[GeminiAI] ⚠️ Nuovo birrificio salvato ma non grounded - flag validazione', { 
+        breweryId: savedBrewery._id, 
+        name: breweryData.breweryName,
+        fieldsCount: Object.keys(newBreweryDoc).filter(k => newBreweryDoc[k]).length,
+        reason: 'Dati estratti da immagine ma fonti web incomplete',
+        needsValidation: true
+      });
+    }
     
     return savedBrewery._id;
   } catch (error) {

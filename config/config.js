@@ -9,4 +9,6 @@ module.exports = {
     NODE_ENV: process.env.NODE_ENV || 'development',
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || 'YOUR_GEMINI_API_KEY',
     GEMINI_ENDPOINT: process.env.GEMINI_ENDPOINT || 'https://api.gemini.com/v1/image',
+    // Se true, richiede che campi sensibili (website/email) siano confermati da web-verification
+    STRICT_AI_GROUNDING: process.env.STRICT_AI_GROUNDING || true,
 };

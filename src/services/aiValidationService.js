@@ -2,6 +2,7 @@ const logWithFileName = require('../utils/logger');
 const Brewery = require('../models/Brewery');
 const Beer = require('../models/Beer');
 const logger = logWithFileName(__filename);
+const config = require('../../config/config');
 
 /**
  * Servizio di validazione avanzata per prevenire allucinazioni AI
@@ -164,23 +165,77 @@ class AIValidationService {
         }
 
         // Check 3: Nuovo birrificio verificato - controllo qualità dati
-        const qualityScore = this.assessDataQuality(breweryData.verifiedData);
-        
-        // 🎯 Soglia abbassata a 0.7 (70%) per permettere più salvataggi automatici
-        // quando l'AI ha recuperato dati sufficienti e verificati
+        const qualityScore = this.assessDataQuality(breweryData.verifiedData, breweryData);
+
+        // 🎯 LOGICA INTELLIGENTE GROUNDING:
+        // - Se quality score >= 0.7 → SALVA (dati AI ricchi e coerenti)
+        // - Strict grounding richiesto SOLO se quality score < 0.7 (dati dubbiosi)
+        const strictGrounding = config.STRICT_AI_GROUNDING === true || config.STRICT_AI_GROUNDING === 'true';
+
         if (qualityScore >= 0.7) {
+          // ✅ Quality score sufficiente → SALVA DIRETTAMENTE
+          // Il grounding è un bonus ma non blocca se i dati sono ricchi
           validation.isValid = true;
           validation.action = 'SAVE_DIRECTLY';
           validation.confidence = qualityScore;
-          
+
           logger.info('[AIValidation] Nuovo birrificio verificato - salvataggio diretto', {
             breweryName: breweryData.verifiedData.breweryName,
             qualityScore: qualityScore,
-            threshold: 0.7
+            threshold: 0.7,
+            hasWebVerification: !!(breweryData.webVerification?.sourcesFound?.length),
+            groundingRequired: false
           });
-          
+
           return validation;
+        } else if (strictGrounding && qualityScore < 0.7) {
+          // ⚠️ Quality score basso → verifica se abbiamo almeno grounding web come backup
+          const hasGrounding = this.isGrounded(breweryData);
+          
+          if (hasGrounding) {
+            // ✅ Quality score basso MA grounding OK → SALVA con confidence ridotta
+            validation.isValid = true;
+            validation.action = 'SAVE_DIRECTLY';
+            validation.confidence = 0.65; // Confidence forzata più bassa
+
+            logger.info('[AIValidation] Birrificio con quality basso ma grounded - salvataggio', {
+              breweryName: breweryData.verifiedData.breweryName,
+              qualityScore: qualityScore,
+              hasGrounding: true,
+              confidence: 0.65
+            });
+
+            return validation;
+          } else {
+            // ❌ Quality score basso E grounding insufficiente → RICHIEDE VERIFICA
+            validation.isValid = false;
+            validation.action = null;
+            validation.requiresUserAction = true;
+            validation.issues.push('Quality score basso e grounding web insufficiente');
+            validation.userAction = {
+              type: 'GROUNDING_REQUIRED',
+              title: `Verifica web per "${breweryData.verifiedData.breweryName}"`,
+              description: 'Dati AI incompleti e non confermati da fonti web. Verifica necessaria.',
+              data: {
+                verifiedData: breweryData.verifiedData,
+                webVerification: breweryData.webVerification || {},
+                searchQueries: breweryData.webVerification?.searchQueries || this.generateSearchQueries(breweryData.labelName),
+                qualityScore: qualityScore,
+                missingFields: this.findMissingFields(breweryData.verifiedData)
+              },
+              priority: 'high'
+            };
+
+            logger.warn('[AIValidation] Quality basso + grounding insufficiente - richiede verifica', {
+              breweryName: breweryData.verifiedData.breweryName,
+              qualityScore: qualityScore,
+              webVerification: breweryData.webVerification
+            });
+
+            return validation;
+          }
         } else {
+          // Quality score basso ma strict grounding disabilitato → segnala solo warning
           validation.issues.push(`Dati di qualità insufficiente (score: ${qualityScore.toFixed(2)}, richiesto: 0.70)`);
           logger.warn('[AIValidation] Quality score insufficiente per salvataggio automatico', {
             breweryName: breweryData.verifiedData.breweryName,
@@ -474,7 +529,7 @@ class AIValidationService {
     );
   }
 
-  static assessDataQuality(breweryData) {
+  static assessDataQuality(breweryData, rawBreweryData = {}) {
     // 🎯 NUOVO ALGORITMO: Più permissivo ma intelligente
     // Requirement minimo: breweryName + (website OR legalAddress OR description)
     
@@ -489,9 +544,16 @@ class AIValidationService {
 
     // DATI IDENTIFICATIVI (almeno 1 deve essere presente)
     let hasIdentifiers = false;
+    // Solo consideriamo website come identificativo se è web-grounded (se presente nelle sorgenti)
+    const webVerification = rawBreweryData.webVerification || {};
+    const webVerified = webVerification.dataMatch === 'VERIFIED' && Array.isArray(webVerification.sourcesFound) && webVerification.sourcesFound.length > 0;
+
     if (breweryData.breweryWebsite) {
-      score += 2; // 20%
-      hasIdentifiers = true;
+      // Se siamo in modalità strict, richiediamo che il sito sia tra le fonti trovate
+      if (webVerified && this.websiteMatchesSources(breweryData.breweryWebsite, webVerification.sourcesFound)) {
+        score += 2; // 20%
+        hasIdentifiers = true;
+      }
     }
     if (breweryData.breweryLegalAddress && breweryData.breweryLegalAddress !== 'Non specificato') {
       score += 2; // 20%
@@ -507,9 +569,29 @@ class AIValidationService {
       return 0.3; // 30% - Troppo poco per salvataggio automatico
     }
 
-    // DATI DI CONTATTO (bonus points)
-    if (breweryData.breweryEmail) score += 1; // 10%
-    if (breweryData.breweryPhoneNumber) score += 0.5; // 5%
+    // DATI DI CONTATTO (bonus points) - li premiamo solo se sembrano plausibili
+    if (breweryData.breweryEmail) {
+      // email considerata valida se dominio coerente con website (se presente) oppure se webVerified
+      try {
+        const emailDomain = breweryData.breweryEmail.split('@')[1];
+        if (breweryData.breweryWebsite) {
+          const siteDomain = this.extractDomain(breweryData.breweryWebsite);
+          if (siteDomain && emailDomain && emailDomain.toLowerCase().includes(siteDomain.replace(/^www\./, '').toLowerCase())) {
+            score += 1; // 10%
+          }
+        } else if (webVerified) {
+          // se non c'è website ma la verifica web è positiva, premiamo debolmente
+          score += 0.5;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    if (breweryData.breweryPhoneNumber) {
+      // semplice check su numeri (almeno 7 cifre)
+      const digits = ('' + breweryData.breweryPhoneNumber).replace(/\D/g, '');
+      if (digits.length >= 7) score += 0.5; // 5%
+    }
 
     // DATI STORICI/DESCRITTIVI (bonus points)
     if (breweryData.foundingYear) score += 0.5; // 5%
@@ -520,7 +602,7 @@ class AIValidationService {
       score += 0.5; // 5%
     }
 
-    // BONUS per alta confidence AI
+    // BONUS per alta confidence AI (ma non sufficiente da sola)
     if (breweryData.confidence && breweryData.confidence >= 0.9) {
       score += 0.5; // 5% bonus per alta confidence
     }
@@ -528,7 +610,6 @@ class AIValidationService {
     const finalScore = Math.min(1, score / maxScore);
     
     // Log per debugging
-    const logger = require('../utils/logger').logWithFileName(__filename);
     logger.debug('[assessDataQuality] Score calcolato', {
       breweryName: breweryData.breweryName,
       hasWebsite: !!breweryData.breweryWebsite,
@@ -542,6 +623,78 @@ class AIValidationService {
     });
 
     return finalScore;
+  }
+
+  /**
+   * Restituisce true se almeno una delle fonti web contiene il dominio del sito indicato
+   */
+  static websiteMatchesSources(website, sources = []) {
+    try {
+      const siteDomain = this.extractDomain(website);
+      if (!siteDomain) return false;
+      return sources.some(src => {
+        try {
+          const srcDomain = this.extractDomain(src);
+          if (!srcDomain) return false;
+          return srcDomain.includes(siteDomain.replace(/^www\./, '')) || siteDomain.includes(srcDomain.replace(/^www\./, ''));
+        } catch (e) {
+          return false;
+        }
+      });
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static extractDomain(url) {
+    if (!url) return null;
+    try {
+      // Aggiusta casi mancanti di protocollo
+      if (!/^https?:\/\//i.test(url)) url = 'http://' + url;
+      const u = new URL(url);
+      return u.hostname.toLowerCase();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Verifica se i campi sensibili (website/email) sono ancorati alle fonti trovate
+   */
+  static isGrounded(breweryData) {
+    try {
+      const webVerification = breweryData.webVerification || {};
+      const sources = Array.isArray(webVerification.sourcesFound) ? webVerification.sourcesFound : [];
+
+      // Se non ci sono fonti web, non siamo grounded
+      if (!sources.length) return false;
+
+      // Se c'è un website, deve corrispondere a una fonte
+      if (breweryData.verifiedData?.breweryWebsite || breweryData.verifiedData?.breweryWebsite === '') {
+        const website = breweryData.verifiedData.breweryWebsite;
+        if (website) {
+          if (!this.websiteMatchesSources(website, sources)) return false;
+        }
+      }
+
+      // Se c'è una email, cerchiamo coerenza con il dominio del sito (se presente)
+      if (breweryData.verifiedData?.breweryEmail) {
+        const email = breweryData.verifiedData.breweryEmail;
+        const emailDomain = ('' + email).split('@')[1];
+        if (breweryData.verifiedData?.breweryWebsite) {
+          const siteDomain = this.extractDomain(breweryData.verifiedData.breweryWebsite);
+          if (siteDomain && emailDomain && !emailDomain.toLowerCase().includes(siteDomain.replace(/^www\./, '').toLowerCase())) {
+            // email domain non corrispondente -> non grounded
+            return false;
+          }
+        }
+      }
+
+      // Altrimenti consideriamo grounded (fonti esistono e non ci sono conflitti evidenti)
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   static assessBeerDataQuality(beerData) {

@@ -61,7 +61,7 @@
     {% endif %}
 
     <!-- Breweries Section - Minimal -->
-    <section class="mb-8">
+    <section class="mb-8" style="max-width: 100%; overflow: hidden;">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-2xl font-bold text-gray-900">Birrifici</h2>
             {% if user and 'brewery' in user.role %}
@@ -70,7 +70,7 @@
                 </a>
             {% endif %}
         </div>
-        <div id="brewery-list">
+        <div id="brewery-list" style="max-width: 100%; overflow: visible;">
             <!-- Dynamic brewery content will be inserted here -->
         </div>
     </section>

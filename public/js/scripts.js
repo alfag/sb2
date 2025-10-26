@@ -1147,6 +1147,50 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 if (data.inappropriateContent) {
                     errorMessage = '⚠️ Contenuto inappropriato rilevato. Rivedi le tue note ed evita linguaggio offensivo.';
+                    
+                    // 🎨 EVIDENZIA CAMPI CON ERRORI IN ROSSO
+                    if (data.details && Array.isArray(data.details)) {
+                        data.details.forEach(violation => {
+                            const reviewIndex = violation.reviewIndex;
+                            const field = violation.field;
+                            
+                            // Trova il campo textarea corrispondente
+                            let selector = null;
+                            if (field === 'tastingNotes' || field === 'reviewNotes' || field === 'notes') {
+                                // Campi note generali
+                                selector = `[data-notes="${reviewIndex}"][data-category="general"]`;
+                            } else if (field === 'appearance' || field === 'aroma' || field === 'taste' || field === 'mouthfeel') {
+                                // Campi note dettagliate per categoria
+                                selector = `[data-notes="${reviewIndex}"][data-category="${field}"]`;
+                            }
+                            
+                            if (selector) {
+                                const textarea = document.querySelector(selector);
+                                if (textarea) {
+                                    // Aggiungi classe errore e bordo rosso
+                                    textarea.classList.add('field-error');
+                                    textarea.style.borderColor = '#ef4444';
+                                    textarea.style.borderWidth = '2px';
+                                    textarea.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                                    
+                                    // Rimuovi errore quando utente modifica
+                                    textarea.addEventListener('input', function clearError() {
+                                        textarea.classList.remove('field-error');
+                                        textarea.style.borderColor = '';
+                                        textarea.style.borderWidth = '';
+                                        textarea.style.boxShadow = '';
+                                        textarea.removeEventListener('input', clearError);
+                                    }, { once: true });
+                                    
+                                    // Scroll al primo campo con errore
+                                    if (!document.querySelector('.field-error-scrolled')) {
+                                        textarea.classList.add('field-error-scrolled');
+                                        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }
+                                }
+                            }
+                        });
+                    }
                 } else if (data.needsReanalysis) {
                     errorMessage = '⚠️ I dati della recensione sono scaduti. Ricarica la pagina e riprova l\'analisi dell\'immagine.';
                 }

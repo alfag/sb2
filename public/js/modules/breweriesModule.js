@@ -19,8 +19,8 @@ const BreweriesModule = (() => {
 
         console.log('[BreweriesModule] Inizio caricamento birrifici...');
 
-        // FORZA lo stile griglia inline per override TOTALE di qualsiasi CSS
-        breweryList.setAttribute('style', 'display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 1.25rem !important;');
+        // Rimuovi stili inline forzati - lascia che il CSS gestisca la responsività
+        breweryList.removeAttribute('style');
         
         // Rimuovi eventuali classi Tailwind che potrebbero interferire
         breweryList.className = '';
@@ -41,7 +41,7 @@ const BreweriesModule = (() => {
                 return;
             }
 
-            // Limita a massimo 6 birrifici per la home page (3 colonne x 2 righe)
+            // Limita a massimo 6 birrifici per la home page (2 colonne x 3 righe)
             const breweriesDisplay = data.breweries.slice(0, 6);
             
             console.log(`[BreweriesModule] Visualizzo ${breweriesDisplay.length} birrifici su ${data.breweries.length} totali`);
@@ -53,11 +53,15 @@ const BreweriesModule = (() => {
 
             console.log('[BreweriesModule] Birrifici renderizzati, verifica HTML generato');
             
-            // FORZA nuovamente la griglia dopo il render (per sicurezza)
+            // Non forzare stili inline - il CSS gestisce la responsività
+            console.log('[BreweriesModule] Layout responsive gestito dal CSS');
+
+            // Attiva scroll solo per nomi lunghi troncati - con delay per assicurare rendering completo
+            console.log('[BreweriesModule] Programmo controllo troncamento tra 200ms...');
             setTimeout(() => {
-                breweryList.setAttribute('style', 'display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 1.25rem !important;');
-                console.log('[BreweriesModule] Stile griglia ri-applicato dopo render');
-            }, 100);
+                console.log('[BreweriesModule] Eseguo controllo troncamento ora!');
+                enableScrollForTruncatedNames();
+            }, 200);
 
             // Mostra testo "Altri N birrifici" se ci sono più birrifici
             if (data.breweries.length > 6) {
@@ -118,11 +122,11 @@ const BreweriesModule = (() => {
         const gradient = gradients[index % gradients.length];
         
         return `
-            <div class="brewery-card-wrapper" style="display: block;">
-                <div class="brewery-card" style="display: flex !important; align-items: center !important; gap: 1rem !important; padding: 1.5rem !important; background: white !important; border: 2px solid #d1d5db !important; border-radius: 0.75rem !important; margin-bottom: 0 !important;">
-                    <div class="brewery-initial" style="width: 56px; height: 56px; min-width: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 700; color: white; text-transform: uppercase; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); background: ${gradient};">${initial}</div>
-                    <div class="brewery-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem;">
-                        <h3 class="brewery-name" style="font-size: 1.125rem; font-weight: 600; color: #111827; margin: 0; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(brewery.breweryName)}</h3>
+            <div class="brewery-card-link">
+                <div class="brewery-card">
+                    <div class="brewery-initial" style="background: ${gradient};">${initial}</div>
+                    <div class="brewery-info">
+                        <h3 class="brewery-name"><span>${escapeHtml(brewery.breweryName)}</span></h3>
                     </div>
                 </div>
             </div>
@@ -171,7 +175,38 @@ const BreweriesModule = (() => {
     }
 
     /**
-     * Aggiunge testo "Altri N birrifici" se ce ne sono più di 6
+     * Aggiunge classe per attivare scroll solo sui nomi effettivamente troncati
+     */
+    function enableScrollForTruncatedNames() {
+        const breweryNames = document.querySelectorAll('.brewery-name');
+        
+        console.log(`[BreweriesModule] Controllo ${breweryNames.length} nomi per troncamento...`);
+        
+        breweryNames.forEach((nameElement, index) => {
+            const span = nameElement.querySelector('span');
+            if (!span) {
+                console.warn(`[BreweriesModule] Span non trovato per nome #${index}`);
+                return;
+            }
+            
+            const scrollWidth = span.scrollWidth;
+            const clientWidth = nameElement.clientWidth;
+            const text = span.textContent;
+            
+            console.log(`[BreweriesModule] Nome #${index}: "${text}" - scrollWidth: ${scrollWidth}px, clientWidth: ${clientWidth}px`);
+            
+            // Controlla se il contenuto è più largo del container
+            if (scrollWidth > clientWidth) {
+                nameElement.classList.add('truncated');
+                console.log(`[BreweriesModule] ✅ Nome troncato rilevato: "${text}"`);
+            } else {
+                console.log(`[BreweriesModule] ℹ️ Nome completo visibile: "${text}"`);
+            }
+        });
+    }
+
+    /**
+     * Aggiunge testo "Altri N birrifici" sotto la griglia
      */
     function addViewAllLink(container, totalCount) {
         const existingText = container.querySelector('.more-breweries-text');
