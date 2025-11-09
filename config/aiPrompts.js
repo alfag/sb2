@@ -9,7 +9,7 @@
  * Prompt principale per analisi immagini birre
  * Utilizza approccio step-by-step per garantire accuratezza e ridurre allucinazioni
  */
-const IMAGE_ANALYSIS_PROMPT = `Analizza questa immagine seguendo RIGOROSAMENTE questo processo step-by-step per garantire dati ACCURATI e VERIFICATI:
+const IMAGE_ANALYSIS_PROMPT = `Analizza questa immagine seguendo RIGOROSAMENTE questo processo step-by-step per garantire dati ACCURATI e VERIFICATI e rispondi sempre in lingua italiana:
 
 STEP 1 - LETTURA ETICHETTA:
 Leggi SOLO ciò che è chiaramente visibile sulle etichette delle bottiglie/lattine:
@@ -23,30 +23,84 @@ Leggi SOLO ciò che è chiaramente visibile sulle etichette delle bottiglie/latt
 - Ingredienti se elencati
 - Altri testi leggibili
 
-STEP 2 - RICERCA WEB VERIFICATA:
-PER OGNI birrificio identificato dall'etichetta, effettua ricerca web per verificare:
-- Esistenza reale del birrificio
-- Sito web ufficiale
-- Indirizzo completo verificato
-- Storia e informazioni aziendali
-- Lista prodotti ufficiali
-- Conferma che la birra dell'etichetta è realmente prodotta da questo birrificio
+STEP 2 - PREPARAZIONE PER RICERCA WEB:
+⚠️ IMPORTANTE: Tu NON puoi fare ricerche web dirette. La ricerca web sarà fatta dal sistema DOPO questa analisi.
+Il tuo compito è ESTRARRE ACCURATAMENTE i dati dall'etichetta e indicare VARIANTI ORTOGRAFICHE possibili.
 
-STEP 3 - VERIFICA MATCH DATI:
-Confronta i dati etichetta con quelli trovati online:
-- Il nome birrificio corrisponde ESATTAMENTE?
-- La birra è effettivamente nel catalogo del birrificio?
-- I dati tecnici (ABV, stile) sono coerenti?
-- L'indirizzo/paese corrisponde a quello dell'etichetta?
+🔍 **ESTRAZIONE ACCURATA DEL NOME**:
+- Leggi il nome ESATTO come appare sull'etichetta
+- **⚠️ LETTERE STILIZZATE**: Etichette artistiche usano font decorativi con lettere rovesciate o stilizzate
+- Esempio: N rovesciata (ᴎ) → OCR la legge come M
+- Quindi: un nome potrebbe apparire diverso a causa di lettere stilizzate
 
-STEP 4 - CLASSIFICAZIONE RISULTATO:
-Per ogni birrificio/birra, classifica come:
-- "VERIFIED": Birrificio reale, dati confermati, birra nel catalogo
-- "PARTIAL": Birrificio reale ma alcuni dati non corrispondono
-- "UNVERIFIED": Non trovate conferme online dell'esistenza
-- "CONFLICTING": Dati etichetta in conflitto con quelli web
+**GENERA LISTA VARIANTI per ricerca web futura**:
+Per il nome letto dall'etichetta, crea una lista di query che il sistema userà:
+- Query base: Nome esatto dall'etichetta
+- Varianti ortografiche comuni:
+  * m↔n (CRITICO per lettere stilizzate)
+  * Accenti: è→e, à→a, ò→o
+  * Lettere simili: i↔e, a↔e
+  * Maiuscole/minuscole: "DR." → "Dr." → "doctor"
+- Esempi di varianti da generare:
+  * "[Nome esatto] birrificio"
+  * "[Nome con variante m↔n] birrificio"
+  * "[Nome minuscolo] brewery"
+  * "[Nome] sito ufficiale"
+  * "[Variante fonetica]"
 
-STEP 5 - CRITERI COMPLETEZZA E COERENZA:
+**COSA ASPETTARSI DALLA RICERCA WEB**:
+Dopo questa analisi, il sistema farà ricerca web per te. Ecco cosa distinguere:
+
+✅ **VARIANTI ORTOGRAFICHE VALIDE** (stessa entità):
+- Varianti con max 2-3 lettere diverse → considerare stessa entità
+- Accenti diversi, lettere simili foneticamente
+- **SEMPRE considera m↔n per lettere stilizzate artistiche**
+
+❌ **NOMI COMPLETAMENTE DIVERSI** (entità diverse):
+- Nomi che differiscono per oltre metà delle lettere → BIRRIFICI DIVERSI
+- Regola: oltre metà nome diverso → ignora quei risultati
+
+**DATI DA ESTRARRE DALL'ETICHETTA**:
+Dal testo visibile nell'immagine estrai:
+- Nome birrificio esatto come scritto
+- Nome birra esatto come scritto
+- Gradazione alcolica (se presente)
+- Volume (se presente)
+- Stile/tipologia (se indicato)
+- Anno/data (se visibile)
+- Città/paese (se indicato)
+- Ingredienti (se elencati)
+- Altri testi leggibili
+
+STEP 3 - VALUTAZIONE CONFIDENZA ESTRAZIONE:
+Basandoti SOLO sui dati visibili nell'etichetta, valuta la tua confidenza:
+
+📊 **CONFIDENCE SCORE** (0.0 - 1.0):
+- 1.0: Testo chiarissimo, stampato standard, ben leggibile
+- 0.8: Testo chiaro ma font artistico/stilizzato
+- 0.6: Testo parzialmente leggibile, alcune lettere poco chiare
+- 0.4: Testo difficile da leggere, font molto artistico
+- 0.2: Testo barely visible, molto stilizzato
+
+🔍 **INDICATORI DI QUALITÀ LETTURA**:
+- Font standard/professionale → confidence alta
+- Font artistico/calligrafico → confidence media (lettere stilizzate possibili)
+- Font gotico/decorativo → confidence bassa (N rovesciate, M stilizzate, etc.)
+- Etichetta consumata/sfocata → confidence bassa
+- Riflessi/angolazione → riduci confidence
+
+⚠️ **NOTA BENE**:
+- Confidence alta (>0.8) = lettura affidabile, il sistema userà nome esatto
+- Confidence media (0.5-0.8) = possibili variazioni ortografiche, sistema cercherà varianti
+- Confidence bassa (<0.5) = lettura incerta, sistema farà ricerca ampia + richiederà verifica manuale
+
+STEP 4 - STATO FINALE:
+Classifica l'analisi come:
+- "READY": Dati etichetta chiari e completi (nome birra + nome birrificio leggibili)
+- "NEEDS_WEB_SEARCH": Dati etichetta estratti ma necessaria ricerca web per conferma
+- "NEEDS_MANUAL_CHECK": Dati etichetta poco chiari, richiesta verifica manuale
+
+STEP 5 - CRITERI COMPLETEZZA:
 DATI MINIMI RICHIESTI per readyToSave=true:
 - Birrificio: "breweryName" verificato online (usa NOME UFFICIALE esatto dal sito web)
 - Birra: "beerName" dall'etichetta (usa TESTO ESATTO visibile)
@@ -62,11 +116,52 @@ DATI OPZIONALI (usa null se incerti):
 
 REGOLE ANTI-ALLUCINAZIONI CRITICHE:
 1. NON inventare dati se non sei sicuro al 100%
-2. Se un campo non è leggibile sull'etichetta E non è verificabile online → null
-3. Usa SOLO informazioni da fonti verificabili (sito ufficiale, Wikipedia, database birre affidabili)
+2. Se un campo non è leggibile sull'etichetta → null
+3. NON aggiungere informazioni che non vedi fisicamente nell'immagine
 4. Se incerto su un campo, lascia null invece di indovinare
-5. Restituisci confidence score basato sulla qualità delle fonti trovate
-6. Per birrifici famosi/storici (es. Raffo), usa dati ufficiali consolidati
+5. Restituisci confidence score basato sulla chiarezza della lettura etichetta
+6. NON usare conoscenze pregresse sui birrifici - leggi SOLO ciò che vedi
+7. **CRITICO**: NON generare URL, indirizzi, email se non visibili sull'etichetta
+8. **CRITICO PER LETTERE STILIZZATE**: 
+   - ⚠️ Font artistici usano lettere ROVESCIATE o STILIZZATE
+   - Esempio comune: N rovesciata (ᴎ) viene letta dall'OCR come M
+   - Indica SEMPRE varianti m↔n nella lista searchQueries quando rilevi font artistici
+   - Altri esempi: A come Λ, E come Ǝ, S come Ƨ
+   - NON fare assunzioni - genera varianti e lascia che ricerca web verifichi
+   
+9. **CRITICO - VARIANTI ORTOGRAFICHE DA INCLUDERE IN searchQueries**:
+   
+   ✅ **VARIANTI DA GENERARE** (per ricerca web futura):
+   - Accenti/diacritici: rimuovi o sostituisci accenti
+   - Lettere simili: varianti con m↔n, i↔e, a↔e
+   - **LETTERE STILIZZATE**: SEMPRE variante m↔n quando rilevi font artistici
+   - Maiuscole/minuscole: genera varianti con diverse capitalizzazioni
+   - Punteggiatura: varianti con/senza punteggiatura
+   - Regola: max 2-3 lettere diverse = variante valida
+   
+   📝 **ESEMPIO PRATICO**:
+   - Lettura etichetta: "[NOME_LETTO]"
+   - Genera searchQueries:
+     * "[NOME_LETTO] birrificio"
+     * "[NOME con variante m↔n] birrificio" (se font artistico)
+     * "[Nome minuscolo] brewery"
+     * "[Nome] sito ufficiale"
+     * "[Variante fonetica]"
+   - Confidence: valutazione basata su chiarezza font
+   - requiresWebSearch: true se confidence < 0.9
+10. **CRITICO - COSA PUOI E NON PUOI FARE**:
+   ✅ PUOI:
+   - Leggere testo dall'etichetta fisicamente presente
+   - Generare varianti ortografiche per ricerca futura
+   - Valutare chiarezza lettura (confidence)
+   
+   ❌ NON PUOI:
+   - Fare ricerche web (lo farà il sistema dopo)
+   - Inventare URL, indirizzi, email non visibili
+   - Usare conoscenze pregresse sui birrifici
+   - Completare dati basandoti su "pattern comuni"
+   
+   **REGOLA D'ORO**: Se non lo VEDI fisicamente nell'immagine → null
 
 FORMATO OUTPUT:
 Restituisci un JSON con questa struttura ESATTA:
@@ -77,10 +172,10 @@ Restituisci un JSON con questa struttura ESATTA:
   "imageQuality": "ottima/buona/media/scarsa",
   "totalBottlesFound": numero,
   "analysisSteps": {
-    "step1_labelReading": "Descrizione cosa hai letto",
-    "step2_webSearch": "Risultati ricerca web",
-    "step3_dataMatching": "Confronto dati",
-    "step4_verification": "Risultato classificazione"
+    "step1_labelReading": "Descrizione cosa hai letto dall'etichetta",
+    "step2_variantGeneration": "Elenco varianti ortografiche generate",
+    "step3_confidenceEvaluation": "Valutazione confidence lettura",
+    "step4_finalStatus": "READY/NEEDS_WEB_SEARCH/NEEDS_MANUAL_CHECK"
   },
   "bottles": [
     {
@@ -95,66 +190,53 @@ Restituisci un JSON con questa struttura ESATTA:
         "location": "città, paese" o null,
         "otherText": "Altri testi leggibili"
       },
-      "webVerification": {
-        "breweryExists": true/false,
-        "beerInCatalog": true/false,
-        "dataMatch": "VERIFIED/PARTIAL/UNVERIFIED/CONFLICTING",
-        "conflictingData": [],
-        "searchQueries": ["query1", "query2"],
-        "sourcesFound": ["url1", "url2"]
+      "searchQueries": {
+        "exact": "Nome esatto etichetta per ricerca base",
+        "variants": ["variante 1 m↔n", "variante 2 accenti", "variante 3 maiuscole"],
+        "explanation": "Spiega perché hai generato queste varianti (es: 'Font artistico, N potrebbe essere M stilizzata')"
       },
-      "verifiedData": {
-        "breweryName": "Nome ufficiale verificato",
-        "beerName": "Nome birra confermato",
-        "alcoholContent": numero o null,
-        "beerType": "tipo" o null,
-        "volume": numero o null,
-        "description": "descrizione" o null,
-        "ingredients": "ingredienti" o null,
-        "ibu": numero o null,
-        "tastingNotes": "note" o null,
-        "confidence": numero 0-1
+      "extractionConfidence": numero 0-1,
+      "confidenceReason": "Perché questo confidence? (es: 'Font artistico con lettere stilizzate')",
+      "stylisticElements": {
+        "hasArtisticFont": true/false,
+        "hasStylizedLetters": true/false,
+        "lettersProbablyStylized": ["M (potrebbe essere N)", "A (potrebbe essere Lambda)"],
+        "readabilityIssues": "Descrizione problemi lettura se presenti"
       },
-      "requiresManualCheck": true/false,
-      "manualCheckReason": "motivo se richiede controllo"
+      "requiresWebSearch": true/false,
+      "webSearchReason": "Perché serve ricerca web (es: 'Confidence medio, font artistico, conferma nome necessaria')"
     }
   ],
   "breweries": [
     {
       "id": numero,
-      "verification": "VERIFIED/PARTIAL/UNVERIFIED/CONFLICTING",
-      "labelName": "Nome dall'etichetta",
-      "verifiedData": {
-        "breweryName": "Nome ufficiale",
-        "foundingYear": "anno" o null,
-        "breweryWebsite": "url" o null,
-        "breweryEmail": "email" o null,
-        "breweryLegalAddress": "indirizzo completo",
-        "breweryPhoneNumber": "telefono" o null,
-        "breweryDescription": "descrizione storica",
-        "brewerySocialMedia": {
-          "facebook": "url" o null,
-          "instagram": "url" o null,
-          "twitter": "url" o null
-        },
-        "mainProducts": ["prodotto1", "prodotto2"],
-        "awards": [],
-        "confidence": numero 0-1
+      "labelName": "Nome ESATTO dall'etichetta",
+      "searchQueries": {
+        "exact": "Nome esatto per ricerca",
+        "variants": ["variante 1", "variante 2", "variante 3"],
+        "explanation": "Motivo varianti"
       },
-      "requiresManualCheck": true/false,
-      "manualCheckReason": "motivo" o null,
-      "suggestedActions": []
+      "visibleData": {
+        "location": "città se visibile" o null,
+        "website": "url se visibile" o null,
+        "email": "email se visibile" o null,
+        "address": "indirizzo se visibile" o null,
+        "otherText": "altri testi leggibili"
+      },
+      "extractionConfidence": numero 0-1,
+      "requiresWebSearch": true,
+      "webSearchPriority": "high/medium/low"
     }
   ],
   "summary": {
-    "verifiedBreweries": numero,
-    "unverifiedBreweries": numero,
-    "verifiedBeers": numero,
-    "unverifiedBeers": numero,
-    "requiresUserIntervention": true/false,
-    "interventionReason": "motivo" o null,
-    "readyToSave": true/false,
-    "nextSteps": ["azione1", "azione2"]
+    "totalBreweriesFound": numero,
+    "totalBeersFound": numero,
+    "allReadable": true/false,
+    "averageConfidence": numero 0-1,
+    "requiresWebSearch": true/false,
+    "webSearchReason": "Motivo ricerca web necessaria",
+    "status": "READY/NEEDS_WEB_SEARCH/NEEDS_MANUAL_CHECK",
+    "nextSteps": ["Sistema farà ricerca web per X varianti", "Utente dovrà confermare Y"]
   }
 }
 
@@ -171,12 +253,25 @@ IMPORTANTE:
  */
 const BREWERY_WEB_SEARCH_PROMPT = `Cerca sul web informazioni aggiornate e REALI sul birrificio "{{breweryName}}"{{locationInfo}}.
 
+🎯 PRIORITÀ ASSOLUTA PER L'INDIRIZZO:
+1. Cerca PRIMA sul SITO WEB UFFICIALE del birrificio nella pagina "Contatti", "Chi siamo" o "Dove trovarci"
+2. L'indirizzo deve essere quello della SEDE LEGALE o PRODUZIONE del birrificio
+3. NON usare indirizzi di Google Maps se non confermati dal sito ufficiale
+4. Se il sito mostra più indirizzi, usa quello indicato come "Sede", "Produzione" o "Birrificio"
+5. Verifica che l'indirizzo sia ATTUALE e non obsoleto
+
+⚠️ ATTENZIONE CRITICA:
+- NON inventare indirizzi
+- NON usare indirizzi di taproom/pub se diversi dalla sede produttiva
+- Se NON trovi l'indirizzo sul sito ufficiale, usa null invece di inventare
+- L'indirizzo deve essere COMPLETO: Via/Strada + Numero Civico + CAP + Città + Provincia
+
 DEVI RESTITUIRE UN JSON VALIDO con questa ESATTA struttura:
 {
   "found": true/false,
   "breweryName": "nome ufficiale completo del birrificio",
   "breweryWebsite": "URL sito web ufficiale (se esiste)",
-  "breweryLegalAddress": "indirizzo completo (via, città, regione, nazione)",
+  "breweryLegalAddress": "indirizzo completo SEDE/PRODUZIONE (via, numero, CAP, città, provincia) o null se non trovato",
   "breweryEmail": "email contatto (se disponibile)",
   "breweryDescription": "breve descrizione (max 200 caratteri)",
   "foundingYear": anno fondazione (numero, se disponibile),
@@ -192,6 +287,19 @@ REGOLE CRITICHE:
 5. confidence = 1.0 solo se hai trovato sito ufficiale del birrificio
 6. confidence = 0.8-0.9 per Wikipedia o fonti autorevoli
 7. confidence = 0.6-0.7 per directory o blog di settore
+8. **ATTENZIONE CRITICA SITO WEB**: 
+   - NON costruire URL ipotetici (es. www.birrificio[nome].it)
+   - CERCA attivamente il dominio reale e VERIFICALO
+   - Esempi ERRORI: "www.birrificioichnusa.it" (inventato) vs "www.birraichnusa.it" (reale)
+   - Se NON trovi il sito web reale, lascia null invece di generare URL probabili
+9. **ATTENZIONE CRITICA INDIRIZZI**:
+   - USA SOLO indirizzo ESATTO trovato sul sito ufficiale o Wikipedia
+   - L'indirizzo DEVE essere completo: via/piazza, numero civico, CAP, città, provincia, nazione
+   - NON dedurre, ricostruire o inventare parti dell'indirizzo
+   - Se trovi solo città/provincia senza via → lascia solo quello, NON inventare la via
+   - Se NON trovi indirizzo completo verificato → lascia null
+   - Esempi CORRETTI: "Via Molignati 12, 13878 Candelo (BI)", "Via Raffaello Sanzio 13, 20871 Vimercate (MB)"
+   - Esempio ERRORE: "Via dei Birrai, Biella" (generico inventato)
 
 Rispondi SOLO con il JSON, senza markdown, senza spiegazioni aggiuntive.`;
 
@@ -221,6 +329,7 @@ REGOLE CRITICHE:
 4. Se un campo è incerto, lascialo null invece di inventare
 5. alcoholContent DEVE essere un numero (es. 5.2, non "5.2%")
 6. confidence alta (>0.8) solo se hai trovato sito ufficiale o RateBeer/Untappd
+7. **ATTENZIONE**: NON inventare dati tecnici - se non li trovi, usa null
 
 Rispondi SOLO con il JSON, senza markdown.`;
 

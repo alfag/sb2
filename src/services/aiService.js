@@ -1,9 +1,11 @@
 const GeminiAI = require('../utils/geminiAi');
+const WebSearchService = require('./webSearchService');
 const logWithFileName = require('../utils/logger');
 const ErrorHandler = require('../utils/errorHandler');
 const cacheService = require('../utils/cacheService');
 const Brewery = require('../models/Brewery');
 const AIValidationService = require('./aiValidationService');
+const MLOCRCorrector = require('../utils/ml_ocr_corrector_clean');
 
 const logger = logWithFileName(__filename);
 
@@ -202,6 +204,682 @@ class AIService {
         breweriesFound: analysisResult?.breweries?.length || 0,
         requiresIntervention: analysisResult?.summary?.requiresUserIntervention
       });
+
+      // 🤖 ML OCR CORRECTION: Applica correzione intelligente ai nomi delle birre
+      if (analysisResult && analysisResult.bottles && analysisResult.bottles.length > 0) {
+        logger.info('[AIService] 🤖 Avvio correzione ML OCR per nomi birre', {
+          sessionId: session.id,
+          bottlesCount: analysisResult.bottles.length
+        });
+
+        try {
+          // Inizializza il correttore ML
+          const mlCorrector = new MLOCRCorrector();
+          
+          let totalCorrections = 0;
+          let mlCorrections = 0;
+          
+          // Applica correzione ML a ogni bottiglia
+          for (const bottle of analysisResult.bottles) {
+            if (bottle.labelData && bottle.labelData.beerName) {
+              const originalName = bottle.labelData.beerName;
+              
+              // Genera candidate corrections usando regole esistenti e pattern comuni
+              const candidateCorrections = AIService.generateCandidateCorrections(originalName, mlCorrector);
+              
+              // Applica correzione ML con i candidati
+              const correctionResult = mlCorrector.predictCorrectionNeeded(originalName, candidateCorrections);
+              
+              if (correctionResult.needsCorrection && correctionResult.bestCorrection) {
+                const correctedName = correctionResult.bestCorrection;
+                
+                // Aggiorna il nome nella bottiglia
+                bottle.labelData.beerName = correctedName;
+                bottle.mlOcrCorrection = {
+                  applied: true,
+                  originalName: originalName,
+                  correctedName: correctedName,
+                  confidence: correctionResult.confidence,
+                  timestamp: new Date().toISOString()
+                };
+                
+                mlCorrections++;
+                totalCorrections++;
+                
+                logger.info('[AIService] 🤖 ML OCR correzione applicata', {
+                  sessionId: session.id,
+                  originalName: originalName,
+                  correctedName: correctedName,
+                  confidence: correctionResult.confidence.toFixed(3),
+                  bottleIndex: analysisResult.bottles.indexOf(bottle)
+                });
+              } else {
+                // Nessuna correzione necessaria
+                bottle.mlOcrCorrection = {
+                  applied: false,
+                  originalName: originalName,
+                  reason: 'no_correction_needed',
+                  confidence: correctionResult.confidence,
+                  timestamp: new Date().toISOString()
+                };
+                
+                logger.debug('[AIService] 🤖 ML OCR: nessuna correzione necessaria', {
+                  sessionId: session.id,
+                  beerName: originalName,
+                  confidence: correctionResult.confidence.toFixed(3)
+                });
+              }
+            }
+          }
+          
+          logger.info('[AIService] 🤖 ML OCR correzione completata', {
+            sessionId: session.id,
+            totalBottles: analysisResult.bottles.length,
+            totalCorrections: totalCorrections,
+            mlCorrections: mlCorrections,
+            correctionRate: ((mlCorrections / analysisResult.bottles.length) * 100).toFixed(1) + '%'
+          });
+          
+        } catch (mlError) {
+          logger.error('[AIService] ❌ Errore durante correzione ML OCR', {
+            sessionId: session.id,
+            error: mlError.message,
+            stack: mlError.stack
+          });
+          
+          // Continua senza correzione ML se fallisce
+          logger.warn('[AIService] ⚠️ Proseguimento senza correzione ML OCR', {
+            sessionId: session.id
+          });
+        }
+      }
+
+      // 🌐 NUOVO STEP: Ricerca Web Automatica se richiesta dall'AI
+      if (analysisResult && analysisResult.breweries && analysisResult.breweries.length > 0) {
+        for (const brewery of analysisResult.breweries) {
+          if (brewery.requiresWebSearch && brewery.searchQueries) {
+            logger.info('[AIService] 🔍 Avvio ricerca web per birrificio', {
+              sessionId: session.id,
+              breweryLabel: brewery.labelName,
+              searchQueriesCount: brewery.searchQueries.variants?.length || 0
+            });
+
+            try {
+              // Prepara query per ricerca web - prova TUTTE le varianti in sequenza
+              const queries = [
+                brewery.searchQueries.exact,
+                ...(brewery.searchQueries.variants || [])
+              ].filter(Boolean);
+
+              logger.debug('[AIService] Query ricerca web generate', {
+                sessionId: session.id,
+                breweryLabel: brewery.labelName,
+                queries: queries,
+                totalQueries: queries.length
+              });
+
+              // 🔄 PROVA OGNI VARIANTE SEPARATAMENTE fino a trovare match
+              let webResults = null;
+              let successfulQuery = null;
+
+              for (let i = 0; i < queries.length; i++) {
+                const query = queries[i];
+                logger.info(`[AIService] 🔍 Tentativo ${i + 1}/${queries.length} - Query: "${query}"`, {
+                  sessionId: session.id,
+                  breweryLabel: brewery.labelName
+                });
+
+                const result = await WebSearchService.searchBreweryOnWeb(
+                  query,  // Passa solo questa variante
+                  ''      // Location vuota - la query contiene già "birrificio"
+                );
+
+                logger.debug(`[AIService] Risultato tentativo ${i + 1}`, {
+                  found: result.found,
+                  confidence: result.confidence,
+                  breweryName: result.brewery?.breweryName
+                });
+
+                // Se trovato con confidence sufficiente, usa questo risultato
+                if (result.found && result.confidence >= 0.5) {
+                  webResults = result;
+                  successfulQuery = query;
+                  logger.info(`[AIService] ✅ Match trovato al tentativo ${i + 1}!`, {
+                    query: query,
+                    breweryName: result.brewery?.breweryName,
+                    confidence: result.confidence
+                  });
+                  break; // Esci dal loop
+                }
+              }
+
+              // Se nessuna query ha avuto successo
+              if (!webResults) {
+                logger.warn('[AIService] ⚠️ Nessuna variante ha trovato match sul web', {
+                  sessionId: session.id,
+                  breweryLabel: brewery.labelName,
+                  queriesTried: queries.length
+                });
+                webResults = { found: false, confidence: 0, brewery: null };
+              }
+
+              logger.info('[AIService] ✅ Ricerca web completata', {
+                sessionId: session.id,
+                breweryLabel: brewery.labelName,
+                found: webResults.found,
+                confidence: webResults.confidence,
+                breweryName: webResults.brewery?.breweryName,
+                successfulQuery: successfulQuery
+              });
+
+              // Se trovato, aggiorna i dati del birrificio con risultati web
+              if (webResults.found && webResults.brewery) {
+                brewery.webSearchResults = webResults;
+                brewery.verifiedData = {
+                  ...brewery.visibleData,
+                  ...webResults.brewery,
+                  confidence: webResults.confidence
+                };
+                brewery.verification = 'VERIFIED'; // ✅ CRITICO: Marca come VERIFIED per validazione
+                brewery.requiresWebSearch = false; // Non serve più ricerca
+                brewery.webSearchCompleted = true;
+
+                // 🎯 CRITICO: Aggiorna IMMEDIATAMENTE il breweryName nelle bottiglie di QUESTO birrificio
+                // Questo DEVE avvenire PRIMA della validazione così usa il nome corretto!
+                // IMPORTANTE: Aggiorna SOLO le bottiglie che appartengono a QUESTO birrificio
+                const verifiedBreweryName = webResults.brewery.breweryName;
+                const originalBreweryName = brewery.labelName;
+                let bottlesUpdated = 0;
+
+                if (analysisResult.bottles && analysisResult.bottles.length > 0) {
+
+                  for (const bottle of analysisResult.bottles) {
+                    if (bottle.labelData &&
+                        bottle.labelData.breweryName &&
+                        bottle.labelData.breweryName.toLowerCase() === originalBreweryName.toLowerCase()) {
+
+                      const oldBreweryName = bottle.labelData.breweryName;
+                      bottle.labelData.breweryName = verifiedBreweryName;
+                      bottlesUpdated++;
+
+                      logger.info('[AIService] � Aggiornato breweryName in bottiglia', {
+                        sessionId: session.id,
+                        beerName: bottle.labelData.beerName,
+                        oldBreweryName: oldBreweryName,
+                        newBreweryName: verifiedBreweryName,
+                        reason: 'brewery_verified_web_search'
+                      });
+                    }
+                  }
+                }
+
+                logger.info('[AIService] Dati birrificio aggiornati con risultati web', {
+                  sessionId: session.id,
+                  breweryLabel: brewery.labelName,
+                  officialName: webResults.brewery.breweryName,
+                  hasWebsite: !!webResults.brewery.breweryWebsite,
+                  hasAddress: !!webResults.brewery.breweryLegalAddress,
+                  verification: 'VERIFIED',
+                  bottlesOfThisBrewery: bottlesUpdated
+                });
+              } else {
+                logger.warn('[AIService] ⚠️ Ricerca web non ha trovato risultati', {
+                  sessionId: session.id,
+                  breweryLabel: brewery.labelName,
+                  queries: queries
+                });
+                // Mantieni requiresWebSearch=true per eventuale ricerca manuale
+              }
+
+            } catch (webError) {
+              logger.error('[AIService] ❌ Errore durante ricerca web', {
+                sessionId: session.id,
+                breweryLabel: brewery.labelName,
+                error: webError.message,
+                stack: webError.stack
+              });
+              // In caso di errore, mantieni requiresWebSearch=true
+            }
+          }
+        }
+      }
+
+      // 🚨 CRITICO: FORZA RICERCA WEB PER BIRRIFICI NON TROVATI NEL DATABASE
+      // Questo è il FIX per il problema principale: quando un birrificio non è nel DB,
+      // il sistema DEVE cercare sul web per trovare il birrificio reale
+      if (analysisResult && analysisResult.breweries && analysisResult.breweries.length > 0) {
+        logger.info('[AIService] 🔍 Controllo birrifici non trovati nel database', {
+          sessionId: session.id,
+          totalBreweries: analysisResult.breweries.length
+        });
+
+        // Recupera birrifici esistenti per controllo
+        const existingBreweries = await Brewery.find({}, 'breweryName breweryWebsite breweryEmail breweryLegalAddress breweryProductionAddress').lean();
+
+        for (const brewery of analysisResult.breweries) {
+          // Controlla se questo birrificio esiste nel database
+          const breweryExistsInDB = existingBreweries.some(dbBrewery =>
+            dbBrewery.breweryName &&
+            dbBrewery.breweryName.toLowerCase() === brewery.labelName?.toLowerCase()
+          );
+
+          logger.debug('[AIService] Controllo esistenza birrificio nel DB', {
+            sessionId: session.id,
+            breweryLabel: brewery.labelName,
+            existsInDB: breweryExistsInDB,
+            totalBreweriesInDB: existingBreweries.length
+          });
+
+          // 🚨 SE IL BIRRIFICIO NON ESISTE NEL DATABASE, FORZA RICERCA WEB!
+          if (!breweryExistsInDB && !brewery.webSearchCompleted && !brewery.verification) {
+            logger.warn('[AIService] ⚠️ BIRRIFICIO NON TROVATO NEL DATABASE - FORZO RICERCA WEB', {
+              sessionId: session.id,
+              breweryLabel: brewery.labelName,
+              reason: 'brewery_not_in_database_force_web_search'
+            });
+
+            try {
+              // Prepara query per ricerca web del birrificio non trovato
+              const searchQueries = [
+                `birrificio ${brewery.labelName}`,
+                brewery.labelName,
+                `${brewery.labelName} birrificio`
+              ];
+
+              logger.info('[AIService] 🔍 Avvio ricerca web FORZATA per birrificio sconosciuto', {
+                sessionId: session.id,
+                breweryLabel: brewery.labelName,
+                searchQueries: searchQueries
+              });
+
+              // 🔄 PROVA OGNI QUERY fino a trovare un birrificio reale
+              let webResults = null;
+              let successfulQuery = null;
+
+              for (let i = 0; i < searchQueries.length; i++) {
+                const query = searchQueries[i];
+                logger.info(`[AIService] 🔍 Tentativo FORZATO ${i + 1}/${searchQueries.length} - Query: "${query}"`, {
+                  sessionId: session.id,
+                  breweryLabel: brewery.labelName
+                });
+
+                const result = await WebSearchService.searchBreweryOnWeb(query, '');
+
+                logger.debug(`[AIService] Risultato tentativo FORZATO ${i + 1}`, {
+                  found: result.found,
+                  confidence: result.confidence,
+                  breweryName: result.brewery?.breweryName
+                });
+
+                // Se trovato con confidence sufficiente, usa questo risultato
+                if (result.found && result.confidence >= 0.4) { // Soglia più bassa per birrifici sconosciuti
+                  webResults = result;
+                  successfulQuery = query;
+                  logger.info(`[AIService] ✅ BIRRIFICIO REALE TROVATO al tentativo FORZATO ${i + 1}!`, {
+                    query: query,
+                    breweryName: result.brewery?.breweryName,
+                    confidence: result.confidence,
+                    breweryLabel: brewery.labelName
+                  });
+                  break;
+                }
+              }
+
+              // Se trovato un birrificio reale, aggiorna i dati
+              if (webResults && webResults.found && webResults.brewery) {
+                brewery.webSearchResults = webResults;
+                brewery.verifiedData = {
+                  ...brewery.visibleData,
+                  ...webResults.brewery,
+                  confidence: webResults.confidence
+                };
+                brewery.verification = 'VERIFIED'; // ✅ CRITICO: Marca come VERIFIED
+                brewery.requiresWebSearch = false;
+                brewery.webSearchCompleted = true;
+                brewery.foundViaForcedWebSearch = true; // Flag speciale
+
+                // 🎯 CRITICO: Aggiorna IMMEDIATAMENTE il breweryName nelle bottiglie
+                const verifiedBreweryName = webResults.brewery.breweryName;
+                const originalBreweryName = brewery.labelName;
+                let bottlesUpdated = 0;
+
+                if (analysisResult.bottles && analysisResult.bottles.length > 0) {
+                  for (const bottle of analysisResult.bottles) {
+                    if (bottle.labelData &&
+                        bottle.labelData.breweryName &&
+                        bottle.labelData.breweryName.toLowerCase() === originalBreweryName.toLowerCase()) {
+
+                      const oldBreweryName = bottle.labelData.breweryName;
+                      bottle.labelData.breweryName = verifiedBreweryName;
+                      bottlesUpdated++;
+
+                      logger.info('[AIService] � Aggiornato breweryName in bottiglia (FORCED)', {
+                        sessionId: session.id,
+                        beerName: bottle.labelData.beerName,
+                        oldBreweryName: oldBreweryName,
+                        newBreweryName: verifiedBreweryName,
+                        reason: 'brewery_not_in_db_forced_web_search'
+                      });
+                    }
+                  }
+                }
+
+                logger.info('[AIService] ✅ BIRRIFICIO SCONOSCIUTO VERIFICATO TRAMITE RICERCA WEB FORZATA', {
+                  sessionId: session.id,
+                  originalLabel: brewery.labelName,
+                  verifiedName: webResults.brewery.breweryName,
+                  confidence: webResults.confidence,
+                  hasWebsite: !!webResults.brewery.breweryWebsite,
+                  hasAddress: !!webResults.brewery.breweryLegalAddress,
+                  bottlesUpdated: bottlesUpdated,
+                  successfulQuery: successfulQuery
+                });
+              } else {
+                logger.warn('[AIService] ⚠️ BIRRIFICIO SCONOSCIUTO NON TROVATO nemmeno sul web', {
+                  sessionId: session.id,
+                  breweryLabel: brewery.labelName,
+                  queriesTried: searchQueries.length,
+                  reason: 'brewery_not_found_anywhere'
+                });
+
+                // Marca come non verificato ma non bloccare completamente
+                brewery.verification = 'UNVERIFIED';
+                brewery.webSearchCompleted = true;
+                brewery.notFoundAnywhere = true;
+              }
+
+            } catch (forcedWebError) {
+              logger.error('[AIService] ❌ Errore durante ricerca web FORZATA', {
+                sessionId: session.id,
+                breweryLabel: brewery.labelName,
+                error: forcedWebError.message,
+                stack: forcedWebError.stack
+              });
+            }
+          }
+        }
+      }
+
+      // 🍺 NUOVO STEP: Ricerca Web Automatica BIRRE
+      // FORZA web search per TUTTE le birre se il birrificio aveva requiresWebSearch
+      // perché il nome corretto del birrificio è necessario per cercare la birra!
+      if (analysisResult && analysisResult.bottles && analysisResult.bottles.length > 0) {
+        // Ottieni dati birrificio (assume primo birrificio - caso tipico 1 birrificio per immagine)
+        const brewery = analysisResult.breweries && analysisResult.breweries.length > 0 
+                        ? analysisResult.breweries[0] 
+                        : null;
+        
+        for (const bottle of analysisResult.bottles) {
+          // 🎯 FORZA requiresWebSearch se:
+          // 1. L'AI ha esplicitamente richiesto web search per questa birra
+          // 2. O se il birrificio aveva bisogno di web search (nome birrificio necessario per cercare birra)
+          const forceWebSearch = brewery?.requiresWebSearch || brewery?.webSearchCompleted;
+          const shouldSearchBeer = bottle.requiresWebSearch || forceWebSearch;
+          
+          if (forceWebSearch && !bottle.requiresWebSearch) {
+            logger.warn('[AIService] ⚠️ FORZA ricerca web birra (birrificio aveva web search)', {
+              sessionId: session.id,
+              beerName: bottle.labelData?.beerName,
+              breweryName: bottle.labelData?.breweryName,
+              bottleRequiresWebSearch: bottle.requiresWebSearch,
+              breweryRequiredWebSearch: brewery?.requiresWebSearch,
+              breweryWebSearchCompleted: brewery?.webSearchCompleted
+            });
+          }
+          
+          if (shouldSearchBeer) {
+            logger.info('[AIService] 🔍 Avvio ricerca web best matching beer', {
+              sessionId: session.id,
+              beerName: bottle.labelData?.beerName,
+              strategy: 'BREWERY_BEER_LIST_MATCHING'
+            });
+
+            try {
+              // 🎯 NUOVA STRATEGIA: Non usiamo più le varianti del nome birra
+              // Invece cerchiamo TUTTE le birre del birrificio e troviamo la più simile
+              let webResults = null;
+              
+              // 🎯 CRITICO: Usa ESCLUSIVAMENTE il nome VERIFICATO del birrificio!
+              // NON usare MAI il nome dall'etichetta (può essere sbagliato)
+              // Il birrificio è stato già validato e corretto dal web search precedente
+              const breweryName = brewery?.verifiedData?.breweryName || 
+                                  brewery?.visibleData?.breweryName;
+              
+              // 🚨 BLOCCO: Se non abbiamo un birrificio verificato, NON possiamo cercare la birra
+              if (!breweryName) {
+                logger.error('[AIService] ❌ ERRORE CRITICO: Birrificio non verificato - impossibile cercare birra', {
+                  sessionId: session.id,
+                  beerName: bottle.labelData?.beerName,
+                  breweryFromLabel: bottle.labelData?.breweryName,
+                  reason: 'brewery_not_verified_before_beer_search'
+                });
+                
+                // Salta la ricerca web per questa birra
+                bottle.webSearchResults = { found: false, confidence: 0, beer: null };
+                bottle.verification = 'FAILED';
+                bottle.requiresWebSearch = false;
+                bottle.webSearchCompleted = true;
+                bottle.webSearchError = 'Birrificio non verificato - impossibile validare birra';
+                continue; // Passa alla prossima bottiglia
+              }
+              
+              logger.info('[AIService] 🏭 Nome birrificio VERIFICATO usato per ricerca birra', {
+                sessionId: session.id,
+                breweryNameUsed: breweryName,
+                beerNameSearching: bottle.labelData?.beerName,
+                breweryFromLabel: bottle.labelData?.breweryName,
+                source: brewery?.verifiedData?.breweryName ? 'verifiedData' : 'visibleData',
+                isVerified: true
+              });
+              
+              // 🎯 OTTIMIZZAZIONE: Valida DIRETTAMENTE la birra estratta invece di cercare tra tutte le birre del birrificio
+              // Invece di scaricare TUTTE le birre del birrificio e fare fuzzy matching, valida direttamente la birra specifica
+              logger.info('[AIService] 🎯 Validazione diretta birra estratta', {
+                sessionId: session.id,
+                beerNameFromLabel: bottle.labelData?.beerName,
+                verifiedBreweryName: breweryName,
+                strategy: 'DIRECT_BEER_VALIDATION'
+              });
+
+              // Usa searchBeerOnWeb per validare DIRETTAMENTE la birra estratta
+              webResults = await WebSearchService.searchBeerOnWeb(
+                bottle.labelData?.beerName,  // Nome birra estratto dall'immagine
+                breweryName,                  // Nome birrificio VERIFICATO
+                bottle.labelData?.beerType    // Tipo birra per contesto (opzionale)
+              );
+
+              if (webResults.found) {
+                logger.info('[AIService] ✅ Birra validata direttamente via web search!', {
+                  sessionId: session.id,
+                  beerNameFromLabel: bottle.labelData?.beerName,
+                  validatedBeerName: webResults.beer?.beerName,
+                  breweryName: breweryName,
+                  confidence: webResults.confidence,
+                  hasAlcohol: !!webResults.beer?.alcoholContent,
+                  hasType: !!webResults.beer?.beerType,
+                  validationMethod: 'DIRECT_WEB_SEARCH'
+                });
+              } else {
+                logger.warn('[AIService] ⚠️ Birra non trovata nella validazione diretta', {
+                  sessionId: session.id,
+                  beerNameFromLabel: bottle.labelData?.beerName,
+                  breweryName: breweryName,
+                  confidence: webResults.confidence || 0
+                });
+              }
+
+              logger.info('[AIService] ✅ Validazione diretta birra completata', {
+                sessionId: session.id,
+                beerLabel: bottle.labelData?.beerName,
+                found: webResults.found,
+                confidence: webResults.confidence,
+                beerName: webResults.beer?.beerName,
+                validationMethod: 'DIRECT_WEB_SEARCH',
+                breweryVerified: breweryName
+              });
+
+              // Se trovato, aggiorna i dati della birra con risultati web
+              if (webResults.found && webResults.beer) {
+                bottle.webSearchResults = webResults;
+                
+                // 🎯 CRITICO: Usa ESCLUSIVAMENTE il breweryName VERIFICATO dal birrificio!
+                // NON usare MAI il nome dall'etichetta - solo quello validato
+                const verifiedBreweryName = brewery?.verifiedData?.breweryName || 
+                                           brewery?.visibleData?.breweryName;
+                
+                // 🚨 SANITY CHECK: Questo non dovrebbe mai accadere (già bloccato sopra)
+                if (!verifiedBreweryName) {
+                  logger.error('[AIService] ❌ ERRORE CRITICO: Birrificio non verificato in fase di merge dati', {
+                    sessionId: session.id,
+                    beerName: bottle.labelData?.beerName
+                  });
+                  continue;
+                }
+                
+                bottle.verifiedData = {
+                  ...bottle.labelData,
+                  ...webResults.beer,
+                  breweryName: verifiedBreweryName, // ✅ SEMPRE e SOLO nome birrificio verificato
+                  confidence: webResults.confidence
+                };
+
+                // 🚨 NUOVO: Valida similarità tra nome OCR e nome web prima di sovrascrivere
+                const ocrBeerName = bottle.labelData?.beerName || '';
+                const webBeerName = webResults.beer.beerName || '';
+                const nameSimilarity = this.calculateNameSimilarity(ocrBeerName, webBeerName);
+
+                // Se i nomi sono troppo diversi (>30% differenza), mantieni nome OCR e flagga per revisione
+                const MIN_NAME_SIMILARITY = 0.7; // 70% similarità minima richiesta
+                const shouldUseWebName = nameSimilarity >= MIN_NAME_SIMILARITY;
+
+                logger.info('[AIService] 🔍 Confronto nome OCR vs Web', {
+                  sessionId: session.id,
+                  ocrBeerName: ocrBeerName,
+                  webBeerName: webBeerName,
+                  nameSimilarity: nameSimilarity.toFixed(3),
+                  minSimilarityRequired: MIN_NAME_SIMILARITY,
+                  shouldUseWebName: shouldUseWebName,
+                  breweryName: verifiedBreweryName
+                });
+
+                if (!shouldUseWebName) {
+                  logger.warn('[AIService] ⚠️ Nome web troppo diverso da OCR - mantengo nome OCR e flaggo per revisione', {
+                    sessionId: session.id,
+                    ocrBeerName: ocrBeerName,
+                    webBeerName: webBeerName,
+                    nameSimilarity: nameSimilarity.toFixed(3),
+                    breweryName: verifiedBreweryName,
+                    reason: 'OCR_WEB_NAME_MISMATCH'
+                  });
+
+                  // Mantieni nome OCR ma aggiungi dati web come suggerimento
+                  bottle.verifiedData = {
+                    ...bottle.labelData,
+                    ...webResults.beer,
+                    beerName: ocrBeerName, // ✅ Mantieni nome OCR
+                    breweryName: verifiedBreweryName,
+                    confidence: Math.min(webResults.confidence * 0.5, 0.5), // Riduci confidence per discrepanza
+                    ocrWebNameMismatch: true,
+                    suggestedWebName: webBeerName,
+                    nameSimilarity: nameSimilarity
+                  };
+                } else {
+                  // Nomi simili - usa nome web
+                  bottle.verifiedData = {
+                    ...bottle.labelData,
+                    ...webResults.beer,
+                    breweryName: verifiedBreweryName,
+                    confidence: webResults.confidence
+                  };
+                }
+                bottle.verification = 'VERIFIED'; // ✅ CRITICO: Marca come VERIFIED
+                bottle.requiresWebSearch = false;
+                bottle.webSearchCompleted = true;
+                
+                logger.info('[AIService] 📝 Dati birra aggiornati con validazione diretta', {
+                  sessionId: session.id,
+                  beerLabel: bottle.labelData?.beerName,
+                  finalBeerName: bottle.verifiedData.beerName,
+                  breweryNameVerified: verifiedBreweryName,
+                  validationMethod: 'DIRECT_WEB_SEARCH',
+                  usedWebName: shouldUseWebName,
+                  nameSimilarity: nameSimilarity.toFixed(3),
+                  hasAlcohol: !!webResults.beer.alcoholContent,
+                  hasType: !!webResults.beer.beerType,
+                  verification: 'VERIFIED'
+                });
+              } else {
+                logger.warn('[AIService] ⚠️ Validazione diretta birra non ha trovato risultati', {
+                  sessionId: session.id,
+                  beerLabel: bottle.labelData?.beerName,
+                  breweryName: breweryName,
+                  confidence: webResults.confidence || 0,
+                  validationMethod: 'DIRECT_WEB_SEARCH_FAILED'
+                });
+              }
+
+            } catch (webError) {
+              logger.error('[AIService] ❌ Errore durante ricerca web birra', {
+                sessionId: session.id,
+                beerName: bottle.labelData?.beerName,
+                error: webError.message,
+                stack: webError.stack
+              });
+            }
+          }
+        }
+      }
+
+      // 🎯 CRITICO: AGGIORNA IMMEDIATAMENTE i breweryName nelle bottiglie PRIMA della validazione
+      // Questo DEVE avvenire PRIMA della validazione così usa il nome corretto!
+      // IMPORTANTE: Aggiorna SOLO le bottiglie che appartengono a QUESTO birrificio
+      if (analysisResult.bottles && analysisResult.bottles.length > 0 && analysisResult.breweries && analysisResult.breweries.length > 0) {
+        let totalBottlesUpdated = 0;
+        
+        for (const brewery of analysisResult.breweries) {
+          if (brewery.verifiedData?.breweryName || brewery.visibleData?.breweryName) {
+            const verifiedBreweryName = brewery.verifiedData?.breweryName || brewery.visibleData?.breweryName;
+            const originalBreweryName = brewery.labelName;
+            let bottlesUpdated = 0;
+            
+            for (const bottle of analysisResult.bottles) {
+              if (bottle.labelData && 
+                  bottle.labelData.breweryName && 
+                  bottle.labelData.breweryName.toLowerCase() === originalBreweryName.toLowerCase()) {
+                
+                const oldBreweryName = bottle.labelData.breweryName;
+                bottle.labelData.breweryName = verifiedBreweryName;
+                bottlesUpdated++;
+                totalBottlesUpdated++;
+                
+                logger.info('[AIService] � Aggiornato breweryName in bottiglia', {
+                  sessionId: session.id,
+                  beerName: bottle.labelData.beerName,
+                  oldBreweryName: oldBreweryName,
+                  newBreweryName: verifiedBreweryName,
+                  reason: 'brewery_verified_web_search'
+                });
+              }
+            }
+            
+            logger.info('[AIService] Dati birrificio aggiornati con risultati web', {
+              sessionId: session.id,
+              breweryLabel: brewery.labelName,
+              officialName: verifiedBreweryName,
+              hasWebsite: !!brewery.verifiedData?.breweryWebsite || !!brewery.visibleData?.breweryWebsite,
+              hasAddress: !!brewery.verifiedData?.breweryLegalAddress || !!brewery.visibleData?.breweryLegalAddress,
+              verification: 'VERIFIED',
+              bottlesOfThisBrewery: bottlesUpdated
+            });
+          }
+        }
+        
+        logger.info('[AIService] ✅ Aggiornamento breweryName completato per tutte le bottiglie', {
+          sessionId: session.id,
+          totalBottlesUpdated: totalBottlesUpdated,
+          totalBottles: analysisResult.bottles.length
+        });
+      }
 
       // NUOVO: Sistema Anti-Allucinazioni Completo
       if (analysisResult && analysisResult.success) {
@@ -817,6 +1495,63 @@ class AIService {
       .replace(/\s+/g, ' ')
       .replace(/[^\w\s]/g, '')
       .trim();
+  }
+
+  /**
+   * Genera candidate corrections per un testo OCR usando regole esistenti e pattern comuni
+   * 
+   * @param {string} ocrText - Testo OCR originale da correggere
+   * @param {Object} mlCorrector - Istanza MLOCRCorrector per usare correzioni rule-based
+   * @returns {Array<string>} - Lista di candidate corrections
+   */
+  static generateCandidateCorrections(ocrText, mlCorrector) {
+    const corrections = new Set();
+
+    // 1. Sempre includi l'originale
+    corrections.add(ocrText);
+
+    // 2. Usa SOLO il dictionary rule-based come fonte principale
+    // Questo contiene le correzioni validated manualmente
+    if (mlCorrector && mlCorrector.correctOCRText) {
+      const ruleBased = mlCorrector.correctOCRText(ocrText);
+      if (ruleBased !== ocrText) {
+        corrections.add(ruleBased);
+        logger.debug('[AIService] 🧪 Rule-based correction available', {
+          original: ocrText,
+          corrected: ruleBased
+        });
+      }
+    }
+
+    // 3. Se non c'è correzione rule-based, genera UN SOLO pattern più probabile
+    if (corrections.size === 1) {
+      // Pattern più comune: manca 'I' finale (SUDIGIR → SUDIGIRI)
+      const lowerText = ocrText.toLowerCase();
+      if (!lowerText.endsWith('i') && ocrText.length > 3) {
+        corrections.add(ocrText + 'I');
+      }
+      // Pattern secondo più comune: 'l' minuscola → 'I' maiuscola (MORETTl → MORETTI)
+      else if (ocrText.includes('l') && ocrText === ocrText.toUpperCase()) {
+        corrections.add(ocrText.replace(/l/g, 'I'));
+      }
+      // Pattern terzo: doppia consonante finale (RAFFFO → RAFFO)
+      else if (ocrText.length > 3) {
+        const lastChar = ocrText[ocrText.length - 1];
+        const secondLastChar = ocrText[ocrText.length - 2];
+        if (lastChar === secondLastChar && !/[aeiou]/i.test(lastChar)) {
+          corrections.add(ocrText.slice(0, -1));
+        }
+      }
+    }
+
+    logger.debug('[AIService] 🧪 Candidate corrections generate', {
+      originalText: ocrText,
+      candidates: Array.from(corrections),
+      count: corrections.size,
+      hasRuleBased: corrections.size > 1
+    });
+
+    return Array.from(corrections);
   }
 }
 

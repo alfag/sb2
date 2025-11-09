@@ -70,7 +70,27 @@ const brewerySchema = new mongoose.Schema({
     // Metadati AI
     aiExtracted: { type: Boolean, default: false },
     aiConfidence: Number,
-    lastAiUpdate: { type: Date, default: Date.now }
+    lastAiUpdate: { type: Date, default: Date.now },
+    
+    // Sistema di validazione
+    validationStatus: {
+        type: String,
+        enum: ['validated', 'pending_validation', 'ai_extracted', 'web_scraped'],
+        default: 'pending_validation'
+    },
+    dataSource: {
+        type: String,
+        enum: ['manual', 'ai_analysis', 'web_scraping', 'web_search'],
+        default: 'manual'
+    },
+    validatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    validatedAt: Date,
+    validationNotes: String,
+    needsManualReview: { type: Boolean, default: false },
+    reviewReason: String
 }, {
     timestamps: true
 });

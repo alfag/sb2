@@ -28,6 +28,24 @@ const beerSchema = new mongoose.Schema({
   dataSource: { type: String, enum: ['label', 'web', 'label+web', 'manual'], default: 'label' },
   lastAiUpdate: { type: Date },
   
+  // 🛡️ Validazione dati AI
+  needsValidation: { type: Boolean, default: false },
+  validationNotes: { type: String, trim: true },
+  
+  // Sistema di validazione
+  validationStatus: {
+    type: String,
+    enum: ['validated', 'pending_validation', 'ai_extracted', 'web_scraped'],
+    default: 'pending_validation'
+  },
+  validatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  validatedAt: Date,
+  needsManualReview: { type: Boolean, default: false },
+  reviewReason: String,
+  
   // Normalizzazione per ricerche
   normalizedName: { type: String }, // Nome normalizzato per ricerche
   searchKeywords: [{ type: String }], // Keywords per ricerca fuzzy

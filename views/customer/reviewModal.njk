@@ -207,6 +207,7 @@
     const html = bottles.map((bottle, index) => `
       <div class="review-bottle-card" data-bottle-index="${index}">
         ${bottles.length > 1 ? `<div class="bottle-counter">Birra ${index + 1} di ${bottles.length}</div>` : ''}
+        
         <div class="bottle-header-inline">
           <img src="${bottle.thumbnail || '/images/default-beer.svg'}" 
                alt="${bottle.beerName}" 
@@ -235,7 +236,6 @@
                 <span class="star-icon" data-rating="${rating}">★</span>
               `).join('')}
             </div>
-            <div class="rating-value-display" data-bottle="${index}" data-category="overall">0</div>
           </div>
         </div>
 
@@ -277,7 +277,6 @@
                   <span class="star-icon" data-rating="${rating}">★</span>
                 `).join('')}
               </div>
-              <div class="rating-value-display" data-bottle="${index}" data-category="appearance">0</div>
             </div>
             <textarea 
               class="review-notes-textarea" 
@@ -299,7 +298,6 @@
                   <span class="star-icon" data-rating="${rating}">★</span>
                 `).join('')}
               </div>
-              <div class="rating-value-display" data-bottle="${index}" data-category="aroma">0</div>
             </div>
             <textarea 
               class="review-notes-textarea" 
@@ -321,7 +319,6 @@
                   <span class="star-icon" data-rating="${rating}">★</span>
                 `).join('')}
               </div>
-              <div class="rating-value-display" data-bottle="${index}" data-category="taste">0</div>
             </div>
             <textarea 
               class="review-notes-textarea" 
@@ -343,7 +340,6 @@
                   <span class="star-icon" data-rating="${rating}">★</span>
                 `).join('')}
               </div>
-              <div class="rating-value-display" data-bottle="${index}" data-category="mouthfeel">0</div>
             </div>
             <textarea 
               class="review-notes-textarea" 

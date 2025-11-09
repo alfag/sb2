@@ -68,7 +68,7 @@ class AIValidationService {
             validationResults.unverifiedData.breweries.push(breweryValidation);
             validationResults.summary.unverifiedBreweries++;
             
-            if (breweryValidation.requiresUserAction) {
+            if (breweryValidation.requiresUserAction && breweryValidation.userAction) {
               validationResults.userActions.push(breweryValidation.userAction);
             }
           }
@@ -87,7 +87,7 @@ class AIValidationService {
             validationResults.unverifiedData.beers.push(beerValidation);
             validationResults.summary.unverifiedBeers++;
             
-            if (beerValidation.requiresUserAction) {
+            if (beerValidation.requiresUserAction && beerValidation.userAction) {
               validationResults.userActions.push(beerValidation.userAction);
             }
           }
@@ -331,6 +331,41 @@ class AIValidationService {
     };
 
     try {
+      // Check 0: CRITICO - Verifica che sia effettivamente una BIRRA e non altro tipo di bevanda
+      logger.debug('[AIValidation] detectProductType - Input beerData', {
+        labelData: beerData.labelData,
+        verifiedData: beerData.verifiedData,
+        webVerification: beerData.webVerification
+      });
+      const productType = this.detectProductType(beerData);
+      logger.debug('[AIValidation] detectProductType - Result', { productType });
+      if (productType.type !== 'beer') {
+        validation.issues.push(`Prodotto non valido: ${productType.type} - ${productType.reason}`);
+        validation.requiresUserAction = true;
+        validation.userAction = {
+          type: 'NON_BEER_DETECTED',
+          title: `⚠️ Prodotto non supportato: ${productType.detectedName}`,
+          description: `Questa app è dedicata solo alle birre. Il prodotto rilevato è: ${productType.displayType}.`,
+          data: {
+            productType: productType.type,
+            productName: productType.detectedName,
+            reason: productType.reason,
+            suggestedApp: productType.suggestedApp
+          },
+          priority: 'critical',
+          blocking: true
+        };
+        
+        logger.warn('[AIValidation] ⚠️ Prodotto non-birra rilevato e bloccato', {
+          productName: productType.detectedName,
+          detectedType: productType.type,
+          beerType: beerData.verifiedData?.beerType || beerData.labelData?.beerType,
+          reason: productType.reason
+        });
+        
+        return validation;
+      }
+      
       // Check 1: Il birrificio della birra deve essere verificato
       // Cerca birrificio usando diversi criteri di matching
       const brewery = verifiedBreweries.find(b => {
@@ -347,11 +382,6 @@ class AIValidationService {
         
         // Match per nome verificato dall'AI
         if (beerVerifiedBreweryName && (breweryVerifiedName?.includes(beerVerifiedBreweryName) || breweryLabelName === beerVerifiedBreweryName)) {
-          return true;
-        }
-        
-        // Se solo un birrificio verificato e questa è l'unica birra, probabilmente è correlato
-        if (verifiedBreweries.length === 1 && beerData.labelData.beerName) {
           return true;
         }
         
@@ -469,6 +499,28 @@ class AIValidationService {
                    summary.verifiedBeers > 0 && summary.unverifiedBeers === 0
     });
     
+    // Caso 0: CRITICO - Prodotto non-birra rilevato (BLOCKING)
+    const nonBeerAction = userActions.find(action => 
+      action && action.type === 'NON_BEER_DETECTED' && action.blocking === true
+    );
+    
+    if (nonBeerAction) {
+      validationResults.blockedByValidation = true;
+      validationResults.errorMessages.push(
+        `⚠️ ${nonBeerAction.title}: ${nonBeerAction.description}`
+      );
+      validationResults.errorType = 'NO_BEER_DETECTED';
+      validationResults.errorDetails = nonBeerAction.data;
+      
+      logger.error('[AIValidation] ❌ Flusso bloccato - prodotto non-birra rilevato', {
+        productType: nonBeerAction.data?.productType,
+        productName: nonBeerAction.data?.productName,
+        reason: nonBeerAction.data?.reason
+      });
+      
+      return validationResults;
+    }
+    
     // Caso 1: Tutto verificato - salvataggio diretto
     if (summary.verifiedBreweries > 0 && summary.unverifiedBreweries === 0 && 
         summary.verifiedBeers > 0 && summary.unverifiedBeers === 0) {
@@ -524,9 +576,62 @@ class AIValidationService {
   static findExistingBrewery(breweryName, existingBreweries) {
     if (!breweryName || !existingBreweries) return null;
     
-    return existingBreweries.find(b => 
-      b.breweryName && b.breweryName.toLowerCase().trim() === breweryName.toLowerCase().trim()
+    const searchName = breweryName.toLowerCase().trim();
+    
+    // 1. Exact match (case-insensitive)
+    let match = existingBreweries.find(b => 
+      b.breweryName && b.breweryName.toLowerCase().trim() === searchName
     );
+    if (match) return match;
+    
+    // 2. Match senza "Birrificio" / "Brewery" prefix
+    const cleanSearchName = searchName
+      .replace(/^(birrificio|brewery|birra|beer)\s+/i, '')
+      .replace(/\s+(birrificio|brewery)$/i, '');
+    
+    match = existingBreweries.find(b => {
+      if (!b.breweryName) return false;
+      const cleanDbName = b.breweryName.toLowerCase().trim()
+        .replace(/^(birrificio|brewery|birra|beer)\s+/i, '')
+        .replace(/\s+(birrificio|brewery)$/i, '');
+      return cleanDbName === cleanSearchName;
+    });
+    if (match) return match;
+    
+    // 3. Fuzzy match con tolleranza per accenti e varianti ortografiche
+    match = existingBreweries.find(b => {
+      if (!b.breweryName) return false;
+      const dbName = b.breweryName.toLowerCase().trim()
+        .replace(/^(birrificio|brewery|birra|beer)\s+/i, '');
+      
+      // Normalizza accenti per confronto
+      const normalizeAccents = (str) => str
+        .replace(/[àáâãäå]/g, 'a')
+        .replace(/[èéêë]/g, 'e')
+        .replace(/[ìíîï]/g, 'i')
+        .replace(/[òóôõö]/g, 'o')
+        .replace(/[ùúûü]/g, 'u');
+      
+      const normalizedDb = normalizeAccents(dbName);
+      const normalizedSearch = normalizeAccents(cleanSearchName);
+      
+      return normalizedDb === normalizedSearch;
+    });
+    if (match) return match;
+    
+    // 4. Substring match (contiene il nome cercato o viceversa)
+    match = existingBreweries.find(b => {
+      if (!b.breweryName) return false;
+      const dbName = b.breweryName.toLowerCase().trim();
+      
+      // Verifica se uno contiene l'altro (minimo 5 caratteri per evitare false positive)
+      if (cleanSearchName.length >= 5 && dbName.includes(cleanSearchName)) return true;
+      if (cleanSearchName.length >= 5 && cleanSearchName.includes(dbName)) return true;
+      
+      return false;
+    });
+    
+    return match || null;
   }
 
   static assessDataQuality(breweryData, rawBreweryData = {}) {
@@ -551,13 +656,26 @@ class AIValidationService {
     if (breweryData.breweryWebsite) {
       // Se siamo in modalità strict, richiediamo che il sito sia tra le fonti trovate
       if (webVerified && this.websiteMatchesSources(breweryData.breweryWebsite, webVerification.sourcesFound)) {
+        score += 3; // 30% - Aumentato perché un sito web verificato è un identificativo forte
+        hasIdentifiers = true;
+      } else if (breweryData.breweryWebsite) {
+        // Anche se non è nelle fonti, un website è comunque un buon identificativo
         score += 2; // 20%
         hasIdentifiers = true;
       }
     }
     if (breweryData.breweryLegalAddress && breweryData.breweryLegalAddress !== 'Non specificato') {
-      score += 2; // 20%
-      hasIdentifiers = true;
+      // Validazione qualità indirizzo
+      if (this.isValidAddress(breweryData.breweryLegalAddress)) {
+        score += 2.5; // 25% - Bonus maggiore per indirizzo completo e valido
+        hasIdentifiers = true;
+      } else {
+        // Indirizzo presente ma sospetto/incompleto
+        score += 0.5; // 5% - Penalità per indirizzo di bassa qualità
+        logger.debug('[assessDataQuality] Indirizzo presente ma qualità bassa', {
+          address: breweryData.breweryLegalAddress
+        });
+      }
     }
     if (breweryData.breweryDescription && breweryData.breweryDescription.length > 50) {
       score += 1.5; // 15%
@@ -659,40 +777,327 @@ class AIValidationService {
   }
 
   /**
-   * Verifica se i campi sensibili (website/email) sono ancorati alle fonti trovate
+   * 🔒 GROUNDING COMPLETO SU TUTTI I CAMPI SENSIBILI
+   * Verifica che TUTTI i dati estratti dall'AI siano ancorati a fonti web reali
+   * 
+   * FILOSOFIA: Se l'AI non ha trovato NESSUNA fonte web, NON può inventare dati.
+   * Solo i dati verificabili tramite fonti reali possono essere salvati.
    */
   static isGrounded(breweryData) {
     try {
       const webVerification = breweryData.webVerification || {};
       const sources = Array.isArray(webVerification.sourcesFound) ? webVerification.sourcesFound : [];
+      const verifiedData = breweryData.verifiedData || {};
+      const confidence = verifiedData.confidence || 0;
 
-      // Se non ci sono fonti web, non siamo grounded
-      if (!sources.length) return false;
+      // 🚨 REGOLA #1: Se non ci sono fonti web, NESSUN dato è grounded
+      if (!sources.length) {
+        logger.warn('[isGrounded] Nessuna fonte web trovata - dati non grounded');
+        return false;
+      }
 
-      // Se c'è un website, deve corrispondere a una fonte
-      if (breweryData.verifiedData?.breweryWebsite || breweryData.verifiedData?.breweryWebsite === '') {
-        const website = breweryData.verifiedData.breweryWebsite;
-        if (website) {
-          if (!this.websiteMatchesSources(website, sources)) return false;
+      // 🚨 REGOLA #2: Confidence minima globale 0.7 per salvare dati AI
+      if (confidence < 0.7) {
+        logger.warn('[isGrounded] Confidence troppo bassa per salvare dati AI', {
+          confidence: confidence,
+          threshold: 0.7
+        });
+        return false;
+      }
+
+      // 🔍 VALIDAZIONE CAMPO PER CAMPO
+      
+      // 1️⃣ BREWERY WEBSITE - DEVE corrispondere alle fonti
+      if (verifiedData.breweryWebsite) {
+        if (!this.websiteMatchesSources(verifiedData.breweryWebsite, sources)) {
+          logger.warn('[isGrounded] Website non trovato nelle fonti web', {
+            website: verifiedData.breweryWebsite,
+            sources: sources
+          });
+          return false;
         }
       }
 
-      // Se c'è una email, cerchiamo coerenza con il dominio del sito (se presente)
-      if (breweryData.verifiedData?.breweryEmail) {
-        const email = breweryData.verifiedData.breweryEmail;
+      // 2️⃣ BREWERY EMAIL - Dominio deve essere coerente con website
+      if (verifiedData.breweryEmail) {
+        const email = verifiedData.breweryEmail;
         const emailDomain = ('' + email).split('@')[1];
-        if (breweryData.verifiedData?.breweryWebsite) {
-          const siteDomain = this.extractDomain(breweryData.verifiedData.breweryWebsite);
-          if (siteDomain && emailDomain && !emailDomain.toLowerCase().includes(siteDomain.replace(/^www\./, '').toLowerCase())) {
-            // email domain non corrispondente -> non grounded
+        
+        // Se c'è un website, verifica coerenza dominio
+        if (verifiedData.breweryWebsite) {
+          const siteDomain = this.extractDomain(verifiedData.breweryWebsite);
+          if (siteDomain && emailDomain) {
+            const siteBase = siteDomain.replace(/^www\./, '').toLowerCase();
+            if (!emailDomain.toLowerCase().includes(siteBase)) {
+              logger.warn('[isGrounded] Email domain non coerente con website', {
+                email: email,
+                emailDomain: emailDomain,
+                websiteDomain: siteDomain
+              });
+              return false;
+            }
+          }
+        }
+        
+        // Email DEVE avere formato valido
+        if (!this.isValidEmail(email)) {
+          logger.warn('[isGrounded] Email formato non valido', { email: email });
+          return false;
+        }
+      }
+
+      // 3️⃣ BREWERY LEGAL ADDRESS - DEVE essere completo e verificato
+      if (verifiedData.breweryLegalAddress) {
+        const address = verifiedData.breweryLegalAddress;
+        
+        if (!this.isValidAddress(address)) {
+          logger.warn('[isGrounded] Indirizzo non valido o troppo generico', {
+            address: address,
+            reason: 'Indirizzo manca di dettagli necessari (via, numero, città)'
+          });
+          return false;
+        }
+      }
+
+      // 4️⃣ BREWERY PHONE NUMBER - Formato valido italiano/internazionale
+      if (verifiedData.breweryPhoneNumber) {
+        if (!this.isValidPhoneNumber(verifiedData.breweryPhoneNumber)) {
+          logger.warn('[isGrounded] Numero telefono non valido', {
+            phone: verifiedData.breweryPhoneNumber
+          });
+          return false;
+        }
+      }
+
+      // 5️⃣ FOUNDING YEAR - Deve essere ragionevole (dopo 1000 DC, non futuro)
+      if (verifiedData.foundingYear) {
+        const year = parseInt(verifiedData.foundingYear);
+        const currentYear = new Date().getFullYear();
+        if (isNaN(year) || year < 1000 || year > currentYear) {
+          logger.warn('[isGrounded] Anno fondazione non plausibile', {
+            foundingYear: verifiedData.foundingYear,
+            currentYear: currentYear
+          });
+          return false;
+        }
+      }
+
+      // 6️⃣ SOCIAL MEDIA - URL devono essere validi
+      if (verifiedData.brewerySocialMedia) {
+        const social = verifiedData.brewerySocialMedia;
+        
+        if (social.facebook && !this.isValidUrl(social.facebook)) {
+          logger.warn('[isGrounded] Facebook URL non valido', { url: social.facebook });
+          return false;
+        }
+        if (social.instagram && !this.isValidUrl(social.instagram)) {
+          logger.warn('[isGrounded] Instagram URL non valido', { url: social.instagram });
+          return false;
+        }
+        if (social.twitter && !this.isValidUrl(social.twitter)) {
+          logger.warn('[isGrounded] Twitter URL non valido', { url: social.twitter });
+          return false;
+        }
+      }
+
+      // 7️⃣ DESCRIPTION - Non deve essere troppo corta o placeholder
+      if (verifiedData.breweryDescription) {
+        const desc = verifiedData.breweryDescription.trim();
+        const suspiciousDescriptions = [
+          /^birrificio$/i,
+          /^produttore di birra$/i,
+          /^non disponibile$/i,
+          /^n\/a$/i,
+          /^\.+$/
+        ];
+        
+        if (desc.length < 10) {
+          logger.warn('[isGrounded] Descrizione troppo corta', { 
+            description: desc,
+            length: desc.length 
+          });
+          return false;
+        }
+        
+        for (const pattern of suspiciousDescriptions) {
+          if (pattern.test(desc)) {
+            logger.warn('[isGrounded] Descrizione sospetta/placeholder', { description: desc });
             return false;
           }
         }
       }
 
-      // Altrimenti consideriamo grounded (fonti esistono e non ci sono conflitti evidenti)
+      // ✅ TUTTI I CONTROLLI PASSATI - Dati grounded
+      logger.info('[isGrounded] ✅ Tutti i campi validati - dati grounded', {
+        breweryName: verifiedData.breweryName,
+        confidence: confidence,
+        sourcesCount: sources.length
+      });
+      
       return true;
     } catch (e) {
+      logger.error('[isGrounded] Errore durante validazione grounding', { error: e.message });
+      return false;
+    }
+  }
+
+  /**
+   * Valida che un indirizzo sia sufficientemente dettagliato e non inventato
+   * @param {string} address - Indirizzo da validare
+   * @returns {boolean} - true se l'indirizzo è valido
+   */
+  static isValidAddress(address) {
+    if (!address || address === 'Non specificato' || address === '' || address.length < 10) {
+      return false;
+    }
+
+    // Pattern sospetti che indicano indirizzi inventati o troppo generici
+    const suspiciousPatterns = [
+      /^via\s+dei\s+birrai/i,  // "Via dei Birrai" è troppo generico
+      /^via\s+della\s+birra/i, // "Via della Birra" è troppo generico
+      /^sede\s+(legale|operativa)/i, // "Sede legale" senza indirizzo
+      /^presso/i,              // "Presso..." senza dettagli
+      /^c\/o/i,                // "c/o" senza indirizzo completo
+      /^[a-z\s]+,\s*italia$/i  // Solo "Città, Italia" senza via
+    ];
+
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(address)) {
+        logger.debug('[isValidAddress] Indirizzo bloccato per pattern sospetto', {
+          address: address,
+          pattern: pattern.toString()
+        });
+        return false;
+      }
+    }
+
+    // Verifica presenza elementi essenziali (via/piazza E numero E città)
+    const hasStreetName = /via|viale|piazza|corso|strada|contrada|località/i.test(address);
+    const hasNumber = /\d+/.test(address);
+    const hasCityOrProvince = /[A-Za-z]{2}(?:\)|,|\s|$)/i.test(address) || // Provincia (BI), (ao), etc - case insensitive
+                               address.split(',').length >= 2;       // Almeno "via, città"
+    
+    // Indirizzo valido deve avere almeno: (tipo strada + numero) O (città + numero)
+    const isComplete = (hasStreetName && hasNumber && hasCityOrProvince) || 
+                       (hasNumber && address.split(',').length >= 2);
+
+    if (!isComplete) {
+      logger.debug('[isValidAddress] Indirizzo incompleto', {
+        address: address,
+        hasStreetName: hasStreetName,
+        hasNumber: hasNumber,
+        hasCityOrProvince: hasCityOrProvince
+      });
+    }
+
+    return isComplete;
+  }
+
+  /**
+   * Valida formato email
+   * @param {string} email - Email da validare
+   * @returns {boolean} - true se email valida
+   */
+  static isValidEmail(email) {
+    if (!email || typeof email !== 'string') return false;
+    
+    // Pattern base per validazione email
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email)) return false;
+    
+    // Blocca email sospette/placeholder
+    const suspiciousEmails = [
+      /^info@example\./i,
+      /^contact@example\./i,
+      /^email@birrificio\./i,
+      /^noreply@/i,
+      /^test@/i
+    ];
+    
+    for (const pattern of suspiciousEmails) {
+      if (pattern.test(email)) {
+        logger.debug('[isValidEmail] Email sospetta/placeholder bloccata', { email: email });
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * Valida numero di telefono italiano/internazionale
+   * @param {string} phone - Numero telefono da validare
+   * @returns {boolean} - true se telefono valido
+   */
+  static isValidPhoneNumber(phone) {
+    if (!phone || typeof phone !== 'string') return false;
+    
+    // Rimuovi spazi e caratteri comuni per normalizzare
+    const normalized = phone.replace(/[\s\-\(\)\.]/g, '');
+    
+    // Deve contenere almeno 6 cifre e massimo 15 (standard internazionale)
+    const digits = normalized.replace(/\D/g, '');
+    if (digits.length < 6 || digits.length > 15) {
+      logger.debug('[isValidPhoneNumber] Numero cifre fuori range', { 
+        phone: phone,
+        digitsCount: digits.length 
+      });
+      return false;
+    }
+    
+    // Pattern validi: +39, 0039, numeri italiani, numeri internazionali
+    const validPatterns = [
+      /^\+\d{6,15}$/,           // Formato internazionale +39...
+      /^00\d{6,15}$/,           // Formato internazionale 0039...
+      /^0\d{6,11}$/,            // Numero italiano fisso (0... seguito da 6-11 cifre)
+      /^3\d{8,9}$/              // Numero italiano mobile (3... seguito da 8-9 cifre)
+    ];
+    
+    const isValid = validPatterns.some(pattern => pattern.test(normalized));
+    
+    if (!isValid) {
+      logger.debug('[isValidPhoneNumber] Formato non valido', { 
+        phone: phone,
+        normalized: normalized 
+      });
+    }
+    
+    return isValid;
+  }
+
+  /**
+   * Valida formato URL generico
+   * @param {string} url - URL da validare
+   * @returns {boolean} - true se URL valido
+   */
+  static isValidUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    
+    try {
+      // Aggiunge protocollo se mancante per validazione
+      const urlToTest = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+      const parsed = new URL(urlToTest);
+      
+      // Deve avere almeno hostname valido
+      if (!parsed.hostname || parsed.hostname.length < 3) return false;
+      
+      // Blocca URL placeholder comuni
+      const suspiciousHosts = [
+        'example.com',
+        'example.org',
+        'test.com',
+        'placeholder.com',
+        'yourwebsite.com'
+      ];
+      
+      if (suspiciousHosts.includes(parsed.hostname.toLowerCase())) {
+        logger.debug('[isValidUrl] URL placeholder bloccato', { url: url });
+        return false;
+      }
+      
+      return true;
+    } catch (e) {
+      logger.debug('[isValidUrl] URL non parsabile', { url: url, error: e.message });
       return false;
     }
   }
@@ -809,6 +1214,195 @@ class AIValidationService {
       `${breweryName} brewery website`,
       `${breweryName} craft beer`
     ];
+  }
+
+  /**
+   * Rileva se il prodotto è una birra o un altro tipo di bevanda alcolica
+   * @param {Object} beerData - Dati del prodotto da validare
+   * @returns {Object} Tipo di prodotto e informazioni di dettaglio
+   */
+  static detectProductType(beerData) {
+    const verifiedData = beerData.verifiedData || {};
+    const labelData = beerData.labelData || {};
+    const webVerification = beerData.webVerification || {};
+    
+    // Normalizza i dati per il controllo
+    const beerType = (verifiedData.beerType || labelData.beerStyle || '').toLowerCase();
+    const beerName = (verifiedData.beerName || labelData.beerName || '').toLowerCase();
+    const description = (verifiedData.description || '').toLowerCase();
+    const otherText = (labelData.otherText || '').toLowerCase();
+    const ingredients = (verifiedData.ingredients || '').toLowerCase();
+    
+    // Categorie di bevande NON-birra
+    const liquorKeywords = [
+      'liquore', 'liqueur', 'amaretto', 'grappa', 'brandy', 
+      'cognac', 'whisky', 'whiskey', 'rum', 'vodka', 'gin', 'tequila',
+      'limoncello', 'sambuca', 'vermouth', 'aperitivo', 'digestivo',
+      'distillato', 'distilled', 'spirit', 'alchermes', 'nocino'
+    ];
+    
+    // Keyword "amaro" richiede controllo contestuale (può essere liquore O gusto birra)
+    const amaroContextKeywords = ['liquore amaro', 'amaro alle', 'amaro di', 'amaro del'];
+    
+    const wineKeywords = [
+      'vino', 'wine', 'prosecco', 'spumante', 'champagne', 'chardonnay',
+      'merlot', 'cabernet', 'pinot', 'barolo', 'chianti', 'lambrusco',
+      'vermentino', 'sangiovese', 'uva', 'grape', 'vendemmia', 'cantina'
+    ];
+    
+    const ciderKeywords = [
+      'cidre', 'cider', 'sidro', 'mele', 'apple', 'pera', 'pear'
+    ];
+    
+    // Check 1: Verifica beerType esplicito
+    for (const keyword of liquorKeywords) {
+      if (beerType.includes(keyword)) {
+        return {
+          type: 'liquor',
+          displayType: 'Liquore/Distillato',
+          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+          reason: `Tipo prodotto identificato come "${beerType}" (liquore/distillato)`,
+          suggestedApp: 'App dedicata a liquori e distillati',
+          confidence: 0.95
+        };
+      }
+    }
+    
+    for (const keyword of wineKeywords) {
+      if (beerType.includes(keyword)) {
+        return {
+          type: 'wine',
+          displayType: 'Vino',
+          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+          reason: `Tipo prodotto identificato come "${beerType}" (vino)`,
+          suggestedApp: 'App dedicata a vini',
+          confidence: 0.95
+        };
+      }
+    }
+    
+    for (const keyword of ciderKeywords) {
+      if (beerType.includes(keyword)) {
+        return {
+          type: 'cider',
+          displayType: 'Sidro/Cidro',
+          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+          reason: `Tipo prodotto identificato come "${beerType}" (sidro)`,
+          suggestedApp: 'App dedicata a sidri',
+          confidence: 0.90
+        };
+      }
+    }
+    
+    // Check 2: Verifica descrizione (con controllo contestuale per "amaro")
+    for (const keyword of liquorKeywords) {
+      if (description.includes(keyword) || otherText.includes(keyword)) {
+        return {
+          type: 'liquor',
+          displayType: 'Liquore/Distillato',
+          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+          reason: `Descrizione contiene parola chiave liquore: "${keyword}"`,
+          suggestedApp: 'App dedicata a liquori e distillati',
+          confidence: 0.85
+        };
+      }
+    }
+    
+    // Check 2b: Controllo contestuale per "amaro" - distingue tra liquore e gusto birra
+    if (description.includes('amaro') || otherText.includes('amaro')) {
+      // Verifica se "amaro" è usato in contesto liquore (es: "liquore amaro", "amaro alle erbe")
+      const isLiquorContext = amaroContextKeywords.some(ctx => 
+        description.includes(ctx) || otherText.includes(ctx)
+      );
+      
+      // Verifica se "amaro" è usato in contesto birra (es: "finale amaro", "gusto amaro", "note amare")
+      const isBeerTasteContext = 
+        description.includes('finale amaro') ||
+        description.includes('gusto amaro') ||
+        description.includes('note amare') ||
+        description.includes('leggero amaro') ||
+        description.includes('leggermente amaro') ||
+        description.includes('piacevole amaro') ||
+        description.includes('amaro finale') ||
+        otherText.includes('finale amaro') ||
+        otherText.includes('gusto amaro');
+      
+      // Blocca SOLO se è contesto liquore E NON è contesto gusto birra
+      if (isLiquorContext && !isBeerTasteContext) {
+        return {
+          type: 'liquor',
+          displayType: 'Liquore/Distillato (Amaro)',
+          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+          reason: `Descrizione indica liquore amaro in contesto non-birra`,
+          suggestedApp: 'App dedicata a liquori e distillati',
+          confidence: 0.90
+        };
+      }
+      
+      // Se è solo contesto gusto birra, continua (è una birra normale)
+    }
+    
+    // Check 3: Verifica conflitti web verification
+    if (webVerification.dataMatch === 'CONFLICTING' && webVerification.conflictingData) {
+      for (const conflict of webVerification.conflictingData) {
+        const conflictText = conflict.toLowerCase();
+        
+        // Check se il conflitto menziona esplicitamente che non è una birra
+        if (conflictText.includes('non') && conflictText.includes('birra')) {
+          // Determina il tipo dal conflitto
+          for (const keyword of liquorKeywords) {
+            if (conflictText.includes(keyword)) {
+              return {
+                type: 'liquor',
+                displayType: 'Liquore/Distillato',
+                detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+                reason: `Verifica web conferma: non è una birra ma un liquore`,
+                suggestedApp: 'App dedicata a liquori e distillati',
+                confidence: 0.90
+              };
+            }
+          }
+          
+          for (const keyword of wineKeywords) {
+            if (conflictText.includes(keyword)) {
+              return {
+                type: 'wine',
+                displayType: 'Vino',
+                detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+                reason: `Verifica web conferma: non è una birra ma un vino`,
+                suggestedApp: 'App dedicata a vini',
+                confidence: 0.90
+              };
+            }
+          }
+        }
+      }
+    }
+    
+    // Check 4: Verifica requiresManualCheck con ragioni specifiche
+    if (beerData.requiresManualCheck && beerData.manualCheckReason) {
+      const checkReason = beerData.manualCheckReason.toLowerCase();
+      
+      if (checkReason.includes('liquore') || checkReason.includes('liqueur')) {
+        return {
+          type: 'liquor',
+          displayType: 'Liquore/Distillato',
+          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+          reason: `Controllo manuale richiesto: ${beerData.manualCheckReason}`,
+          suggestedApp: 'App dedicata a liquori e distillati',
+          confidence: 0.85
+        };
+      }
+    }
+    
+    // Default: assume sia una birra se nessun indicatore negativo
+    return {
+      type: 'beer',
+      displayType: 'Birra',
+      detectedName: verifiedData.beerName || labelData.beerName || 'Birra',
+      reason: 'Nessun indicatore di prodotto non-birra rilevato',
+      confidence: 0.70
+    };
   }
 
   /**

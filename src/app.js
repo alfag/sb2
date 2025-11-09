@@ -18,6 +18,7 @@ const CleanupService = require('./services/cleanupService'); // Servizio pulizia
 
 const baseRoutes = require('./routes/baseRoutes'); // Rotte principali pubbliche e di base dell'applicazione
 const administratorRoutes = require('./routes/administratorRoutes'); // Rotte amministrative (abilitabili, protette da middleware multi-ruolo)
+const validationRoutes = require('./routes/validationRoutes'); // Rotte validazione birrifici/birre (administrator only)
 const cacheRoutes = require('./routes/cacheRoutes'); // Rotte per gestione cache multi-layer (admin)
 // const reviewRoutes = require('./routes/reviewRoutes'); // RIMOSSO: Rotte recensioni birre e AI, ora incluse in baseRoutes
 const contentModerationRoutes = require('./routes/contentModerationRoutes'); // Rotte test moderazione contenuti AI (admin, sviluppo)
@@ -265,6 +266,7 @@ app.use(ErrorHandler.handle);
 // Routes
 app.use('/', baseRoutes); // Gestisce le rotte di base dell'applicazione
 app.use('/administrator', administratorRoutes); // Gestisce le rotte amministrative
+app.use('/administrator/validation', validationRoutes); // Gestisce validazione birrifici/birre (admin only)
 app.use('/api/cache', cacheRoutes); // Gestisce le rotte cache (admin)
 // app.use('/', reviewRoutes); // RIMOSSO: Le rotte review sono già incluse in baseRoutes con prefisso /review
 app.use('/review', require('./routes/aiVerificationRoutes')); // Sistema Anti-Allucinazioni AI

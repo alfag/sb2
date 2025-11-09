@@ -1,5 +1,6 @@
 const Review = require('../models/Review');
 const Brewery = require('../models/Brewery');
+const Beer = require('../models/Beer');
 const User = require('../models/User');
 const path = require('path');
 const fs = require('fs');
@@ -8,8 +9,322 @@ const ValidationService = require('../utils/validationService');
 const AIService = require('../services/aiService');
 const CleanupService = require('../services/cleanupService');
 const WebSearchService = require('../services/webSearchService');
+const validationController = require('./validationController');
 const logWithFileName = require('../utils/logger');
 const logger = logWithFileName(__filename);
+
+/**
+ * 🍺 FUZZY MATCHING BIRRE - Gestisce nomi parziali da etichette
+ * 
+ * Problema: Su bottiglie, lettere finali possono essere nascoste sul bordo/fianco
+ * Esempio: Etichetta mostra "SUDIGIR" ma nome reale è "SUDIGIRI" (I nascosta)
+ * 
+ * Strategia di matching:
+ * 1. Exact match (case-insensitive)
+ * 2. Prefix match: etichetta è prefisso del nome DB (max 2 caratteri differenza)
+ * 3. Suffix match: etichetta è suffisso del nome DB
+ * 4. Normalizzazione accenti e punteggiatura
+ */
+async function findExistingBeer(labelBeerName, breweryId) {
+  if (!labelBeerName || !breweryId) return null;
+  
+  const searchName = labelBeerName.toLowerCase().trim();
+  
+  // Trova tutte le birre di questo birrificio
+  const beersInBrewery = await Beer.find({ brewery: breweryId });
+  if (!beersInBrewery || beersInBrewery.length === 0) return null;
+  
+  // 1. Exact match (case-insensitive)
+  let match = beersInBrewery.find(b => 
+    b.beerName && b.beerName.toLowerCase().trim() === searchName
+  );
+  if (match) {
+    logger.info('🍺 Beer exact match trovato', { 
+      labelName: labelBeerName, 
+      dbName: match.beerName 
+    });
+    return match;
+  }
+  
+  // 2. Prefix match - etichetta è prefisso del nome DB
+  // Gestisce lettere nascoste sul bordo bottiglia
+  // Esempio: "SUDIGIR" (etichetta) → "SUDIGIRI" (DB, I nascosta)
+  match = beersInBrewery.find(b => {
+    if (!b.beerName) return false;
+    const dbName = b.beerName.toLowerCase().trim();
+    
+    // Se etichetta è prefisso di DB name e differenza ≤ 2 caratteri
+    if (dbName.startsWith(searchName) && (dbName.length - searchName.length) <= 2) {
+      return true;
+    }
+    return false;
+  });
+  
+  if (match) {
+    logger.info('🍺 Beer prefix match trovato (lettere nascoste sul bordo)', { 
+      labelName: labelBeerName, 
+      dbName: match.beerName,
+      hiddenChars: match.beerName.substring(searchName.length)
+    });
+    return match;
+  }
+  
+  // 3. Suffix match - casi rari dove parte iniziale nascosta
+  match = beersInBrewery.find(b => {
+    if (!b.beerName) return false;
+    const dbName = b.beerName.toLowerCase().trim();
+    
+    if (dbName.endsWith(searchName) && (dbName.length - searchName.length) <= 2) {
+      return true;
+    }
+    return false;
+  });
+  
+  if (match) {
+    logger.info('🍺 Beer suffix match trovato', { 
+      labelName: labelBeerName, 
+      dbName: match.beerName 
+    });
+    return match;
+  }
+  
+  // 4. Normalizzazione accenti e punteggiatura per nomi artistici
+  const normalizeForComparison = (str) => str
+    .toLowerCase()
+    .trim()
+    .replace(/[àáâãäå]/g, 'a')
+    .replace(/[èéêë]/g, 'e')
+    .replace(/[ìíîï]/g, 'i')
+    .replace(/[òóôõö]/g, 'o')
+    .replace(/[ùúûü]/g, 'u')
+    .replace(/[^a-z0-9]/g, ''); // Rimuove punteggiatura
+  
+  const normalizedSearch = normalizeForComparison(searchName);
+  
+  match = beersInBrewery.find(b => {
+    if (!b.beerName) return false;
+    const normalizedDb = normalizeForComparison(b.beerName);
+    
+    // Match esatto dopo normalizzazione
+    if (normalizedDb === normalizedSearch) return true;
+    
+    // Prefix match dopo normalizzazione (max 2 char diff)
+    if (normalizedDb.startsWith(normalizedSearch) && 
+        (normalizedDb.length - normalizedSearch.length) <= 2) {
+      return true;
+    }
+    
+    return false;
+  });
+  
+  if (match) {
+    logger.info('🍺 Beer normalized match trovato', { 
+      labelName: labelBeerName, 
+      dbName: match.beerName 
+    });
+    return match;
+  }
+  
+  logger.debug('🍺 Nessun match trovato per birra', { 
+    labelName: labelBeerName, 
+    breweryId: breweryId,
+    availableBeers: beersInBrewery.map(b => b.beerName)
+  });
+  
+  return null;
+}
+
+/**
+ * Dizionario espansione acronimi per stili birra
+ */
+const BEER_ACRONYMS = {
+  'ipa': ['india pale ale', 'indian pale ale'],
+  'dipa': ['double ipa', 'double india pale ale'],
+  'tipa': ['triple ipa', 'triple india pale ale'],
+  'apa': ['american pale ale'],
+  'epa': ['english pale ale'],
+  'esb': ['extra special bitter'],
+  'neipa': ['new england ipa', 'new england india pale ale'],
+  'wcipa': ['west coast ipa', 'west coast india pale ale'],
+  'ddh': ['double dry hopped'],
+  'smash': ['single malt and single hop', 'single malt single hop'],
+  'ipl': ['india pale lager'],
+  'ba': ['barrel aged'],
+  'rye': ['segale'],
+  'wit': ['witbier', 'white beer'],
+  'hefe': ['hefeweizen'],
+  'pils': ['pilsner'],
+  'bock': ['bockbier']
+};
+
+/**
+ * Espande acronimi in un nome birra
+ * @param {string} name - Nome birra originale
+ * @returns {Array<string>} - Array di varianti espanse
+ */
+function expandBeerAcronyms(name) {
+  const variants = [name]; // Include sempre l'originale
+  const nameLower = name.toLowerCase();
+  
+  // Per ogni acronimo nel dizionario
+  for (const [acronym, expansions] of Object.entries(BEER_ACRONYMS)) {
+    const acronymRegex = new RegExp(`\\b${acronym}\\b`, 'gi');
+    
+    // Se il nome contiene questo acronimo
+    if (acronymRegex.test(nameLower)) {
+      // Genera varianti con tutte le espansioni
+      expansions.forEach(expansion => {
+        const expanded = nameLower.replace(acronymRegex, expansion);
+        if (expanded !== nameLower) {
+          variants.push(expanded);
+        }
+      });
+    }
+  }
+  
+  return variants;
+}
+
+/**
+ * Match beer from label with web-scraped beers using 4-tier strategy + acronym expansion
+ * @param {string} labelBeerName - Nome birra dall'etichetta foto
+ * @param {Array} webBeers - Array birre dal web scraping
+ * @returns {Object|null} - Birra matched dal web o null
+ * 
+ * Strategia matching:
+ * 1. Exact match (case-insensitive)
+ * 2. Prefix match: etichetta è prefisso del nome web
+ * 3. Suffix match: etichetta è suffisso del nome web
+ * 4. Normalizzazione accenti e punteggiatura
+ * 5. Espansione acronimi (IPA → India Pale Ale)
+ */
+function matchBeerFromWeb(labelBeerName, webBeers) {
+  if (!labelBeerName || !webBeers || webBeers.length === 0) return null;
+  
+  const searchName = labelBeerName.toLowerCase().trim();
+  
+  // Genera varianti con acronimi espansi
+  const searchVariants = expandBeerAcronyms(searchName);
+  
+  logger.debug('🔍 Varianti ricerca con acronimi', {
+    original: labelBeerName,
+    variants: searchVariants
+  });
+  
+  // 1. Exact match (case-insensitive) - prova tutte le varianti
+  for (const variant of searchVariants) {
+    const match = webBeers.find(wb => 
+      wb.beerName && wb.beerName.toLowerCase().trim() === variant
+    );
+    if (match) {
+      logger.debug('🔍 Web beer exact match', { 
+        labelName: labelBeerName,
+        matchedVariant: variant,
+        webName: match.beerName 
+      });
+      return match;
+    }
+  }
+  
+  // 2. Prefix match - etichetta è prefisso del nome web
+  // Esempio: "Ichnusa" (etichetta) → "Ichnusa Non Filtrata" (web)
+  // Esempio: "IPA" (etichetta) → "India Pale Ale Dry Hopped" (web) ← ACRONIMI
+  for (const variant of searchVariants) {
+    const match = webBeers.find(wb => {
+      if (!wb.beerName) return false;
+      const webName = wb.beerName.toLowerCase().trim();
+      
+      // Se variante è prefisso di web name
+      if (webName.startsWith(variant)) {
+        return true;
+      }
+      return false;
+    });
+    
+    if (match) {
+      logger.debug('🔍 Web beer prefix match', { 
+        labelName: labelBeerName,
+        matchedVariant: variant,
+        webName: match.beerName
+      });
+      return match;
+    }
+  }
+  
+  // 3. Suffix match - etichetta è suffisso del nome web
+  // Esempio: "IPA" (etichetta) → "Sudigiri IPA" (web)
+  // Esempio: "India Pale Ale" (espansione) → "Craft India Pale Ale" (web)
+  for (const variant of searchVariants) {
+    const match = webBeers.find(wb => {
+      if (!wb.beerName) return false;
+      const webName = wb.beerName.toLowerCase().trim();
+      
+      if (webName.endsWith(variant)) {
+        return true;
+      }
+      return false;
+    });
+    
+    if (match) {
+      logger.debug('🔍 Web beer suffix match', { 
+        labelName: labelBeerName,
+        matchedVariant: variant,
+        webName: match.beerName 
+      });
+      return match;
+    }
+  }
+  
+  // 4. Normalizzazione accenti e punteggiatura per nomi artistici + acronimi
+  const normalizeForComparison = (str) => str
+    .toLowerCase()
+    .trim()
+    .replace(/[àáâãäå]/g, 'a')
+    .replace(/[èéêë]/g, 'e')
+    .replace(/[ìíîï]/g, 'i')
+    .replace(/[òóôõö]/g, 'o')
+    .replace(/[ùúûü]/g, 'u')
+    .replace(/[^a-z0-9]/g, ''); // Rimuove punteggiatura
+  
+  // Normalizza tutte le varianti (incluse espansioni acronimi)
+  const normalizedVariants = searchVariants.map(v => normalizeForComparison(v));
+  
+  for (const normalizedSearch of normalizedVariants) {
+    const match = webBeers.find(wb => {
+      if (!wb.beerName) return false;
+      const normalizedWeb = normalizeForComparison(wb.beerName);
+      
+      // Match esatto dopo normalizzazione
+      if (normalizedWeb === normalizedSearch) return true;
+      
+      // Prefix match dopo normalizzazione
+      if (normalizedWeb.startsWith(normalizedSearch)) return true;
+      
+      // Suffix match dopo normalizzazione
+      if (normalizedWeb.endsWith(normalizedSearch)) return true;
+      
+      return false;
+    });
+    
+    if (match) {
+      logger.debug('🔍 Web beer normalized match', { 
+        labelName: labelBeerName,
+        matchedVariant: normalizedSearch,
+        webName: match.beerName 
+      });
+      return match;
+    }
+  }
+  
+  // Nessun match trovato
+  logger.debug('🔍 Nessun match web per birra', { 
+    labelName: labelBeerName,
+    webBeersCount: webBeers.length,
+    searchedVariants: searchVariants
+  });
+  return null;
+}
+
 
 const extractRawSuggestions = (aiResult) => {
   if (!aiResult) return [];
@@ -139,10 +454,298 @@ exports.firstCheckAI = async (req, res) => {
       mimeType: mimeType
     });
     
-    // Chiamata AI per analisi immagine usando AIService invece di GeminiAI diretto
+    // 🧠 OTTIMIZZAZIONE: UNA SOLA chiamata AI completa che estrae TUTTO
+    // (brewery + beers + website), poi web scraping per VALIDARE/ARRICCHIRE
     let aiResult;
+    let webScrapingData = null;
+    let shouldEnhanceWithWebScraping = false;
+    
     try {
-      aiResult = await AIService.processImageAnalysis(imageBuffer, req.session, req.user?._id);
+      logger.info('[firstCheckAI] 🔍 FASE 1: AI legge SOLO scritte sulle etichette');
+      
+      // ⚠️ ARCHITETTURA CORRETTA (Punto 0 task_memo - AGGIORNATA 5 NOV 2025):
+      // 1. AI legge SOLO le scritte su TUTTE le etichette (nome birra, nome birrificio per ogni bottiglia)
+      // 2. Per OGNI bottiglia: Google Search → trova sito web birrificio
+      // 3. Per OGNI bottiglia: Web scraping sito → estrae dati completi birrificio + birre
+      // 4. Per OGNI bottiglia: Match e arricchimento dati etichetta + dati web
+      // NOTA: L'URL del sito NON è praticamente mai presente sull'etichetta
+      //       Possono esserci bottiglie di birrifici DIVERSI nella stessa immagine
+      
+      const GeminiAI = require('../utils/geminiAi');
+      const labelAnalysis = await GeminiAI.validateImage(dataUrl);
+      
+      const labelBottles = labelAnalysis.bottles || [];
+      
+      logger.info('[firstCheckAI] ✅ Analisi etichette completata', {
+        bottlesFound: labelBottles.length,
+        confidence: labelAnalysis.confidence
+      });
+      
+      // 🔄 FASE 2-4: Processa OGNI bottiglia individualmente
+      const enrichedBottles = [];
+      const breweriesData = new Map(); // Cache per evitare ricerche duplicate dello stesso birrificio
+      
+      const WebSearchService = require('../services/webSearchService');
+      const WebScrapingService = require('../services/webScrapingService');
+      
+      for (let i = 0; i < labelBottles.length; i++) {
+        const bottle = labelBottles[i];
+        
+        // 🔧 FIX: Estrai nome birra dalla posizione corretta (labelData)
+        const beerName = bottle.labelData?.beerName || 
+                         bottle.beerName ||
+                         bottle.searchQueries?.exact || 
+                         bottle.searchQueries?.variants?.[0];
+        
+        logger.info(`[firstCheckAI] 🍺 Processa bottiglia ${i + 1}/${labelBottles.length}`, {
+          beerName: beerName,
+          fromLabelData: !!bottle.labelData?.beerName,
+          fromSearchQueries: !bottle.labelData?.beerName && (!!bottle.searchQueries?.exact || !!bottle.searchQueries?.variants?.[0])
+        });
+        
+        // 🎯 STRATEGIA: Usa le searchQueries generate dall'AI invece di inventare nomi
+        let searchQueries = [];
+        
+        // 1. Priorità: searchQueries dall'AI per la birra
+        if (bottle.searchQueries?.variants && bottle.searchQueries.variants.length > 0) {
+          searchQueries.push(...bottle.searchQueries.variants);
+          if (bottle.searchQueries.exact) {
+            searchQueries.unshift(bottle.searchQueries.exact); // Aggiungi exact query all'inizio
+          }
+          logger.info(`[firstCheckAI] 🔍 Uso searchQueries AI per birra`, {
+            queries: searchQueries
+          });
+        }
+        
+        // 2. Se AI ha trovato birrificio separatamente, aggiungi quelle query
+        const breweriesArray = labelAnalysis.breweries || [];
+        if (breweriesArray.length > 0) {
+          const breweryInfo = breweriesArray[i] || breweriesArray[0]; // Usa corrispondente o primo
+          if (breweryInfo.searchQueries?.variants) {
+            searchQueries.push(...breweryInfo.searchQueries.variants);
+            if (breweryInfo.searchQueries.exact) {
+              searchQueries.push(breweryInfo.searchQueries.exact);
+            }
+            logger.info(`[firstCheckAI] 🔍 Aggiunte searchQueries AI per birrificio`, {
+              queries: breweryInfo.searchQueries.variants
+            });
+          }
+        }
+        
+        // 3. Fallback: se non ci sono query, usa il nome della birra
+        if (searchQueries.length === 0 && beerName) {
+          searchQueries.push(`${beerName} birrificio`);
+          searchQueries.push(`${beerName} brewery`);
+          logger.info(`[firstCheckAI] 💡 Fallback: generato query dal nome birra`, {
+            queries: searchQueries
+          });
+        }
+        
+        // Se proprio non abbiamo nulla da cercare, skip
+        if (searchQueries.length === 0) {
+          logger.warn(`[firstCheckAI] ⚠️ Bottiglia ${i + 1}: Nessuna query disponibile - Solo dati etichetta`);
+          enrichedBottles.push({
+            ...bottle,
+            dataSource: 'label_only',
+            needsValidation: true
+          });
+          continue;
+        }
+        
+        // 🚀 OTTIMIZZAZIONE 1: Riordina query mettendo versione minuscola per prima
+        // (ha più successo contro anti-bot)
+        const lowercaseQueries = searchQueries.filter(q => q === q.toLowerCase());
+        const otherQueries = searchQueries.filter(q => q !== q.toLowerCase());
+        searchQueries = [...lowercaseQueries, ...otherQueries];
+        
+        // 🚀 OTTIMIZZAZIONE 2: Limita a massimo 3 query per ridurre consumo risorse
+        const originalQueryCount = searchQueries.length;
+        if (searchQueries.length > 3) {
+          searchQueries = searchQueries.slice(0, 3);
+          logger.info(`[firstCheckAI] ⚡ Limitate query da ${originalQueryCount} a 3 per ottimizzazione`);
+        }
+        
+        // 🌐 FASE 2: Google Search usando le query generate dall'AI
+        logger.info(`[firstCheckAI] 🌐 FASE 2: Google Search - Max 3 tentativi (stop al primo successo)`);
+        
+        let breweryWebData = null;
+        let searchResult = null;
+        let attemptedQueries = 0;
+        
+        // Prova ogni query MA fermati al primo successo
+        for (let qi = 0; qi < searchQueries.length; qi++) {
+          const query = searchQueries[qi];
+          attemptedQueries++;
+          
+          logger.info(`[firstCheckAI] 🔍 Tentativo ${attemptedQueries}/${searchQueries.length}: "${query}"`);
+          
+          try {
+            // Google Search trova sito web del birrificio
+            searchResult = await WebSearchService.searchBreweryOnWeb(query, beerName);
+            
+            if (searchResult.found && searchResult.brewery?.breweryWebsite) {
+              logger.info(`[firstCheckAI] ✅ Sito trovato al tentativo ${attemptedQueries}: ${searchResult.brewery.breweryWebsite}`);
+              
+              // 🔍 FASE 3: Web scraping del sito per estrarre TUTTI i dati
+              const scrapingResult = await WebScrapingService.scrapeBreweryWebsite(
+                searchResult.brewery.breweryWebsite,
+                searchResult.brewery.breweryName || query
+              );
+              
+              if (scrapingResult.success && scrapingResult.confidence >= 0.3) {
+                // Merge dati Google Search + Web Scraping
+                breweryWebData = {
+                  ...searchResult.brewery,
+                  ...scrapingResult.data,
+                  breweryName: scrapingResult.data.breweryName || searchResult.brewery.breweryName,
+                  website: searchResult.brewery.breweryWebsite,
+                  beers: scrapingResult.data.beers || [],
+                  dataSource: 'google_search+web_scraping',
+                  confidence: scrapingResult.confidence
+                };
+                
+                logger.info(`[firstCheckAI] ✅ Dati birrificio completi estratti`, {
+                  breweryName: breweryWebData.breweryName,
+                  beersFound: breweryWebData.beers.length,
+                  confidence: breweryWebData.confidence
+                });
+                
+                // 🎯 STOP: Successo trovato, esci dal loop
+                logger.info(`[firstCheckAI] 🎯 SUCCESSO - Evitati ${searchQueries.length - attemptedQueries} tentativi rimanenti`);
+                break;
+              } else {
+                logger.warn(`[firstCheckAI] ⚠️ Web scraping bassa confidence`, {
+                  confidence: scrapingResult.confidence
+                });
+              }
+            } else {
+              logger.warn(`[firstCheckAI] ⚠️ Query "${query}" non ha trovato sito`);
+            }
+          } catch (searchError) {
+            logger.warn(`[firstCheckAI] ⚠️ Errore con query "${query}": ${searchError.message}`);
+            // Continua con la prossima query
+          }
+        } // Fine loop query
+        
+        // Log risultato ricerca
+        if (breweryWebData) {
+          logger.info(`[firstCheckAI] ✅ Birrificio trovato dopo ricerca query`, {
+            breweryName: breweryWebData.breweryName,
+            beersFound: breweryWebData.beers?.length || 0,
+            queriesAttempted: attemptedQueries
+          });
+        } else {
+          logger.warn(`[firstCheckAI] ⚠️ Nessun birrificio trovato dopo ${attemptedQueries} tentativi`);
+        }
+        
+        // 🔀 FASE 4: Match e arricchimento bottiglia con dati web
+        if (breweryWebData) {
+          // 💾 Salva birrificio nella cache (evita duplicati)
+          const breweryKey = breweryWebData.breweryName.toLowerCase();
+          if (!breweriesData.has(breweryKey)) {
+            breweriesData.set(breweryKey, {
+              breweryName: breweryWebData.breweryName,
+              website: breweryWebData.website,
+              breweryAddress: breweryWebData.breweryAddress,
+              email: breweryWebData.email,
+              phone: breweryWebData.phone,
+              description: breweryWebData.description,
+              foundingYear: breweryWebData.foundingYear,
+              dataSource: breweryWebData.dataSource,
+              confidence: breweryWebData.confidence
+            });
+            logger.info(`[firstCheckAI] 💾 Birrificio salvato in cache`, {
+              breweryName: breweryWebData.breweryName,
+              cacheSize: breweriesData.size
+            });
+          } else {
+            logger.debug(`[firstCheckAI] 💾 Birrificio già in cache`, {
+              breweryName: breweryWebData.breweryName
+            });
+          }
+          
+          // 🔍 MATCHING ROBUSTO: Cerca birra nel sito con strategia 4-tier
+          const webBeer = matchBeerFromWeb(beerName, breweryWebData.beers);
+          
+          if (webBeer) {
+            logger.info(`[firstCheckAI] ✅ Match trovato per "${beerName}"`, {
+              webBeerName: webBeer.beerName,
+              hasAlcohol: !!webBeer.alcoholContent,
+              hasDescription: !!webBeer.beerDescription
+            });
+          } else {
+            logger.warn(`[firstCheckAI] ⚠️ Nessun match per "${beerName}"`, {
+              breweryName: breweryWebData.breweryName,
+              availableBeers: breweryWebData.beers?.map(b => b.beerName).join(', ') || 'nessuna'
+            });
+          }
+          
+          enrichedBottles.push({
+            // Dati base dall'etichetta
+            ...bottle,
+            // Arricchimento dal sito web
+            ...webBeer,
+            // Priorità: nome dall'etichetta (più preciso visivamente)
+            beerName: beerName, // ← USA LA VARIABILE ESTRATTA, NON bottle.beerName
+            breweryName: breweryWebData.breweryName,
+            // Aggiungi dati birrificio
+            brewery: {
+              breweryName: breweryWebData.breweryName,
+              website: breweryWebData.website,
+              breweryAddress: breweryWebData.breweryAddress,
+              email: breweryWebData.email,
+              phone: breweryWebData.phone,
+              dataSource: breweryWebData.dataSource
+            },
+            dataSource: webBeer ? 'label+web' : 'label+brewery_only',
+            confidence: breweryWebData.confidence
+          });
+          
+          logger.info(`[firstCheckAI] ✅ Bottiglia ${i + 1} arricchita`, {
+            beerMatch: !!webBeer,
+            dataSource: webBeer ? 'label+web' : 'label+brewery_only'
+          });
+        } else {
+          // Nessun dato web - solo etichetta
+          enrichedBottles.push({
+            ...bottle,
+            dataSource: 'label_only',
+            needsValidation: true
+          });
+          
+          logger.warn(`[firstCheckAI] ⚠️ Bottiglia ${i + 1}: Solo dati etichetta`);
+        }
+      }
+      
+      // ✅ RISULTATO FINALE: Multi-bottle, Multi-brewery
+      logger.info('[firstCheckAI] 📦 Costruzione risultato finale', {
+        totalBottles: enrichedBottles.length,
+        uniqueBreweries: breweriesData.size,
+        labelOnlyCount: enrichedBottles.filter(b => b.dataSource === 'label_only').length,
+        enrichedCount: enrichedBottles.filter(b => b.dataSource !== 'label_only').length
+      });
+      
+      // Converti Map in array per risposta
+      const breweriesArray = Array.from(breweriesData.values());
+      
+      aiResult = {
+        success: true,
+        message: `Elaborazione completata: ${enrichedBottles.length} birre da ${breweriesData.size} birrifici`,
+        bottles: enrichedBottles,
+        breweries: breweriesArray,  // 🔥 AGGIUNTO: Array birrifici unici trovati
+        breweriesProcessed: breweriesData.size,
+        dataSource: 'multi_bottle_label+google_search+web_scraping',
+        antiHallucinationActive: false,
+        needsVerification: enrichedBottles.some(b => b.needsValidation),
+        analysisComplete: true
+      };
+      
+      logger.info('[firstCheckAI] ✅ COMPLETATO - Multi-bottle processing', {
+        totalBottles: enrichedBottles.length,
+        breweriesCount: breweriesData.size,
+        successRate: `${((enrichedBottles.filter(b => b.dataSource !== 'label_only').length / enrichedBottles.length) * 100).toFixed(1)}%`
+      });
+      
     } catch (apiError) {
       logger.error('[firstCheckAI] Errore chiamata API AIService', {
         error: apiError.message,
@@ -150,7 +753,59 @@ exports.firstCheckAI = async (req, res) => {
         sessionId: req.sessionID
       });
       
-      // Fornisci una risposta di fallback
+      // 🚨 GESTIONE QUOTA EXHAUSTION GEMINI AI
+      // Se Gemini AI ha raggiunto il limite, salva i dati parziali come pending_validation
+      const isQuotaError = apiError.message?.includes('quota') || 
+                          apiError.message?.includes('limit') ||
+                          apiError.message?.includes('429') ||
+                          apiError.statusCode === 429;
+      
+      if (isQuotaError) {
+        logger.warn('[firstCheckAI] 🚨 Quota Gemini AI esaurita - Salvataggio come pending_validation');
+        
+        // Se abbiamo almeno i dati del birrificio da scraping, salviamo con flag pending
+        if (webScrapingData?.success) {
+          try {
+            // Crea birrificio con status pending_validation
+            const Brewery = require('../models/Brewery');
+            const newBrewery = new Brewery({
+              breweryName: webScrapingData.data.breweryName,
+              breweryLegalAddress: webScrapingData.data.address,
+              website: webScrapingData.data.website,
+              email: webScrapingData.data.contacts?.email,
+              phone: webScrapingData.data.contacts?.phone,
+              description: webScrapingData.data.description,
+              validationStatus: 'pending_validation',
+              dataSource: 'web_scraping',
+              needsManualReview: true,
+              reviewReason: 'Quota Gemini AI esaurita - dati estratti solo da web scraping'
+            });
+            await newBrewery.save();
+            
+            // Notifica amministratori
+            await validationController.notifyAdministrators('brewery', {
+              breweryName: newBrewery.breweryName,
+              reason: 'Quota Gemini AI esaurita - validazione manuale richiesta'
+            });
+            
+            logger.info('[firstCheckAI] ✅ Birrificio salvato come pending_validation - ID:', newBrewery._id);
+          } catch (saveError) {
+            logger.error('[firstCheckAI] ❌ Errore salvataggio birrificio pending', {
+              error: saveError.message
+            });
+          }
+        }
+        
+        return res.status(200).json({
+          success: false,
+          message: 'Il servizio AI ha raggiunto il limite di richieste. I dati disponibili sono stati salvati per revisione manuale. Riprova più tardi.',
+          errorType: 'QUOTA_EXHAUSTED',
+          bottles: [],
+          brewery: webScrapingData?.data || null
+        });
+      }
+      
+      // Fornisci una risposta di fallback generica
       return res.status(200).json({
         success: false,
         message: 'Servizio di analisi temporaneamente non disponibile. Riprova più tardi.',
@@ -197,7 +852,62 @@ exports.firstCheckAI = async (req, res) => {
       userFlowType: aiResult.userFlowType || 'UNKNOWN'
     });
     
-    // 🛡️ NUOVO SISTEMA ANTI-ALLUCINAZIONI: Controllo se serve intervento utente
+    // � CONTROLLO CRITICO 0: Blocco prodotti NON-BIRRA (liquori, vini, sidri)
+    // Questo controllo ha MASSIMA PRIORITÀ - se rileva prodotto non-birra, blocca immediatamente
+    if (aiResult.validation?.blockedByValidation && aiResult.userFlowType === 'BLOCKED') {
+      logger.warn('[firstCheckAI] 🚫 PRODOTTO NON-BIRRA RILEVATO - Blocco elaborazione', {
+        sessionId: req.sessionID,
+        userId: req.user?._id,
+        userFlowType: aiResult.userFlowType,
+        errorMessage: aiResult.messages?.error,
+        errorDetails: aiResult.validation?.errorDetails
+      });
+
+      // Trova l'azione NON_BEER_DETECTED per dettagli errore
+      const nonBeerAction = aiResult.userActions?.find(action => 
+        action.type === 'NON_BEER_DETECTED' && action.blocking === true
+      );
+
+      const errorDetails = nonBeerAction?.data || aiResult.validation?.errorDetails || {};
+      const productType = errorDetails.productType || errorDetails.detectedProductType || errorDetails.displayType || 'prodotto alcolico non-birra';
+      const displayType = errorDetails.displayType || productType;
+      const productName = errorDetails.productName || errorDetails.detectedName;
+
+      // Messaggio errore personalizzato e user-friendly
+      let errorMessage;
+      if (productName && productName !== 'sconosciuto' && productName.toLowerCase() !== 'unknown') {
+        // Caso 1: Nome prodotto identificato
+        errorMessage = `Il prodotto rilevato nell'immagine ("${productName}") è un ${displayType}, ma questa applicazione è dedicata esclusivamente alle birre.`;
+      } else {
+        // Caso 2: Nome prodotto non identificato - messaggio generico più chiaro
+        errorMessage = `Il prodotto rilevato nell'immagine sembra essere un ${displayType}, ma questa applicazione è dedicata esclusivamente alle birre.`;
+      }
+
+      // Risposta blocco con dettagli completi per il frontend
+      return res.status(200).json({
+        success: false,
+        message: errorMessage,
+        errorType: 'NON_BEER_DETECTED',
+        blocked: true,
+        productInfo: {
+          detectedName: productName || 'Prodotto non identificato',
+          productType: productType,
+          displayType: displayType,
+          reason: errorDetails.reason,
+          confidence: errorDetails.confidence,
+          suggestedApp: errorDetails.suggestedApp
+        },
+        bottles: [],
+        brewery: null,
+        rateLimitInfo: {
+          remainingRequests: Math.max(0, (AIService.canMakeRequest(req.session, req.user?._id).remainingRequests || 0)),
+          maxRequests: AIService.canMakeRequest(req.session, req.user?._id).maxRequests,
+          isUserAuthenticated: !!req.user
+        }
+      });
+    }
+    
+    // �🛡️ NUOVO SISTEMA ANTI-ALLUCINAZIONI: Controllo se serve intervento utente
     logger.debug('[firstCheckAI] DEBUG - Controllo condizioni anti-allucinazioni', {
       sessionId: req.sessionID,
       needsUserIntervention: !!aiResult.needsUserIntervention,
@@ -935,10 +1645,39 @@ exports.createMultipleReviews = async (req, res) => {
           
           if (!brewery) {
             // Birrificio NON esiste - crealo
-            const breweryAiData = bottle.brewery || 
-                                 aiAnalysisData.brewery || 
-                                 aiAnalysisData.breweries?.[0]?.verifiedData || 
-                                 {};
+            // 🔧 FIX: Trova il birrificio CORRETTO per questa bottiglia specifica
+            let breweryAiData = bottle.brewery || {};
+            
+            // Se non abbiamo dati nella bottiglia, cerca in aiAnalysisData.breweries
+            if (!breweryAiData || Object.keys(breweryAiData).length === 0) {
+              if (aiAnalysisData.breweries && aiAnalysisData.breweries.length > 0) {
+                // Cerca il birrificio che corrisponde a questa bottiglia per nome
+                const matchingBrewery = aiAnalysisData.breweries.find(b => 
+                  b.verifiedData?.breweryName?.toLowerCase() === breweryName.toLowerCase() ||
+                  b.labelData?.breweryName?.toLowerCase() === breweryName.toLowerCase()
+                );
+                
+                if (matchingBrewery) {
+                  breweryAiData = matchingBrewery.verifiedData || matchingBrewery.labelData || {};
+                  logger.debug('[createMultipleReviews] ✅ Trovato birrificio matching per creazione', {
+                    bottleBreweryName: breweryName,
+                    matchedBreweryName: breweryAiData.breweryName,
+                    matchedBreweryWebsite: breweryAiData.breweryWebsite,
+                    matchedBreweryAddress: breweryAiData.breweryLegalAddress
+                  });
+                } else {
+                  // Fallback al primo solo se non troviamo match (caso raro)
+                  breweryAiData = aiAnalysisData.breweries[0]?.verifiedData || {};
+                  logger.warn('[createMultipleReviews] ⚠️ Nessun birrificio matching trovato - usando primo (fallback creazione)', {
+                    bottleBreweryName: breweryName,
+                    availableBreweries: aiAnalysisData.breweries.map(b => b.verifiedData?.breweryName || b.labelData?.breweryName)
+                  });
+                }
+              } else if (aiAnalysisData.brewery) {
+                // Caso singolo birrificio
+                breweryAiData = aiAnalysisData.brewery;
+              }
+            }
 
             // Verifica grounding usando il servizio di validazione AI
             const AIValidationService = require('../services/aiValidationService');
@@ -947,11 +1686,25 @@ exports.createMultipleReviews = async (req, res) => {
               webVerification: breweryAiData.webVerification || bottle.webVerification || aiAnalysisData.webVerification || {} 
             });
 
+            // 🛡️ VALIDAZIONE INDIRIZZO: Prepara indirizzo solo se valido
+            const candidateAddress = bottle.breweryLocation || bottle.breweryLegalAddress || breweryAiData.breweryLegalAddress;
+            let validatedAddress = 'Non specificato';
+            
+            if (candidateAddress && AIValidationService.isValidAddress(candidateAddress)) {
+              validatedAddress = candidateAddress;
+              logger.info('[createMultipleReviews] ✅ Indirizzo validato per nuovo birrificio', { address: validatedAddress });
+            } else if (candidateAddress) {
+              logger.warn('[createMultipleReviews] ⚠️ Indirizzo RIFIUTATO per nuovo birrificio', { 
+                address: candidateAddress,
+                reason: 'Pattern sospetto o dati incompleti - salvato come Non specificato'
+              });
+            }
+
             // Crea documento birrificio completo
             const newBreweryDoc = {
               breweryName: breweryName,
               breweryDescription: bottle.breweryDescription || breweryAiData.breweryDescription || '',
-              breweryLegalAddress: bottle.breweryLocation || bottle.breweryLegalAddress || breweryAiData.breweryLegalAddress || 'Non specificato',
+              breweryLegalAddress: validatedAddress,
               breweryLogo: bottle.breweryLogo || breweryAiData.breweryLogo || '',
               brewerySocialMedia: bottle.brewerySocialMedia || breweryAiData.brewerySocialMedia || {},
 
@@ -1042,18 +1795,49 @@ exports.createMultipleReviews = async (req, res) => {
               return false;
             };
             
-            // Estrai dati AI dalla bottiglia corrente
-            const breweryAiData = bottle.brewery || 
-                                 aiAnalysisData.brewery || 
-                                 aiAnalysisData.breweries?.[0]?.verifiedData || 
-                                 {};
+            // 🔧 FIX: Trova il birrificio CORRETTO per questa bottiglia specifica
+            let breweryAiData = bottle.brewery || {};
             
-            logger.debug('[createMultipleReviews] DEBUG: Sorgente dati AI brewery', {
+            // Se non abbiamo dati nella bottiglia, cerca in aiAnalysisData.breweries
+            if (!breweryAiData || Object.keys(breweryAiData).length === 0) {
+              if (aiAnalysisData.breweries && aiAnalysisData.breweries.length > 0) {
+                // Cerca il birrificio che corrisponde a questa bottiglia per nome
+                const matchingBrewery = aiAnalysisData.breweries.find(b => 
+                  b.verifiedData?.breweryName?.toLowerCase() === breweryName.toLowerCase() ||
+                  b.labelData?.breweryName?.toLowerCase() === breweryName.toLowerCase()
+                );
+                
+                if (matchingBrewery) {
+                  breweryAiData = matchingBrewery.verifiedData || matchingBrewery.labelData || {};
+                  logger.debug('[createMultipleReviews] ✅ Trovato birrificio matching per bottiglia', {
+                    bottleBreweryName: breweryName,
+                    matchedBreweryName: breweryAiData.breweryName,
+                    matchedBreweryWebsite: breweryAiData.breweryWebsite,
+                    matchedBreweryAddress: breweryAiData.breweryLegalAddress
+                  });
+                } else {
+                  // Fallback al primo solo se non troviamo match (caso raro)
+                  breweryAiData = aiAnalysisData.breweries[0]?.verifiedData || {};
+                  logger.warn('[createMultipleReviews] ⚠️ Nessun birrificio matching trovato - usando primo (fallback)', {
+                    bottleBreweryName: breweryName,
+                    availableBreweries: aiAnalysisData.breweries.map(b => b.verifiedData?.breweryName || b.labelData?.breweryName)
+                  });
+                }
+              } else if (aiAnalysisData.brewery) {
+                // Caso singolo birrificio
+                breweryAiData = aiAnalysisData.brewery;
+              }
+            }
+            
+            logger.debug('[createMultipleReviews] DEBUG: Sorgente dati AI brewery per bottiglia', {
+              bottleBreweryName: breweryName,
               hasBottleBrewery: !!bottle.brewery,
               hasAiAnalysisBrewery: !!aiAnalysisData.brewery,
               hasAiAnalysisBreweries: !!aiAnalysisData.breweries,
               breweriesCount: aiAnalysisData.breweries?.length || 0,
-              usingData: breweryAiData
+              foundBreweryName: breweryAiData?.breweryName,
+              foundBreweryWebsite: breweryAiData?.breweryWebsite,
+              foundBreweryAddress: breweryAiData?.breweryLegalAddress
             });
             
             // Protezione intelligente anti-allucinazioni
@@ -1066,7 +1850,19 @@ exports.createMultipleReviews = async (req, res) => {
 
               // Salviamo SEMPRE i campi AI disponibili
               updateIfEmpty('breweryDescription', bottle.breweryDescription || breweryAiData.breweryDescription);
-              updateIfEmpty('breweryLegalAddress', bottle.breweryLocation || bottle.breweryLegalAddress || breweryAiData.breweryLegalAddress);
+              
+              // 🛡️ VALIDAZIONE INDIRIZZO: Salva solo se valido
+              const addressToSave = bottle.breweryLocation || bottle.breweryLegalAddress || breweryAiData.breweryLegalAddress;
+              if (addressToSave && AIValidationService.isValidAddress(addressToSave)) {
+                updateIfEmpty('breweryLegalAddress', addressToSave);
+                logger.info('[createMultipleReviews] ✅ Indirizzo validato e salvato', { address: addressToSave });
+              } else if (addressToSave) {
+                logger.warn('[createMultipleReviews] ⚠️ Indirizzo RIFIUTATO - non valido', { 
+                  address: addressToSave,
+                  reason: 'Pattern sospetto o dati incompleti'
+                });
+              }
+              
               updateIfEmpty('breweryPhoneNumber', bottle.breweryPhoneNumber || breweryAiData.breweryPhoneNumber);
               updateIfEmpty('breweryWebsite', bottle.breweryWebsite || breweryAiData.breweryWebsite);
               updateIfEmpty('breweryEmail', bottle.breweryEmail || breweryAiData.breweryEmail);
@@ -1150,47 +1946,74 @@ exports.createMultipleReviews = async (req, res) => {
         // 🔧 FIX: I dati AI possono essere in verifiedData (nuova struttura) o direttamente in bottle
         const beerAiData = bottle.verifiedData || bottle;
         
+        // 🛡️ VALIDAZIONE DATI AI: Controlla confidence e web verification
+        const hasWebVerification = !!(beerAiData.webVerification || bottle.webVerification);
+        const confidence = beerAiData.confidence || bottle.confidence || 0;
+        const isReliable = confidence >= 0.7 || hasWebVerification;
+        
+        logger.info('[createMultipleReviews] 🔍 Validazione dati birra AI', {
+          beerName: beerName,
+          confidence: confidence,
+          hasWebVerification: hasWebVerification,
+          isReliable: isReliable,
+          beerType: beerAiData.beerType
+        });
+        
         // Cerca birra esistente collegata al birrificio corretto
-        let beer = await Beer.findOne({ beerName: beerName, brewery: brewery._id });
+        // 🎯 FUZZY MATCHING: gestisce nomi parziali (lettere nascoste sul bordo bottiglia)
+        let beer = await findExistingBeer(beerName, brewery._id);
         if (!beer) {
-          // 🎯 MAPPATURA COMPLETA: Salviamo TUTTI i dati AI disponibili
+          // 🎯 MAPPATURA COMPLETA: Salviamo SOLO dati AI affidabili
           beer = new Beer({
             beerName: beerName,
             brewery: brewery._id,
             
-            // Caratteristiche tecniche dalla AI
-            alcoholContent: beerAiData.alcoholContent || bottle.aiData?.alcoholContent || '',
-            beerType: beerAiData.beerType || bottle.aiData?.beerType || 'Non specificato',
-            beerSubStyle: beerAiData.beerSubStyle || bottle.aiData?.beerSubStyle || '',
-            ibu: beerAiData.ibu || bottle.aiData?.ibu || '',
-            volume: beerAiData.volume || bottle.aiData?.volume || '',
+            // 🛡️ Caratteristiche tecniche: SOLO se dati affidabili
+            alcoholContent: isReliable ? (beerAiData.alcoholContent || bottle.aiData?.alcoholContent || '') : '',
+            beerType: isReliable ? (beerAiData.beerType || bottle.aiData?.beerType || 'Non specificato') : 'Non specificato',
+            beerSubStyle: isReliable ? (beerAiData.beerSubStyle || bottle.aiData?.beerSubStyle || '') : '',
+            ibu: isReliable ? (beerAiData.ibu || bottle.aiData?.ibu || '') : '',
+            volume: isReliable ? (beerAiData.volume || bottle.aiData?.volume || '') : '',
             
-            // Descrizioni e note dalla AI
-            description: beerAiData.description || bottle.aiData?.description || '',
-            ingredients: beerAiData.ingredients || bottle.aiData?.ingredients || '',
-            tastingNotes: beerAiData.tastingNotes || bottle.aiData?.tastingNotes || '',
-            nutritionalInfo: beerAiData.nutritionalInfo || bottle.aiData?.nutritionalInfo || '',
+            // 🛡️ Descrizioni e note: SOLO se dati affidabili
+            description: isReliable ? (beerAiData.description || bottle.aiData?.description || '') : '',
+            ingredients: isReliable ? (beerAiData.ingredients || bottle.aiData?.ingredients || '') : '',
+            tastingNotes: isReliable ? (beerAiData.tastingNotes || bottle.aiData?.tastingNotes || '') : '',
+            nutritionalInfo: isReliable ? (beerAiData.nutritionalInfo || bottle.aiData?.nutritionalInfo || '') : '',
             
-            // Informazioni commerciali dalla AI
-            price: beerAiData.price || bottle.aiData?.price || '',
-            availability: beerAiData.availability || bottle.aiData?.availability || '',
+            // 🛡️ Informazioni commerciali: SOLO se dati affidabili
+            price: isReliable ? (beerAiData.price || bottle.aiData?.price || '') : '',
+            availability: isReliable ? (beerAiData.availability || bottle.aiData?.availability || '') : '',
             
             // Metadati AI
             aiExtracted: true,
             aiConfidence: beerAiData.confidence || bottle.confidence || bottle.aiData?.confidence || 0.5,
             dataSource: beerAiData.dataSource || bottle.dataSource || bottle.aiData?.dataSource || 'label',
-            lastAiUpdate: new Date()
+            lastAiUpdate: new Date(),
+            
+            // 🛡️ Flag per dati non affidabili
+            needsValidation: !isReliable,
+            validationNotes: !isReliable ? 'Dati AI con bassa confidence - richiedono verifica manuale' : ''
           });
           await beer.save();
-          logger.info('[createMultipleReviews] ✅ Birra creata da fallback con dati completi AI', {
-            beerId: beer._id,
-            beerName: beerName,
-            beerType: beer.beerType,
-            alcoholContent: beer.alcoholContent,
-            hasDescription: !!beer.description,
-            hasTastingNotes: !!beer.tastingNotes,
-            confidence: beer.aiConfidence
-          });
+          
+          if (isReliable) {
+            logger.info('[createMultipleReviews] ✅ Birra creata con dati AI affidabili', {
+              beerId: beer._id,
+              beerName: beerName,
+              beerType: beer.beerType,
+              alcoholContent: beer.alcoholContent,
+              confidence: beer.aiConfidence,
+              hasWebVerification: hasWebVerification
+            });
+          } else {
+            logger.warn('[createMultipleReviews] ⚠️ Birra creata ma dati limitati (bassa confidence)', {
+              beerId: beer._id,
+              beerName: beerName,
+              confidence: beer.aiConfidence,
+              reason: 'Confidence < 0.7 e nessuna web verification'
+            });
+          }
         } else {
           // 🔄 ARRICCHIMENTO INTELLIGENTE: Aggiorna solo campi vuoti/mancanti con dati AI
           let updated = false;
@@ -1213,22 +2036,37 @@ exports.createMultipleReviews = async (req, res) => {
             return false;
           };
           
-          // Aggiorna caratteristiche tecniche se vuote
-          updateIfEmpty('alcoholContent', beerAiData.alcoholContent || bottle.aiData?.alcoholContent);
-          updateIfEmpty('beerType', beerAiData.beerType || bottle.aiData?.beerType);
-          updateIfEmpty('beerSubStyle', beerAiData.beerSubStyle || bottle.aiData?.beerSubStyle);
-          updateIfEmpty('ibu', beerAiData.ibu || bottle.aiData?.ibu);
-          updateIfEmpty('volume', beerAiData.volume || bottle.aiData?.volume);
-          
-          // Aggiorna descrizioni se vuote
-          updateIfEmpty('description', beerAiData.description || bottle.aiData?.description);
-          updateIfEmpty('ingredients', beerAiData.ingredients || bottle.aiData?.ingredients);
-          updateIfEmpty('tastingNotes', beerAiData.tastingNotes || bottle.aiData?.tastingNotes);
-          updateIfEmpty('nutritionalInfo', beerAiData.nutritionalInfo || bottle.aiData?.nutritionalInfo);
-          
-          // Aggiorna info commerciali se vuote
-          updateIfEmpty('price', beerAiData.price || bottle.aiData?.price);
-          updateIfEmpty('availability', beerAiData.availability || bottle.aiData?.availability);
+          // 🛡️ ARRICCHIMENTO INTELLIGENTE: Aggiorna SOLO con dati affidabili
+          if (isReliable) {
+            // Aggiorna caratteristiche tecniche se vuote
+            updateIfEmpty('alcoholContent', beerAiData.alcoholContent || bottle.aiData?.alcoholContent);
+            updateIfEmpty('beerType', beerAiData.beerType || bottle.aiData?.beerType);
+            updateIfEmpty('beerSubStyle', beerAiData.beerSubStyle || bottle.aiData?.beerSubStyle);
+            updateIfEmpty('ibu', beerAiData.ibu || bottle.aiData?.ibu);
+            updateIfEmpty('volume', beerAiData.volume || bottle.aiData?.volume);
+            
+            // Aggiorna descrizioni se vuote
+            updateIfEmpty('description', beerAiData.description || bottle.aiData?.description);
+            updateIfEmpty('ingredients', beerAiData.ingredients || bottle.aiData?.ingredients);
+            updateIfEmpty('tastingNotes', beerAiData.tastingNotes || bottle.aiData?.tastingNotes);
+            updateIfEmpty('nutritionalInfo', beerAiData.nutritionalInfo || bottle.aiData?.nutritionalInfo);
+            
+            // Aggiorna info commerciali se vuote
+            updateIfEmpty('price', beerAiData.price || bottle.aiData?.price);
+            updateIfEmpty('availability', beerAiData.availability || bottle.aiData?.availability);
+          } else {
+            logger.warn('[createMultipleReviews] ⚠️ Arricchimento birra esistente SALTATO - dati non affidabili', {
+              beerId: beer._id,
+              beerName: beerName,
+              confidence: confidence,
+              reason: 'Confidence < 0.7 e nessuna web verification'
+            });
+            
+            // Flag per revisione manuale
+            updates.needsValidation = true;
+            updates.validationNotes = 'Dati AI disponibili ma non affidabili - richiedono verifica manuale';
+            updated = true;
+          }
           
           // Applica aggiornamenti se necessario
           if (updated) {
@@ -1237,11 +2075,23 @@ exports.createMultipleReviews = async (req, res) => {
             updates.dataSource = bottle.dataSource || bottle.aiData?.dataSource || 'label';
             
             await Beer.findByIdAndUpdate(beer._id, { $set: updates });
-            logger.info('[createMultipleReviews] 🔄 Birra esistente arricchita con nuovi dati AI', {
-              beerId: beer._id,
-              beerName: beerName,
-              updatedFields: Object.keys(updates)
-            });
+            
+            if (isReliable) {
+              logger.info('[createMultipleReviews] 🔄 Birra esistente arricchita con dati AI affidabili', {
+                beerId: beer._id,
+                beerName: beerName,
+                fieldsUpdated: Object.keys(updates).filter(k => !['needsValidation', 'validationNotes', 'lastAiUpdate', 'aiExtracted', 'dataSource'].includes(k)).length,
+                confidence: confidence,
+                hasWebVerification: hasWebVerification
+              });
+            } else {
+              logger.warn('[createMultipleReviews] ⚠️ Birra flaggata per revisione manuale', {
+                beerId: beer._id,
+                beerName: beerName,
+                confidence: confidence,
+                updatedFields: Object.keys(updates)
+              });
+            }
           } else {
             logger.info('[createMultipleReviews] ℹ️ Birra esistente già completa - nessun aggiornamento necessario', {
               beerId: beer._id,
@@ -1901,4 +2751,247 @@ exports.resolveDisambiguation = async (req, res) => {
       error: 'Errore interno durante la risoluzione dell\'ambiguità'
     });
   }
+};
+
+/**
+ * 🌐 Costruisce risultato analisi da dati web scraping + validazione AI birre
+ * @param {Object} webScrapingData - Dati estratti da web scraping
+ * @param {Buffer} imageBuffer - Buffer immagine per analisi birre
+ * @param {Object} session - Sessione utente
+ * @param {String} userId - ID utente
+ * @returns {Promise<Object>} Risultato formattato come AIService
+ */
+/**
+ * ✨ NUOVO METODO OTTIMIZZATO: Arricchisce risultato AI con dati web scraping
+ * NON fa chiamate AI aggiuntive - usa solo i dati già estratti
+ * @param {Object} aiResult - Risultato completo da analisi AI (già contiene birre)
+ * @param {Object} webScrapingData - Dati estratti da web scraping
+ * @param {Object} session - Sessione utente
+ * @param {String} userId - ID utente
+ * @returns {Object} Risultato arricchito merge AI + Web Scraping
+ */
+exports.enhanceAiResultWithWebScraping = async function(aiResult, webScrapingData, session, userId) {
+  const validationController = require('./validationController');
+  
+  try {
+    logger.info('[enhanceAiResultWithWebScraping] 🔄 Merge dati AI + Web Scraping');
+    
+    // ✅ NESSUNA CHIAMATA AI AGGIUNTIVA - usiamo aiResult.bottles già estratte
+    
+    if (!aiResult.bottles || aiResult.bottles.length === 0) {
+      logger.warn('[enhanceAiResultWithWebScraping] ⚠️ Nessuna birra nell\'AI result');
+      return aiResult; // Ritorna risultato AI originale
+    }
+    
+    // 1. Arricchisci dati birrificio con info da web scraping
+    const enhancedBrewery = {
+      ...aiResult.brewery, // Dati base da AI
+      ...webScrapingData.data, // Sovrascrive con dati più completi da web
+      validationStatus: 'validated',
+      dataSource: 'web_scraped+ai',
+      needsManualReview: false,
+      webScrapingConfidence: webScrapingData.confidence,
+      aiConfidence: aiResult.validation?.confidence || 0.8
+    };
+    
+    // 2. Verifica e arricchisci birre: merge dati AI + dettagli da web scraping
+    const WebScrapingService = require('../services/webScrapingService');
+    const enhancedBeers = [];
+    const unvalidatedBeers = [];
+    
+    for (const aiBeer of aiResult.bottles) {
+      try {
+        logger.info('[enhanceAiResultWithWebScraping] 🔍 Elaborazione birra', { 
+          beerName: aiBeer.beerName 
+        });
+
+        // STEP 1: Cerca birra nel sito web usando il nuovo sistema di scraping
+        let webBeerData = null;
+        
+        // Se abbiamo già birre dal web scraping del birrificio, cerca match
+        if (webScrapingData.data.beers && webScrapingData.data.beers.length > 0) {
+          webBeerData = webScrapingData.data.beers.find(wb => 
+            WebScrapingService.verifyBeerBelongsToBrewery(aiBeer.beerName, webScrapingData.data.beers)
+          );
+          
+          if (webBeerData) {
+            logger.debug('[enhanceAiResultWithWebScraping] ✅ Birra trovata in lista birrificio');
+          }
+        }
+        
+        // STEP 2: Se non trovata, cerca pagina specifica della birra con scraping dettagliato
+        if (!webBeerData && enhancedBrewery.website) {
+          logger.info('[enhanceAiResultWithWebScraping] 🔎 Ricerca pagina specifica birra', {
+            beerName: aiBeer.beerName,
+            breweryWebsite: enhancedBrewery.website
+          });
+          
+          const beerSearchResult = await WebScrapingService.searchBeerOnWeb(
+            aiBeer.beerName,
+            enhancedBrewery.breweryName,
+            enhancedBrewery.website
+          );
+          
+          if (beerSearchResult.found && beerSearchResult.confidence >= 0.3) {
+            webBeerData = beerSearchResult.beer;
+            logger.info('[enhanceAiResultWithWebScraping] ✅ Birra trovata con scraping dedicato', {
+              beerName: aiBeer.beerName,
+              confidence: beerSearchResult.confidence,
+              fieldsFound: beerSearchResult.fieldsFound,
+              scrapedFrom: beerSearchResult.scrapedFrom
+            });
+          } else {
+            logger.warn('[enhanceAiResultWithWebScraping] ⚠️ Scraping dedicato non ha trovato dati', {
+              beerName: aiBeer.beerName,
+              confidence: beerSearchResult.confidence
+            });
+          }
+        }
+        
+        // STEP 3: Merge dati AI + Web
+        if (webBeerData) {
+          // ✅ Birra trovata su sito - MERGE intelligente dati AI + Web
+          const mergedBeer = {
+            ...aiBeer, // Dati base da AI (immagine, posizione, etc)
+            // Arricchimento con dati web (priorità web per dettagli tecnici)
+            alcoholContent: webBeerData.alcoholContent || aiBeer.alcoholContent,
+            beerType: webBeerData.beerType || aiBeer.beerType,
+            beerSubStyle: webBeerData.beerSubStyle || aiBeer.beerSubStyle,
+            ibu: webBeerData.ibu || aiBeer.ibu,
+            volume: webBeerData.volume || aiBeer.volume,
+            description: webBeerData.description || aiBeer.description,
+            ingredients: webBeerData.ingredients || aiBeer.ingredients,
+            tastingNotes: webBeerData.tastingNotes || aiBeer.tastingNotes,
+            nutritionalInfo: webBeerData.nutritionalInfo || aiBeer.nutritionalInfo,
+            price: webBeerData.price || aiBeer.price,
+            availability: webBeerData.availability || aiBeer.availability,
+            // Metadati
+            beerName: aiBeer.beerName, // SEMPRE priorità nome da AI (più preciso dall'etichetta)
+            validationStatus: 'validated',
+            dataSource: 'web_scraped+ai',
+            needsManualReview: false,
+            webScrapingApplied: true
+          };
+          
+          enhancedBeers.push(mergedBeer);
+          
+          logger.info('[enhanceAiResultWithWebScraping] ✅ Birra arricchita completamente', {
+            beerName: aiBeer.beerName,
+            hasAlcohol: !!mergedBeer.alcoholContent,
+            hasIBU: !!mergedBeer.ibu,
+            hasType: !!mergedBeer.beerType,
+            hasIngredients: !!mergedBeer.ingredients,
+            hasTastingNotes: !!mergedBeer.tastingNotes,
+            hasPrice: !!mergedBeer.price
+          });
+        } else {
+          // ⚠️ Birra NON trovata su sito - usa solo dati AI
+          unvalidatedBeers.push({
+            ...aiBeer,
+            validationStatus: 'pending_validation',
+            dataSource: 'ai_extracted',
+            needsManualReview: true,
+            reviewReason: 'Birra non trovata nel sito ufficiale del birrificio (nè in lista nè con scraping dedicato)',
+            webScrapingAttempted: true
+          });
+          
+          logger.warn('[enhanceAiResultWithWebScraping] ⚠️ Birra non trovata su web', {
+            beerName: aiBeer.beerName,
+            reason: 'Nessuna corrispondenza trovata'
+          });
+        }
+      } catch (beerError) {
+        logger.error('[enhanceAiResultWithWebScraping] ❌ Errore elaborazione birra', {
+          beerName: aiBeer.beerName,
+          error: beerError.message
+        });
+        
+        // Fallback: usa dati AI senza arricchimento
+        unvalidatedBeers.push({
+          ...aiBeer,
+          validationStatus: 'pending_validation',
+          dataSource: 'ai_extracted',
+          needsManualReview: true,
+          reviewReason: `Errore durante scraping: ${beerError.message}`,
+          webScrapingError: beerError.message
+        });
+      }
+    }
+    
+    logger.info('[enhanceAiResultWithWebScraping] 🍺 Statistiche arricchimento', {
+      totalBeers: aiResult.bottles.length,
+      enhancedWithWeb: enhancedBeers.length,
+      aiOnly: unvalidatedBeers.length,
+      successRate: `${((enhancedBeers.length / aiResult.bottles.length) * 100).toFixed(1)}%`
+    });
+    
+    // 3. Costruisci risultato finale ARRICCHITO
+    const enhancedResult = {
+      ...aiResult, // Mantieni struttura originale AI
+      brewery: enhancedBrewery,
+      bottles: [...enhancedBeers, ...unvalidatedBeers],
+      validation: {
+        ...aiResult.validation,
+        source: 'ai+web_scraping',
+        webScrapingConfidence: webScrapingData.confidence,
+        enhancedBeers: enhancedBeers.length,
+        aiOnlyBeers: unvalidatedBeers.length
+      },
+      dataEnhancement: {
+        applied: true,
+        source: 'web_scraping',
+        confidence: webScrapingData.confidence,
+        beersEnhanced: enhancedBeers.length,
+        totalBeers: aiResult.bottles.length
+      }
+    };
+    
+    // 4. Se ci sono birre non validate, notifica administrator
+    if (unvalidatedBeers.length > 0) {
+      session.pendingValidation = {
+        breweryName: enhancedBrewery.breweryName,
+        beersCount: unvalidatedBeers.length,
+        timestamp: new Date()
+      };
+      
+      logger.info('[enhanceAiResultWithWebScraping] ⚠️ Birre da validare - Notifica admin', {
+        breweryName: enhancedBrewery.breweryName,
+        unvalidatedCount: unvalidatedBeers.length
+      });
+      
+      try {
+        await validationController.notifyAdministrators('beers', {
+          breweryName: enhancedBrewery.breweryName,
+          beersCount: unvalidatedBeers.length,
+          beers: unvalidatedBeers.map(b => b.beerName)
+        });
+        logger.info('[enhanceAiResultWithWebScraping] ✅ Email notifica inviata');
+      } catch (emailError) {
+        logger.error('[enhanceAiResultWithWebScraping] ❌ Errore email notifica', {
+          error: emailError.message
+        });
+      }
+    }
+    
+    return enhancedResult;
+    
+  } catch (error) {
+    logger.error('[enhanceAiResultWithWebScraping] ❌ Errore arricchimento', {
+      error: error.message,
+      stack: error.stack
+    });
+    
+    // Fallback: ritorna risultato AI originale senza arricchimento
+    logger.warn('[enhanceAiResultWithWebScraping] ⚠️ Fallback - Uso solo dati AI originali');
+    return aiResult;
+  }
+};
+
+/**
+ * @deprecated - Sostituito da enhanceAiResultWithWebScraping
+ * Mantenuto per retrocompatibilità ma NON più usato (causava doppia chiamata AI)
+ */
+exports.buildResultFromWebScraping = async function(webScrapingData, imageBuffer, session, userId) {
+  logger.warn('[buildResultFromWebScraping] ⚠️ DEPRECATED - Usa enhanceAiResultWithWebScraping invece');
+  throw new Error('buildResultFromWebScraping is deprecated - use enhanceAiResultWithWebScraping');
 };
