@@ -1,0 +1,454 @@
+{% extends "layout.njk" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/css/admin.css">
+<script src="/js/statisticsManager.js"></script>
+<style>
+/* Gestione generale del layout e scrolling */
+html {
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+body {
+    overflow-y: auto;
+    min-height: 100vh;
+}
+
+/* Container principale con margini ottimizzati */
+.brewery-statistics-container {
+    padding: 1rem;
+    margin-bottom: 2rem;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.brewery-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.brewery-title {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.brewery-rating {
+    font-size: 1.3rem;
+    opacity: 0.9;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.2rem;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-left: 4px solid #3498db;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 0.4rem;
+}
+
+.stat-label {
+    color: #7f8c8d;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.beer-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.2rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.beer-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.beer-name {
+    font-size: 1.15rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 0.8rem;
+}
+
+.beer-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 0.8rem;
+}
+
+.beer-stat {
+    text-align: center;
+}
+
+.beer-stat-value {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #3498db;
+}
+
+.beer-stat-label {
+    font-size: 0.75rem;
+    color: #7f8c8d;
+    text-transform: uppercase;
+}
+
+.rating-distribution {
+    background: white;
+    border-radius: 8px;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+.rating-bar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.4rem;
+}
+
+.rating-label {
+    width: 30px;
+    font-weight: bold;
+}
+
+.rating-progress {
+    flex: 1;
+    height: 18px;
+    background: #ecf0f1;
+    border-radius: 9px;
+    margin: 0 1rem;
+    overflow: hidden;
+}
+
+.rating-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #e74c3c, #f39c12, #f1c40f, #2ecc71, #27ae60);
+    transition: width 0.3s ease;
+}
+
+.rating-count {
+    width: 50px;
+    text-align: right;
+    font-weight: bold;
+}
+
+.detailed-ratings {
+    background: white;
+    border-radius: 8px;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+.detailed-rating-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.detailed-rating-item:last-child {
+    border-bottom: none;
+}
+
+.detailed-rating-label {
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.detailed-rating-value {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #3498db;
+}
+
+.section-title {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid #3498db;
+}
+
+.back-link {
+    display: inline-block;
+    margin-bottom: 1rem;
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.period-info {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-left: 4px solid #17a2b8;
+}
+
+/* Miglioramenti per la sezione birre */
+.beers-section {
+    margin-bottom: 2rem;
+}
+
+/* Spacing ottimizzato per le righe */
+.row {
+    margin-bottom: 1rem;
+}
+
+.row:last-child {
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .brewery-statistics-container {
+        padding: 0.5rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.8rem;
+    }
+    
+    .beer-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .brewery-header {
+        padding: 1rem;
+    }
+    
+    .brewery-title {
+        font-size: 1.4rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-number {
+        font-size: 1.6rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .brewery-statistics-container {
+        padding: 0.25rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .brewery-header {
+        padding: 0.8rem;
+    }
+    
+    .brewery-title {
+        font-size: 1.2rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="brewery-statistics-container">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <a href="/administrator/statistics" class="back-link">‹ Torna alle Statistiche</a>
+                
+                <!-- Header Birrificio -->
+                <div class="brewery-header">
+                    <div class="brewery-title">{{ brewery.breweryName }}</div>
+                    <div class="brewery-rating">★ {{ stats.averageRating }} rating medio</div>
+                    {% if brewery.breweryDescription %}
+                    <div class="mt-2">{{ brewery.breweryDescription }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Statistiche Generali -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">{{ stats.totalReviews }}</div>
+                        <div class="stat-label">Recensioni Totali</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{ stats.totalBeers }}</div>
+                        <div class="stat-label">Birre</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{ stats.totalUsers }}</div>
+                        <div class="stat-label">Utenti Unici</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{ stats.averageRating }}</div>
+                        <div class="stat-label">Rating Medio</div>
+                    </div>
+                </div>
+
+                <!-- Periodo Attività -->
+                {% if stats.reviewPeriod and stats.reviewPeriod.firstReview %}
+                <div class="period-info">
+                    <h5>Periodo di Attività</h5>
+                    <p class="mb-1">
+                        <strong>Prima recensione:</strong> {{ stats.reviewPeriod.firstReview | date('DD/MM/YYYY') }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Ultima recensione:</strong> {{ stats.reviewPeriod.lastReview | date('DD/MM/YYYY') }}
+                    </p>
+                    <p class="mb-0">
+                        <strong>Giorni attivi:</strong> {{ stats.reviewPeriod.daysActive }} giorni
+                    </p>
+                </div>
+                {% endif %}
+
+                <div class="row">
+                    <!-- Distribuzione Rating -->
+                    <div class="col-md-6">
+                        <div class="rating-distribution">
+                            <h4 class="section-title">Distribuzione Rating</h4>
+                            {% set maxCount = 0 %}
+                            {% for rating, count in stats.distribution %}
+                                {% if count > maxCount %}{% set maxCount = count %}{% endif %}
+                            {% endfor %}
+                            
+                            {% for i in range(5, 0, -1) %}
+                            <div class="rating-bar">
+                                <div class="rating-label">{{ i }}★</div>
+                                <div class="rating-progress">
+                                    {% set count = stats.distribution[i] or 0 %}
+                                    {% if maxCount > 0 %}
+                                        {% set percentage = (count / maxCount * 100) %}
+                                    {% else %}
+                                        {% set percentage = 0 %}
+                                    {% endif %}
+                                    <div class="rating-fill" style="width: {{ percentage }}%"></div>
+                                </div>
+                                <div class="rating-count">{{ count }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Rating Dettagliati -->
+                    <div class="col-md-6">
+                        <div class="detailed-ratings">
+                            <h4 class="section-title">Valutazioni Dettagliate</h4>
+                            {% if stats.detailedRatings.appearance > 0 %}
+                            <div class="detailed-rating-item">
+                                <span class="detailed-rating-label">Aspetto</span>
+                                <span class="detailed-rating-value">{{ stats.detailedRatings.appearance }}</span>
+                            </div>
+                            <div class="detailed-rating-item">
+                                <span class="detailed-rating-label">Aroma</span>
+                                <span class="detailed-rating-value">{{ stats.detailedRatings.aroma }}</span>
+                            </div>
+                            <div class="detailed-rating-item">
+                                <span class="detailed-rating-label">Gusto</span>
+                                <span class="detailed-rating-value">{{ stats.detailedRatings.taste }}</span>
+                            </div>
+                            <div class="detailed-rating-item">
+                                <span class="detailed-rating-label">Sensazione</span>
+                                <span class="detailed-rating-value">{{ stats.detailedRatings.mouthfeel }}</span>
+                            </div>
+                            <div class="detailed-rating-item">
+                                <span class="detailed-rating-label">Impressione</span>
+                                <span class="detailed-rating-value">{{ stats.detailedRatings.overall }}</span>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">Nessuna valutazione dettagliata disponibile</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista Birre del Birrificio -->
+                <div class="beers-section">
+                    <h3 class="section-title">Birre del Birrificio</h3>
+                    {% for beerData in beersWithStats %}
+                    <div class="beer-card">
+                        <div class="beer-name">
+                            {{ beerData.beerName }}
+                            <span class="badge badge-primary">★ {{ beerData.averageRating }}</span>
+                        </div>
+                        
+                        {% if beerData.beerDetails %}
+                        <div class="mb-3">
+                            {% if beerData.beerDetails.beerType %}
+                            <span class="badge badge-secondary mr-2">{{ beerData.beerDetails.beerType }}</span>
+                            {% endif %}
+                            {% if beerData.beerDetails.alcoholContent %}
+                            <span class="badge badge-info mr-2">{{ beerData.beerDetails.alcoholContent }}</span>
+                            {% endif %}
+                            {% if beerData.beerDetails.ibu %}
+                            <span class="badge badge-warning mr-2">{{ beerData.beerDetails.ibu }} IBU</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="beer-stats">
+                            <div class="beer-stat">
+                                <div class="beer-stat-value">{{ beerData.totalReviews }}</div>
+                                <div class="beer-stat-label">Recensioni</div>
+                            </div>
+                            <div class="beer-stat">
+                                <div class="beer-stat-value">{{ beerData.averageRating }}</div>
+                                <div class="beer-stat-label">Rating</div>
+                            </div>
+                            {% for rating, count in beerData.distribution %}
+                                {% if count > 0 %}
+                                <div class="beer-stat">
+                                    <div class="beer-stat-value">{{ count }}</div>
+                                    <div class="beer-stat-label">{{ rating }}★</div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        
+                        {% if beerData.beerDetails and beerData.beerDetails.description %}
+                        <div class="mt-3">
+                            <small class="text-muted">{{ beerData.beerDetails.description }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    
+                    {% if beersWithStats.length == 0 %}
+                    <p class="text-muted">Nessuna birra trovata per questo birrificio.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

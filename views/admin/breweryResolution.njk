@@ -1,0 +1,148 @@
+{% extends "layout.njk" %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block header %}{{ header }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4><i class="fas fa-building"></i> {{ header }}</h4>
+                    <div class="stats">
+                        <span class="badge badge-info">{{ totalUnverified }} birrifici da verificare</span>
+                        <span class="badge badge-secondary">{{ totalReviews }} recensioni in attesa</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if message %}
+                        {% if message.error %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle"></i> {{ message.error }}
+                            </div>
+                        {% endif %}
+                        {% if message.info %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> {{ message.info }}
+                            </div>
+                        {% endif %}
+                        {% if message.warning %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i> {{ message.warning }}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if breweryGroups.length === 0 %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> Non ci sono birrifici da verificare al momento.
+                        </div>
+                    {% else %}
+                        <div class="brewery-groups">
+                            {% for group in breweryGroups %}
+                                <div class="card mb-4 border-warning">
+                                    <div class="card-header bg-light">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h5 class="mb-0">
+                                                    <i class="fas fa-industry"></i> {{ group.brewery.breweryName }}
+                                                </h5>
+                                                <small class="text-muted">
+                                                    Creato da: {{ group.brewery.createdBy ? 'Utente registrato' : 'Utente ospite' }} |
+                                                    {{ group.totalReviews }} recensione{{ group.totalReviews > 1 ? 'i' : '' }}
+                                                </small>
+                                            </div>
+                                            <div class="btn-group">
+                                                <form action="/admin/brewery/{{ group.brewery._id }}/approve" method="POST" class="d-inline">
+                                                    <input type="hidden" name="action" value="approve">
+                                                    <button type="submit" class="btn btn-success btn-sm"
+                                                            onclick="return confirm('Approvare questo birrificio e pubblicare tutte le recensioni associate?')">
+                                                        <i class="fas fa-check"></i> Approva
+                                                    </button>
+                                                </form>
+                                                <form action="/admin/brewery/{{ group.brewery._id }}/approve" method="POST" class="d-inline ml-2">
+                                                    <input type="hidden" name="action" value="reject">
+                                                    <button type="submit" class="btn btn-danger btn-sm"
+                                                            onclick="return confirm('Rifiutare questo birrificio? Le recensioni verranno spostate in bozza.')">
+                                                        <i class="fas fa-times"></i> Rifiuta
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            {% for review in group.reviews %}
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="card h-100">
+                                                        <div class="card-body">
+                                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                <div>
+                                                                    <h6 class="card-title mb-1">{{ review.beerName }}</h6>
+                                                                    <small class="text-muted">
+                                                                        <i class="fas fa-user"></i> {{ review.user.username || 'Utente ospite' }}<br>
+                                                                        <i class="fas fa-calendar"></i> {{ review.date | date('d/m/Y H:i') }}<br>
+                                                                        <i class="fas fa-star"></i> {{ review.rating }}/5 stelle
+                                                                    </small>
+                                                                </div>
+                                                                {% if review.imageUrl and review.imageUrl !== 'data:image/jpeg;base64,placeholder' %}
+                                                                    <img src="{{ review.imageUrl }}" alt="Birra" class="img-thumbnail" style="width: 60px; height: 60px; object-fit: cover;">
+                                                                {% endif %}
+                                                            </div>
+                                                            <a href="/review/edit/{{ review.reviewId }}" class="btn btn-outline-primary btn-sm">
+                                                                <i class="fas fa-edit"></i> Vedi Recensione
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stats .badge {
+    margin-left: 10px;
+}
+
+.brewery-groups .card {
+    transition: all 0.3s ease;
+}
+
+.brewery-groups .card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.btn-group .btn {
+    margin-right: 5px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Aggiungi conferma per le azioni critiche
+    const approveButtons = document.querySelectorAll('button[onclick*="confirm"]');
+    
+    approveButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            const message = this.onclick.toString().match(/confirm\('([^']+)'\)/);
+            if (message && !confirm(message[1])) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

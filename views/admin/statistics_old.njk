@@ -1,0 +1,541 @@
+{% extends "layout.njk" %}
+{% block title %}{{ title }}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/css/admin-dashboard.css">{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <div class="page-head">
+        <h1><i class="fas fa-chart-bar"></i> Statistiche Piattaforma</h1>
+    </div>
+
+    {% if not summary %}
+    <div class="admin-alert error"><i class="fas fa-exclamation-triangle"></i> Errore caricamento statistiche. <button onclick="location.reload()" class="btn-add" style="padding:4px 12px;font-size:12px">Ricarica</button></div>
+    {% else %}
+    <!-- Stats Overview -->
+    <div class="stats-row">
+        <div class="stat-box" style="--accent:var(--dash-blue)" data-stat-type="breweries">
+            <i class="fas fa-industry"></i>
+            <div class="num">{{ summary.totalBreweries or 0 }}</div>
+            <div class="lbl">Birrifici</div>
+        </div>
+        <div class="stat-box" style="--accent:var(--dash-green)" data-stat-type="beers">
+            <i class="fas fa-beer"></i>
+            <div class="num">{{ summary.totalBeers or 0 }}</div>
+            <div class="lbl">Birre</div>
+        </div>
+        <div class="stat-box" style="--accent:var(--dash-yellow)" data-stat-type="reviews">
+            <i class="fas fa-star"></i>
+            <div class="num">{{ summary.totalReviews or 0 }}</div>
+            <div class="lbl">Recensioni</div>
+        </div>
+        <div class="stat-box" style="--accent:var(--dash-red)" data-stat-type="users">
+            <i class="fas fa-users"></i>
+            <div class="num">{{ summary.totalUsers or 0 }}</div>
+            <div class="lbl">Utenti</div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    {% if quickStats %}
+    <div class="stats-row" style="margin-bottom:1.5rem">
+        <div class="stat-box" style="--accent:#8b5cf6">
+            <i class="fas fa-star-half-alt"></i>
+            <div class="num">{{ quickStats.globalAverageRating or 'N/A' }}</div>
+            <div class="lbl">Rating Medio</div>
+        </div>
+        <div class="stat-box" style="--accent:#06b6d4">
+            <i class="fas fa-user-check"></i>
+            <div class="num">{{ quickStats.activeUsersPercentage or 0 }}%</div>
+            <div class="lbl">Utenti Attivi</div>
+        </div>
+        <div class="stat-box" style="--accent:#ec4899">
+            <i class="fas fa-chart-line"></i>
+            <div class="num">{{ quickStats.engagementPercentage or 0 }}%</div>
+            <div class="lbl">Engagement</div>
+        </div>
+        <div class="stat-box" style="--accent:{% if quickStats.monthlyGrowthPercentage > 0 %}var(--dash-green){% elif quickStats.monthlyGrowthPercentage < 0 %}var(--dash-red){% else %}#6b7280{% endif %}">
+            <i class="fas fa-{% if quickStats.monthlyGrowthPercentage > 0 %}arrow-up{% elif quickStats.monthlyGrowthPercentage < 0 %}arrow-down{% else %}minus{% endif %}"></i>
+            <div class="num">{% if quickStats.monthlyGrowthPercentage !== null %}{{ quickStats.monthlyGrowthPercentage }}%{% else %}N/A{% endif %}</div>
+            <div class="lbl">Crescita Mensile</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Charts Grid -->
+    {% if summary.totalReviews > 0 or summary.totalBreweries > 0 %}
+    <div class="chart-grid">
+        <div class="chart-box">
+            <h3><i class="fas fa-chart-pie"></i> Distribuzione Rating</h3>
+            {% if summary.totalReviews > 0 %}<canvas id="ratingsChart"></canvas>{% else %}<div class="empty-state" style="padding:2rem"><i class="fas fa-chart-pie"></i><p>Nessuna recensione</p></div>{% endif %}
+        </div>
+        <div class="chart-box">
+            <h3><i class="fas fa-trophy"></i> Top Birrifici</h3>
+            {% if summary.totalBreweries > 0 and summary.totalReviews > 0 %}<canvas id="breweriesChart"></canvas>{% else %}<div class="empty-state" style="padding:2rem"><i class="fas fa-industry"></i><p>Dati insufficienti</p></div>{% endif %}
+        </div>
+        <div class="chart-box">
+            <h3><i class="fas fa-chart-line"></i> Trend Recensioni</h3>
+            {% if summary.totalReviews > 0 %}<canvas id="trendChart"></canvas>
+                    {% else %}
+                        <div class="chart-error">
+                            <div class="chart-error-icon">📈</div>
+                            <div class="chart-error-title">Dati Insufficienti</div>
+                            <div class="chart-error-message">Servono più recensioni per mostrare il trend temporale</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Grafico Tipologie Birre -->
+            <div class="chart-card" data-chart-type="beertypes">
+                <div class="chart-header">
+                    <h4 class="chart-title">Rating per Tipologia</h4>
+                    <p class="chart-subtitle">Valutazioni medie per stile</p>
+                </div>
+                <div class="chart-container">
+                    {% if summary.totalBeers > 0 and summary.totalReviews > 0 %}
+                        <canvas id="beerTypesChart"></canvas>
+                    {% else %}
+                        <div class="chart-error">
+                            <div class="chart-error-icon">🍺</div>
+                            <div class="chart-error-title">
+                                {% if summary.totalBeers == 0 %}Nessuna Birra{% else %}Nessuna Recensione{% endif %}
+                            </div>
+                            <div class="chart-error-message">
+                                {% if summary.totalBeers == 0 %}
+                                    Non ci sono ancora birre catalogate nel database
+                                {% else %}
+                                    Le birre non hanno ancora ricevuto valutazioni
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Stato di errore per intera sezione grafici -->
+    <div class="modern-card animate-slide-up">
+        <div class="card-header" style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);">
+            <div class="card-title">
+                <div class="card-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                Grafici Non Disponibili
+            </div>
+            <div class="badge" style="background: rgba(255,255,255,0.2);">Nessun dato</div>
+        </div>
+        <div style="padding: var(--space-8); text-align: center;">
+            <div style="font-size: 5rem; opacity: 0.3; margin-bottom: var(--space-4);">📊</div>
+            <h3 style="color: var(--color-gray-700); margin-bottom: var(--space-3);">Nessun Dato Disponibile per i Grafici</h3>
+            <p style="color: var(--color-gray-600); margin-bottom: var(--space-6); max-width: 600px; margin-left: auto; margin-right: auto;">
+                Per visualizzare i grafici statistici sono necessari dati di base come birrifici registrati, birre catalogate e recensioni degli utenti. 
+                Una volta che la piattaforma inizierà ad avere contenuti, i grafici appariranno automaticamente qui.
+            </p>
+            <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+                <div style="background: var(--color-gray-100); padding: var(--space-4); border-radius: var(--radius-lg); text-align: center; min-width: 140px;">
+                    <div style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">🏭</div>
+                    <div style="font-weight: var(--font-semibold); color: var(--color-gray-700);">Aggiungi Birrifici</div>
+                </div>
+                <div style="background: var(--color-gray-100); padding: var(--space-4); border-radius: var(--radius-lg); text-align: center; min-width: 140px;">
+                    <div style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">🍺</div>
+                    <div style="font-weight: var(--font-semibold); color: var(--color-gray-700);">Cataloga Birre</div>
+                </div>
+                <div style="background: var(--color-gray-100); padding: var(--space-4); border-radius: var(--radius-lg); text-align: center; min-width: 140px;">
+                    <div style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">⭐</div>
+                    <div style="font-weight: var(--font-semibold); color: var(--color-gray-700);">Invita Utenti</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filtri Avanzati -->
+    <div class="filters-panel animate-slide-up">
+        <div class="d-flex align-items-center mb-3">
+            <div class="card-icon me-3">
+                <i class="fas fa-filter"></i>
+            </div>
+            <h4 class="mb-0 text-gradient">Filtri e Ordinamento Avanzati</h4>
+        </div>
+        
+        <form method="GET" action="/administrator/statistics" class="modern-form">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-sort me-1"></i> Ordina per
+                    </label>
+                    <select name="sortBy" class="filter-input">
+                        <option value="totalReviews" {% if filters.sortBy == 'totalReviews' %}selected{% endif %}>
+                            📊 Numero Recensioni
+                        </option>
+                        <option value="averageRating" {% if filters.sortBy == 'averageRating' %}selected{% endif %}>
+                            ⭐ Rating Medio
+                        </option>
+                        <option value="totalBeers" {% if filters.sortBy == 'totalBeers' %}selected{% endif %}>
+                            🍺 Numero Birre
+                        </option>
+                        <option value="breweryName" {% if filters.sortBy == 'breweryName' %}selected{% endif %}>
+                            🏭 Nome Birrificio
+                        </option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-arrows-alt-v me-1"></i> Ordine
+                    </label>
+                    <select name="sortOrder" class="filter-input">
+                        <option value="desc" {% if filters.sortOrder == 'desc' %}selected{% endif %}>
+                            📉 Decrescente
+                        </option>
+                        <option value="asc" {% if filters.sortOrder == 'asc' %}selected{% endif %}>
+                            📈 Crescente
+                        </option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-hashtag me-1"></i> Min. Recensioni
+                    </label>
+                    <input type="number" name="minReviews" value="{{ filters.minReviews }}" 
+                           min="0" class="filter-input" placeholder="es. 5">
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-industry me-1"></i> Filtra per Birrificio
+                    </label>
+                    <div class="autocomplete-container">
+                        <input type="text" 
+                               id="breweryFilter" 
+                               name="brewery" 
+                               value="{{ filters.brewery or '' }}" 
+                               class="filter-input" 
+                               placeholder="Digita il nome del birrificio..."
+                               autocomplete="off">
+                        <div class="autocomplete-dropdown" id="breweryDropdown"></div>
+                        <button type="button" class="clear-input-btn" id="clearBrewery" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">
+                        <i class="fas fa-list-ol me-1"></i> Risultati per pagina
+                    </label>
+                    <select name="limit" class="filter-input">
+                        <option value="5" {% if filters.limit == 5 %}selected{% endif %}>5 risultati</option>
+                        <option value="10" {% if filters.limit == 10 or (not filters.limit and filters.limit != 999) %}selected{% endif %}>10 risultati</option>
+                        <option value="20" {% if filters.limit == 20 %}selected{% endif %}>20 risultati</option>
+                        <option value="50" {% if filters.limit == 50 %}selected{% endif %}>50 risultati</option>
+                        <option value="999" {% if filters.limit == 999 %}selected{% endif %}>🔢 Tutte le righe</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="d-flex gap-3 mt-4">
+                <button type="submit" class="btn-modern btn-primary-modern">
+                    <i class="fas fa-search me-2"></i>
+                    Applica Filtri
+                </button>
+                <a href="/administrator/statistics" class="btn-modern btn-secondary-modern">
+                    <i class="fas fa-undo me-2"></i>
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabelle Dettagliate -->
+    <div class="modern-card animate-slide-up">
+        <div class="card-header">
+            <div class="card-title">
+                <div class="card-icon">
+                    <i class="fas fa-table"></i>
+                </div>
+                <div>
+                    <div>Dati Dettagliati</div>
+                    <small class="text-muted">
+                        {% if breweries and breweries.length > 0 %}
+                            {% set totalFiltered = pagination.total or breweries.length %}
+                            {% if filters.limit == 999 %}
+                                {% if totalFiltered < summary.totalBreweriesInDB %}
+                                    Visualizzati tutti i {{ breweries.length }} birrifici che soddisfano i filtri ({{ summary.totalBreweriesInDB }} totali censiti)
+                                {% else %}
+                                    Visualizzati tutti i {{ breweries.length }} su {{ summary.totalBreweriesInDB }} birrifici censiti
+                                {% endif %}
+                            {% else %}
+                                Visualizzati {{ breweries.length }} su {{ summary.totalBreweriesInDB }} birrifici censiti (limite: {{ filters.limit or 10 }})
+                            {% endif %}
+                        {% else %}
+                            Nessun risultato trovato con i filtri attuali su {{ summary.totalBreweriesInDB }} birrifici censiti
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Top Birrifici -->
+            <div class="col-lg-8">
+                <div class="table-modern">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-trophy"></i> Rank</th>
+                                <th><i class="fas fa-industry"></i> Birrificio</th>
+                                <th><i class="fas fa-star"></i> Rating</th>
+                                <th><i class="fas fa-comments"></i> Recensioni</th>
+                                <th><i class="fas fa-beer"></i> Birre</th>
+                                <th><i class="fas fa-users"></i> Utenti</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if breweries and breweries.length > 0 %}
+                                {% for brewery in breweries %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if loop.index <= 3 %}
+                                                <i class="fas fa-medal text-warning me-2"></i>
+                                            {% endif %}
+                                            <strong class="text-primary">#{{ loop.index }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="/administrator/statistics/brewery/{{ brewery.breweryId }}" 
+                                           class="text-decoration-none fw-bold text-dark">
+                                            {{ brewery.breweryName or 'Nome non disponibile' }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% set rating = brewery.averageRating or 0 %}
+                                        {% set stars = "⭐".repeat((rating | round)) %}
+                                        <span class="fw-bold text-warning">{{ stars }}</span>
+                                        <small class="text-muted ms-1">{{ rating.toFixed(2) }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary rounded-pill">
+                                            {{ brewery.totalReviews or 0 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info rounded-pill">
+                                            {{ brewery.totalBeers or 0 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success rounded-pill">
+                                            {{ brewery.totalUsers or 0 }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        Nessun birrificio trovato
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Statistiche Rapide -->
+            <div class="col-lg-4">
+                <div class="modern-card">
+                    <h5 class="text-gradient mb-3">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Statistiche Rapide
+                    </h5>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Rating Medio Globale</span>
+                            {% if quickStats.globalAverageRating > 0 %}
+                                <span class="badge bg-warning rounded-pill">{{ quickStats.globalAverageRating }} ⭐</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">N/A</span>
+                            {% endif %}
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-warning" style="width: {{ (quickStats.globalAverageRating / 5 * 100) | round }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Utenti Attivi</span>
+                            {% if quickStats.activeUsersPercentage >= 0 %}
+                                <span class="badge bg-success rounded-pill">{{ quickStats.activeUsersPercentage }}%</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">N/A</span>
+                            {% endif %}
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-success" style="width: {{ quickStats.activeUsersPercentage }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Engagement</span>
+                            {% if quickStats.engagementPercentage >= 0 %}
+                                <span class="badge bg-info rounded-pill">{{ quickStats.engagementPercentage }}%</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">N/A</span>
+                            {% endif %}
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-info" style="width: {{ quickStats.engagementPercentage }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- VU Meter per Crescita Mensile -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="fw-bold">Crescita Mensile</span>
+                            {% if quickStats.monthlyGrowthPercentage !== null %}
+                                {% if quickStats.monthlyGrowthPercentage > 0 %}
+                                    <span class="badge bg-success rounded-pill">
+                                        <i class="fas fa-arrow-up me-1"></i>+{{ quickStats.monthlyGrowthPercentage }}%
+                                    </span>
+                                {% elif quickStats.monthlyGrowthPercentage < 0 %}
+                                    <span class="badge bg-danger rounded-pill">
+                                        <i class="fas fa-arrow-down me-1"></i>{{ quickStats.monthlyGrowthPercentage }}%
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill">
+                                        <i class="fas fa-minus me-1"></i>{{ quickStats.monthlyGrowthPercentage }}%
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">N/A</span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- VU Meter -->
+                        <div class="vu-meter-container">
+                            <div class="vu-meter">
+                                <svg class="vu-meter-svg" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+                                    <!-- Arco di sfondo -->
+                                    <path d="M 20 100 A 80 80 0 0 1 180 100" 
+                                          fill="none" 
+                                          stroke="#e9ecef" 
+                                          stroke-width="12" 
+                                          stroke-linecap="round"/>
+                                    
+                                    <!-- Segmenti colorati del meter -->
+                                    <path d="M 20 100 A 80 80 0 0 1 40 35" 
+                                          fill="none" 
+                                          stroke="#dc3545" 
+                                          stroke-width="10" 
+                                          stroke-linecap="round" 
+                                          class="vu-segment danger"/>
+                                    
+                                    <path d="M 45 30 A 80 80 0 0 1 80 15" 
+                                          fill="none" 
+                                          stroke="#fd7e14" 
+                                          stroke-width="10" 
+                                          stroke-linecap="round" 
+                                          class="vu-segment warning"/>
+                                    
+                                    <path d="M 85 15 A 80 80 0 0 1 115 15" 
+                                          fill="none" 
+                                          stroke="#6c757d" 
+                                          stroke-width="10" 
+                                          stroke-linecap="round" 
+                                          class="vu-segment neutral"/>
+                                    
+                                    <path d="M 120 15 A 80 80 0 0 1 155 30" 
+                                          fill="none" 
+                                          stroke="#20c997" 
+                                          stroke-width="10" 
+                                          stroke-linecap="round" 
+                                          class="vu-segment success"/>
+                                    
+                                    <path d="M 160 35 A 80 80 0 0 1 180 100" 
+                                          fill="none" 
+                                          stroke="#198754" 
+                                          stroke-width="10" 
+                                          stroke-linecap="round" 
+                                          class="vu-segment excellent"/>
+                                    
+                                    <!-- Indicatore (ago) -->
+                                    {% if quickStats.monthlyGrowthPercentage !== null %}
+                                        {% set normalizedValue = ((quickStats.monthlyGrowthPercentage + 100) / 200) %}
+                                        {% set angle = (normalizedValue * 160) + 10 %}
+                                        {% set radians = (angle - 90) * 3.14159 / 180 %}
+                                        
+                                        <!-- Calcolo approssimativo delle coordinate dell'ago -->
+                                        {% if quickStats.monthlyGrowthPercentage <= -80 %}
+                                            <line x1="100" y1="100" x2="30" y2="80" stroke="#dc3545" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% elif quickStats.monthlyGrowthPercentage <= -40 %}
+                                            <line x1="100" y1="100" x2="50" y2="50" stroke="#fd7e14" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% elif quickStats.monthlyGrowthPercentage <= -10 %}
+                                            <line x1="100" y1="100" x2="75" y2="30" stroke="#ffc107" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% elif quickStats.monthlyGrowthPercentage <= 10 %}
+                                            <line x1="100" y1="100" x2="100" y2="20" stroke="#6c757d" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% elif quickStats.monthlyGrowthPercentage <= 40 %}
+                                            <line x1="100" y1="100" x2="125" y2="30" stroke="#20c997" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% elif quickStats.monthlyGrowthPercentage <= 80 %}
+                                            <line x1="100" y1="100" x2="150" y2="50" stroke="#198754" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% else %}
+                                            <line x1="100" y1="100" x2="170" y2="80" stroke="#198754" stroke-width="4" stroke-linecap="round" class="vu-needle"/>
+                                        {% endif %}
+                                        
+                                        <!-- Centro dell'ago -->
+                                        <circle cx="100" cy="100" r="4" fill="#495057"/>
+                                    {% else %}
+                                        <!-- Ago in posizione neutra quando non ci sono dati -->
+                                        <line x1="100" y1="100" x2="100" y2="35" 
+                                              stroke="#6c757d" 
+                                              stroke-width="4" 
+                                              stroke-linecap="round" 
+                                              class="vu-needle neutral"/>
+                                        <circle cx="100" cy="100" r="5" fill="#6c757d"/>
+                                    {% endif %}
+                                    
+                                    <!-- Etichette -->
+                                    <text x="30" y="115" text-anchor="middle" class="vu-label">-100%</text>
+                                    <text x="100" y="25" text-anchor="middle" class="vu-label">0%</text>
+                                    <text x="170" y="115" text-anchor="middle" class="vu-label">+100%</text>
+                                </svg>
+                                
+                                <!-- Valore centrale -->
+                                <div class="vu-value">
+                                    {% if quickStats.monthlyGrowthPercentage !== null %}
+                                        {{ quickStats.monthlyGrowthPercentage }}%
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- Script per passare dati analytics al JavaScript -->
+{% block scripts %}
+    <!-- Chart.js locale UMD -->
+    <script src="/js/chart.umd.js"></script>
+    <!-- Statistics Data Script - DEVE ESSERE CARICATO PRIMA DI statisticsManager.js -->
+    <script src="/js/statisticsData.js"></script>
+    <!-- Statistics Manager Script -->
+    <script src="/js/statisticsManager.js"></script>
+    <!-- Modern Statistics Page Script (NEW) -->
+    <script src="/js/modernStatistics.js"></script>
+    <!-- VU Meter Animation Script -->
+    <script src="/js/vuMeterAnimation.js"></script>
+{% endblock %}

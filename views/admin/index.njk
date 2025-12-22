@@ -1,19 +1,127 @@
-{% extends "layout.njk" %}
+{% extends "../layout.njk" %}
 
-{% block title %}Pannello di Amministrazione{% endblock %}
-
-{% block header %}Pannello di Amministrazione{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/css/admin-dashboard.css">
+{% endblock %}
 
 {% block content %}
-<section>
-    <h2>Gestione Amministrativa</h2>
-    <ul>
-        <li><a href="/admin/users">Utenti</a></li>
-        <li><a href="/admin/breweries">Birrifici</a></li>
-        <li><a href="/admin/orders">Ordini</a></li>
-        <li><a href="/admin/payments">Pagamenti</a></li>
-        <li><a href="/admin/invitations">Inviti</a></li>
-        <li><a href="/admin/config">Configurazioni</a></li>
-    </ul>
-</section>
+<div class="admin-dash">
+    <!-- Header compatto con stats inline -->
+    <header class="dash-header">
+        <div class="dash-brand">
+            <span class="dash-icon">⚡</span>
+            <div class="dash-title">
+                <h1>Admin Panel</h1>
+                <span>SharingBeer Management</span>
+            </div>
+        </div>
+        <div class="dash-stats">
+            <div class="stat-pill"><span id="sUsers">-</span> utenti</div>
+            <div class="stat-pill"><span id="sBreweries">-</span> birrifici</div>
+            <div class="stat-pill"><span id="sBeers">-</span> birre</div>
+            <div class="stat-pill"><span id="sReviews">-</span> review</div>
+        </div>
+    </header>
+
+    <!-- Grid principale -->
+    <main class="dash-main">
+        <!-- Gestione Dati -->
+        <section class="dash-section">
+            <h2><i class="fas fa-database"></i> Gestione</h2>
+            <div class="cards-row">
+                <a href="/administrator/users" class="dash-card blue">
+                    <i class="fas fa-users"></i>
+                    <div><strong>Utenti</strong><span>Account e ruoli</span></div>
+                    <em>→</em>
+                </a>
+                <a href="/administrator/breweries" class="dash-card amber">
+                    <i class="fas fa-industry"></i>
+                    <div><strong>Birrifici</strong><span>Database birrifici</span></div>
+                    <em>→</em>
+                </a>
+                <a href="/administrator/statistics" class="dash-card green">
+                    <i class="fas fa-chart-line"></i>
+                    <div><strong>Statistiche</strong><span>Analytics e report</span></div>
+                    <em>→</em>
+                </a>
+            </div>
+        </section>
+
+        <!-- Validazione AI -->
+        <section class="dash-section">
+            <h2><i class="fas fa-robot"></i> Validazione AI</h2>
+            <div class="cards-row">
+                <a href="/administrator/validation/breweries" class="dash-card purple">
+                    <i class="fas fa-building"></i>
+                    <div><strong>Birrifici</strong><span>Da approvare</span></div>
+                    <span class="badge" id="breweryBadge">0</span>
+                </a>
+                <a href="/administrator/validation/beers" class="dash-card purple">
+                    <i class="fas fa-beer-mug-empty"></i>
+                    <div><strong>Birre</strong><span>Da approvare</span></div>
+                    <span class="badge" id="beerBadge">0</span>
+                </a>
+                <a href="/administrator/review-beer-connections" class="dash-card purple">
+                    <i class="fas fa-link"></i>
+                    <div><strong>Connessioni</strong><span>Review → Beer</span></div>
+                    <em>→</em>
+                </a>
+            </div>
+        </section>
+
+        <!-- Sistema -->
+        <section class="dash-section">
+            <h2><i class="fas fa-cogs"></i> Sistema</h2>
+            <div class="sys-grid">
+                <a href="/api/cache" class="sys-btn"><i class="fas fa-database"></i> Cache</a>
+                <a href="/administrator/queues" class="sys-btn"><i class="fas fa-tasks"></i> Code</a>
+                <a href="/content-moderation" class="sys-btn"><i class="fas fa-shield-alt"></i> Moderazione</a>
+                <a href="/administrator/brewery-matching-test" class="sys-btn"><i class="fas fa-search"></i> Test AI</a>
+            </div>
+        </section>
+
+        <!-- Azioni Rapide -->
+        <section class="dash-section">
+            <h2><i class="fas fa-bolt"></i> Azioni Rapide</h2>
+            <div class="quick-row">
+                <a href="/administrator/users/new" class="qbtn blue"><i class="fas fa-user-plus"></i> Nuovo Utente</a>
+                <a href="/administrator/breweries/new" class="qbtn amber"><i class="fas fa-plus"></i> Nuovo Birrificio</a>
+                <a href="/administrator/incomplete-breweries" class="qbtn red"><i class="fas fa-exclamation-triangle"></i> Incompleti</a>
+                <a href="/" class="qbtn gray"><i class="fas fa-home"></i> Home</a>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    // Quick stats
+    try {
+        const r = await fetch('/administrator/api/quick-stats');
+        if (r.ok) {
+            const d = await r.json();
+            if (d.success) {
+                document.getElementById('sUsers').textContent = d.stats.users || 0;
+                document.getElementById('sBreweries').textContent = d.stats.breweries || 0;
+                document.getElementById('sBeers').textContent = d.stats.beers || 0;
+                document.getElementById('sReviews').textContent = d.stats.reviews || 0;
+            }
+        }
+    } catch(e) {}
+    
+    // Validation counts
+    try {
+        const r = await fetch('/administrator/validation/counts');
+        if (r.ok) {
+            const d = await r.json();
+            if (d.success) {
+                const bb = document.getElementById('breweryBadge');
+                const be = document.getElementById('beerBadge');
+                if (d.counts.breweries > 0) { bb.textContent = d.counts.breweries; bb.classList.add('active'); }
+                if (d.counts.beers > 0) { be.textContent = d.counts.beers; be.classList.add('active'); }
+            }
+        }
+    } catch(e) {}
+});
+</script>
 {% endblock %}

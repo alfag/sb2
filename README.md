@@ -17,7 +17,6 @@ SharingBeer2_0 (SB2) è una piattaforma online innovativa progettata per connett
 - **config**: Configurazioni per il database e l'autenticazione.
 - **public**: Risorse statiche come CSS, JavaScript e immagini.
 - **views**: Template per le pagine dell'applicazione.
-- **.env**: Variabili d'ambiente per la configurazione.
 - **package.json**: Gestione delle dipendenze e degli script npm.
 
 ## Installazione
@@ -39,6 +38,16 @@ SharingBeer2_0 (SB2) è una piattaforma online innovativa progettata per connett
    ```
    npm start
    ```
+
+## Test automatici
+
+Per eseguire i test automatici:
+
+```bash
+npm test
+```
+
+I test si trovano nella cartella `/test` e utilizzano Mocha, Chai e Supertest.
 
 ## Contribuire
 

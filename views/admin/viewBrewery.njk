@@ -1,0 +1,388 @@
+{% extends "../layout.njk" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>{{ title }}</h1>
+    
+    <!-- Messaggi flash -->
+    {% if message.success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message.success[0] }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+    
+    {% if message.error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ message.error[0] }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+    
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/administrator">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="/administrator/breweries">Birrifici</a></li>
+            <li class="breadcrumb-item active">{{ brewery.breweryName }}</li>
+        </ol>
+    </nav>
+    
+    <!-- Header birrificio -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="card-title mb-1">{{ brewery.breweryName }}</h2>
+                        <p class="text-muted mb-0">ID: {{ brewery._id }}</p>
+                    </div>
+                    <div>
+                        <a href="/administrator/breweries/edit/{{ brewery._id }}" class="btn btn-warning me-2">
+                            <i class="fas fa-edit"></i> Modifica
+                        </a>
+                        <a href="/administrator/breweries" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Torna alla Lista
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if brewery.breweryDescription %}
+                        <p class="lead">{{ brewery.breweryDescription }}</p>
+                    {% endif %}
+                    
+                    <!-- Statistiche rapide -->
+                    {% if brewery.stats %}
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-beer text-warning me-2 fs-4"></i>
+                                    <div>
+                                        <h5 class="mb-0">{{ brewery.stats.totalBeers }}</h5>
+                                        <small class="text-muted">Birre Associate</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-star text-success me-2 fs-4"></i>
+                                    <div>
+                                        <h5 class="mb-0">{{ brewery.stats.totalReviews }}</h5>
+                                        <small class="text-muted">Recensioni Totali</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dettagli in tabs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Tab navigation -->
+                    <ul class="nav nav-tabs" id="breweryTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+                                <i class="fas fa-info-circle"></i> Informazioni Generali
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="legal-tab" data-bs-toggle="tab" data-bs-target="#legal" type="button" role="tab">
+                                <i class="fas fa-gavel"></i> Dati Legali
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="production-tab" data-bs-toggle="tab" data-bs-target="#production" type="button" role="tab">
+                                <i class="fas fa-industry"></i> Produzione
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact" type="button" role="tab">
+                                <i class="fas fa-address-book"></i> Contatti
+                            </button>
+                        </li>
+                        {% if brewery.stats and brewery.stats.totalBeers > 0 %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="beers-tab" data-bs-toggle="tab" data-bs-target="#beers" type="button" role="tab">
+                                <i class="fas fa-beer"></i> Birre ({{ brewery.stats.totalBeers }})
+                            </button>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    
+                    <!-- Tab content -->
+                    <div class="tab-content" id="breweryTabsContent">
+                        
+                        <!-- Informazioni Generali -->
+                        <div class="tab-pane fade show active" id="general" role="tabpanel">
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Informazioni Base</h6>
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <td><strong>Nome:</strong></td>
+                                            <td>{{ brewery.breweryName or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Email:</strong></td>
+                                            <td>
+                                                {% if brewery.breweryEmail %}
+                                                    <a href="mailto:{{ brewery.breweryEmail }}">{{ brewery.breweryEmail }}</a>
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Sito Web:</strong></td>
+                                            <td>
+                                                {% if brewery.breweryWebsite %}
+                                                    <a href="{{ brewery.breweryWebsite }}" target="_blank">{{ brewery.breweryWebsite }}</a>
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Anno Fondazione:</strong></td>
+                                            <td>{{ brewery.foundingYear or 'N/A' }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Storia</h6>
+                                    {% if brewery.breweryHistory %}
+                                        <p>{{ brewery.breweryHistory }}</p>
+                                    {% else %}
+                                        <p class="text-muted">Nessuna storia disponibile</p>
+                                    {% endif %}
+                                    
+                                    {% if brewery.masterBrewer %}
+                                        <h6 class="text-primary mt-3">Mastro Birraio</h6>
+                                        <p>{{ brewery.masterBrewer }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Prodotti e Premi -->
+                            <div class="row mt-4">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Prodotti Principali</h6>
+                                    {% if brewery.mainProducts and brewery.mainProducts.length > 0 %}
+                                        <div class="d-flex flex-wrap">
+                                            {% for product in brewery.mainProducts %}
+                                                <span class="badge bg-secondary me-1 mb-1">{{ product }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted">Nessun prodotto specificato</p>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Premi e Riconoscimenti</h6>
+                                    {% if brewery.awards and brewery.awards.length > 0 %}
+                                        <div class="d-flex flex-wrap">
+                                            {% for award in brewery.awards %}
+                                                <span class="badge bg-warning text-dark me-1 mb-1">{{ award }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted">Nessun premio specificato</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Dati Legali -->
+                        <div class="tab-pane fade" id="legal" role="tabpanel">
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <table class="table">
+                                        <tr>
+                                            <td><strong>Codice Fiscale:</strong></td>
+                                            <td>{{ brewery.breweryFiscalCode or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Codice REA:</strong></td>
+                                            <td>{{ brewery.breweryREAcode or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Codice Accise:</strong></td>
+                                            <td>{{ brewery.breweryacciseCode or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Fondo:</strong></td>
+                                            <td>{{ brewery.breweryFund or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Indirizzo Legale:</strong></td>
+                                            <td>{{ brewery.breweryLegalAddress or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Data Creazione:</strong></td>
+                                            <td>{{ brewery.createdAt | date('d/m/Y H:i') }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Ultimo Aggiornamento:</strong></td>
+                                            <td>{{ brewery.updatedAt | date('d/m/Y H:i') }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Produzione -->
+                        <div class="tab-pane fade" id="production" role="tabpanel">
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Dettagli Produttivi</h6>
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <td><strong>Dimensione:</strong></td>
+                                            <td>{{ brewery.brewerySize or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Numero Dipendenti:</strong></td>
+                                            <td>{{ brewery.employeeCount or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Volume Produzione:</strong></td>
+                                            <td>{{ brewery.productionVolume or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Area Distribuzione:</strong></td>
+                                            <td>{{ brewery.distributionArea or 'N/A' }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Indirizzo Produzione</h6>
+                                    {% if brewery.breweryProductionAddress %}
+                                        <p>{{ brewery.breweryProductionAddress }}</p>
+                                    {% else %}
+                                        <p class="text-muted">Nessun indirizzo di produzione specificato</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Contatti -->
+                        <div class="tab-pane fade" id="contact" role="tabpanel">
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Contatti Diretti</h6>
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <td><strong>Telefono:</strong></td>
+                                            <td>
+                                                {% if brewery.breweryPhoneNumber %}
+                                                    <a href="tel:{{ brewery.breweryPhoneNumber }}">{{ brewery.breweryPhoneNumber }}</a>
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Email:</strong></td>
+                                            <td>
+                                                {% if brewery.breweryEmail %}
+                                                    <a href="mailto:{{ brewery.breweryEmail }}">{{ brewery.breweryEmail }}</a>
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Sito Web:</strong></td>
+                                            <td>
+                                                {% if brewery.breweryWebsite %}
+                                                    <a href="{{ brewery.breweryWebsite }}" target="_blank">{{ brewery.breweryWebsite }}</a>
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Social Media</h6>
+                                    {% if brewery.brewerySocialMedia %}
+                                        <div class="list-group list-group-flush">
+                                            {% if brewery.brewerySocialMedia.facebook %}
+                                                <a href="{{ brewery.brewerySocialMedia.facebook }}" target="_blank" class="list-group-item list-group-item-action">
+                                                    <i class="fab fa-facebook text-primary"></i> Facebook
+                                                </a>
+                                            {% endif %}
+                                            {% if brewery.brewerySocialMedia.instagram %}
+                                                <a href="{{ brewery.brewerySocialMedia.instagram }}" target="_blank" class="list-group-item list-group-item-action">
+                                                    <i class="fab fa-instagram text-danger"></i> Instagram
+                                                </a>
+                                            {% endif %}
+                                            {% if brewery.brewerySocialMedia.twitter %}
+                                                <a href="{{ brewery.brewerySocialMedia.twitter }}" target="_blank" class="list-group-item list-group-item-action">
+                                                    <i class="fab fa-twitter text-info"></i> Twitter
+                                                </a>
+                                            {% endif %}
+                                            {% if brewery.brewerySocialMedia.linkedin %}
+                                                <a href="{{ brewery.brewerySocialMedia.linkedin }}" target="_blank" class="list-group-item list-group-item-action">
+                                                    <i class="fab fa-linkedin text-primary"></i> LinkedIn
+                                                </a>
+                                            {% endif %}
+                                            {% if brewery.brewerySocialMedia.youtube %}
+                                                <a href="{{ brewery.brewerySocialMedia.youtube }}" target="_blank" class="list-group-item list-group-item-action">
+                                                    <i class="fab fa-youtube text-danger"></i> YouTube
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                        {% if not (brewery.brewerySocialMedia.facebook or brewery.brewerySocialMedia.instagram or brewery.brewerySocialMedia.twitter or brewery.brewerySocialMedia.linkedin or brewery.brewerySocialMedia.youtube) %}
+                                            <p class="text-muted">Nessun social media configurato</p>
+                                        {% endif %}
+                                    {% else %}
+                                        <p class="text-muted">Nessun social media configurato</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Birre Associate -->
+                        {% if brewery.stats and brewery.stats.totalBeers > 0 %}
+                        <div class="tab-pane fade" id="beers" role="tabpanel">
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6 class="text-primary">Birre Associate ({{ brewery.stats.totalBeers }})</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nome Birra</th>
+                                                    <th>Tipo</th>
+                                                    <th>Gradazione</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for beer in brewery.stats.beers %}
+                                                <tr>
+                                                    <td><strong>{{ beer.beerName }}</strong></td>
+                                                    <td>{{ beer.beerType or 'N/A' }}</td>
+                                                    <td>{{ beer.alcoholContent or 'N/A' }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

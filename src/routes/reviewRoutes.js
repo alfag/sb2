@@ -1,28 +1,56 @@
 const express = require('express');
-const reviewController = require('../controllers/reviewController');
-const authMiddleware = require('../middlewares/authMiddleware');
-const logWithFileName = require('../utils/logger'); // Importa logWithFileName
-
-const logger = logWithFileName(__filename); // Crea un logger con il nome del file
-
 const router = express.Router();
+const reviewController = require('../controllers/reviewController');
+const reviewControllerAsync = require('../controllers/reviewControllerAsync');
+const { isAuthenticated, ensureRole, requireAuthForReview } = require('../middlewares/authMiddleware');
+const { aiImageUpload } = require('../middlewares/uploadMiddleware');
+const { moderateReviewContent, logContentViolations, sanitizeContent } = require('../middlewares/contentModerationMiddleware');
 
-// Crea una recensione
-router.post('/', (req, res, next) => {
-    logger.info('Creazione di una nuova recensione'); // Log tradotto
-    next();
-}, reviewController.createReview);
 
-// Ottieni recensioni per un BeerBox specifico
-router.get('/:beerboxId', (req, res, next) => {
-    logger.info(`Recupero delle recensioni per il BeerBox ${req.params.beerboxId}`); // Log tradotto
-    next();
-}, reviewController.getReviewsByBeerBox);
+// La pagina delle recensioni è integrata nella welcome page
+// Questa rotta reindirizza alla home
+router.get('/', (req, res) => {
+    res.redirect('/');
+});
 
-// Elimina una recensione (solo admin)
-router.delete('/:id', authMiddleware.isAdmin, (req, res, next) => {
-    logger.info(`Eliminazione della recensione ${req.params.id}`); // Log tradotto
-    next();
-}, reviewController.deleteReview);
+// Rotta pubblica per validazione AI (primo check) - supporta sia utenti autenticati che guest
+router.post('/api/gemini/firstcheck', aiImageUpload, reviewController.firstCheckAI);
+
+// Endpoint ASYNC per elaborazione immagini con code Bull/Redis
+router.post('/async', aiImageUpload, reviewControllerAsync.analyzeImageAsync);
+
+// NUOVO: Conferma e creazione Review DOPO che utente compila form
+// Previene creazione Review "orfani" se utente chiude modal senza confermare
+// 🔒 AUTENTICAZIONE OBBLIGATORIA per creare recensioni
+router.post('/confirm-and-create',
+  requireAuthForReview,  // ← Blocca utenti non autenticati
+  logContentViolations,
+  moderateReviewContent,
+  reviewControllerAsync.confirmAndCreateReview
+);
+
+// Status endpoint per polling (senza auth per permettere polling da guest)
+router.get('/:reviewId/status', reviewControllerAsync.getReviewStatus);
+
+// Gestione dati AI in sessione (mantenute per il flusso principale)
+router.get('/ai-session-data', reviewController.getAiDataFromSession);
+router.delete('/ai-session-data', reviewController.clearAiDataFromSession);
+router.post('/clear-session-data', reviewController.clearAiDataFromSession); // Per sendBeacon
+
+// Rotte per recensioni multiple (mantenute per il flusso principale)
+// 🔒 AUTENTICAZIONE OBBLIGATORIA per creare recensioni
+router.post('/create-multiple',
+  requireAuthForReview,  // ← Blocca utenti non autenticati
+  logContentViolations,
+  moderateReviewContent, 
+  reviewController.createMultipleReviews
+);
+
+// Endpoint per risoluzione ambiguità birrifici
+router.post('/resolve-disambiguation', reviewController.resolveDisambiguation);
+
+// Rotte admin
+router.post('/batch-validate', ensureRole(['administrator']), reviewController.batchValidateReviews);
+router.get('/incomplete-breweries', ensureRole(['administrator']), reviewController.incompleteBreweries);
 
 module.exports = router;

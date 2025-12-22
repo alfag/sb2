@@ -1,0 +1,108 @@
+{% extends "../layout.njk" %}
+
+{% block title %}Crea Nuovo Utente{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Crea Nuovo Utente</h1>
+    <form id="createUserForm" method="post" action="/administrator/users/new">
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <div class="password-container">
+                <input type="password" id="password" name="password" required>
+                <img src="/images/visibility.svg" alt="Mostra password" id="togglePassword" class="toggle-password">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="role">Ruolo:</label>
+            <select id="role" name="role" required>
+                <option value="customer">Customer</option>
+                <option value="brewery">Brewery</option>
+                <option value="administrator">Administrator</option>
+            </select>
+        </div>
+
+        <div id="customerDetails" class="roleDetails">
+            <h2>Dettagli Customer</h2>
+            <div class="form-group">
+                <label for="customerName">Nome:</label>
+                <input type="text" id="customerName" name="customerName">
+            </div>
+            <div class="form-group">
+                <label for="customerSurname">Cognome:</label>
+                <input type="text" id="customerSurname" name="customerSurname">
+            </div>
+            <div class="form-group">
+                <label for="customerFiscalCode">Codice Fiscale:</label>
+                <input type="text" id="customerFiscalCode" name="customerFiscalCode">
+            </div>
+            <div class="form-group">
+                <label for="customerBillingAddress">Indirizzo di Fatturazione:</label>
+                <input type="text" id="customerBillingAddress" name="customerBillingAddress">
+            </div>
+            <div class="form-group">
+                <label for="customerShippingAddress">Indirizzo di Spedizione:</label>
+                <input type="text" id="customerShippingAddress" name="customerShippingAddress">
+            </div>
+            <div class="form-group">
+                <label for="customerPhoneNumber">Numero di Telefono:</label>
+                <input type="text" id="customerPhoneNumber" name="customerPhoneNumber">
+            </div>
+        </div>
+
+        <div id="administratorDetails" class="roleDetails" style="display: none;">
+            <h2>Dettagli Administrator</h2>
+            <div class="form-group">
+                <label for="administratorName">Nome Administrator:</label>
+                <input type="text" id="administratorName" name="administratorName">
+            </div>
+            <div class="form-group">
+                <label for="administratorPermission">Permessi:</label>
+                <input type="text" id="administratorPermission" name="administratorPermission">
+            </div>
+        </div>
+
+        <div id="breweryDetails" class="roleDetails" style="display: none;">
+            <h2>Dettagli Brewery</h2>
+            <div class="form-group">
+                <label for="breweryName">Nome Birrificio:</label>
+                <input type="text" id="breweryName" name="breweryName">
+            </div>
+            <div class="form-group">
+                <label for="breweryDescription">Descrizione Birrificio:</label>
+                <textarea id="breweryDescription" name="breweryDescription"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="breweryFiscalCode">Codice Fiscale Birrificio:</label>
+                <input type="text" id="breweryFiscalCode" name="breweryFiscalCode">
+            </div>
+            <!-- Aggiungi altri campi Brewery qui -->
+        </div>
+
+        <button type="submit">Crea Utente</button>
+    </form>
+</div>
+
+<script src="/js/createUser.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+
+        // Mostra/nascondi password
+        if (togglePassword && passwordInput) {
+            togglePassword.addEventListener('click', () => {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+
+                const iconSrc = type === 'password' ? '/images/visibility.svg' : '/images/visibility_off.svg';
+                togglePassword.setAttribute('src', iconSrc);
+            });
+        }
+    });
+</script>
+{% endblock %}

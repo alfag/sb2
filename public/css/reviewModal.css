@@ -1,0 +1,752 @@
+/* ====================================
+   REVIEW MODAL - Sistema Popup Recensioni
+   Creato: 17 Ottobre 2025
+   ==================================== */
+
+/* Notifiche Moderne nel Modal */
+.modal-notification {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.modal-notification.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.modal-notification-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.modal-notification-message {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.modal-notification-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.modal-notification-close:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Tipologie notifiche */
+.modal-notification-error {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-left: 4px solid #ef4444;
+  color: #991b1b;
+}
+
+.modal-notification-error .modal-notification-close:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+.modal-notification-warning {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-left: 4px solid #f59e0b;
+  color: #92400e;
+}
+
+.modal-notification-warning .modal-notification-close:hover {
+  background-color: rgba(245, 158, 11, 0.2);
+}
+
+.modal-notification-info {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-left: 4px solid #3b82f6;
+  color: #1e40af;
+}
+
+.modal-notification-info .modal-notification-close:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.modal-notification-success {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-left: 4px solid #10b981;
+  color: #065f46;
+}
+
+.modal-notification-success .modal-notification-close:hover {
+  background-color: rgba(16, 185, 129, 0.2);
+}
+
+/* Overlay Modal */
+.review-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 10000; /* Aumentato per stare sopra navbar (9999) */
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.review-modal-overlay.active {
+  display: flex;
+}
+
+/* Container Modal */
+.review-modal-container {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+}
+
+/* Header Modal */
+.review-modal-header {
+  padding: 1rem 1.25rem; /* Ridotto da 1.5rem */
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.review-modal-title {
+  font-size: 1.125rem; /* Ridotto da 1.25rem */
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* Ridotto da 0.75rem */
+}
+
+.review-modal-title i {
+  color: #f59e0b;
+  font-size: 1.25rem; /* Ridotto da 1.5rem */
+}
+
+.review-modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  border: none;
+  color: #6b7280;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.review-modal-close:hover {
+  background: #e5e7eb;
+  color: #111827;
+  transform: scale(1.1);
+}
+
+/* Body Modal - Scrollable */
+.review-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem; /* Ridotto da 1.5rem */
+}
+
+/* Scrollbar personalizzata */
+.review-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.review-modal-body::-webkit-scrollbar-track {
+  background: #f9fafb;
+  border-radius: 4px;
+}
+
+.review-modal-body::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.review-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Bottle Card nel Modal */
+.review-bottle-card {
+  background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+  border-radius: 12px;
+  padding: 1rem; /* Ridotto da 1.5rem */
+  margin-bottom: 1rem; /* Ridotto da 1.5rem */
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.review-bottle-card:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+/* Bottle Counter Badge */
+.bottle-counter {
+  position: absolute;
+  top: -10px;
+  right: 1rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  padding: 0.4rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+  z-index: 10;
+  animation: slideInLeft 0.4s ease;
+  white-space: nowrap;
+  max-width: calc(100% - 2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Header Bottiglia */
+.bottle-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* Ridotto da 1rem */
+  margin-bottom: 1rem; /* Ridotto da 1.5rem */
+  padding-bottom: 0.75rem; /* Ridotto da 1rem */
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.bottle-thumbnail {
+  width: 60px; /* Ridotto da 80px */
+  height: 60px; /* Ridotto da 80px */
+  border-radius: 8px; /* Ridotto da 12px */
+  object-fit: cover;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Ridotto shadow */
+}
+
+.bottle-info {
+  flex: 1;
+}
+
+.bottle-beer-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+
+.bottle-brewery-name {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.bottle-alcohol {
+  font-size: 0.875rem;
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+/* Header Bottiglia - Layout Inline */
+.bottle-header-inline {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 2px solid #dee2e6;
+}
+
+.bottle-thumbnail-inline {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 3px solid #fff;
+  flex-shrink: 0;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  transition: transform 0.3s ease;
+}
+
+.bottle-thumbnail-inline:hover {
+  transform: scale(1.05);
+}
+
+.bottle-info-inline {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.bottle-name-inline {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Stili brewery non più utilizzati - mantenuti per compatibilità legacy */
+.bottle-brewery-inline {
+  font-size: 0.813rem;
+  color: #6b7280;
+  margin: 0;
+  display: none; /* Nascosto perché non più utilizzato */
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bottle-brewery-inline::before {
+  content: "•";
+  margin: 0 0.25rem;
+  color: #d1d5db;
+}
+
+/* Toggle Details Button */
+.toggle-detailed-btn {
+  width: 100%;
+  padding: 0.75rem;
+  margin: 1rem 0;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 2px solid #d1d5db;
+  border-radius: 10px;
+  color: #374151;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.toggle-detailed-btn:hover {
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  border-color: #9ca3af;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.toggle-detailed-btn.expanded {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+.toggle-detailed-btn i {
+  transition: transform 0.3s ease;
+}
+
+.toggle-detailed-btn.expanded i {
+  transform: rotate(180deg);
+}
+
+/* Detailed Ratings - Hidden by default */
+.detailed-ratings-container {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.4s ease, opacity 0.3s ease, margin-top 0.3s ease;
+}
+
+.detailed-ratings-container.active {
+  max-height: 2000px;
+  opacity: 1;
+  margin-top: 1rem;
+}
+
+/* Rating Section - Improved */
+.rating-section {
+  margin-bottom: 1rem; /* Ridotto da 1.5rem */
+}
+
+.rating-label {
+  display: block;
+  font-size: 0.813rem; /* Ridotto leggermente */
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem; /* Ridotto da 0.75rem */
+  text-transform: uppercase;
+  letter-spacing: 0.3px; /* Ridotto da 0.5px */
+}
+
+.rating-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* Ridotto da 1rem */
+  padding: 0.75rem; /* Ridotto da 1rem */
+  background: white;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.rating-wrapper:hover {
+  border-color: #fbbf24;
+  background: #fffbeb;
+}
+
+/* Star Rating Container */
+.star-rating-container {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+/* Stars - Enhanced Interactive */
+.star-icon {
+  font-size: 2rem;
+  cursor: pointer;
+  color: #d1d5db;
+  transition: all 0.2s ease;
+  user-select: none;
+  position: relative;
+}
+
+.star-icon:hover {
+  transform: scale(1.2) rotate(5deg);
+  color: #fbbf24;
+}
+
+.star-icon.active {
+  color: #f59e0b;
+  animation: starPulse 0.3s ease;
+}
+
+.star-icon.active:hover {
+  color: #d97706;
+}
+
+/* Rating Value Display - Nascosto (non più utilizzato) */
+.rating-value-display {
+  display: none;
+}
+
+/* Textarea Notes */
+.review-notes-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  color: #374151;
+  resize: vertical;
+  min-height: 80px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.review-notes-textarea:focus {
+  outline: none;
+  border-color: #f59e0b;
+  background: #fffbeb;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.review-notes-textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* Toggle Detailed Ratings */
+.toggle-detailed-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  margin: 1.5rem 0;
+}
+
+.toggle-detailed-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(59, 130, 246, 0.3);
+}
+
+.toggle-detailed-btn i {
+  transition: transform 0.3s ease;
+}
+
+.toggle-detailed-btn.expanded i {
+  transform: rotate(180deg);
+}
+
+/* Detailed Ratings Container */
+.detailed-ratings-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem; /* Ridotto da 1rem */
+  margin-top: 1rem; /* Ridotto da 1.5rem */
+  padding: 1rem; /* Ridotto da 1.5rem */
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 1px dashed #d1d5db;
+}
+
+/* Footer Modal */
+.review-modal-footer {
+  padding: 1rem; /* Ridotto da 1.5rem */
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.review-progress-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-radius: 10px;
+  color: #1e40af;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.footer-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 0.75rem 1.25rem; /* Ridotto da 0.875rem 1.5rem */
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.modal-btn-cancel {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.modal-btn-cancel:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.modal-btn-submit {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+}
+
+.modal-btn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(16, 185, 129, 0.4);
+}
+
+.modal-btn-submit:disabled {
+  background: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes starPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .review-modal-container {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .review-modal-header {
+    padding: 1rem;
+  }
+
+  .review-modal-title {
+    font-size: 1.125rem;
+  }
+
+  .review-modal-body {
+    padding: 1rem;
+  }
+
+  .bottle-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .bottle-thumbnail {
+    width: 100px;
+    height: 100px;
+  }
+
+  .star-icon {
+    font-size: 1.75rem;
+  }
+
+  .rating-value-display {
+    min-width: 45px;
+    height: 45px;
+    font-size: 1.25rem;
+  }
+
+  .review-modal-footer {
+    padding: 1rem;
+    flex-direction: column;
+  }
+}
+
+/* ====================================
+   INFO MESSAGE - Toast Notification (Blue)
+   Messaggio informativo top-right
+   ==================================== */
+
+.info-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(52, 152, 219, 0.3), 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  animation: slideInRight 0.3s ease;
+  max-width: 450px;
+  min-width: 300px;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.info-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.info-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.info-text {
+  flex: 1;
+  line-height: 1.5;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Animazione slide-in from right */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive per info-message */
+@media (max-width: 768px) {
+  .info-message {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: calc(100% - 20px);
+    min-width: unset;
+  }
+}

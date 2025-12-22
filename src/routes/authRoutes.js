@@ -5,40 +5,64 @@ const logWithFileName = require('../utils/logger'); // Importa logWithFileName
 
 const logger = logWithFileName(__filename); // Crea un logger con il nome del file
 
-// Funzione per gestire GET /login
-const getLogin = (req, res) => {
-    logger.info('Renderizzazione della pagina di login'); // Log tradotto
-    res.render('login.njk', { message: req.flash('loginMessage') });
-};
+// Rotte per /login
+router.get('/login', (req, res, next) => {
+    logger.info('Accesso alla pagina di login');
+    next();
+}, authController.getLogin);
 
-// Funzione per gestire POST /login
-const postLogin = (req, res, next) => {
-    logger.info('Login utente'); // Log tradotto
-    authController.login(req, res, next);
-};
+router.post('/login', (req, res, next) => {
+    logger.info('Invio dati di login');
+    next();
+}, authController.postLogin);
 
-// Funzione per gestire il logout
-const logout = (req, res) => {
-    logger.info('Logout utente'); // Log tradotto
-    authController.logout(req, res);
-};
+// Rotta per il logout
+router.get('/logout', (req, res, next) => {
+    logger.info('Richiesta di logout');
+    next();
+}, authController.getLogout);
+
+// Rotta GET per la pagina di registrazione customer
+router.get('/register', (req, res) => {
+    logger.info('Accesso alla pagina di registrazione customer');
+    res.render('customer/registerUser.njk');
+});
 
 // Rotta per la registrazione
 router.post('/register', (req, res, next) => {
     logger.info('Registrazione di un nuovo utente'); // Log tradotto
     next();
-}, authController.register);
+}, authController.postRegister);
 
-// Rotta per OAuth
-router.post('/oauth', (req, res, next) => {
-    logger.info('Login tramite OAuth'); // Log tradotto
-    next();
-}, authController.oauthLogin);
+/*
+// Rotta per l'autenticazione via Facebook
+router.get('/auth/facebook', passport.authenticate('facebook', { scope: ['email'] }));
+router.get('/auth/facebook/callback', passport.authenticate('facebook', {
+    successRedirect: '/',
+    failureRedirect: '/login'
+}));
 
-// Esporta sia il router che le funzioni specifiche per /login
-module.exports = {
-    router,      // Esporta il router per le altre rotte
-    getLogin,    // Esporta la funzione per GET /login
-    postLogin,   // Esporta la funzione per POST /login
-    logout,      // Esporta la funzione per il logout
-};
+// Rotta per l'autenticazione via Instagram
+router.get('/auth/instagram', passport.authenticate('instagram'));
+router.get('/auth/instagram/callback', passport.authenticate('instagram', {
+    successRedirect: '/',
+    failureRedirect: '/login'
+}));
+
+// Rotta per l'autenticazione via Apple
+router.get('/auth/apple', passport.authenticate('apple'));
+router.post('/auth/apple/callback', passport.authenticate('apple', {
+    successRedirect: '/',
+    failureRedirect: '/login'
+}));
+
+// Rotta per l'autenticazione via Amazon
+router.get('/auth/amazon', passport.authenticate('amazon', { scope: ['profile'] }));
+router.get('/auth/amazon/callback', passport.authenticate('amazon', {
+    successRedirect: '/',
+    failureRedirect: '/login'
+}));
+*/
+
+// Esporta solo il router come default export
+module.exports = router;

@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Sistema Asincrono</title>
+    <style>
+        body { font-family: Arial; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .section { margin: 20px 0; padding: 20px; background: #f5f5f5; border-radius: 8px; }
+        button { background: #4facfe; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        button:disabled { opacity: 0.5; }
+        .progress { width: 100%; height: 20px; background: #e0e0e0; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, #4facfe, #00f2fe); width: 0%; transition: width 0.3s; }
+        .log { background: #2d2d2d; color: #0f0; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; }
+        .status { font-size: 18px; font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Sistema Code Asincrono</h1>
+    
+    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+        <h3 style="margin-top: 0;">⚠️ MODALITÀ TEST</h3>
+        <p style="margin: 5px 0;"><strong>Questa pagina NON salva NULLA nel database!</strong></p>
+        <p style="margin: 5px 0; font-size: 14px;">
+            ✅ Esegue analisi AI completa<br>
+            ✅ Cerca birrificio/birra esistenti<br>
+            ✅ Effettua web search/scraping (opzionale)<br>
+            ❌ ZERO scritture database<br>
+        </p>
+        <p style="margin: 5px 0; font-size: 12px; color: #856404;">
+            Endpoint: <code>/review/test-async-worker</code><br>
+            Modalità: <span id="modeIndicator">Simulazione (veloce)</span>
+        </p>
+    </div>
+    
+    <div class="section">
+        <h3>📤 Upload Test</h3>
+        <div style="margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="useRealServices" style="width: 18px; height: 18px;">
+                <span style="font-size: 14px; color: #333;">
+                    🔍 Usa servizi reali (web search/scraping)
+                </span>
+            </label>
+            <small style="display: block; margin-top: 5px; color: #666; font-size: 12px;">
+                Se selezionato, esegue ricerche web reali e scraping invece di simulare i dati.
+                Più lento ma più accurato per testare l'integrazione completa.
+            </small>
+        </div>
+        <input type="file" id="file" accept="image/*">
+        <button onclick="upload()" id="btn">Testa Upload</button>
+    </div>
+
+    <div class="section" id="status" style="display:none">
+        <div class="status" id="msg">In attesa...</div>
+        <div class="progress"><div class="progress-bar" id="bar"></div></div>
+        <small id="details"></small>
+    </div>
+
+    <!-- 🎯 MOMENTO CHIAVE: L'UTENTE COMPILA MENTRE IL JOB LAVORA -->
+    <div class="section" id="reviewForm" style="display:none; background: #fff3cd; border: 2px solid #ffc107;">
+        <h3>📝 Form Recensione (Mentre AI lavora in background)</h3>
+        <div style="background: #fff; padding: 15px; border-radius: 5px; margin: 10px 0;">
+            <p><strong>🍺 Birra rilevata:</strong> <span id="beerName">Caricamento...</span></p>
+            <p><strong>🏭 Birrificio:</strong> <span id="breweryName">Caricamento...</span></p>
+            
+            <div style="margin: 15px 0; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196f3;">
+                <small>ℹ️ <strong>Puoi iniziare a compilare SUBITO!</strong> L'AI sta ancora analizzando l'immagine in background...</small>
+            </div>
+            
+            <label><strong>⭐ Valutazione:</strong></label>
+            <select id="rating" style="width: 100%; padding: 8px; margin: 5px 0;">
+                <option>1 - Pessima</option>
+                <option>2 - Scarsa</option>
+                <option>3 - Media</option>
+                <option selected>4 - Buona</option>
+                <option>5 - Eccellente</option>
+            </select>
+            
+            <label><strong>💭 Note:</strong></label>
+            <textarea id="notes" rows="3" style="width: 100%; padding: 8px; margin: 5px 0;" placeholder="La tua recensione...">Ottima birra artigianale!</textarea>
+            
+            <div style="margin-top: 15px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+                <small>🔄 <strong>Background Progress:</strong> <span id="bgProgress">0%</span></small>
+                <div class="progress" style="height: 8px; margin: 5px 0;">
+                    <div class="progress-bar" id="bgBar"></div>
+                </div>
+            </div>
+            
+            <button onclick="submitReview()" style="width: 100%; margin-top: 10px; background: #28a745;">
+                💾 Salva Recensione
+            </button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📋 Log</h3>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        function log(msg, color = '#0f0') {
+            const l = document.getElementById('log');
+            l.innerHTML += `<div style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            l.scrollTop = l.scrollHeight;
+        }
+
+        async function upload() {
+            const file = document.getElementById('file').files[0];
+            if (!file) return alert('Seleziona un file!');
+            
+            const useRealServices = document.getElementById('useRealServices').checked;
+            
+            document.getElementById('btn').disabled = true;
+            document.getElementById('status').style.display = 'block';
+            
+            try {
+                const endpoint = useRealServices 
+                    ? '/review/test-async-worker?useRealServices=true'
+                    : '/review/test-async-worker';
+                
+                log(`🧪 Invio a ${endpoint} (NESSUN SALVATAGGIO DB)...`);
+                log(`🔍 Modalità: ${useRealServices ? 'SERVIZI REALI' : 'SIMULAZIONE'}`, useRealServices ? '#f0f' : '#0ff');
+                
+                const fd = new FormData();
+                fd.append('image', file);
+                
+                log(`📦 File: ${file.name} (${file.size} bytes)`);
+                
+                // 🧪 CHIAMATA CON MODALITÀ SELEZIONATA
+                const res = await fetch(endpoint, { method: 'POST', body: fd });
+                
+                log(`📡 Response status: ${res.status} ${res.statusText}`);
+                
+                const contentType = res.headers.get('content-type');
+                log(`📋 Content-Type: ${contentType}`);
+                
+                const text = await res.text();
+                log(`📄 Response text (first 200 chars): ${text.substring(0, 200)}`);
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseErr) {
+                    log(`❌ JSON Parse Error: ${parseErr.message}`, '#f00');
+                    log(`📄 Full response: ${text}`, '#fa0');
+                    throw new Error('Server returned non-JSON response');
+                }
+                
+                if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+                
+                // 🧪 RISPOSTA IMMEDIATA: mostra i dati AI iniziali
+                log(`✅ Analisi AI completata (TEST MODE - NESSUN SALVATAGGIO DB)`, '#0f0');
+                log(`📊 Bottiglie rilevate: ${data.data.initialBottles ? data.data.initialBottles.length : 0}`, '#0ff');
+                
+                // 🎯 MOSTRA I DATI INIZIALI (poi polling per risultati completi)
+                if (data.data.initialBottles && data.data.initialBottles.length > 0) {
+                    displayInitialResults(data);
+                    // Avvia polling per risultati completi
+                    startPolling(data.data.reviewId, data.data.useRealServices);
+                } else {
+                    log('⚠️ Nessuna bottiglia rilevata nei dati di risposta', '#fa0');
+                    log('Struttura risposta:', JSON.stringify(data, null, 2));
+                }
+                
+            } catch(e) {
+                log(`❌ ERRORE: ${e.message}`, '#f00');
+                document.getElementById('btn').disabled = false;
+            }
+        }
+
+        function displayInitialResults(data) {
+            log('\n\n═══════════════════════════════════════', '#ff0');
+            log('🧪 RISULTATI INIZIALI AI (NESSUN DATO SALVATO)', '#ff0');
+            log('═══════════════════════════════════════', '#ff0');
+            
+            // Mostra modalità utilizzata
+            const useRealServices = data.data.useRealServices || false;
+            log(`🔍 Modalità: ${useRealServices ? 'SERVIZI REALI (web search attivo)' : 'SIMULAZIONE (veloce)'}`, useRealServices ? '#f0f' : '#0ff');
+            
+            // Mostra dati iniziali AI
+            log(`\n📊 DATI AI IMMEDIATI:`, '#0ff');
+            log(`  • Bottiglie rilevate: ${data.data.initialBottles.length}`, '#fff');
+            
+            // Processa ogni bottiglia iniziale
+            data.data.initialBottles.forEach((bottle, idx) => {
+                log(`\n\n🍺 ============ BOTTIGLIA ${idx + 1} (AI) ============`, '#ff0');
+                log(`  • beerName: ${bottle.beerName || 'N/A'}`, '#fff');
+                log(`  • breweryName: ${bottle.breweryName || 'N/A'}`, '#fff');
+                log(`  • alcoholContent: ${bottle.alcoholContent || 'N/A'}`, '#fff');
+                log(`  • dataSource: ${bottle.dataSource}`, '#0ff');
+            });
+            
+            log('\n⏳ Avvio polling per risultati completi...', '#ff0');
+        }
+        
+        function displayTestResults(data) {
+            log('\n\n═══════════════════════════════════════', '#0f0');
+            log('🧪 RISULTATI FINALI TEST (NESSUN DATO SALVATO)', '#0f0');
+            log('═══════════════════════════════════════', '#0f0');
+            
+            // Mostra modalità utilizzata
+            const useRealServices = data.useRealServices || false;
+            log(`🔍 Modalità utilizzata: ${useRealServices ? 'SERVIZI REALI' : 'SIMULAZIONE'}`, useRealServices ? '#f0f' : '#0ff');
+            
+            // Mostra summary
+            const summary = data.summary;
+            if (summary) {
+                log(`\n📊 SUMMARY:`, '#0ff');
+                log(`  • Totale bottiglie: ${summary.totalBottles}`, '#fff');
+                log(`  • Birrifici trovati in DB: ${summary.breweriesFound}`, '#fff');
+                log(`  • Birre trovate in DB: ${summary.beersFound}`, '#fff');
+                log(`  • Web searches effettuate: ${summary.webSearchesPerformed}`, '#fff');
+                log(`  • Entità da creare: ${summary.needsCreation}`, '#fff');
+                log(`  • Errori: ${summary.errors}`, '#fff');
+            }
+            
+            // Processa ogni bottiglia
+            const bottles = data.bottles || [];
+            bottles.forEach((bottle, idx) => {
+                log(`\n\n🍺 ============ BOTTIGLIA ${idx + 1} ============`, '#ff0');
+                
+                // Dati Birra
+                const beer = bottle.beer;
+                log(`\n🍺 BEER MODEL DATA:`, '#4facfe');
+                log(`  • beerName: ${beer.beerName || 'N/A'}`, '#fff');
+                log(`  • beerType: ${beer.beerType || 'N/A'}`, '#fff');
+                log(`  • alcoholContent: ${beer.alcoholContent || 'N/A'}`, '#fff');
+                log(`  • ibu: ${beer.ibu || 'N/A'}`, '#fff');
+                log(`  • volume: ${beer.volume || 'N/A'}`, '#fff');
+                log(`  • description: ${(beer.description || 'N/A').substring(0, 100)}`, '#fff');
+                log(`  • dataSource: ${beer.dataSource}`, beer.needsCreation ? '#fa0' : '#0f0');
+                if (beer.needsCreation) {
+                    log(`    ⚠️ DA CREARE IN DATABASE`, '#fa0');
+                } else {
+                    log(`    ✅ GIÀ ESISTENTE IN DB (ID: ${beer._id})`, '#0f0');
+                }
+                
+                // Dati Birrificio
+                const brewery = bottle.brewery;
+                log(`\n🏭 BREWERY MODEL DATA:`, '#56ab2f');
+                log(`  • breweryName: ${brewery.breweryName || 'N/A'}`, '#fff');
+                log(`  • breweryLegalAddress: ${brewery.breweryLegalAddress || 'N/A'}`, '#fff');
+                log(`  • website: ${brewery.website || 'N/A'}`, '#fff');
+                log(`  • email: ${brewery.email || 'N/A'}`, '#fff');
+                log(`  • phone: ${brewery.phone || 'N/A'}`, '#fff');
+                log(`  • foundingYear: ${brewery.foundingYear || 'N/A'}`, '#fff');
+                log(`  • dataSource: ${brewery.dataSource}`, brewery.needsCreation ? '#fa0' : '#0f0');
+                if (brewery.needsCreation) {
+                    log(`    ⚠️ DA CREARE IN DATABASE`, '#fa0');
+                } else {
+                    log(`    ✅ GIÀ ESISTENTE IN DB (ID: ${brewery._id})`, '#0f0');
+                }
+                
+                // Metadati processing
+                const meta = bottle.metadata;
+                if (meta) {
+                    log(`\n📋 METADATA:`, '#999');
+                    log(`  • Birrificio trovato: ${meta.breweryFound ? 'Sì' : 'No'}`, meta.breweryFound ? '#0f0' : '#f00');
+                    log(`  • Birra trovata: ${meta.beerFound ? 'Sì' : 'No'}`, meta.beerFound ? '#0f0' : '#f00');
+                    log(`  • Web search eseguita: ${meta.webSearchPerformed ? 'Sì' : 'No'}`, '#fff');
+                    log(`  • Richiede creazione: ${meta.needsDatabaseCreation ? 'Sì' : 'No'}`, meta.needsDatabaseCreation ? '#fa0' : '#0f0');
+                } else {
+                    log(`\n📋 METADATA: N/A (metadata mancante)`, '#f00');
+                }
+                
+                // Dati AI grezzi
+                const ai = bottle.aiRawData;
+                if (ai) {
+                    log(`\n🤖 AI RAW DATA (DEBUG):`, '#999');
+                    log(`  • Confidence: ${ai.extractionConfidence || 'N/A'}`, '#fff');
+                    log(`  • Data source: ${ai.dataSource || 'N/A'}`, '#fff');
+                    console.log('  • labelData completo:', ai.labelData);
+                    console.log('  • searchQueries:', ai.searchQueries);
+                } else {
+                    log(`\n🤖 AI RAW DATA: N/A (aiRawData mancante)`, '#f00');
+                }
+            });
+            
+            log(`\n\n═══════════════════════════════════════`, '#0f0');
+        }
+        
+        async function startPolling(reviewId, useRealServices) {
+            log('🔄 Inizio polling risultati...', '#ff0');
+            const pollUrl = `/review/test-status/${reviewId}`;
+            let attempts = 0;
+            const maxAttempts = 30; // 60 secondi max (2s * 30)
+            
+            const poll = async () => {
+                attempts++;
+                
+                try {
+                    const res = await fetch(pollUrl);
+                    const statusData = await res.json();
+                    
+                    log(`📡 Polling attempt ${attempts}: status=${statusData.data?.status}`, '#999');
+                    
+                    if (statusData.data?.status === 'completed' && statusData.data?.result) {
+                        log('✅ Processing completato! Mostra risultati finali...', '#0f0');
+                        displayTestResults(statusData.data.result);
+                        return;
+                    }
+                    
+                    if (statusData.data?.status === 'failed') {
+                        log('❌ Processing fallito: ' + (statusData.data?.error || 'Unknown error'), '#f00');
+                        return;
+                    }
+                    
+                    if (attempts < maxAttempts) {
+                        setTimeout(poll, 2000);
+                    } else {
+                        log('⏱️ Timeout polling raggiunto', '#fa0');
+                    }
+                    
+                } catch (err) {
+                    log(`❌ Polling error: ${err.message}`, '#f00');
+                    if (attempts < maxAttempts) {
+                        setTimeout(poll, 2000);
+                    }
+                }
+            };
+            
+            // Avvia primo poll dopo 2 secondi
+            setTimeout(poll, 2000);
+        }
+
+        async function poll(id) {
+            let n = 0;
+            const max = 120;
+            
+            const check = async () => {
+                try {
+                    n++;
+                    const res = await fetch(`/review/${id}/status`);
+                    const r = await res.json();
+                    const d = r.data;
+                    
+                    log(`📊 Poll ${n}/${max}: ${d.status} | ${d.currentStep || 'N/A'} | ${d.progress || 0}%`);
+                    
+                    // 🎯 AGGIORNA IL PROGRESSO NEL FORM (background)
+                    document.getElementById('bgProgress').textContent = `${d.progress || 0}%`;
+                    document.getElementById('bgBar').style.width = `${d.progress || 0}%`;
+                    
+                    let msg = 'Elaborazione...';
+                    let prog = d.progress || 0;
+                    
+                    if (d.status === 'waiting') { msg = '⏳ In coda...'; prog = 10; }
+                    else if (d.currentStep === 'ai-analysis') { msg = '🤖 Analisi AI...'; prog = 30; }
+                    else if (d.currentStep === 'web-search') { msg = '🌐 Ricerca web...'; prog = 50; }
+                    else if (d.currentStep === 'web-scraping') { msg = '🕷️ Web scraping...'; prog = 70; }
+                    else if (d.currentStep === 'validation') { msg = '✅ Validazione...'; prog = 90; }
+                    else if (d.status === 'completed') { msg = '✅ COMPLETATO!'; prog = 100; }
+                    else if (d.status === 'failed') { msg = '❌ FALLITO!'; prog = 0; }
+                    
+                    document.getElementById('msg').textContent = msg;
+                    document.getElementById('bar').style.width = prog + '%';
+                    document.getElementById('details').textContent = `Status: ${d.status} | Attempts: ${d.attempts || 0}`;
+                    
+                    if (d.status === 'completed') {
+                        log('✅ COMPLETATO!', '#0f0');
+                        
+                        // 🔍 DEBUG: Verifica struttura dati
+                        console.log('🔍 DEBUG - Full result object:', d.result);
+                        console.log('🔍 DEBUG - Has bottles?', d.result?.bottles);
+                        console.log('🔍 DEBUG - Bottles length:', d.result?.bottles?.length);
+                        
+                        // 🎯 LOGGA TUTTI I DATI AI RECUPERATI (per Model Beer/Brewery)
+                        if (d.result && d.result.bottles && d.result.bottles.length > 0) {
+                            console.log('\n\n');
+                            console.log('═══════════════════════════════════════');
+                            console.log('📊 DATI AI RECUPERATI (per salvare su Models)');
+                            console.log('═══════════════════════════════════════');
+                            console.log('\n');
+                            
+                            log('═══════════════════════════════════════', '#ff0');
+                            log('📊 DATI AI RECUPERATI (per salvare su Models):', '#ff0');
+                            log('═══════════════════════════════════════', '#ff0');
+                            
+                            d.result.bottles.forEach((bottle, idx) => {
+                                console.log('\n');
+                                console.log(`🍺 ============ BOTTIGLIA ${idx + 1} ============`);
+                                console.log('\n');
+                                
+                                log(`\n🍺 BOTTIGLIA ${idx + 1}:`, '#0ff');
+                                log('─────────────────────────────────────', '#0ff');
+                                
+                                // DATI BIRRA (Beer Model)
+                                console.log('🍺 ========== BEER MODEL DATA ==========');
+                                console.log('beerName:', bottle.beerName);
+                                console.log('beerType:', bottle.beerType);
+                                console.log('alcoholContent:', bottle.alcoholContent);
+                                console.log('ibu:', bottle.ibu);
+                                console.log('volume:', bottle.volume);
+                                console.log('description:', bottle.description);
+                                console.log('ingredients:', bottle.ingredients);
+                                console.log('color:', bottle.color);
+                                console.log('servingTemperature:', bottle.servingTemperature);
+                                console.log('tastingNotes:', bottle.tastingNotes);
+                                console.log('dataSource:', bottle.dataSource);
+                                console.log('confidence:', bottle.confidence);
+                                
+                                log(`\n🍺 BEER MODEL DATA:`, '#4facfe');
+                                log(`  • beerName: ${bottle.beerName || 'N/A'}`, '#fff');
+                                log(`  • beerType: ${bottle.beerType || 'N/A'}`, '#fff');
+                                log(`  • alcoholContent: ${bottle.alcoholContent || 'N/A'}`, '#fff');
+                                log(`  • ibu: ${bottle.ibu || 'N/A'}`, '#fff');
+                                log(`  • volume: ${bottle.volume || 'N/A'}`, '#fff');
+                                log(`  • description: ${(bottle.description || 'N/A').substring(0, 100)}...`, '#fff');
+                                log(`  • ingredients: ${JSON.stringify(bottle.ingredients || [])}`, '#fff');
+                                log(`  • dataSource: ${bottle.dataSource || 'N/A'}`, '#fff');
+                                log(`  • confidence: ${bottle.confidence || 'N/A'}`, '#fff');
+                                
+                                // DATI BIRRIFICIO (Brewery Model)
+                                console.log('\n🏭 ========== BREWERY MODEL DATA ==========');
+                                console.log('breweryName:', bottle.breweryName);
+                                console.log('breweryLegalAddress:', bottle.breweryLegalAddress);
+                                console.log('website:', bottle.website);
+                                console.log('email:', bottle.email);
+                                console.log('phone:', bottle.phone);
+                                console.log('foundingYear:', bottle.foundingYear);
+                                console.log('brewerySize:', bottle.brewerySize);
+                                console.log('productionVolume:', bottle.productionVolume);
+                                console.log('breweryDescription:', bottle.breweryDescription);
+                                console.log('breweryHistory:', bottle.breweryHistory);
+                                console.log('mainProducts:', bottle.mainProducts);
+                                console.log('awards:', bottle.awards);
+                                console.log('brewerySocialMedia:', bottle.brewerySocialMedia);
+                                
+                                log(`\n🏭 BREWERY MODEL DATA:`, '#56ab2f');
+                                log(`  • breweryName: ${bottle.breweryName || 'N/A'}`, '#fff');
+                                log(`  • breweryLegalAddress: ${bottle.breweryLegalAddress || 'N/A'}`, '#fff');
+                                log(`  • website: ${bottle.website || 'N/A'}`, '#fff');
+                                log(`  • email: ${bottle.email || 'N/A'}`, '#fff');
+                                log(`  • phone: ${bottle.phone || 'N/A'}`, '#fff');
+                                log(`  • foundingYear: ${bottle.foundingYear || 'N/A'}`, '#fff');
+                                log(`  • brewerySize: ${bottle.brewerySize || 'N/A'}`, '#fff');
+                                log(`  • productionVolume: ${bottle.productionVolume || 'N/A'}`, '#fff');
+                                log(`  • mainProducts: ${JSON.stringify(bottle.mainProducts || [])}`, '#fff');
+                                log(`  • awards: ${JSON.stringify(bottle.awards || [])}`, '#fff');
+                                
+                                // WEB VERIFICATION DATA
+                                if (bottle.webVerification) {
+                                    console.log('\n🌐 ========== WEB VERIFICATION ==========');
+                                    console.log('verified:', bottle.webVerification.verified);
+                                    console.log('source:', bottle.webVerification.source);
+                                    console.log('confidence:', bottle.webVerification.confidence);
+                                    console.log('dataMatch:', bottle.webVerification.dataMatch);
+                                    
+                                    log(`\n🌐 WEB VERIFICATION DATA:`, '#f0f');
+                                    log(`  • verified: ${bottle.webVerification.verified}`, '#fff');
+                                    log(`  • source: ${bottle.webVerification.source || 'N/A'}`, '#fff');
+                                    log(`  • confidence: ${bottle.webVerification.confidence || 'N/A'}`, '#fff');
+                                    log(`  • dataMatch: ${bottle.webVerification.dataMatch || 'N/A'}`, '#fff');
+                                }
+                                
+                                console.log('\n');
+                            });
+                            
+                            console.log('═══════════════════════════════════════');
+                            console.log('✅ Fine dati AI');
+                            console.log('═══════════════════════════════════════');
+                            console.log('\n\n');
+                            
+                            log('\n═══════════════════════════════════════', '#ff0');
+                            log('✅ CONTROLLA LA CONSOLE BROWSER (F12) per i dettagli completi!', '#ff0');
+                            log('═══════════════════════════════════════\n', '#ff0');
+                        } else {
+                            console.error('❌ Nessuna bottiglia trovata nei risultati!');
+                            console.log('Struttura result:', d.result);
+                            log('❌ Nessuna bottiglia trovata nei risultati!', '#f00');
+                        }
+                        
+                        // 🎯 AUTO-POPOLA I CAMPI CON I DATI DELL'AI
+                        if (d.result && d.result.bottles && d.result.bottles[0]) {
+                            const bottle = d.result.bottles[0];
+                            document.getElementById('beerName').textContent = bottle.beerName || 'N/A';
+                            document.getElementById('breweryName').textContent = bottle.breweryName || 'N/A';
+                            log('✅ Form auto-popolato con dati AI!', '#0ff');
+                        }
+                        
+                        document.getElementById('btn').disabled = false;
+                    } else if (d.status === 'failed') {
+                        log(`❌ FALLITO: ${d.error}`, '#f00');
+                        document.getElementById('btn').disabled = false;
+                    } else if (n < max) {
+                        setTimeout(check, 1000);
+                    } else {
+                        log('⚠️ TIMEOUT!', '#fa0');
+                        document.getElementById('btn').disabled = false;
+                    }
+                } catch(e) {
+                    log(`❌ Poll error: ${e.message}`, '#f00');
+                }
+            };
+            
+            check();
+        }
+
+        // 🧪 NUOVA FUNZIONE: Mostra risultati test immediati (senza polling)
+        function displayTestResults(data) {
+            // Simula completamento per aggiornare UI
+            document.getElementById('msg').textContent = '✅ COMPLETATO!';
+            document.getElementById('bar').style.width = '100%';
+            document.getElementById('bgProgress').textContent = '100%';
+            document.getElementById('bgBar').style.width = '100%';
+            document.getElementById('details').textContent = 'Status: completed | Test Mode: true';
+            
+            log('✅ COMPLETATO!', '#0f0');
+            
+            // Mostra modalità utilizzata
+            const useRealServices = data.useRealServices || false;
+            log(`🔍 Modalità utilizzata: ${useRealServices ? 'SERVIZI REALI' : 'SIMULAZIONE'}`, useRealServices ? '#f0f' : '#0ff');
+            
+            // 🔍 DEBUG: Verifica struttura dati
+            console.log('🔍 DEBUG - Full result object:', data);
+            console.log('🔍 DEBUG - Has data?', data?.data);
+            console.log('🔍 DEBUG - Has bottles?', data?.data?.bottles);
+            console.log('🔍 DEBUG - Bottles length:', data?.data?.bottles?.length);
+            
+            // 🎯 LOGGA TUTTI I DATI AI RECUPERATI (per Model Beer/Brewery)
+            if (data && data.data && data.data.bottles && data.data.bottles.length > 0) {
+                console.log('\n\n');
+                console.log('═══════════════════════════════════════');
+                console.log('📊 DATI AI RECUPERATI (per salvare su Models)');
+                console.log('═══════════════════════════════════════');
+                console.log('\n');
+                
+                log('═══════════════════════════════════════', '#ff0');
+                log('📊 DATI AI RECUPERATI (per salvare su Models):', '#ff0');
+                log('═══════════════════════════════════════', '#ff0');
+                
+                data.data.bottles.forEach((bottle, idx) => {
+                    console.log('\n');
+                    console.log(`🍺 ============ BOTTIGLIA ${idx + 1} ============`);
+                    console.log('\n');
+                    
+                    log(`\n🍺 BOTTIGLIA ${idx + 1}:`, '#0ff');
+                    log('─────────────────────────────────────', '#0ff');
+                    
+                    // DATI BIRRA (Beer Model) - struttura piatta dal worker
+                    console.log('🍺 ========== BEER MODEL DATA ==========');
+                    console.log('beerName:', bottle.beerName);
+                    console.log('beerType:', bottle.beerType);
+                    console.log('alcoholContent:', bottle.alcoholContent);
+                    console.log('ibu:', bottle.ibu);
+                    console.log('volume:', bottle.volume);
+                    console.log('description:', bottle.description);
+                    console.log('ingredients:', bottle.ingredients);
+                    console.log('color:', bottle.color);
+                    console.log('servingTemperature:', bottle.servingTemperature);
+                    console.log('tastingNotes:', bottle.tastingNotes);
+                    console.log('dataSource:', bottle.dataSource);
+                    console.log('confidence:', bottle.confidence);
+                    
+                    log(`\n🍺 BEER MODEL DATA:`, '#4facfe');
+                    log(`  • beerName: ${bottle.beerName || 'N/A'}`, '#fff');
+                    log(`  • beerType: ${bottle.beerType || 'N/A'}`, '#fff');
+                    log(`  • alcoholContent: ${bottle.alcoholContent || 'N/A'}`, '#fff');
+                    log(`  • ibu: ${bottle.ibu || 'N/A'}`, '#fff');
+                    log(`  • volume: ${bottle.volume || 'N/A'}`, '#fff');
+                    log(`  • description: ${(bottle.description || 'N/A').substring(0, 100)}...`, '#fff');
+                    log(`  • ingredients: ${JSON.stringify(bottle.ingredients || [])}`, '#fff');
+                    log(`  • dataSource: ${bottle.dataSource || 'N/A'}`, '#fff');
+                    log(`  • confidence: ${bottle.confidence || 'N/A'}`, '#fff');
+                    
+                    // DATI BIRRIFICIO (Brewery Model) - struttura piatta dal worker
+                    console.log('\n🏭 ========== BREWERY MODEL DATA ==========');
+                    console.log('breweryName:', bottle.breweryName);
+                    console.log('breweryLegalAddress:', bottle.breweryLegalAddress);
+                    console.log('website:', bottle.website);
+                    console.log('email:', bottle.email);
+                    console.log('phone:', bottle.phone);
+                    console.log('foundingYear:', bottle.foundingYear);
+                    console.log('brewerySize:', bottle.brewerySize);
+                    console.log('productionVolume:', bottle.productionVolume);
+                    console.log('breweryDescription:', bottle.breweryDescription);
+                    console.log('breweryHistory:', bottle.breweryHistory);
+                    console.log('mainProducts:', bottle.mainProducts);
+                    console.log('awards:', bottle.awards);
+                    console.log('brewerySocialMedia:', bottle.brewerySocialMedia);
+                    
+                    log(`\n🏭 BREWERY MODEL DATA:`, '#56ab2f');
+                    log(`  • breweryName: ${bottle.breweryName || 'N/A'}`, '#fff');
+                    log(`  • breweryLegalAddress: ${bottle.breweryLegalAddress || 'N/A'}`, '#fff');
+                    log(`  • website: ${bottle.website || 'N/A'}`, '#fff');
+                    log(`  • email: ${bottle.email || 'N/A'}`, '#fff');
+                    log(`  • phone: ${bottle.phone || 'N/A'}`, '#fff');
+                    log(`  • foundingYear: ${bottle.foundingYear || 'N/A'}`, '#fff');
+                    log(`  • brewerySize: ${bottle.brewerySize || 'N/A'}`, '#fff');
+                    log(`  • productionVolume: ${bottle.productionVolume || 'N/A'}`, '#fff');
+                    log(`  • mainProducts: ${JSON.stringify(bottle.mainProducts || [])}`, '#fff');
+                    log(`  • awards: ${JSON.stringify(bottle.awards || [])}`, '#fff');
+                    
+                    // WEB VERIFICATION DATA
+                    if (bottle.webVerification) {
+                        console.log('\n🌐 ========== WEB VERIFICATION ==========');
+                        console.log('verified:', bottle.webVerification.verified);
+                        console.log('source:', bottle.webVerification.source);
+                        console.log('confidence:', bottle.webVerification.confidence);
+                        console.log('dataMatch:', bottle.webVerification.dataMatch);
+                        
+                        log(`\n🌐 WEB VERIFICATION DATA:`, '#f0f');
+                        log(`  • verified: ${bottle.webVerification.verified}`, '#fff');
+                        log(`  • source: ${bottle.webVerification.source || 'N/A'}`, '#fff');
+                        log(`  • confidence: ${bottle.webVerification.confidence || 'N/A'}`, '#fff');
+                        log(`  • dataMatch: ${bottle.webVerification.dataMatch || 'N/A'}`, '#fff');
+                    }
+                    
+                    // Metadati processing
+                    const meta = bottle.metadata;
+                    if (meta) {
+                        log(`\n📋 METADATA:`, '#999');
+                        log(`  • Birrificio trovato: ${meta.breweryFound ? 'Sì' : 'No'}`, meta.breweryFound ? '#0f0' : '#f00');
+                        log(`  • Birra trovata: ${meta.beerFound ? 'Sì' : 'No'}`, meta.beerFound ? '#0f0' : '#f00');
+                        log(`  • Web search eseguita: ${meta.webSearchPerformed ? 'Sì' : 'No'}`, '#fff');
+                        log(`  • Richiede creazione: ${meta.needsDatabaseCreation ? 'Sì' : 'No'}`, meta.needsDatabaseCreation ? '#fa0' : '#0f0');
+                    } else {
+                        log(`\n📋 METADATA: N/A (metadata mancante)`, '#f00');
+                    }
+                    
+                    // Dati AI grezzi
+                    const ai = bottle.aiRawData;
+                    if (ai) {
+                        log(`\n🤖 AI RAW DATA (DEBUG):`, '#999');
+                        log(`  • Confidence: ${ai.extractionConfidence || 'N/A'}`, '#fff');
+                        log(`  • Data source: ${ai.dataSource || 'N/A'}`, '#fff');
+                        console.log('  • labelData completo:', ai.labelData);
+                        console.log('  • searchQueries:', ai.searchQueries);
+                    } else {
+                        log(`\n🤖 AI RAW DATA: N/A (aiRawData mancante)`, '#f00');
+                    }
+                    
+                    console.log('\n');
+                });
+                
+                console.log('═══════════════════════════════════════');
+                console.log('✅ Fine dati AI');
+                console.log('═══════════════════════════════════════');
+                console.log('\n\n');
+                
+                log('\n═══════════════════════════════════════', '#ff0');
+                log('✅ CONTROLLA LA CONSOLE BROWSER (F12) per i dettagli completi!', '#ff0');
+                log('═══════════════════════════════════════\n', '#ff0');
+            } else {
+                console.error('❌ Nessuna bottiglia trovata nei risultati!');
+                console.log('Struttura result:', data);
+                log('❌ Nessuna bottiglia trovata nei risultati!', '#f00');
+            }
+            
+            // 🎯 AUTO-POPOLA I CAMPI CON I DATI DELL'AI
+            if (data && data.data && data.data.bottles && data.data.bottles[0]) {
+                const bottle = data.data.bottles[0];
+                document.getElementById('beerName').textContent = bottle.beerName || 'N/A';
+                document.getElementById('breweryName').textContent = bottle.breweryName || 'N/A';
+                log('✅ Form auto-popolato con dati AI!', '#0ff');
+            }
+            
+            log(`\n\n═══════════════════════════════════════`, '#0f0');
+            log(`✅ ANALISI COMPLETATA - ZERO SCRITTURE DATABASE`, '#0f0');
+            log(`═══════════════════════════════════════`, '#0f0');
+            
+            document.getElementById('btn').disabled = false;
+        }
+
+        async function poll(id) {
+            let n = 0;
+            const max = 120;
+            
+            const check = async () => {
+                try {
+                    n++;
+                    const res = await fetch(`/review/${id}/status`);
+                    const r = await res.json();
+                    const d = r.data;
+                    
+                    log(`📊 Poll ${n}/${max}: ${d.status} | ${d.currentStep || 'N/A'} | ${d.progress || 0}%`);
+                    
+                    // 🎯 AGGIORNA IL PROGRESSO NEL FORM (background)
+                    document.getElementById('bgProgress').textContent = `${d.progress || 0}%`;
+                    document.getElementById('bgBar').style.width = `${d.progress || 0}%`;
+                    
+                    let msg = 'Elaborazione...';
+                    let prog = d.progress || 0;
+                    
+                    if (d.status === 'waiting') { msg = '⏳ In coda...'; prog = 10; }
+                    else if (d.currentStep === 'ai-analysis') { msg = '🤖 Analisi AI...'; prog = 30; }
+                    else if (d.currentStep === 'web-search') { msg = '🌐 Ricerca web...'; prog = 50; }
+                    else if (d.currentStep === 'web-scraping') { msg = '🕷️ Web scraping...'; prog = 70; }
+                    else if (d.currentStep === 'validation') { msg = '✅ Validazione...'; prog = 90; }
+                    else if (d.status === 'completed') { msg = '✅ COMPLETATO!'; prog = 100; }
+                    else if (d.status === 'failed') { msg = '❌ FALLITO!'; prog = 0; }
+                    
+                    document.getElementById('msg').textContent = msg;
+                    document.getElementById('bar').style.width = prog + '%';
+                    document.getElementById('details').textContent = `Status: ${d.status} | Attempts: ${d.attempts || 0}`;
+                    
+                    if (d.status === 'completed') {
+                        log('✅ COMPLETATO!', '#0f0');
+                        
+                        // 🔍 DEBUG: Verifica struttura dati
+                        console.log('🔍 DEBUG - Full result object:', d.result);
+                        console.log('🔍 DEBUG - Has bottles?', d.result?.bottles);
+                        console.log('🔍 DEBUG - Bottles length:', d.result?.bottles?.length);
+                        
+                        // 🎯 LOGGA TUTTI I DATI AI RECUPERATI (per Model Beer/Brewery)
+                        if (d.result && d.result.bottles && d.result.bottles.length > 0) {
+                            console.log('\n\n');
+                            console.log('═══════════════════════════════════════');
+                            console.log('📊 DATI AI RECUPERATI (per salvare su Models)');
+                            console.log('═══════════════════════════════════════');
+                            console.log('\n');
+                            
+                            log('═══════════════════════════════════════', '#ff0');
+                            log('📊 DATI AI RECUPERATI (per salvare su Models):', '#ff0');
+                            log('═══════════════════════════════════════', '#ff0');
+                            
+                            d.result.bottles.forEach((bottle, idx) => {
+                                console.log('\n');
+                                console.log(`🍺 ============ BOTTIGLIA ${idx + 1} ============`);
+                                console.log('\n');
+                                
+                                log(`\n🍺 BOTTIGLIA ${idx + 1}:`, '#0ff');
+                                log('─────────────────────────────────────', '#0ff');
+                                
+                                // DATI BIRRA (Beer Model)
+                                console.log('🍺 ========== BEER MODEL DATA ==========');
+                                console.log('beerName:', bottle.beerName);
+                                console.log('beerType:', bottle.beerType);
+                                console.log('alcoholContent:', bottle.alcoholContent);
+                                console.log('ibu:', bottle.ibu);
+                                console.log('volume:', bottle.volume);
+                                console.log('description:', bottle.description);
+                                console.log('ingredients:', bottle.ingredients);
+                                console.log('color:', bottle.color);
+                                console.log('servingTemperature:', bottle.servingTemperature);
+                                console.log('tastingNotes:', bottle.tastingNotes);
+                                console.log('dataSource:', bottle.dataSource);
+                                console.log('confidence:', bottle.confidence);
+                                
+                                log(`\n🍺 BEER MODEL DATA:`, '#4facfe');
+                                log(`  • beerName: ${bottle.beerName || 'N/A'}`, '#fff');
+                                log(`  • beerType: ${bottle.beerType || 'N/A'}`, '#fff');
+                                log(`  • alcoholContent: ${bottle.alcoholContent || 'N/A'}`, '#fff');
+                                log(`  • ibu: ${bottle.ibu || 'N/A'}`, '#fff');
+                                log(`  • volume: ${bottle.volume || 'N/A'}`, '#fff');
+                                log(`  • description: ${(bottle.description || 'N/A').substring(0, 100)}...`, '#fff');
+                                log(`  • ingredients: ${JSON.stringify(bottle.ingredients || [])}`, '#fff');
+                                log(`  • dataSource: ${bottle.dataSource || 'N/A'}`, '#fff');
+                                log(`  • confidence: ${bottle.confidence || 'N/A'}`, '#fff');
+                                
+                                // DATI BIRRIFICIO (Brewery Model)
+                                console.log('\n🏭 ========== BREWERY MODEL DATA ==========');
+                                console.log('breweryName:', bottle.breweryName);
+                                console.log('breweryLegalAddress:', bottle.breweryLegalAddress);
+                                console.log('website:', bottle.website);
+                                console.log('email:', bottle.email);
+                                console.log('phone:', bottle.phone);
+                                console.log('foundingYear:', bottle.foundingYear);
+                                console.log('brewerySize:', bottle.brewerySize);
+                                console.log('productionVolume:', bottle.productionVolume);
+                                console.log('breweryDescription:', bottle.breweryDescription);
+                                console.log('breweryHistory:', bottle.breweryHistory);
+                                console.log('mainProducts:', bottle.mainProducts);
+                                console.log('awards:', bottle.awards);
+                                console.log('brewerySocialMedia:', bottle.brewerySocialMedia);
+                                
+                                log(`\n🏭 BREWERY MODEL DATA:`, '#56ab2f');
+                                log(`  • breweryName: ${bottle.breweryName || 'N/A'}`, '#fff');
+                                log(`  • breweryLegalAddress: ${bottle.breweryLegalAddress || 'N/A'}`, '#fff');
+                                log(`  • website: ${bottle.website || 'N/A'}`, '#fff');
+                                log(`  • email: ${bottle.email || 'N/A'}`, '#fff');
+                                log(`  • phone: ${bottle.phone || 'N/A'}`, '#fff');
+                                log(`  • foundingYear: ${bottle.foundingYear || 'N/A'}`, '#fff');
+                                log(`  • brewerySize: ${bottle.brewerySize || 'N/A'}`, '#fff');
+                                log(`  • productionVolume: ${bottle.productionVolume || 'N/A'}`, '#fff');
+                                log(`  • mainProducts: ${JSON.stringify(bottle.mainProducts || [])}`, '#fff');
+                                log(`  • awards: ${JSON.stringify(bottle.awards || [])}`, '#fff');
+                                
+                                // WEB VERIFICATION DATA
+                                if (bottle.webVerification) {
+                                    console.log('\n🌐 ========== WEB VERIFICATION ==========');
+                                    console.log('verified:', bottle.webVerification.verified);
+                                    console.log('source:', bottle.webVerification.source);
+                                    console.log('confidence:', bottle.webVerification.confidence);
+                                    console.log('dataMatch:', bottle.webVerification.dataMatch);
+                                    
+                                    log(`\n🌐 WEB VERIFICATION DATA:`, '#f0f');
+                                    log(`  • verified: ${bottle.webVerification.verified}`, '#fff');
+                                    log(`  • source: ${bottle.webVerification.source || 'N/A'}`, '#fff');
+                                    log(`  • confidence: ${bottle.webVerification.confidence || 'N/A'}`, '#fff');
+                                    log(`  • dataMatch: ${bottle.webVerification.dataMatch || 'N/A'}`, '#fff');
+                                }
+                                
+                                console.log('\n');
+                            });
+                            
+                            console.log('═══════════════════════════════════════');
+                            console.log('✅ Fine dati AI');
+                            console.log('═══════════════════════════════════════');
+                            console.log('\n\n');
+                            
+                            log('\n═══════════════════════════════════════', '#ff0');
+                            log('✅ CONTROLLA LA CONSOLE BROWSER (F12) per i dettagli completi!', '#ff0');
+                            log('═══════════════════════════════════════\n', '#ff0');
+                        } else {
+                            console.error('❌ Nessuna bottiglia trovata nei risultati!');
+                            console.log('Struttura result:', d.result);
+                            log('❌ Nessuna bottiglia trovata nei risultati!', '#f00');
+                        }
+                        
+                        // 🎯 AUTO-POPOLA I CAMPI CON I DATI DELL'AI
+                        if (d.result && d.result.bottles && d.result.bottles[0]) {
+                            const bottle = d.result.bottles[0];
+                            document.getElementById('beerName').textContent = bottle.beerName || 'N/A';
+                            document.getElementById('breweryName').textContent = bottle.breweryName || 'N/A';
+                            log('✅ Form auto-popolato con dati AI!', '#0ff');
+                        }
+                        
+                        document.getElementById('btn').disabled = false;
+                    } else if (d.status === 'failed') {
+                        log(`❌ FALLITO: ${d.error}`, '#f00');
+                        document.getElementById('btn').disabled = false;
+                    } else if (n < max) {
+                        setTimeout(check, 1000);
+                    } else {
+                        log('⚠️ TIMEOUT!', '#fa0');
+                        document.getElementById('btn').disabled = false;
+                    }
+                } catch(e) {
+                    log(`❌ Poll error: ${e.message}`, '#f00');
+                }
+            };
+            
+            check();
+        }
+
+        function submitReview() {
+            const rating = document.getElementById('rating').value;
+            const notes = document.getElementById('notes').value;
+            const beer = document.getElementById('beerName').textContent;
+            const brewery = document.getElementById('breweryName').textContent;
+            
+            log(`💾 RECENSIONE SALVATA!`, '#0f0');
+            log(`   🍺 Birra: ${beer}`, '#0ff');
+            log(`   🏭 Birrificio: ${brewery}`, '#0ff');
+            log(`   ⭐ Voto: ${rating}`, '#0ff');
+            log(`   💭 Note: ${notes}`, '#0ff');
+            
+            alert('✅ Recensione salvata con successo!\n\n' + 
+                  '🍺 ' + beer + '\n' +
+                  '🏭 ' + brewery + '\n' +
+                  '⭐ ' + rating + '\n' +
+                  '💭 ' + notes);
+        }
+        
+        log('✅ Sistema pronto!');
+        
+        // 🎯 AGGIUNGI EVENT LISTENER PER AGGIORNARE INDICATORE MODALITÀ
+        document.getElementById('useRealServices').addEventListener('change', function() {
+            const modeIndicator = document.getElementById('modeIndicator');
+            if (this.checked) {
+                modeIndicator.textContent = 'Servizi reali (lento)';
+                modeIndicator.style.color = '#e91e63';
+                modeIndicator.style.fontWeight = 'bold';
+            } else {
+                modeIndicator.textContent = 'Simulazione (veloce)';
+                modeIndicator.style.color = '#4caf50';
+                modeIndicator.style.fontWeight = 'normal';
+            }
+        });
+    </script>
+</body>
+</html>

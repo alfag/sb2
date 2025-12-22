@@ -1,0 +1,825 @@
+{% extends "layout.njk" %}
+
+{% block title %}Verifica e Completa Dati AI{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/css/aiVerification.css">
+<link rel="stylesheet" href="/css/libs/fontawesome-7.0.1.min.css">
+<style>
+/* 🎯 STILI RAZIONALIZZATI PER CHIAREZZA CAMPI */
+
+/* Sistema a 2 stati invece di 3 (più semplice) */
+.field-status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+.field-status.required {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+}
+
+.field-status.required i {
+    color: #dc3545;
+}
+
+.field-status.optional {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #17a2b8;
+}
+
+.field-status.filled {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #28a745;
+}
+
+/* Riepilogo campi mancanti PROMINENTE in alto */
+.missing-fields-summary {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 2px solid #ffc107;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.2);
+}
+
+.missing-fields-summary h3 {
+    margin: 0 0 15px 0;
+    color: #856404;
+    font-size: 1.3rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.missing-fields-summary h3 i {
+    font-size: 1.8rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+.missing-fields-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.missing-field-item {
+    background: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    border-left: 4px solid #dc3545;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    color: #721c24;
+}
+
+.missing-field-item i {
+    color: #dc3545;
+    font-size: 1.2rem;
+}
+
+.missing-field-item.brewery {
+    border-left-color: #fd7e14;
+}
+
+.missing-field-item.beer {
+    border-left-color: #20c997;
+}
+
+/* Form semplificato */
+.simplified-form-group {
+    margin-bottom: 25px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.simplified-form-group.has-value {
+    background: #e8f5e9;
+    border-left: 4px solid #28a745;
+}
+
+.simplified-form-group.required-empty {
+    background: #fff3e0;
+    border-left: 4px solid #ff9800;
+}
+
+.simplified-form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.95rem;
+}
+
+.simplified-form-group input,
+.simplified-form-group textarea,
+.simplified-form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.simplified-form-group input:focus,
+.simplified-form-group textarea:focus,
+.simplified-form-group select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    outline: none;
+}
+
+.simplified-form-group.required-empty input,
+.simplified-form-group.required-empty textarea,
+.simplified-form-group.required-empty select {
+    border-color: #ff9800;
+}
+
+.field-help {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.field-help i {
+    font-size: 0.9rem;
+}
+
+/* Sezione completa e collassabile */
+.collapsible-section {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.collapsible-section.all-filled {
+    border-color: #28a745;
+    background: linear-gradient(to right, #d4edda, #ffffff);
+}
+
+.collapsible-header {
+    padding: 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.3s ease;
+}
+
+.collapsible-header:hover {
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+}
+
+.collapsible-header h4 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.2rem;
+}
+
+.collapsible-status {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.completeness-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.completeness-badge.complete {
+    background: #28a745;
+    color: white;
+}
+
+.completeness-badge.incomplete {
+    background: #ffc107;
+    color: #856404;
+}
+
+.expand-icon {
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+}
+
+.collapsible-section.collapsed .expand-icon {
+    transform: rotate(-90deg);
+}
+
+.collapsible-content {
+    padding: 25px;
+    display: none;
+}
+
+.collapsible-section:not(.collapsed) .collapsible-content {
+    display: block;
+}
+
+/* Pulsanti azione sempre visibili (sticky) */
+.sticky-actions {
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(to top, rgba(255,255,255,0.98), rgba(255,255,255,0.95));
+    padding: 20px;
+    border-top: 2px solid #dee2e6;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
+    z-index: 100;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-action {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.btn-action.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-action.success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+    color: white;
+}
+
+.btn-action.secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Progress globale compatto */
+.global-progress {
+    background: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.progress-bar-simple {
+    width: 100%;
+    height: 12px;
+    background: #e9ecef;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.progress-fill-simple {
+    height: 100%;
+    background: linear-gradient(90deg, #56ab2f 0%, #a8e063 100%);
+    transition: width 0.5s ease;
+    border-radius: 6px;
+}
+
+.progress-text {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    color: #495057;
+}
+
+.progress-percentage {
+    font-size: 1.2rem;
+    color: #28a745;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ai-verification-overlay" onclick="closeVerificationModal()"></div>
+<div class="ai-verification-container">
+    
+    <!-- Header -->
+    <div class="verification-header">
+        <h1><i class="fas fa-robot"></i> Verifica Dati AI</h1>
+        <p class="subtitle">Completa solo i campi OBBLIGATORI mancanti - tutto il resto è opzionale</p>
+    </div>
+
+    <!-- 🎯 RIEPILOGO CAMPI MANCANTI PROMINENTE -->
+    {% set breweriesData = sessionData.breweries if sessionData.breweries else [] %}
+    {% set bottlesData = sessionData.bottles if sessionData.bottles else [] %}
+    
+    {# Conta campi mancanti per brewery e beer #}
+    {% set missingBreweries = [] %}
+    {% set missingBeers = [] %}
+    
+    {% for brewery in breweriesData %}
+        {% if not (brewery.breweryName or brewery.name) %}
+            {% set missingBreweries = missingBreweries.concat([loop.index]) %}
+        {% endif %}
+    {% endfor %}
+    
+    {% for bottle in bottlesData %}
+        {% if not (bottle.labelData.beerName or bottle.beerName or bottle.name) %}
+            {% set missingBeers = missingBeers.concat([loop.index]) %}
+        {% endif %}
+    {% endfor %}
+    
+    {% set missingFieldsCount = missingBreweries.length + missingBeers.length %}
+    
+    {% if missingFieldsCount > 0 %}
+    <div class="missing-fields-summary">
+        <h3>
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ missingFieldsCount }} Camp{{ 'o' if missingFieldsCount == 1 else 'i' }} Obbligatori{{ ' Mancante' if missingFieldsCount == 1 else ' Mancanti' }}
+        </h3>
+        <p style="margin: 0 0 15px 0; color: #856404;">
+            <strong>Compila questi campi per procedere.</strong> Tutti gli altri sono opzionali e possono essere lasciati vuoti.
+        </p>
+        <div class="missing-fields-list">
+            {% for idx in missingBreweries %}
+            <div class="missing-field-item brewery">
+                <i class="fas fa-building"></i>
+                <span>Nome Birrificio #{{ idx }}</span>
+            </div>
+            {% endfor %}
+            {% for idx in missingBeers %}
+            <div class="missing-field-item beer">
+                <i class="fas fa-beer"></i>
+                <span>Nome Birra #{{ idx }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="global-progress">
+        <div class="progress-text">
+            <span><i class="fas fa-check-circle text-success"></i> Tutti i campi obbligatori sono completi!</span>
+            <span class="progress-percentage">100%</span>
+        </div>
+        <div class="progress-bar-simple">
+            <div class="progress-fill-simple" style="width: 100%"></div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Form Arricchimento -->
+    <form id="enrichmentForm" method="POST" action="/review/confirm-ai-analysis">
+        
+        <!-- 🏭 BIRRIFICI -->
+        {% if breweriesData and breweriesData.length > 0 %}
+        <div class="form-section">
+            <h2 style="margin-bottom: 20px;">
+                <i class="fas fa-industry"></i> Birrifici ({{ breweriesData.length }})
+            </h2>
+            
+            {% for brewery in breweriesData %}
+            {% set breweryNameValue = brewery.breweryName or brewery.name or '' %}
+            {% set hasAllRequired = breweryNameValue != '' %}
+            
+            <div class="collapsible-section {% if hasAllRequired %}all-filled collapsed{% endif %}">
+                <div class="collapsible-header" onclick="toggleSection(this)">
+                    <h4>
+                        <i class="fas fa-industry"></i>
+                        {{ breweryNameValue if breweryNameValue else 'Birrificio #' ~ loop.index }}
+                    </h4>
+                    <div class="collapsible-status">
+                        <span class="completeness-badge {% if hasAllRequired %}complete{% else %}incomplete{% endif %}">
+                            {% if hasAllRequired %}
+                            <i class="fas fa-check"></i> Completo
+                            {% else %}
+                            <i class="fas fa-exclamation"></i> Da compilare
+                            {% endif %}
+                        </span>
+                        <i class="fas fa-chevron-down expand-icon"></i>
+                    </div>
+                </div>
+                
+                <div class="collapsible-content">
+                    
+                    <!-- 📋 CAMPO OBBLIGATORIO: Nome Birrificio -->
+                    <div class="simplified-form-group {% if breweryNameValue %}has-value{% else %}required-empty{% endif %}">
+                        <label for="brewery_name_{{ loop.index }}">
+                            <i class="fas fa-building"></i> Nome Birrificio
+                            <span class="field-status required">
+                                <i class="fas fa-asterisk"></i> OBBLIGATORIO
+                            </span>
+                        </label>
+                        <input type="text" 
+                               id="brewery_name_{{ loop.index }}" 
+                               name="brewery_name_{{ loop.index }}" 
+                               value="{{ breweryNameValue }}"
+                               placeholder="Es: Birrificio Baladin, Menabrea, Angelo Poretti..."
+                               required>
+                        <div class="field-help">
+                            <i class="fas fa-info-circle"></i>
+                            {% if breweryNameValue %}
+                            Recuperato automaticamente dall'AI
+                            {% else %}
+                            Inserisci il nome completo del birrificio come appare sull'etichetta
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr style="margin: 30px 0; border: none; border-top: 2px dashed #dee2e6;">
+                    <h5 style="color: #6c757d; margin-bottom: 15px;">
+                        <i class="fas fa-info-circle"></i> Dati Opzionali (puoi compilarli ora o dopo)
+                    </h5>
+
+                    <!-- ⚪ CAMPI OPZIONALI -->
+                    <div class="simplified-form-group {% if brewery.breweryWebsite %}has-value{% endif %}">
+                        <label for="brewery_website_{{ loop.index }}">
+                            <i class="fas fa-globe"></i> Sito Web
+                            <span class="field-status optional">
+                                <i class="fas fa-circle"></i> Opzionale
+                            </span>
+                        </label>
+                        <input type="url" 
+                               id="brewery_website_{{ loop.index }}" 
+                               name="brewery_website_{{ loop.index }}" 
+                               value="{{ brewery.breweryWebsite or '' }}"
+                               placeholder="https://www.birrificio.it">
+                        <div class="field-help">
+                            <i class="fas fa-lightbulb"></i>
+                            Utile per verificare le informazioni e trovare altri dettagli
+                        </div>
+                    </div>
+
+                    <div class="simplified-form-group {% if brewery.breweryLegalAddress %}has-value{% endif %}">
+                        <label for="brewery_address_{{ loop.index }}">
+                            <i class="fas fa-map-marker-alt"></i> Indirizzo Completo
+                            <span class="field-status optional">
+                                <i class="fas fa-circle"></i> Opzionale
+                            </span>
+                        </label>
+                        <textarea id="brewery_address_{{ loop.index }}" 
+                                  name="brewery_address_{{ loop.index }}" 
+                                  rows="2" 
+                                  placeholder="Via/Piazza, Numero Civico, CAP Città (Provincia)">{{ brewery.breweryLegalAddress or '' }}</textarea>
+                        <div class="field-help">
+                            <i class="fas fa-lightbulb"></i>
+                            Indirizzo fisico del birrificio per localizzazione mappa
+                        </div>
+                    </div>
+
+                    <div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="simplified-form-group {% if brewery.breweryEmail %}has-value{% endif %}">
+                            <label for="brewery_email_{{ loop.index }}">
+                                <i class="fas fa-envelope"></i> Email
+                                <span class="field-status optional">Opzionale</span>
+                            </label>
+                            <input type="email" 
+                                   id="brewery_email_{{ loop.index }}" 
+                                   name="brewery_email_{{ loop.index }}" 
+                                   value="{{ brewery.breweryEmail or '' }}"
+                                   placeholder="info@birrificio.it">
+                        </div>
+
+                        <div class="simplified-form-group {% if brewery.breweryPhoneNumber or brewery.phone %}has-value{% endif %}">
+                            <label for="brewery_phone_{{ loop.index }}">
+                                <i class="fas fa-phone"></i> Telefono
+                                <span class="field-status optional">Opzionale</span>
+                            </label>
+                            <input type="tel" 
+                                   id="brewery_phone_{{ loop.index }}" 
+                                   name="brewery_phone_{{ loop.index }}" 
+                                   value="{{ brewery.breweryPhoneNumber or brewery.phone or '' }}"
+                                   placeholder="+39 123 456789">
+                        </div>
+                    </div>
+
+                    <div class="simplified-form-group {% if brewery.description %}has-value{% endif %}">
+                        <label for="brewery_description_{{ loop.index }}">
+                            <i class="fas fa-align-left"></i> Descrizione
+                            <span class="field-status optional">Opzionale</span>
+                        </label>
+                        <textarea id="brewery_description_{{ loop.index }}" 
+                                  name="brewery_description_{{ loop.index }}" 
+                                  rows="3" 
+                                  placeholder="Breve descrizione del birrificio, storia, caratteristiche...">{{ brewery.description or '' }}</textarea>
+                    </div>
+
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- 🍺 BIRRE -->
+        {% if bottlesData and bottlesData.length > 0 %}
+        <div class="form-section" style="margin-top: 30px;">
+            <h2 style="margin-bottom: 20px;">
+                <i class="fas fa-beer"></i> Birre ({{ bottlesData.length }})
+            </h2>
+            
+            {% for bottle in bottlesData %}
+            {% set beerNameValue = bottle.labelData.beerName or bottle.beerName or bottle.name or '' %}
+            {% set hasAllRequired = beerNameValue != '' %}
+            
+            <div class="collapsible-section {% if hasAllRequired %}all-filled collapsed{% endif %}">
+                <div class="collapsible-header" onclick="toggleSection(this)">
+                    <h4>
+                        <i class="fas fa-beer"></i>
+                        {{ beerNameValue if beerNameValue else 'Birra #' ~ loop.index }}
+                    </h4>
+                    <div class="collapsible-status">
+                        <span class="completeness-badge {% if hasAllRequired %}complete{% else %}incomplete{% endif %}">
+                            {% if hasAllRequired %}
+                            <i class="fas fa-check"></i> Completo
+                            {% else %}
+                            <i class="fas fa-exclamation"></i> Da compilare
+                            {% endif %}
+                        </span>
+                        <i class="fas fa-chevron-down expand-icon"></i>
+                    </div>
+                </div>
+                
+                <div class="collapsible-content">
+                    
+                    <!-- 📋 CAMPO OBBLIGATORIO: Nome Birra -->
+                    <div class="simplified-form-group {% if beerNameValue %}has-value{% else %}required-empty{% endif %}">
+                        <label for="beer_name_{{ loop.index }}">
+                            <i class="fas fa-tag"></i> Nome Birra
+                            <span class="field-status required">
+                                <i class="fas fa-asterisk"></i> OBBLIGATORIO
+                            </span>
+                        </label>
+                        <input type="text" 
+                               id="beer_name_{{ loop.index }}" 
+                               name="beer_name_{{ loop.index }}" 
+                               value="{{ beerNameValue }}"
+                               placeholder="Es: Nazionale, Sudigiri, Tipopils, Super..."
+                               required>
+                        <div class="field-help">
+                            <i class="fas fa-info-circle"></i>
+                            {% if beerNameValue %}
+                            Recuperato automaticamente dall'AI
+                            {% else %}
+                            Inserisci il nome della birra come appare sull'etichetta
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr style="margin: 30px 0; border: none; border-top: 2px dashed #dee2e6;">
+                    <h5 style="color: #6c757d; margin-bottom: 15px;">
+                        <i class="fas fa-info-circle"></i> Dati Opzionali (aiutano a catalogare meglio la birra)
+                    </h5>
+
+                    <!-- ⚪ CAMPI OPZIONALI -->
+                    <div class="row" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                        <div class="simplified-form-group {% if bottle.beerType %}has-value{% endif %}">
+                            <label for="beer_type_{{ loop.index }}">
+                                <i class="fas fa-list"></i> Tipologia
+                                <span class="field-status optional">Opzionale</span>
+                            </label>
+                            <select id="beer_type_{{ loop.index }}" 
+                                    name="beer_type_{{ loop.index }}">
+                                <option value="">-- Seleziona --</option>
+                                <option value="IPA" {% if bottle.beerType == 'IPA' %}selected{% endif %}>IPA</option>
+                                <option value="Lager" {% if bottle.beerType == 'Lager' %}selected{% endif %}>Lager</option>
+                                <option value="Pilsner" {% if bottle.beerType == 'Pilsner' %}selected{% endif %}>Pilsner</option>
+                                <option value="Stout" {% if bottle.beerType == 'Stout' %}selected{% endif %}>Stout</option>
+                                <option value="Weizen" {% if bottle.beerType == 'Weizen' %}selected{% endif %}>Weizen</option>
+                                <option value="Porter" {% if bottle.beerType == 'Porter' %}selected{% endif %}>Porter</option>
+                                <option value="Altro">Altro</option>
+                            </select>
+                        </div>
+
+                        <div class="simplified-form-group {% if bottle.alcoholContent %}has-value{% endif %}">
+                            <label for="beer_alcohol_{{ loop.index }}">
+                                <i class="fas fa-percentage"></i> Gradazione
+                                <span class="field-status optional">Opzionale</span>
+                            </label>
+                            <input type="number" 
+                                   id="beer_alcohol_{{ loop.index }}" 
+                                   name="beer_alcohol_{{ loop.index }}" 
+                                   value="{{ bottle.alcoholContent | replace('%', '') or '' }}"
+                                   placeholder="5.5"
+                                   step="0.1">
+                        </div>
+
+                        <div class="simplified-form-group {% if bottle.volume %}has-value{% endif %}">
+                            <label for="beer_volume_{{ loop.index }}">
+                                <i class="fas fa-wine-bottle"></i> Volume (ml)
+                                <span class="field-status optional">Opzionale</span>
+                            </label>
+                            <input type="number" 
+                                   id="beer_volume_{{ loop.index }}" 
+                                   name="beer_volume_{{ loop.index }}" 
+                                   value="{{ bottle.volume | replace('ml', '') | replace('cl', '') or '' }}"
+                                   placeholder="330">
+                        </div>
+                    </div>
+
+                    <div class="simplified-form-group {% if bottle.description %}has-value{% endif %}">
+                        <label for="beer_description_{{ loop.index }}">
+                            <i class="fas fa-align-left"></i> Descrizione
+                            <span class="field-status optional">Opzionale</span>
+                        </label>
+                        <textarea id="beer_description_{{ loop.index }}" 
+                                  name="beer_description_{{ loop.index }}" 
+                                  rows="3" 
+                                  placeholder="Note di degustazione, caratteristiche, ingredienti speciali...">{{ bottle.description or '' }}</textarea>
+                    </div>
+
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Hidden fields -->
+        <input type="hidden" name="sessionData" value="{{ sessionData | escapejs }}">
+        
+    </form>
+
+    <!-- 🎯 PULSANTI AZIONE STICKY (sempre visibili) -->
+    <div class="sticky-actions">
+        <button type="button" class="btn-action secondary" onclick="closeVerificationModal()">
+            <i class="fas fa-times"></i> Annulla
+        </button>
+        <button type="button" class="btn-action primary" onclick="saveProgress()" {% if missingFieldsCount > 0 %}disabled{% endif %}>
+            <i class="fas fa-save"></i> Salva Progressi
+        </button>
+        <button type="submit" form="enrichmentForm" class="btn-action success" {% if missingFieldsCount > 0 %}disabled{% endif %}>
+            <i class="fas fa-check-circle"></i> Completa e Continua
+        </button>
+    </div>
+
+</div>
+
+<script>
+// Toggle sezioni collassabili
+function toggleSection(header) {
+    const section = header.closest('.collapsible-section');
+    section.classList.toggle('collapsed');
+}
+
+// Chiudi modal con conferma
+function closeVerificationModal() {
+    if (confirm('Vuoi uscire? I progressi NON salvati andranno persi.')) {
+        window.history.back();
+    }
+}
+
+// Salva progressi (draft)
+function saveProgress() {
+    alert('Funzionalità salvataggio bozza in sviluppo');
+    // TODO: Implementare salvataggio in localStorage o sessione
+}
+
+// Auto-espandi sezioni incomplete
+document.addEventListener('DOMContentLoaded', () => {
+    const incompleteSections = document.querySelectorAll('.collapsible-section:not(.all-filled)');
+    if (incompleteSections.length === 1) {
+        // Se c'è solo 1 sezione incompleta, espandila automaticamente
+        incompleteSections[0].classList.remove('collapsed');
+    }
+    
+    // Aggiorna stato pulsanti in base ai campi
+    updateButtonsState();
+});
+
+// Aggiorna stato pulsanti
+function updateButtonsState() {
+    const requiredFields = document.querySelectorAll('input[required], textarea[required], select[required]');
+    const missingCount = Array.from(requiredFields).filter(field => !field.value.trim()).length;
+    
+    const submitBtn = document.querySelector('.btn-action.success');
+    const saveBtn = document.querySelector('.btn-action.primary');
+    
+    if (missingCount === 0) {
+        submitBtn.disabled = false;
+        saveBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Completa e Continua (' + missingCount + ' mancanti)';
+    } else {
+        submitBtn.disabled = true;
+        saveBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-exclamation-circle"></i> Compila ' + missingCount + ' campi obbligatori';
+    }
+}
+
+// Ascolta cambiamenti input per aggiornare stato
+document.querySelectorAll('input, textarea, select').forEach(field => {
+    field.addEventListener('input', updateButtonsState);
+    field.addEventListener('change', updateButtonsState);
+});
+
+// Handler submit form - costruisce userCompletions
+let isSubmitting = false; // Flag per prevenire submit multipli
+
+document.getElementById('enrichmentForm').addEventListener('submit', function(e) {
+    e.preventDefault(); // Previeni submit normale
+    e.stopPropagation(); // Blocca propagazione evento
+    
+    // Previeni submit multipli
+    if (isSubmitting) {
+        console.log('Submit già in corso, ignoro...');
+        return false;
+    }
+    
+    isSubmitting = true;
+    const submitBtn = document.querySelector('.btn-action.success');
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio in corso...';
+    
+    const formData = new FormData(this);
+    const userCompletions = [];
+    
+    // Raccogli tutti i dati del form
+    for (let [key, value] of formData.entries()) {
+        if (value && value.trim()) {
+            userCompletions.push({
+                field: key,
+                value: value.trim()
+            });
+        }
+    }
+    
+    // Prepara payload per il backend
+    const payload = {
+        userCompletions: userCompletions,
+        confirmVerified: false // I dati richiedono completamento
+    };
+    
+    // Submit via fetch
+    fetch('/review/confirm-ai-analysis', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mostra messaggio successo prima di redirect
+            submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Salvato! Reindirizzamento...';
+            
+            // Redirect dopo breve pausa
+            setTimeout(() => {
+                window.location.href = data.redirect || '/';
+            }, 500);
+        } else {
+            // Errore - ripristina bottone
+            isSubmitting = false;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            alert('Errore: ' + data.message);
+        }
+    })
+    .catch(error => {
+        // Errore - ripristina bottone
+        console.error('Errore submit:', error);
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+        alert('Errore durante l\'invio. Riprova.');
+    });
+    
+    return false; // Blocca ulteriormente il submit
+});
+</script>
+
+{% endblock %}

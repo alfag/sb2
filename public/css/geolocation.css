@@ -1,0 +1,424 @@
+/**
+ * 📍 GEOLOCATION MODAL - Stili per consent management geolocalizzazione
+ * 
+ * Design moderno con:
+ * - Modal responsive mobile-first
+ * - Gradienti colorati per privacy notice
+ * - Animazioni smooth fade-in/fade-out
+ * - Icone FontAwesome per visual feedback
+ * - Checkbox personalizzato per "ricorda scelta"
+ * 
+ * @author SharingBeer2.0 Development Team
+ * @date 30 Novembre 2025
+ */
+
+/* ====================================
+   MODAL CONTAINER & OVERLAY
+   ==================================== */
+
+.geolocation-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.geolocation-modal.active {
+    opacity: 1;
+}
+
+.geolocation-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* ====================================
+   MODAL CONTENT BOX
+   ==================================== */
+
+.geolocation-modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 520px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -40%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+/* ====================================
+   MODAL HEADER
+   ==================================== */
+
+.geolocation-modal-header {
+    padding: 2rem 2rem 1rem;
+    text-align: center;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.geolocation-modal-header i {
+    font-size: 3rem;
+    color: #4facfe;
+    margin-bottom: 0.75rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.geolocation-modal-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+/* ====================================
+   MODAL BODY
+   ==================================== */
+
+.geolocation-modal-body {
+    padding: 1.5rem 2rem;
+}
+
+.geolocation-description {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #555;
+    margin-bottom: 1.25rem;
+}
+
+/* Privacy Notice Box */
+.geolocation-privacy-notice {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.geolocation-privacy-notice i {
+    font-size: 1.5rem;
+    color: white;
+    margin-top: 0.25rem;
+    flex-shrink: 0;
+}
+
+.geolocation-privacy-notice p {
+    color: white;
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.geolocation-privacy-notice strong {
+    font-weight: 700;
+}
+
+/* Remember Choice Checkbox */
+.geolocation-remember-choice {
+    margin-top: 1rem;
+}
+
+.geolocation-remember-choice label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+    padding: 0.75rem;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.geolocation-remember-choice label:hover {
+    background-color: #f8f9fa;
+}
+
+.geolocation-remember-choice input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #4facfe;
+}
+
+.geolocation-remember-choice span {
+    font-size: 0.95rem;
+    color: #333;
+    font-weight: 500;
+}
+
+/* ====================================
+   MODAL FOOTER - BUTTONS
+   ==================================== */
+
+.geolocation-modal-footer {
+    padding: 1.5rem 2rem 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    border-top: 2px solid #f0f0f0;
+}
+
+.geolocation-modal-footer button {
+    flex: 1;
+    padding: 0.875rem 1.5rem;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.geolocation-modal-footer button i {
+    font-size: 1.1rem;
+}
+
+/* Primary Button - Consenti */
+.btn-primary {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(86, 171, 47, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(86, 171, 47, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Secondary Button - Non Condividere */
+.btn-secondary {
+    background: #e0e0e0;
+    color: #555;
+}
+
+.btn-secondary:hover {
+    background: #d0d0d0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary:active {
+    transform: translateY(0);
+}
+
+/* ====================================
+   CLOSE BUTTON (X)
+   ==================================== */
+
+.geolocation-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: #f0f0f0;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.geolocation-close-btn i {
+    font-size: 1rem;
+    color: #666;
+}
+
+.geolocation-close-btn:hover {
+    background: #e0e0e0;
+    transform: rotate(90deg);
+}
+
+.geolocation-close-btn:active {
+    transform: rotate(90deg) scale(0.95);
+}
+
+/* ====================================
+   RESPONSIVE - MOBILE
+   ==================================== */
+
+@media (max-width: 640px) {
+    .geolocation-modal-content {
+        width: 95%;
+        max-width: none;
+        border-radius: 12px;
+    }
+
+    .geolocation-modal-header {
+        padding: 1.5rem 1.5rem 0.75rem;
+    }
+
+    .geolocation-modal-header h3 {
+        font-size: 1.25rem;
+    }
+
+    .geolocation-modal-header i {
+        font-size: 2.5rem;
+    }
+
+    .geolocation-modal-body {
+        padding: 1.25rem 1.5rem;
+    }
+
+    .geolocation-description {
+        font-size: 0.95rem;
+    }
+
+    .geolocation-privacy-notice {
+        padding: 0.875rem 1rem;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .geolocation-privacy-notice i {
+        margin: 0 auto 0.5rem;
+    }
+
+    .geolocation-modal-footer {
+        padding: 1.25rem 1.5rem 1.5rem;
+        flex-direction: column-reverse;
+    }
+
+    .geolocation-modal-footer button {
+        width: 100%;
+        padding: 1rem 1.5rem;
+    }
+
+    .geolocation-close-btn {
+        width: 32px;
+        height: 32px;
+        top: 0.75rem;
+        right: 0.75rem;
+    }
+}
+
+/* ====================================
+   ACCESSIBILITY
+   ==================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .geolocation-modal,
+    .geolocation-modal-content,
+    .geolocation-modal-footer button,
+    .geolocation-close-btn {
+        animation: none;
+        transition: none;
+    }
+
+    .geolocation-modal-header i {
+        animation: none;
+    }
+}
+
+/* Focus visibile per accessibilità */
+.geolocation-modal-footer button:focus,
+.geolocation-close-btn:focus,
+.geolocation-remember-choice input:focus {
+    outline: 3px solid #4facfe;
+    outline-offset: 2px;
+}
+
+/* ====================================
+   DARK MODE SUPPORT
+   ==================================== */
+
+@media (prefers-color-scheme: dark) {
+    .geolocation-modal-content {
+        background: #1e1e1e;
+        color: #e0e0e0;
+    }
+
+    .geolocation-modal-header {
+        border-bottom-color: #333;
+    }
+
+    .geolocation-modal-header h3 {
+        color: #e0e0e0;
+    }
+
+    .geolocation-description {
+        color: #b0b0b0;
+    }
+
+    .geolocation-modal-footer {
+        border-top-color: #333;
+    }
+
+    .btn-secondary {
+        background: #333;
+        color: #e0e0e0;
+    }
+
+    .btn-secondary:hover {
+        background: #444;
+    }
+
+    .geolocation-close-btn {
+        background: #333;
+    }
+
+    .geolocation-close-btn i {
+        color: #e0e0e0;
+    }
+
+    .geolocation-close-btn:hover {
+        background: #444;
+    }
+
+    .geolocation-remember-choice label:hover {
+        background-color: #2a2a2a;
+    }
+
+    .geolocation-remember-choice span {
+        color: #e0e0e0;
+    }
+}

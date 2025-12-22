@@ -1,16 +1,105 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Errore</title>
-    <link rel="stylesheet" href="/css/styles.css">
-</head>
-<body>
-    <div class="error-container">
-        <h1>Oops! Qualcosa è andato storto.</h1>
-        <p>Siamo spiacenti, ma si è verificato un errore imprevisto. Per favore riprova più tardi.</p>
-        <a href="/">Torna alla Home</a>
+{% extends "layout.njk" %}
+
+{% block title %}Errore - SharingBeer2.0{% endblock %}
+
+{% block header %}Errore del Server{% endblock %}
+
+{% block content %}
+<div class="error-container" style="max-width: 800px; margin: 0 auto; padding: 20px; text-align: center;">
+    <div class="error-icon" style="font-size: 64px; color: #dc3545; margin-bottom: 20px;">
+        ⚠️
     </div>
-</body>
-</html>
+    
+    <h2 style="color: #dc3545; margin-bottom: 20px;">
+        Si è verificato un errore
+    </h2>
+    
+    {% if error %}
+        <div class="error-details" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: left;">
+            <h3 style="color: #495057; margin-bottom: 15px;">Dettagli dell'errore:</h3>
+            
+            {% if error.statusCode %}
+                <p><strong>Codice:</strong> {{ error.statusCode }}</p>
+            {% endif %}
+            
+            {% if error.message %}
+                <p><strong>Messaggio:</strong> {{ error.message }}</p>
+            {% endif %}
+            
+            {% if error.stack and (process.env.NODE_ENV === 'development') %}
+                <details style="margin-top: 15px;">
+                    <summary style="cursor: pointer; font-weight: bold; color: #6c757d;">Stack Trace (Sviluppo)</summary>
+                    <pre style="background: #343a40; color: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-top: 10px;">{{ error.stack }}</pre>
+                </details>
+            {% endif %}
+        </div>
+    {% endif %}
+    
+    <div class="error-actions">
+        <a href="javascript:history.back()" 
+           class="btn btn-secondary" 
+           style="display: inline-block; padding: 10px 20px; margin: 5px; text-decoration: none; background-color: #6c757d; color: white; border-radius: 4px;">
+            ← Torna Indietro
+        </a>
+        
+        <a href="/" 
+           class="btn btn-primary" 
+           style="display: inline-block; padding: 10px 20px; margin: 5px; text-decoration: none; background-color: #007bff; color: white; border-radius: 4px;">
+            🏠 Vai alla Home
+        </a>
+        
+        <button id="reload-page-btn"
+                class="btn btn-info" 
+                style="display: inline-block; padding: 10px 20px; margin: 5px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            🔄 Ricarica Pagina
+        </button>
+    </div>
+    
+    <div class="error-help" style="margin-top: 30px; padding: 20px; background: #e9ecef; border-radius: 8px;">
+        <h4 style="color: #495057; margin-bottom: 15px;">Cosa puoi fare:</h4>
+        <ul style="text-align: left; color: #6c757d;">
+            <li>Verifica di aver inserito l'URL corretto</li>
+            <li>Controlla la tua connessione internet</li>
+            <li>Prova a ricaricare la pagina tra qualche minuto</li>
+            <li>Se il problema persiste, contatta il supporto tecnico</li>
+        </ul>
+    </div>
+    
+    {% if user %}
+        <div class="user-info" style="margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+            <p style="margin: 0; color: #856404;">
+                <strong>Utente:</strong> {{ user.username || user.email || 'Anonimo' }}
+            </p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.error-container .btn:hover {
+    opacity: 0.8;
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+.error-container details[open] summary {
+    margin-bottom: 10px;
+}
+
+.error-container pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+    .error-container {
+        padding: 15px;
+    }
+    
+    .error-actions .btn {
+        display: block;
+        width: 100%;
+        margin: 5px 0;
+    }
+}
+</style>
+{% endblock %}

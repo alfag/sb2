@@ -2,15 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
-    firstName: {
-        type: String,
-        required: true,
-    },
-    lastName: {
-        type: String,
-        required: true,
-    },
-    email: {
+    username: {
         type: String,
         required: true,
         unique: true,
@@ -20,27 +12,78 @@ const userSchema = new mongoose.Schema({
         required: true,
     },
     role: {
-        type: String,
-        enum: ['Cliente', 'Birrificio', 'Amministratore'],
-        default: 'Cliente',
+        type: [String],
+        required: true,
+        enum: ['customer', 'brewery', 'administrator'],
+        default: ['customer'],
     },
-    purchaseHistory: [{
+    defaultRole: {
+        type: String,
+        enum: ['customer', 'brewery'],
+        default: 'customer',
+        required: true,
+    },
+    customerDetails: {
+        type: Object,
+        customerID: { type: mongoose.Schema.Types.ObjectId, required: true, unique: true },
+        customerName: { type: String, required: true },
+        customerSurname: { type: String, required: true },
+        customerFiscalCode: { type: String, required: true },
+        customerAddresses: {
+            billingAddress: { type: String },
+            shippingAddress: { type: String },
+        },
+        customerPhoneNumber: { type: String },
+        // Preferenza consenso geolocalizzazione per recensioni
+        locationConsent: {
+            enabled: { type: Boolean, default: null }, // null = chiedi ogni volta, true/false = ricorda preferenza
+            lastUpdated: { type: Date },
+            updatedBy: { type: String } // 'user' o 'system'
+        },
+        customerPurchases: [{
+            type: Object,
+            purchaseDate: { type: Date, default: Date.now },
+            purchaseAmount: { type: Number, required: true },
+            purchaseItems: [{
+                itemID: { type: mongoose.Schema.Types.ObjectId },
+                quantity: { type: Number, required: true }
+            }],
+            purchaseStatus: { type: String },
+            purchasePaymentMethod: { type: String },
+            purchaseShippingMethod: { type: String, enum: ['onsite', 'express'], default: 'onsite' },
+            purchaseTrackingNumber: { type: String },
+            purchaseDeliveryAddress: { type: String }
+        }],
+        customerWishlist: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Brewery.breweryProducts'
+        }],
+        customerReviews: [{
+            type: Object,
+            productID: { type: mongoose.Schema.Types.ObjectId },
+            ref: 'Brewery.breweryProducts',
+            reviewText: { type: String },
+            reviewRating: { type: Number, min: 1, max: 5 },
+            reviewDate: { type: Date, default: Date.now }
+        }],
+    },
+    breweryDetails: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Order',
-    }],
-    invitations: [{
+        ref: 'Brewery',
+    },
+    administratorDetails: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Invitation',
-    }],
+        ref: 'Administrator',
+    }
 }, { timestamps: true });
 
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
     this.password = await bcrypt.hash(this.password, 10);
     next();
 });
 
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
 

@@ -1,0 +1,43 @@
+<div class="review-menu">
+  <input type="file" id="reviewPhoto" accept="image/*" capture="environment" class="hidden" />
+  <div id="photo-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black bg-opacity-90 p-4">
+    <div class="relative w-full max-w-3xl h-full max-h-[600px] bg-white rounded-lg flex flex-col overflow-hidden">
+      <!-- Header compatto -->
+      <div class="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <button id="backArrow" class="hidden w-8 h-8 bg-gray-100 border border-gray-300 rounded flex items-center justify-center hover:bg-gray-200 transition-colors" role="button" tabindex="0" aria-label="Indietro">
+          <span class="text-lg text-gray-700">←</span>
+        </button>
+        <h3 class="flex-1 text-base font-semibold text-gray-900 text-center">Anteprima Foto</h3>
+        <button id="closePhotoModal" class="w-8 h-8 bg-gray-100 border border-gray-300 rounded flex items-center justify-center hover:bg-gray-200 transition-colors text-lg text-gray-700" type="button" aria-label="Chiudi">
+          ×
+        </button>
+      </div>
+      
+      <!-- Area immagine -->
+      <div class="flex-1 bg-gray-50 flex items-center justify-center relative overflow-hidden">
+        <div id="photo-preview-container" class="relative w-full h-full flex items-center justify-center">
+          <img id="photoPreview" alt="Anteprima" class="max-w-full max-h-full object-contain" style="z-index: 1;" />
+
+          <canvas id="photoCanvas" class="photo-canvas-overlay" style="z-index: 10; background: transparent;"></canvas>
+        </div>
+      </div>
+      
+      <!-- Footer compatto -->
+      <div class="flex-shrink-0 bg-white border-t border-gray-200 px-4 py-3">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <p id="crop-note" class="text-xs text-gray-500 truncate">
+              <span class="font-medium">Tip:</span> SHIFT + trascina per selezionare area
+            </p>
+            <p id="crop-note-mobile" class="hidden text-xs text-gray-500 truncate">
+              <span class="font-medium">Tip:</span> Tieni premuto 0.5s poi trascina
+            </p>
+          </div>
+          <button id="sendToAI" class="hidden px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors whitespace-nowrap">
+            Usa immagine
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

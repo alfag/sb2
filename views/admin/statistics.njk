@@ -1,0 +1,117 @@
+{% extends "../layout.njk" %}
+{% block title %}{{ title }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/admin-dashboard.css">{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <div class="page-head">
+        <h1><i class="fas fa-chart-bar"></i> Statistiche Piattaforma</h1>
+    </div>
+
+    {% if not summary %}
+    <div class="admin-alert error"><i class="fas fa-exclamation-triangle"></i> Errore caricamento statistiche. <button onclick="location.reload()" class="btn-add" style="padding:4px 12px;font-size:12px">Ricarica</button></div>
+    {% else %}
+    <!-- Stats Overview -->
+    <div class="stats-row">
+        <div class="stat-box" style="--accent:var(--dash-blue)"><i class="fas fa-industry"></i><div class="num">{{ summary.totalBreweries or 0 }}</div><div class="lbl">Birrifici</div></div>
+        <div class="stat-box" style="--accent:var(--dash-green)"><i class="fas fa-beer"></i><div class="num">{{ summary.totalBeers or 0 }}</div><div class="lbl">Birre</div></div>
+        <div class="stat-box" style="--accent:var(--dash-yellow)"><i class="fas fa-star"></i><div class="num">{{ summary.totalReviews or 0 }}</div><div class="lbl">Recensioni</div></div>
+        <div class="stat-box" style="--accent:var(--dash-red)"><i class="fas fa-users"></i><div class="num">{{ summary.totalUsers or 0 }}</div><div class="lbl">Utenti</div></div>
+    </div>
+
+    <!-- Quick Stats -->
+    {% if quickStats %}
+    <div class="stats-row" style="margin-bottom:1.5rem">
+        <div class="stat-box" style="--accent:#8b5cf6"><i class="fas fa-star-half-alt"></i><div class="num">{{ quickStats.globalAverageRating or 'N/A' }}</div><div class="lbl">Rating Medio</div></div>
+        <div class="stat-box" style="--accent:#06b6d4"><i class="fas fa-user-check"></i><div class="num">{{ quickStats.activeUsersPercentage or 0 }}%</div><div class="lbl">Utenti Attivi</div></div>
+        <div class="stat-box" style="--accent:#ec4899"><i class="fas fa-chart-line"></i><div class="num">{{ quickStats.engagementPercentage or 0 }}%</div><div class="lbl">Engagement</div></div>
+        <div class="stat-box" style="--accent:{% if quickStats.monthlyGrowthPercentage > 0 %}var(--dash-green){% elif quickStats.monthlyGrowthPercentage < 0 %}var(--dash-red){% else %}#6b7280{% endif %}">
+            <i class="fas fa-{% if quickStats.monthlyGrowthPercentage > 0 %}arrow-up{% elif quickStats.monthlyGrowthPercentage < 0 %}arrow-down{% else %}minus{% endif %}"></i>
+            <div class="num">{% if quickStats.monthlyGrowthPercentage !== null %}{{ quickStats.monthlyGrowthPercentage }}%{% else %}N/A{% endif %}</div>
+            <div class="lbl">Crescita Mensile</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Charts Grid -->
+    {% if summary.totalReviews > 0 or summary.totalBreweries > 0 %}
+    <div class="chart-grid">
+        <div class="chart-box"><h3><i class="fas fa-chart-pie"></i> Distribuzione Rating</h3>{% if summary.totalReviews > 0 %}<canvas id="ratingsChart"></canvas>{% else %}<div class="empty-chart"><i class="fas fa-chart-pie"></i><p>Nessuna recensione</p></div>{% endif %}</div>
+        <div class="chart-box"><h3><i class="fas fa-trophy"></i> Top Birrifici</h3>{% if summary.totalBreweries > 0 and summary.totalReviews > 0 %}<canvas id="breweriesChart"></canvas>{% else %}<div class="empty-chart"><i class="fas fa-industry"></i><p>Dati insufficienti</p></div>{% endif %}</div>
+        <div class="chart-box"><h3><i class="fas fa-chart-line"></i> Trend Recensioni</h3>{% if summary.totalReviews > 0 %}<canvas id="trendChart"></canvas>{% else %}<div class="empty-chart"><i class="fas fa-chart-line"></i><p>Dati insufficienti</p></div>{% endif %}</div>
+        <div class="chart-box"><h3><i class="fas fa-beer"></i> Rating per Tipologia</h3>{% if summary.totalBeers > 0 and summary.totalReviews > 0 %}<canvas id="beerTypesChart"></canvas>{% else %}<div class="empty-chart"><i class="fas fa-beer"></i><p>Dati insufficienti</p></div>{% endif %}</div>
+    </div>
+    {% else %}
+    <div class="empty-state"><i class="fas fa-chart-bar"></i><p>Nessun dato disponibile per i grafici. Aggiungi birrifici, birre e recensioni per visualizzare le statistiche.</p></div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="filter-panel">
+        <h3><i class="fas fa-filter"></i> Filtri</h3>
+        <form method="GET" action="/administrator/statistics" class="filter-form">
+            <div class="filter-row">
+                <select name="sortBy" class="filter-select">
+                    <option value="totalReviews" {% if filters.sortBy == 'totalReviews' %}selected{% endif %}>📊 N. Recensioni</option>
+                    <option value="averageRating" {% if filters.sortBy == 'averageRating' %}selected{% endif %}>⭐ Rating Medio</option>
+                    <option value="totalBeers" {% if filters.sortBy == 'totalBeers' %}selected{% endif %}>🍺 N. Birre</option>
+                    <option value="breweryName" {% if filters.sortBy == 'breweryName' %}selected{% endif %}>🏭 Nome</option>
+                </select>
+                <select name="sortOrder" class="filter-select">
+                    <option value="desc" {% if filters.sortOrder == 'desc' %}selected{% endif %}>↓ Decrescente</option>
+                    <option value="asc" {% if filters.sortOrder == 'asc' %}selected{% endif %}>↑ Crescente</option>
+                </select>
+                <input type="number" name="minReviews" value="{{ filters.minReviews }}" min="0" class="filter-input" placeholder="Min recensioni">
+                <div class="autocomplete-wrap">
+                    <input type="text" id="breweryFilter" name="brewery" value="{{ filters.brewery or '' }}" class="filter-input" placeholder="Cerca birrificio..." autocomplete="off">
+                    <div class="autocomplete-dropdown" id="breweryDropdown"></div>
+                </div>
+                <select name="limit" class="filter-select">
+                    <option value="5" {% if filters.limit == 5 %}selected{% endif %}>5</option>
+                    <option value="10" {% if filters.limit == 10 or not filters.limit %}selected{% endif %}>10</option>
+                    <option value="20" {% if filters.limit == 20 %}selected{% endif %}>20</option>
+                    <option value="50" {% if filters.limit == 50 %}selected{% endif %}>50</option>
+                    <option value="999" {% if filters.limit == 999 %}selected{% endif %}>Tutti</option>
+                </select>
+                <button type="submit" class="btn-add"><i class="fas fa-search"></i> Applica</button>
+                <a href="/administrator/statistics" class="btn-delete"><i class="fas fa-undo"></i></a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-section">
+        <h3><i class="fas fa-table"></i> Classifica Birrifici 
+            <small style="font-weight:normal;opacity:.7">
+            {% if breweries and breweries.length > 0 %}({{ breweries.length }} di {{ summary.totalBreweriesInDB or summary.totalBreweries }}){% else %}(0 risultati){% endif %}
+            </small>
+        </h3>
+        <table class="data-table">
+            <thead><tr><th>#</th><th>Birrificio</th><th>Rating</th><th>Recensioni</th><th>Birre</th><th>Utenti</th></tr></thead>
+            <tbody>
+            {% if breweries and breweries.length > 0 %}
+                {% for b in breweries %}
+                <tr>
+                    <td>{% if loop.index <= 3 %}<i class="fas fa-medal" style="color:{% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% else %}#cd7f32{% endif %}"></i>{% endif %} {{ loop.index }}</td>
+                    <td><a href="/administrator/statistics/brewery/{{ b.breweryId }}" class="user-cell">{{ b.breweryName or 'N/D' }}</a></td>
+                    <td><span style="color:var(--dash-yellow)">{% for i in range(0, (b.averageRating or 0) | round) %}⭐{% endfor %}</span> <small>{{ (b.averageRating or 0).toFixed(1) }}</small></td>
+                    <td><span class="role-badge" style="--badge-bg:var(--dash-blue)">{{ b.totalReviews or 0 }}</span></td>
+                    <td><span class="role-badge" style="--badge-bg:var(--dash-green)">{{ b.totalBeers or 0 }}</span></td>
+                    <td><span class="role-badge" style="--badge-bg:#8b5cf6">{{ b.totalUsers or 0 }}</span></td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr><td colspan="6" class="empty-row"><i class="fas fa-info-circle"></i> Nessun birrificio trovato</td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/js/chart.umd.js"></script>
+<script src="/js/statisticsData.js"></script>
+<script src="/js/statisticsManager.js"></script>
+<script src="/js/modernStatistics.js"></script>
+{% endblock %}

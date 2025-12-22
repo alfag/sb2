@@ -1,0 +1,1207 @@
+/**
+ * Latest Reviews Module CSS - Design card recensioni orizzontali
+ * Layout in riga con thumbnail piccolo, info e commento
+ */
+
+/* Container recensioni - Lista verticale */
+section #latest-reviews-list,
+#latest-reviews-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.375rem !important;
+    padding-bottom: 0.25rem !important;
+}
+
+/* Review Card - Layout orizzontale compatto */
+.review-card {
+    width: 100% !important;
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 0.5rem !important;
+    padding: 0.5rem !important;
+    transition: all 0.25s ease !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+}
+
+.review-card:hover {
+    border-color: #fbbf24 !important;
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.15) !important;
+}
+
+/* Thumbnail wrapper - Allineato all'altezza di ~3 righe */
+.review-thumbnail-wrapper {
+    flex-shrink: 0 !important;
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 0.5rem !important;
+    padding: 2px !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    align-self: flex-start !important;
+}
+
+.review-thumbnail {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 0.375rem !important;
+    background-color: #f9fafb !important;
+}
+
+/* Info recensione */
+/* Content wrapper - Info + Commento */
+.review-content {
+    flex: 1 !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.125rem !important;
+}
+
+/* Header recensione: Birra + Stelle sulla stessa riga */
+.review-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    flex-wrap: wrap !important;
+    margin-bottom: 0 !important;
+}
+
+/* Nome birra - Enfasi principale */
+.review-beer-name {
+    font-size: 0.9375rem !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    line-height: 1.3 !important;
+}
+
+/* Rating con stelle */
+.review-rating {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+}
+
+.review-rating .stars {
+    display: flex !important;
+    gap: 1px !important;
+}
+
+.review-rating .star {
+    font-size: 0.75rem !important;
+    line-height: 1 !important;
+}
+
+.review-rating .star.full {
+    color: #fbbf24 !important;
+}
+
+.review-rating .star.half {
+    color: #fbbf24 !important;
+    opacity: 0.6 !important;
+}
+
+.review-rating .star.empty {
+    color: #d1d5db !important;
+}
+
+.review-rating .rating-value {
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    color: #6b7280 !important;
+    background: #f3f4f6 !important;
+    padding: 0.125rem 0.375rem !important;
+    border-radius: 0.25rem !important;
+}
+
+/* Data recensione */
+.review-date {
+    font-size: 0.6875rem !important;
+    color: #9ca3af !important;
+    margin-bottom: 0 !important;
+    line-height: 1.2 !important;
+}
+
+/* Meta info (legacy) */
+.review-meta {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    font-size: 0.6875rem !important;
+    color: #9ca3af !important;
+}
+
+.review-user {
+    color: #6b7280 !important;
+}
+
+/* Commento/Note della recensione */
+.review-notes {
+    font-size: 0.75rem !important;
+    color: #6b7280 !important;
+    line-height: 1.3 !important;
+    font-style: italic !important;
+    overflow: hidden !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    margin-top: 0.125rem !important;
+}
+
+.review-notes:empty {
+    display: none !important;
+}
+
+.review-notes-placeholder {
+    font-style: italic !important;
+    color: #9ca3af !important;
+    font-size: 0.75rem !important;
+}
+
+/* Empty State */
+.reviews-empty-state {
+    width: 100% !important;
+    text-align: center !important;
+    padding: 2rem 1rem !important;
+    background: white !important;
+    border: 2px dashed #e5e7eb !important;
+    border-radius: 0.75rem !important;
+}
+
+.reviews-empty-state .empty-state-icon {
+    font-size: 2rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.reviews-empty-state .empty-state-text {
+    color: #6b7280 !important;
+    font-size: 0.875rem !important;
+    margin: 0 !important;
+}
+
+/* Skeleton Loading */
+.review-card.skeleton {
+    pointer-events: none !important;
+}
+
+.review-card.skeleton .skeleton-thumbnail {
+    width: 50px !important;
+    height: 50px !important;
+    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%) !important;
+    background-size: 200% 100% !important;
+    animation: skeleton-loading 1.5s infinite !important;
+    border-radius: 0.5rem !important;
+    flex-shrink: 0 !important;
+}
+
+.review-card.skeleton .skeleton-content {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.375rem !important;
+}
+
+.review-card.skeleton .skeleton-text {
+    height: 0.875rem !important;
+    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%) !important;
+    background-size: 200% 100% !important;
+    border-radius: 0.25rem !important;
+    animation: skeleton-loading 1.5s infinite !important;
+}
+
+.review-card.skeleton .skeleton-title {
+    width: 60% !important;
+}
+
+.review-card.skeleton .skeleton-rating {
+    width: 40% !important;
+    height: 0.75rem !important;
+}
+
+.review-card.skeleton .skeleton-meta {
+    width: 50% !important;
+    height: 0.625rem !important;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Header sezione con link "Vedi tutte" */
+.reviews-section-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 1rem !important;
+}
+
+.reviews-section-header h2 {
+    margin: 0 !important;
+}
+
+.view-all-reviews-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #3b82f6 !important;
+    text-decoration: none !important;
+    padding: 0.375rem 0.75rem !important;
+    border-radius: 0.5rem !important;
+    transition: all 0.2s ease !important;
+}
+
+.view-all-reviews-link:hover {
+    background-color: #eff6ff !important;
+    color: #2563eb !important;
+}
+
+.view-all-reviews-link svg {
+    width: 16px !important;
+    height: 16px !important;
+    transition: transform 0.2s ease !important;
+}
+
+.view-all-reviews-link:hover svg {
+    transform: translateX(3px) !important;
+}
+
+/* Card cliccabile */
+.review-card[data-review-index] {
+    cursor: pointer !important;
+}
+
+.review-card[data-review-index]:focus {
+    outline: 2px solid #fbbf24 !important;
+    outline-offset: 2px !important;
+}
+
+/* ============================================
+   POPUP MODALE RECENSIONE
+   ============================================ */
+
+/* Container principale popup - overlay con flex centering */
+.review-popup {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 99999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 1rem !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.review-popup.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Overlay sfondo scuro (sotto il content) */
+.review-popup-overlay {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 1 !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Container popup (sopra l'overlay) */
+.review-popup-content {
+    background: white !important;
+    border-radius: 1rem !important;
+    max-width: 480px !important;
+    width: 100% !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+    position: relative !important;
+    z-index: 2 !important;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+.review-popup.active .review-popup-content {
+    transform: translateY(0);
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Pulsante chiusura */
+.review-popup-close {
+    position: absolute !important;
+    top: 0.75rem !important;
+    right: 0.75rem !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: none !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.25rem !important;
+    color: #6b7280 !important;
+    transition: all 0.2s ease !important;
+    z-index: 10 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.review-popup-close:hover {
+    background: white !important;
+    color: #111827 !important;
+    transform: scale(1.1) !important;
+}
+
+/* Header popup con immagine */
+.popup-header {
+    position: relative !important;
+}
+
+.popup-image-container {
+    width: 100% !important;
+    height: 200px !important;
+    overflow: hidden !important;
+    border-radius: 1rem 1rem 0 0 !important;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%) !important;
+}
+
+.popup-image {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+
+/* Immagine cliccabile con hint zoom */
+.popup-image-clickable {
+    cursor: pointer !important;
+    position: relative !important;
+}
+
+.popup-image-zoom-hint {
+    position: absolute !important;
+    bottom: 10px !important;
+    right: 10px !important;
+    width: 32px !important;
+    height: 32px !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: white !important;
+    font-size: 0.875rem !important;
+    opacity: 0.7 !important;
+    transition: all 0.3s ease !important;
+}
+
+.popup-image-clickable:hover .popup-image-zoom-hint {
+    opacity: 1 !important;
+    transform: scale(1.1) !important;
+    background: rgba(102, 126, 234, 0.9) !important;
+}
+
+.popup-image-clickable:hover .popup-image {
+    transform: scale(1.02) !important;
+    transition: transform 0.3s ease !important;
+}
+
+/* ========================================
+   OVERLAY IMMAGINE FULLSIZE
+   ======================================== */
+
+.popup-image-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 10001 !important;
+    display: none;
+    align-items: center !important;
+    justify-content: center !important;
+    opacity: 0;
+    transition: opacity 0.3s ease !important;
+}
+
+.popup-image-overlay.active {
+    opacity: 1;
+}
+
+.popup-image-overlay-backdrop {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    cursor: pointer !important;
+}
+
+.popup-image-overlay-content {
+    position: relative !important;
+    z-index: 1 !important;
+    max-width: 90vw !important;
+    max-height: 90vh !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.popup-image-overlay-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 44px !important;
+    height: 44px !important;
+    background: rgba(255, 255, 255, 0.25) !important;
+    border: 2px solid rgba(255, 255, 255, 0.4) !important;
+    border-radius: 50% !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.5rem !important;
+    color: white !important;
+    transition: all 0.2s ease !important;
+    z-index: 10002 !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+}
+
+.popup-image-overlay-close:hover {
+    background: rgba(255, 255, 255, 0.4) !important;
+    transform: scale(1.1) !important;
+    border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.popup-image-fullsize {
+    max-width: 100% !important;
+    max-height: 85vh !important;
+    object-fit: contain !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Corpo popup */
+.popup-body {
+    padding: 1.25rem !important;
+}
+
+/* Header con nome birra e stelle */
+.popup-beer-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* Nome birra */
+.popup-beer-name {
+    font-size: 1.375rem !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    margin: 0 !important;
+    line-height: 1.3 !important;
+    flex: 1 !important;
+}
+
+/* Stelle nel popup header */
+.popup-stars {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.125rem !important;
+    flex-shrink: 0 !important;
+}
+
+.popup-stars .star {
+    font-size: 1.125rem !important;
+    color: #d1d5db !important;
+}
+
+.popup-stars .star.full {
+    color: #fbbf24 !important;
+}
+
+.popup-stars .star.half {
+    background: linear-gradient(90deg, #fbbf24 50%, #d1d5db 50%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+}
+
+/* Info birra (birrificio, tipo, ABV) */
+.popup-beer-info {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+.popup-beer-info span {
+    font-size: 0.8125rem !important;
+    color: #6b7280 !important;
+    background: #f3f4f6 !important;
+    padding: 0.25rem 0.625rem !important;
+    border-radius: 1rem !important;
+}
+
+.popup-beer-info .brewery-tag {
+    background: #fef3c7 !important;
+    color: #92400e !important;
+}
+
+/* Meta (utente + data) */
+.popup-meta {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 1rem !important;
+    margin-bottom: 1rem !important;
+    font-size: 0.8125rem !important;
+    color: #9ca3af !important;
+}
+
+.popup-user {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    color: #6b7280 !important;
+    font-weight: 500 !important;
+}
+
+.popup-user::before {
+    content: "👤" !important;
+}
+
+/* Data */
+.popup-date {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+}
+
+.popup-date::before {
+    content: "📅" !important;
+}
+
+/* Sezioni */
+.popup-section {
+    margin-bottom: 1rem !important;
+}
+
+.section-title {
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* Note generali */
+.popup-notes {
+    font-size: 0.9375rem !important;
+    color: #374151 !important;
+    line-height: 1.6 !important;
+    font-style: italic !important;
+    background: #f9fafb !important;
+    padding: 0.875rem !important;
+    border-radius: 0.5rem !important;
+    border-left: 3px solid #fbbf24 !important;
+}
+
+/* Label "Commento:" - gradiente ambra/dorato */
+.popup-notes strong {
+    font-style: normal !important;
+    font-weight: 700 !important;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+/* ============================================
+   IMMAGINE ORIGINALE COMPLETA - SEZIONE
+   ============================================ */
+
+.popup-original-image-section {
+    margin-top: 1.25rem !important;
+}
+
+.popup-original-image-section .section-title {
+    font-size: 0.9375rem !important;
+    font-weight: 700 !important;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 40%, #a855f7 100%) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    margin-bottom: 0.75rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
+
+.popup-original-image-section .section-title::before {
+    content: '📸' !important;
+    -webkit-text-fill-color: initial !important;
+}
+
+.popup-original-image-container {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%) !important;
+    border-radius: 1rem !important;
+    padding: 1rem !important;
+    border: 1px solid rgba(139, 92, 246, 0.15) !important;
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.04),
+        0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.popup-original-image {
+    max-width: 100% !important;
+    max-height: 400px !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    border-radius: 0.75rem !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    transition: transform 0.3s ease !important;
+}
+
+.popup-original-image:hover {
+    transform: scale(1.02) !important;
+}
+
+/* ============================================
+   RATING DETTAGLIATI - DESIGN ELEGANTE STELLE COLORATE
+   ============================================ */
+
+/* Container principale - sfondo chiaro elegante */
+.detailed-ratings {
+    background: linear-gradient(145deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%) !important;
+    border-radius: 1.25rem !important;
+    padding: 1.5rem !important;
+    margin-top: 1rem !important;
+    box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.08),
+        0 0 40px rgba(139, 92, 246, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(139, 92, 246, 0.1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+/* Barra superiore animata gradient - manteniamo questo effetto cool */
+.detailed-ratings::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 3px !important;
+    background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #f5576c, #43e97b, #4facfe) !important;
+    background-size: 300% 100% !important;
+    animation: gradientFlow 4s ease infinite !important;
+}
+
+@keyframes gradientFlow {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* Titolo sezione */
+.detailed-ratings .section-title {
+    font-size: 0.9375rem !important;
+    font-weight: 700 !important;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 40%, #d97706 100%) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    margin-bottom: 1.25rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.6rem !important;
+}
+
+.detailed-ratings .section-title::before {
+    content: '' !important;
+    display: none !important;
+}
+
+/* Layout verticale per gli items */
+.detailed-ratings-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.625rem !important;
+}
+
+/* Singolo item rating - card elegante chiara */
+.detail-rating-item {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(4px) !important;
+    padding: 0.875rem 1rem !important;
+    border-radius: 0.75rem !important;
+    border: 1px solid rgba(148, 163, 184, 0.15) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+/* Soft glow effect on hover */
+.detail-rating-item::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, transparent 50%) !important;
+    opacity: 0 !important;
+    transition: opacity 0.3s ease !important;
+    pointer-events: none !important;
+}
+
+.detail-rating-item:hover {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-color: rgba(139, 92, 246, 0.2) !important;
+    transform: translateX(4px) !important;
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.1) !important;
+}
+
+.detail-rating-item:hover::after {
+    opacity: 1 !important;
+}
+
+/* Header item con icona, label e STELLE */
+.detail-rating-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* Icona categoria */
+.detail-icon {
+    font-size: 1.25rem !important;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1)) !important;
+    flex-shrink: 0 !important;
+}
+
+/* Label categoria - gradiente ambra/dorato */
+.detail-label {
+    font-size: 0.8125rem !important;
+    font-weight: 700 !important;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    letter-spacing: 0.02em !important;
+    min-width: 60px !important;
+}
+
+/* ========================================
+   STELLE COLORATE PER CATEGORIA
+   ======================================== */
+
+/* Container delle stelle - allineato a destra */
+.detail-stars-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.125rem !important;
+    margin-left: auto !important;
+}
+
+/* Singola stella */
+.detail-star {
+    font-size: 1rem !important;
+    color: #e2e8f0 !important;
+    transition: all 0.2s ease !important;
+    line-height: 1 !important;
+}
+
+/* Stella piena - colore giallo standard professionale */
+.detail-star.filled {
+    color: #fbbf24 !important;
+    text-shadow: 0 1px 3px rgba(251, 191, 36, 0.3) !important;
+}
+
+/* Stella mezza piena - effetto gradiente giallo */
+.detail-star.half {
+    background: linear-gradient(90deg, #fbbf24 50%, #e2e8f0 50%) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+/* Rating numerico badge - NASCOSTO (rimosso dal JS) */
+.detail-rating-value {
+    display: none !important;
+}
+
+/* Progress bar - NASCOSTA (sostituita dalle stelle) */
+.detail-progress-container {
+    display: none !important;
+}
+
+.detail-progress-bar {
+    display: none !important;
+}
+
+/* Shimmer effect - rimosso perché non più usato */
+.detail-progress-bar::after {
+    display: none !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%) !important;
+    animation: shimmer 2s infinite !important;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* Stelle (fallback - nascoste) */
+.detail-stars {
+    display: none !important;
+}
+
+/* Note categoria con stile elegante chiaro */
+.detail-notes {
+    font-size: 0.75rem !important;
+    color: rgba(71, 85, 105, 0.85) !important;
+    font-style: italic !important;
+    line-height: 1.55 !important;
+    margin-top: 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+    background: rgba(139, 92, 246, 0.04) !important;
+    border-radius: 0.5rem !important;
+    border-left: 3px solid rgba(139, 92, 246, 0.25) !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* Mobile: layout ancora più compatto e cool */
+@media (max-width: 640px) {
+    .review-card {
+        padding: 0.625rem !important;
+    }
+    
+    .review-thumbnail-wrapper {
+        width: 52px !important;
+        height: 52px !important;
+    }
+    
+    .review-beer-name {
+        font-size: 0.8125rem !important;
+    }
+    
+    .review-rating .star {
+        font-size: 0.6875rem !important;
+    }
+    
+    .review-notes {
+        font-size: 0.75rem !important;
+        -webkit-line-clamp: 1 !important;
+    }
+    
+    .review-meta {
+        font-size: 0.625rem !important;
+    }
+    
+    /* Popup mobile */
+    .review-popup {
+        padding: 0.5rem !important;
+    }
+    
+    .review-popup-content {
+        max-height: 95vh !important;
+        border-radius: 0.75rem !important;
+    }
+    
+    .popup-image-container {
+        height: 160px !important;
+    }
+    
+    .popup-body {
+        padding: 1rem !important;
+    }
+    
+    .popup-beer-header {
+        flex-wrap: wrap !important;
+    }
+    
+    .popup-beer-name {
+        font-size: 1.125rem !important;
+    }
+    
+    .popup-stars .star {
+        font-size: 1rem !important;
+    }
+    
+    /* Detailed ratings mobile - ultra compact */
+    .detailed-ratings {
+        padding: 0.875rem !important;
+        margin-top: 0.75rem !important;
+        gap: 0.5rem !important;
+    }
+    
+    .detailed-ratings::before {
+        height: 2px !important;
+    }
+    
+    .detailed-ratings-grid {
+        gap: 0.375rem !important;
+    }
+    
+    .detail-rating-item {
+        padding: 0.5rem 0.625rem !important;
+    }
+    
+    .detail-icon {
+        font-size: 1rem !important;
+    }
+    
+    .detail-label {
+        font-size: 0.6875rem !important;
+        min-width: 50px !important;
+    }
+    
+    /* Stelle più piccole su mobile */
+    .detail-stars-row {
+        gap: 0.0625rem !important;
+    }
+    
+    .detail-star {
+        font-size: 0.8125rem !important;
+    }
+    
+    .detail-notes {
+        font-size: 0.6875rem !important;
+        padding: 0.375rem 0.5rem !important;
+        margin-top: 0.375rem !important;
+    }
+}
+
+/* ========================================
+   AI PROCESSING BADGE - Indicatore arricchimento in corso
+   ======================================== */
+
+/* Card in stato processing */
+.review-card.processing {
+    position: relative;
+}
+
+/* Badge container - posizionato in alto a destra */
+.ai-processing-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    z-index: 10;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Icona del badge con gradiente */
+.ai-badge-icon {
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+    animation: badge-glow 2s ease-in-out infinite;
+    position: relative;
+    z-index: 2;
+}
+
+.ai-badge-icon svg {
+    width: 14px;
+    height: 14px;
+    color: white;
+}
+
+/* Animazione orologio/cerchio */
+.ai-badge-icon .ai-circle {
+    stroke-dasharray: 62.83;
+    stroke-dashoffset: 0;
+    animation: circle-spin 3s linear infinite;
+    transform-origin: center;
+}
+
+.ai-badge-icon .ai-clock {
+    animation: clock-tick 1s steps(12) infinite;
+    transform-origin: 12px 12px;
+}
+
+/* Pulse esterno - effetto onda */
+.ai-badge-pulse {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    opacity: 0;
+    z-index: 1;
+    animation: pulse-wave 2s ease-out infinite;
+}
+
+/* Animazioni */
+@keyframes badge-glow {
+    0%, 100% {
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+    }
+    50% {
+        box-shadow: 0 2px 16px rgba(102, 126, 234, 0.6), 0 0 20px rgba(118, 75, 162, 0.3);
+    }
+}
+
+@keyframes pulse-wave {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.6;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2.2);
+        opacity: 0;
+    }
+}
+
+@keyframes circle-spin {
+    0% {
+        stroke-dashoffset: 0;
+    }
+    100% {
+        stroke-dashoffset: -62.83;
+    }
+}
+
+@keyframes clock-tick {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Tooltip on hover */
+.ai-processing-badge::after {
+    content: 'Arricchimento in corso...';
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 6px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    pointer-events: none;
+}
+
+.ai-processing-badge::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 4px);
+    right: 10px;
+    border: 5px solid transparent;
+    border-top-color: #16213e;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+}
+
+.ai-processing-badge:hover::after,
+.ai-processing-badge:hover::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Responsive - badge più piccolo su mobile */
+@media (max-width: 480px) {
+    .ai-processing-badge {
+        width: 24px;
+        height: 24px;
+        top: -4px;
+        right: -4px;
+    }
+    
+    .ai-badge-icon {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .ai-badge-icon svg {
+        width: 12px;
+        height: 12px;
+    }
+    
+    .ai-badge-pulse {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .ai-processing-badge::after {
+        font-size: 0.65rem;
+        padding: 4px 8px;
+    }
+}

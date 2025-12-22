@@ -1,0 +1,890 @@
+
+{% extends "layout.njk" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/css/admin.css">
+<script src="/js/statisticsManager.js"></script>
+<style>
+/* Brewery Dashboard - Layout unificato */
+.brewery-dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+.dashboard-header {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.brewery-logo {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem auto;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.brewery-name {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 0.5rem;
+    word-break: break-word;
+}
+
+.brewery-subtitle {
+    color: #718096;
+    font-size: 1rem;
+}
+
+/* Layout a due colonne responsive */
+.dashboard-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (min-width: 768px) {
+    .brewery-dashboard-container {
+        padding: 2rem 1rem;
+    }
+    
+    .dashboard-header {
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .brewery-logo {
+        width: 80px;
+        height: 80px;
+        font-size: 2rem;
+    }
+    
+    .brewery-name {
+        font-size: 2.5rem;
+    }
+    
+    .brewery-subtitle {
+        font-size: 1.1rem;
+    }
+    
+    .dashboard-layout {
+        gap: 2rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .dashboard-layout {
+        grid-template-columns: 2fr 1fr;
+    }
+}
+
+/* Sezione statistiche */
+.stats-section {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+
+.stats-header {
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stats-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+@media (min-width: 768px) {
+    .stats-section {
+        padding: 2rem;
+    }
+    
+    .stats-header {
+        margin-bottom: 2rem;
+    }
+    
+    .stats-title {
+        font-size: 1.5rem;
+    }
+}
+
+/* Form styling */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+}
+
+/* Metriche cards responsive */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .metrics-grid {
+        grid-template-columns: repeat(4, 1fr);
+        margin-bottom: 2rem;
+    }
+}
+
+@media (min-width: 480px) and (max-width: 767px) {
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.metric-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    border-left: 4px solid #3b82f6;
+}
+
+@media (min-width: 768px) {
+    .metric-card {
+        padding: 1.5rem;
+    }
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2d3748;
+    display: block;
+}
+
+@media (min-width: 768px) {
+    .metric-value {
+        font-size: 2rem;
+    }
+}
+
+.metric-label {
+    color: #718096;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+@media (min-width: 768px) {
+    .metric-label {
+        font-size: 0.9rem;
+    }
+}
+
+/* Charts area responsive */
+.charts-section {
+    margin-top: 1.5rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+@media (min-width: 768px) {
+    .charts-section {
+        margin-top: 2rem;
+        padding: 2rem;
+    }
+}
+
+.charts-section canvas {
+    max-width: 100%;
+    height: auto !important;
+}
+
+/* Success/Error messages */
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.alert-success {
+    background-color: #d1fae5;
+    border: 1px solid #10b981;
+    color: #065f46;
+}
+
+.alert-error {
+    background-color: #fee2e2;
+    border: 1px solid #ef4444;
+    color: #991b1b;
+}
+
+/* Star Rating Styles */
+.star-filled {
+    color: #fbbf24 !important;
+    margin-right: 2px;
+}
+
+.star-empty {
+    color: #d1d5db !important;
+    margin-right: 2px;
+}
+
+/* Dynamic Growth Colors */
+.growth-positive {
+    border-left-color: #10b981 !important;
+}
+
+.growth-negative {
+    border-left-color: #f59e0b !important;
+}
+
+.growth-positivetext {
+    color: #10b981 !important;
+}
+
+.growth-negativetext {
+    color: #f59e0b !important;
+}
+
+/* Additional Metric Colors */
+.metric-purple {
+    border-left-color: #8b5cf6 !important;
+}
+
+.metric-cyan {
+    border-left-color: #06b6d4 !important;
+}
+
+.metric-pink {
+    border-left-color: #ec4899 !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="brewery-logo">
+            <i class="fas fa-industry"></i>
+        </div>
+        <h1 class="brewery-name">{{ brewery.breweryName }}</h1>
+        <p class="brewery-subtitle">Dashboard Gestione Birrificio</p>
+    </div>
+
+    <!-- Messages -->
+    {% if message.error %}
+        <div class="alert alert-error">
+            <i class="fas fa-exclamation-triangle"></i> {{ message.error }}
+        </div>
+    {% endif %}
+    {% if message.success %}
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i> {{ message.success }}
+        </div>
+    {% endif %}
+
+    <!-- Main Layout -->
+    <div class="dashboard-layout">
+        <!-- Sezione Statistiche -->
+        <div class="stats-section">
+            <div class="stats-header">
+                <h2 class="stats-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Statistiche Birrificio
+                </h2>
+            </div>
+
+            <!-- Metriche principali -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-value">{{ stats.totalReviews or 0 }}</span>
+                    <div class="metric-label">Recensioni Totali</div>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-value">{{ stats.totalBeers or 0 }}</span>
+                    <div class="metric-label">Birre Catalogate</div>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-value">{{ (stats.avgRating or 0) | round(1) }}</span>
+                    <div class="metric-label">Rating Medio</div>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-value">{{ stats.totalUsers or 0 }}</span>
+                    <div class="metric-label">Utenti Attivi</div>
+                </div>
+            </div>
+
+            <!-- 📊 NUOVE METRICHE AVANZATE -->
+            {% if advancedStats %}
+            <div class="advanced-metrics-section" style="margin-top: 2rem;">
+                <h3 style="margin-bottom: 1.5rem; color: #374151; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-chart-pie"></i> Analisi Avanzate
+                    <i class="fas fa-info-circle info-icon" 
+                       onclick="showChartInfo('advancedMetrics')"
+                       style="font-size: 0.8rem; color: #6b7280; cursor: pointer; margin-left: 0.5rem;"
+                       title="Clicca per maggiori informazioni"></i>
+                </h3>
+                
+                <!-- Indicatori di Crescita -->
+                <div class="metrics-grid">
+                    <div class="metric-card growth-{{ 'positive' if advancedStats.growth.isPositiveGrowth else 'negative' }}">
+                        <span class="metric-value growth-{{ 'positive' if advancedStats.growth.isPositiveGrowth else 'negative' }}text">
+                            {% if advancedStats.growth.isPositiveGrowth %}+{% endif %}{{ advancedStats.growth.reviewsGrowth }}%
+                        </span>
+                        <div class="metric-label">Crescita Mensile</div>
+                    </div>
+                    <div class="metric-card metric-purple">
+                        <span class="metric-value">{{ advancedStats.indicators.satisfactionIndex }}%</span>
+                        <div class="metric-label">Indice Soddisfazione</div>
+                    </div>
+                    <div class="metric-card metric-cyan">
+                        <span class="metric-value">{{ advancedStats.engagement.engagementRate }}%</span>
+                        <div class="metric-label">Tasso Coinvolgimento</div>
+                    </div>
+                    <div class="metric-card metric-pink">
+                        <span class="metric-value">{{ advancedStats.indicators.avgReviewsPerUser }}</span>
+                        <div class="metric-label">Review per Utente</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Charts -->
+            {% if stats.totalReviews > 0 %}
+            <div class="charts-section">
+                <h3 style="margin-bottom: 1rem; color: #374151; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-chart-line"></i> Andamento Recensioni
+                    <i class="fas fa-info-circle info-icon" 
+                       onclick="showChartInfo('reviewsChart')"
+                       style="font-size: 0.8rem; color: #6b7280; cursor: pointer; margin-left: 0.5rem;"
+                       title="Clicca per maggiori informazioni"></i>
+                </h3>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="reviewsChart"></canvas>
+                </div>
+            </div>
+            {% else %}
+            <div class="charts-section">
+                <div style="text-align: center; color: #9ca3af; padding: 2rem;">
+                    <i class="fas fa-chart-line" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                    <p>Nessuna recensione disponibile per generare grafici</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 📊 NUOVI GRAFICI AVANZATI -->
+            {% if advancedStats and stats.totalReviews > 0 %}
+            <div class="advanced-charts-section" style="margin-top: 2rem;">
+                <!-- Top Birre Performance -->
+                {% if advancedStats.topBeers and advancedStats.topBeers.length > 0 %}
+                <div class="charts-section" style="margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem; color: #374151; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-trophy"></i> Top 5 Birre Performance
+                        <i class="fas fa-info-circle info-icon" 
+                           onclick="showChartInfo('topBeers')"
+                           style="font-size: 0.8rem; color: #6b7280; cursor: pointer; margin-left: 0.5rem;"
+                           title="Clicca per maggiori informazioni"></i>
+                    </h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="topBeersChart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Distribuzione Rating -->
+                {% if advancedStats.ratingDistribution and advancedStats.ratingDistribution.length > 0 %}
+                <div class="charts-section" style="margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem; color: #374151; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-star"></i> Distribuzione Rating
+                        <i class="fas fa-info-circle info-icon" 
+                           onclick="showChartInfo('ratingDistribution')"
+                           style="font-size: 0.8rem; color: #6b7280; cursor: pointer; margin-left: 0.5rem;"
+                           title="Clicca per maggiori informazioni"></i>
+                    </h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="ratingDistributionChart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Attività Settimanale -->
+                {% if advancedStats.weekdayActivity and advancedStats.weekdayActivity.length > 0 %}
+                <div class="charts-section" style="margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem; color: #374151; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-calendar-week"></i> Attività per Giorno della Settimana
+                        <i class="fas fa-info-circle info-icon" 
+                           onclick="showChartInfo('weekdayActivity')"
+                           style="font-size: 0.8rem; color: #6b7280; cursor: pointer; margin-left: 0.5rem;"
+                           title="Clicca per maggiori informazioni"></i>
+                    </h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="weekdayChart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Breakdown birre -->
+            {% if beersWithStats and beersWithStats.length > 0 %}
+            <div style="margin-top: 2rem;">
+                <h3 style="margin-bottom: 1rem; color: #374151;">
+                    <i class="fas fa-beer"></i> Performance per Birra
+                </h3>
+                {% for beer in beersWithStats %}
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
+                        <div style="flex: 1; min-width: 0;">
+                            <strong style="display: block; word-break: break-word;">{{ beer.beerDetails.beerName or 'Birra sconosciuta' }}</strong>
+                            <span style="color: #6b7280; font-size: 0.9rem;">{{ beer.totalReviews or beer.reviewCount or 0 }} recensioni</span>
+                        </div>
+                        <div style="font-weight: 600; color: #3b82f6; white-space: nowrap;">
+                            {% set rating = beer.averageRating or beer.avgRating or 0 %}
+                            {% set fullStars = rating | round(0, 'floor') %}
+                            {% set emptyStars = 5 - fullStars %}
+
+                            <!-- Stelle piene -->
+                            {% for i in range(0, fullStars) %}
+                            <i class="fas fa-star star-filled"></i>
+                            {% endfor %}
+
+                            <!-- Stelle vuote -->
+                            {% for i in range(0, emptyStars) %}
+                            <i class="far fa-star star-empty"></i>
+                            {% endfor %}
+
+                            <span style="margin-left: 0.5rem; font-size: 0.9rem; color: #6b7280;">({{ rating | round(1) }})</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="timeline-data">
+{{ timelineJson | safe }}
+</script>
+<script type="application/json" id="advanced-stats-data">
+{{ advancedStatsJson | safe }}
+</script>
+<script type="application/json" id="stats-data">
+{{ statsJson | safe }}
+</script>
+
+<!-- Chart.js Script -->
+<script src="/js/chart.min.js" type="text/javascript"></script>
+<script src="/js/breweryDashboard.js" type="text/javascript"></script>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza variabili con valori di default
+    let timelineData = [];
+    let advancedStatsData = {};
+    let statsData = { totalReviews: 0, avgRating: 0 };
+    
+    try {
+        // Recupera i dati dai script JSON
+        const timelineScript = document.getElementById('timeline-data');
+        const advancedStatsScript = document.getElementById('advanced-stats-data');
+        const statsScript = document.getElementById('stats-data');
+
+        console.log('=== PARSING DATI DASHBOARD ===');
+        console.log('timelineScript trovato:', !!timelineScript);
+        console.log('advancedStatsScript trovato:', !!advancedStatsScript);
+        console.log('statsScript trovato:', !!statsScript);
+
+        // Parsing robusto con gestione errori
+        try {
+            if (timelineScript && timelineScript.textContent.trim()) {
+                const timelineText = timelineScript.textContent.trim();
+                console.log('Timeline text ricevuto:', timelineText.substring(0, 100) + '...');
+                timelineData = JSON.parse(timelineText);
+                console.log('Timeline data parsato:', timelineData);
+            } else {
+                console.warn('Timeline script vuoto o non trovato');
+            }
+        } catch (error) {
+            console.error('Errore parsing timeline data:', error);
+            timelineData = [];
+        }
+
+        try {
+            if (advancedStatsScript && advancedStatsScript.textContent.trim()) {
+                const advancedStatsText = advancedStatsScript.textContent.trim();
+                console.log('Advanced stats text ricevuto:', advancedStatsText.substring(0, 100) + '...');
+                advancedStatsData = JSON.parse(advancedStatsText);
+                console.log('Advanced stats data parsato:', advancedStatsData);
+            } else {
+                console.warn('Advanced stats script vuoto o non trovato');
+            }
+        } catch (error) {
+            console.error('Errore parsing advanced stats data:', error);
+            advancedStatsData = {};
+        }
+
+        try {
+            if (statsScript && statsScript.textContent.trim()) {
+                const statsText = statsScript.textContent.trim();
+                console.log('Stats text ricevuto:', statsText);
+                statsData = JSON.parse(statsText);
+                console.log('Stats data parsato:', statsData);
+            } else {
+                console.warn('Stats script vuoto o non trovato');
+            }
+        } catch (error) {
+            console.error('Errore parsing stats data:', error);
+            statsData = { totalReviews: 0, avgRating: 0 };
+        }
+
+        console.log('✅ Tutti i dati ricevuti con successo!');
+
+        // Verifica che Chart.js sia disponibile
+        if (typeof Chart === 'undefined') {
+            console.error('❌ Chart.js non è disponibile');
+            return;
+        }
+        console.log('✅ Chart.js disponibile');
+
+        // Inizializza dashboard con dati sicuri - ora sono già oggetti JS
+        initBreweryDashboard(
+            timelineData,
+            advancedStatsData,
+            statsData
+        );
+
+    } catch (error) {
+        console.error('❌ Errore nel parsing dei dati dashboard:', error);
+
+        // Inizializza con dati di default in caso di errore
+        initBreweryDashboard(timelineData, advancedStatsData, statsData);
+    }
+});
+</script>
+
+<!-- 🆕 Script per gestione immagini birrificio -->
+<script>
+// Mostra preview delle immagini selezionate
+const breweryImagesInput = document.getElementById('breweryImages');
+if (breweryImagesInput) {
+    breweryImagesInput.addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    const maxFiles = 10;
+    
+    if (files.length > maxFiles) {
+        alert(`Puoi selezionare massimo ${maxFiles} immagini`);
+        e.target.value = '';
+        return;
+    }
+    
+    // Mostra preview delle immagini selezionate
+    let previewHtml = '';
+    files.forEach((file, index) => {
+        if (file.size > 5 * 1024 * 1024) {
+            alert(`Il file "${file.name}" è troppo grande (max 5MB)`);
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('upload-preview');
+            if (!preview) {
+                const previewDiv = document.createElement('div');
+                previewDiv.id = 'upload-preview';
+                previewDiv.style.cssText = 'margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem;';
+                document.querySelector('.upload-section').appendChild(previewDiv);
+            }
+            
+            const imgDiv = document.createElement('div');
+            imgDiv.style.cssText = 'position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1; border: 2px dashed #3b82f6;';
+            imgDiv.innerHTML = `
+                <img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">
+                <div style="position: absolute; bottom: 4px; left: 4px; right: 4px; background: rgba(0,0,0,0.7); color: white; font-size: 10px; padding: 2px; border-radius: 4px; text-align: center;">
+                    ${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}
+                </div>
+            `;
+            document.getElementById('upload-preview').appendChild(imgDiv);
+        };
+        reader.readAsDataURL(file);
+    });
+});
+}
+
+// Modal per visualizzare immagini a schermo intero
+function openImageModal(imageSrc) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.9); z-index: 10000; display: flex; 
+        align-items: center; justify-content: center; cursor: pointer;
+    `;
+    
+    const img = document.createElement('img');
+    img.src = imageSrc;
+    img.style.cssText = 'max-width: 90%; max-height: 90%; object-fit: contain;';
+    
+    modal.appendChild(img);
+    modal.onclick = () => document.body.removeChild(modal);
+    
+    document.body.appendChild(modal);
+}
+
+// Elimina immagine birrificio
+function deleteBreweryImage(imagePath) {
+    if (!confirm('Sei sicuro di voler eliminare questa immagine?')) {
+        return;
+    }
+    
+    const breweryId = '{{ brewery._id }}';
+    
+    fetch(`/brewery/dashboard/image/${breweryId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imagePath })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Rimuovi l'elemento dall'interfaccia
+            const imageElements = document.querySelectorAll('.image-thumbnail img');
+            imageElements.forEach(img => {
+                if (img.src.includes(imagePath)) {
+                    img.closest('.image-thumbnail').remove();
+                }
+            });
+            
+            // Mostra messaggio di successo
+            showToast('Immagine eliminata con successo', 'success');
+        } else {
+            showToast('Errore nell\'eliminazione: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Errore:', error);
+        showToast('Errore nell\'eliminazione dell\'immagine', 'error');
+    });
+}
+
+// Funzione helper per mostrare toast notifications
+// Funzione per mostrare informazioni sui grafici
+function showChartInfo(chartType) {
+    const chartInfos = {
+        'mainMetrics': {
+            title: 'Metriche Principali',
+            content: 'Questo pannello mostra i KPI fondamentali del tuo birrificio: numero totale di recensioni, valutazione media, numero di birre nel catalogo e numero di recensioni ricevute questo mese. Sono gli indicatori base per monitorare la performance generale.'
+        },
+        'advancedMetrics': {
+            title: 'Analisi Avanzate',
+            content: 'Questo pannello presenta metriche calcolate per analisi approfondite:<br>• <strong>Crescita Mensile</strong>: Variazione percentuale delle recensioni rispetto al mese precedente<br>• <strong>Indice Soddisfazione</strong>: Percentuale di recensioni con rating ≥4 sul totale<br>• <strong>Tasso Coinvolgimento</strong>: Rapporto tra utenti attivi che lasciano recensioni e visualizzazioni totali<br>• <strong>Review per Utente</strong>: Media delle recensioni lasciate per utente attivo'
+        },
+        'growthMetrics': {
+            title: 'Crescita del Birrificio',
+            content: 'Analizza la evoluzione del birrificio nel tempo attraverso metriche di crescita che confrontano le performance attuali con i periodi precedenti, evidenziando trend positivi o negativi nella engagement e nelle valutazioni.'
+        },
+        'reviewsChart': {
+            title: 'Andamento Recensioni',
+            content: 'Grafico temporale che mostra la evoluzione delle recensioni nel tempo. Permette di identificare picchi di attivita, stagionalita e trend di crescita. I dati sono aggregati per periodo per evidenziare pattern di engagement degli utenti.'
+        },
+        'topBeers': {
+            title: 'Top 5 Birre Performance',
+            content: 'Classifica delle 5 birre più apprezzate del birrificio basata sul rating medio delle recensioni. Include solo birre con almeno 2 recensioni per garantire significatività statistica. Utile per identificare i prodotti di punta e quelli da migliorare o promuovere maggiormente.'
+        },
+        'topBeersChart': {
+            title: 'Top Birre per Rating',
+            content: 'Classifica delle birre piu apprezzate del birrificio basata sul rating medio delle recensioni. Include solo birre con almeno 2 recensioni per garantire significativita statistica. Utile per identificare i prodotti di punta e quelli da migliorare.'
+        },
+        'ratingDistribution': {
+            title: 'Distribuzione Rating',
+            content: 'Grafico a torta che mostra come si distribuiscono le valutazioni (1-5 stelle) su tutte le recensioni ricevute. Permette di capire se la maggior parte degli utenti è soddisfatta (concentrazione su 4-5 stelle) o se ci sono criticità da affrontare (concentrazione su 1-3 stelle). Un birrificio di successo dovrebbe avere la maggior parte delle recensioni concentrate su 4-5 stelle.'
+        },
+        'ratingsDistributionChart': {
+            title: 'Distribuzione Valutazioni',
+            content: 'Mostra come si distribuiscono le valutazioni (1-5 stelle) su tutte le recensioni ricevute. Permette di capire se la maggior parte degli utenti e soddisfatta (concentrazione su 4-5) o se ci sono problematiche (concentrazione su 1-3).'
+        },
+        'weekdayActivity': {
+            title: 'Attività per Giorno della Settimana',
+            content: 'Grafico a barre che analizza l\'attività degli utenti durante la settimana, mostrando in quali giorni si ricevono più recensioni. Questa informazione è preziosa per:<br>• <strong>Pianificare campagne marketing</strong> nei giorni di maggiore engagement<br>• <strong>Programmare promozioni</strong> nei giorni di minor attività<br>• <strong>Ottimizzare la presenza social</strong> pubblicando contenuti nei momenti di maggiore interazione<br>• <strong>Identificare pattern comportamentali</strong> dei propri clienti'
+        },
+        'weeklyActivityChart': {
+            title: 'Attivita Settimanale',
+            content: 'Analizza la attivita degli utenti durante la settimana, mostrando in quali giorni si ricevono piu recensioni. Utile per pianificare campagne marketing e promozioni nei giorni di maggiore engagement.'
+        }
+    };
+
+    const info = chartInfos[chartType];
+    if (!info) return;
+
+    // Crea il modale
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 10000; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease;';
+
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = 'background: white; border-radius: 12px; padding: 2rem; max-width: 500px; margin: 1rem; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.9); transition: transform 0.3s ease;';
+
+    // Costruisci l'HTML del modale con concatenazione sicura
+    const modalHTML = '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">' +
+        '<h3 style="margin: 0; color: #374151; display: flex; align-items: center; gap: 0.5rem;">' +
+            '<i class="fas fa-info-circle" style="color: #3b82f6;"></i> ' + info.title +
+        '</h3>' +
+        '<button onclick="closeInfoModal(this)" style="background: none; border: none; font-size: 1.5rem; color: #9ca3af; cursor: pointer; padding: 0; line-height: 1;">×</button>' +
+    '</div>' +
+    '<div style="color: #6b7280; line-height: 1.6;">' + info.content + '</div>' +
+    '<div style="margin-top: 1.5rem; text-align: right;">' +
+        '<button onclick="closeInfoModal(this)" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 500;">Ho capito</button>' +
+    '</div>';
+
+    modalContent.innerHTML = modalHTML;
+
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    // Animazioni
+    setTimeout(() => {
+        modal.style.opacity = '1';
+        modalContent.style.transform = 'scale(1)';
+    }, 50);
+
+    // Chiudi con ESC
+    const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+            modal.remove();
+            document.removeEventListener('keydown', handleEscape);
+        }
+    };
+    document.addEventListener('keydown', handleEscape);
+
+    // Chiudi cliccando fuori
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+            document.removeEventListener('keydown', handleEscape);
+        }
+    });
+}
+
+// Funzione helper per chiudere il modale informativo
+function closeInfoModal(button) {
+    const modal = button.closest('[style*="position: fixed"]');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 10001;
+        padding: 12px 20px; border-radius: 8px; color: white; font-weight: 600;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; transition: opacity 0.3s ease;
+    `;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    // Fade in
+    setTimeout(() => toast.style.opacity = '1', 100);
+    
+    // Fade out and remove
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(toast), 300);
+    }, 3000);
+}
+
+// Validazione form prima dell'invio
+const updateForm = document.querySelector('form[action*="update"]');
+if (updateForm) {
+    updateForm.addEventListener('submit', function(e) {
+        const fileInput = document.getElementById('breweryImages');
+        if (fileInput) {
+            const files = Array.from(fileInput.files);
+            
+            // Controlla dimensioni file
+            for (const file of files) {
+                if (file.size > 5 * 1024 * 1024) {
+                    e.preventDefault();
+                    alert(`Il file "${file.name}" è troppo grande. Dimensione massima: 5MB`);
+                    return;
+                }
+            }
+            
+            // Mostra loading se ci sono file da uploadare
+            if (files.length > 0) {
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Caricamento...';
+                submitBtn.disabled = true;
+                
+                // Ripristina il bottone se qualcosa va storto
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }, 30000);
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

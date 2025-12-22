@@ -1,0 +1,112 @@
+<!-- Admin Navigation Menu -->
+<nav class="admin-nav-menu" role="navigation" aria-label="Menu amministrazione">
+    <ul class="nav-menu-list">
+        <!-- Dashboard Administrator -->
+        <li class="nav-menu-item">
+            <a href="/administrator" class="nav-menu-link" aria-label="Dashboard Administrator">
+                <span class="nav-menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="24" height="24" fill="currentColor">
+                        <path d="M520-600v-240h320v240H520ZM120-440v-400h320v400H120Zm400 320v-400h320v400H520Zm-400 0v-240h320v240H120Zm80-400h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z"/>
+                    </svg>
+                </span>
+                <span class="nav-menu-text">Dashboard</span>
+            </a>
+        </li>
+
+        <!-- Statistiche -->
+        <li class="nav-menu-item">
+            <a href="/administrator/statistics" class="nav-menu-link" aria-label="Visualizza statistiche">
+                <span class="nav-menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="24" height="24" fill="currentColor">
+                        <path d="M280-280h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z"/>
+                    </svg>
+                </span>
+                <span class="nav-menu-text">Statistiche</span>
+            </a>
+        </li>
+
+        <!-- Separator -->
+        <li class="nav-menu-separator" role="separator"></li>
+
+        <!-- Home -->
+        <li class="nav-menu-item">
+            <a href="/" class="nav-menu-link nav-home-link" aria-label="Torna alla home">
+                <span class="nav-menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                    </svg>
+                </span>
+                <span class="nav-menu-text">Home</span>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+<style>
+/* Admin Navigation Styles */
+.admin-nav-menu {
+    width: 100%;
+}
+
+.nav-menu-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.nav-menu-item {
+    margin: 0;
+}
+
+.nav-menu-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    color: var(--color-gray-700);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+}
+
+.nav-menu-link:hover {
+    background: var(--color-gray-100);
+    color: var(--color-primary);
+}
+
+.nav-menu-link:active {
+    background: var(--color-gray-200);
+}
+
+.nav-menu-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.nav-menu-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.nav-menu-text {
+    flex: 1;
+    white-space: nowrap;
+}
+
+/* Mobile responsive */
+@media (max-width: 639px) {
+    .nav-menu-link {
+        padding: var(--space-2);
+        font-size: var(--text-xs);
+    }
+}
+</style>

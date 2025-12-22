@@ -1,0 +1,329 @@
+{% extends "layout.njk" %}
+
+{% block title %}Tutte le Recensioni - SharingBeer{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/css/latestReviewsModule.css">
+<style>
+    /* Page-specific styles for all reviews page */
+    .all-reviews-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem;
+    }
+    
+    .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+    }
+    
+    .reviews-count {
+        font-size: 0.875rem;
+        color: #6b7280;
+        background: #f3f4f6;
+        padding: 0.375rem 0.75rem;
+        border-radius: 9999px;
+    }
+    
+    /* Lista recensioni verticale */
+    .reviews-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+    }
+    
+    /* Empty state */
+    .reviews-list .reviews-empty-state {
+        width: 100%;
+    }
+    
+    /* Riga utente + data */
+    .review-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.8125rem;
+        color: #6b7280;
+        margin-top: 0.125rem;
+    }
+    
+    .review-user {
+        display: inline-flex;
+        align-items: center;
+        color: #374151;
+    }
+    
+    .review-meta .review-date {
+        color: #9ca3af;
+    }
+    
+    /* Commento con giudizio in grassetto */
+    .review-notes strong {
+        color: #374151;
+    }
+    
+    /* Pagination */
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    .pagination-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    
+    .pagination-btn:hover:not(.disabled) {
+        background: #f9fafb;
+        border-color: #9ca3af;
+        color: #111827;
+    }
+    
+    .pagination-btn.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+    
+    .pagination-info {
+        font-size: 0.875rem;
+        color: #6b7280;
+        padding: 0 1rem;
+    }
+    
+    /* Back link */
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+        text-decoration: none;
+        margin-bottom: 1rem;
+        transition: color 0.2s ease;
+    }
+    
+    .back-link:hover {
+        color: #3b82f6;
+    }
+    
+    .back-link svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    /* Responsive */
+    @media (max-width: 640px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+        }
+        
+        .reviews-list {
+            gap: 0.625rem;
+        }
+        
+        .pagination {
+            gap: 0.375rem;
+        }
+        
+        .pagination-btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="all-reviews-container">
+    <!-- Back link -->
+    <a href="/" class="back-link">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+        Torna alla home
+    </a>
+    
+    <!-- Page header -->
+    <div class="page-header">
+        <h1 class="page-title">Tutte le Recensioni</h1>
+        <span class="reviews-count">{{ totalReviews }} recensioni totali</span>
+    </div>
+    
+    <!-- Reviews list -->
+    <div class="reviews-list" id="reviews-list">
+        {% if reviews and reviews.length > 0 %}
+            {% set gradients = [
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+            ] %}
+            {% for review in reviews %}
+                {# Serializza detailedRatings se presente #}
+                {% set detailedRatingsJson = review.detailedRatings | dump | safe if review.detailedRatings else 'null' %}
+                
+                <div class="review-card{{ ' processing' if review.isProcessing else '' }}"
+                     data-review-index="{{ loop.index0 }}"
+                     data-review-image="{{ review.imageUrl or '/images/default-beer.svg' }}"
+                     data-review-beer="{{ review.beerName or review.bottleLabel or 'Birra' }}"
+                     data-review-brewery="{{ review.breweryName or '' }}"
+                     data-review-type="{{ review.beerType or '' }}"
+                     data-review-alcohol="{{ review.alcoholContent or '' }}"
+                     data-review-rating="{{ review.rating or 0 }}"
+                     data-review-date="{{ review.date }}"
+                     data-review-notes="{{ review.notes or '' }}"
+                     data-review-user="{{ review.userName or 'Utente anonimo' }}"
+                     data-review-detailed='{{ detailedRatingsJson }}'>
+                    
+                    {# Badge AI Processing se in elaborazione #}
+                    {% if review.isProcessing %}
+                    <div class="ai-processing-badge" title="Stiamo arricchendo questa recensione con informazioni aggiuntive">
+                        <div class="ai-badge-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" class="ai-circle"/>
+                                <path d="M12 6v6l4 2" class="ai-clock"/>
+                            </svg>
+                        </div>
+                        <span class="ai-badge-pulse"></span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Thumbnail con bordo gradient -->
+                    <div class="review-thumbnail-wrapper" style="background: {{ gradients[loop.index0 % 5] }};">
+                        {% if review.imageUrl %}
+                            <img 
+                                src="{{ review.imageUrl }}" 
+                                alt="Foto recensione" 
+                                class="review-thumbnail"
+                                loading="lazy"
+                            >
+                        {% else %}
+                            <img 
+                                src="/images/default-beer.svg" 
+                                alt="Birra" 
+                                class="review-thumbnail"
+                            >
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Contenuto recensione -->
+                    <div class="review-content">
+                        <!-- 1. BIRRA + RATING sulla stessa riga -->
+                        <div class="review-header">
+                            {% set beerName = review.beerName or review.bottleLabel or 'Birra' %}
+                            <span class="review-beer-name" title="{{ beerName }}">{{ beerName }}</span>
+                            <div class="review-rating">
+                                <div class="stars">
+                                    {% set rating = review.rating or 0 %}
+                                    {% for i in range(1, 6) %}
+                                        {% if i <= rating %}
+                                            <span class="star full">★</span>
+                                        {% elif i - 0.5 <= rating %}
+                                            <span class="star half">★</span>
+                                        {% else %}
+                                            <span class="star empty">★</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 2. UTENTE + DATA -->
+                        <div class="review-meta">
+                            <span class="review-user">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 4px; opacity: 0.6;">
+                                    <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
+                                </svg>
+                                {{ review.userName or 'Utente anonimo' }}
+                            </span>
+                            <span class="review-date">
+                                {{ review.date | date('DD/MM/YYYY') if review.date else '' }}
+                            </span>
+                        </div>
+                        
+                        <!-- 3. COMMENTO con giudizio in grassetto -->
+                        {% if review.notes %}
+                            <div class="review-notes">
+                                <strong>Giudizio:</strong> {{ review.notes }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="reviews-empty-state">
+                <div class="empty-state-icon">📝</div>
+                <p class="empty-state-text">Nessuna recensione disponibile al momento.</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if totalPages > 1 %}
+    <nav class="pagination" aria-label="Navigazione pagine">
+        <!-- Previous -->
+        <a href="/reviews?page={{ currentPage - 1 }}" 
+           class="pagination-btn {% if not hasPrevPage %}disabled{% endif %}"
+           {% if not hasPrevPage %}aria-disabled="true"{% endif %}>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+            Precedente
+        </a>
+        
+        <!-- Page info -->
+        <span class="pagination-info">
+            Pagina {{ currentPage }} di {{ totalPages }}
+        </span>
+        
+        <!-- Next -->
+        <a href="/reviews?page={{ currentPage + 1 }}" 
+           class="pagination-btn {% if not hasNextPage %}disabled{% endif %}"
+           {% if not hasNextPage %}aria-disabled="true"{% endif %}>
+            Successiva
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+        </a>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/js/modules/latestReviewsModule.js"></script>
+{% endblock %}

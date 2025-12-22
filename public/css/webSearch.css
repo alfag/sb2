@@ -1,0 +1,370 @@
+/**
+ * 🌐 STYLES: Web Search Module
+ * Stili per UI di conferma risultati ricerca web automatica
+ */
+
+/* ========================================
+   OVERLAY E MODAL BASE
+   ======================================== */
+
+.web-search-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+.web-search-overlay.fade-out {
+  animation: fadeOut 0.3s ease;
+}
+
+.web-search-modal {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 2rem;
+  animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ========================================
+   HEADER MODAL
+   ======================================== */
+
+.web-search-modal .modal-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.web-search-modal .modal-header i {
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.web-search-modal .modal-header h3 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0.5rem 0 1rem 0;
+}
+
+.confidence-badge {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ========================================
+   RESULT CARD
+   ======================================== */
+
+.web-search-modal .result-card {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 2px solid #e5e7eb;
+}
+
+.web-search-modal .result-card h4 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.web-search-modal .result-card p {
+  margin: 0.75rem 0;
+  color: #4b5563;
+  font-size: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.web-search-modal .result-card p i {
+  color: #6b7280;
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+}
+
+.web-search-modal .result-card a {
+  color: #3b82f6;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.web-search-modal .result-card a:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.web-search-modal .result-card .description {
+  font-style: italic;
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+  margin-top: 1rem;
+}
+
+/* ========================================
+   SOURCES INFO
+   ======================================== */
+
+.web-search-modal .sources-info {
+  text-align: center;
+  padding: 0.75rem;
+  background: #f3f4f6;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.web-search-modal .sources-info small {
+  color: #6b7280;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* ========================================
+   ACTION BUTTONS
+   ======================================== */
+
+.web-search-modal .action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.web-search-modal .action-buttons button {
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.web-search-modal .btn-confirm {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  grid-column: 1 / -1;
+}
+
+.web-search-modal .btn-confirm:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.web-search-modal .btn-reject {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.web-search-modal .btn-reject:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+.web-search-modal .btn-manual {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+}
+
+.web-search-modal .btn-manual:hover {
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(107, 114, 128, 0.4);
+}
+
+/* ========================================
+   LOADING STATE
+   ======================================== */
+
+.web-search-loading {
+  background: white;
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.web-search-loading .spinner {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 1.5rem;
+  border: 4px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.web-search-loading h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+.web-search-loading p {
+  color: #6b7280;
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+  .web-search-modal {
+    width: 95%;
+    padding: 1.5rem;
+    max-height: 95vh;
+  }
+  
+  .web-search-modal .modal-header h3 {
+    font-size: 1.5rem;
+  }
+  
+  .web-search-modal .result-card {
+    padding: 1rem;
+  }
+  
+  .web-search-modal .action-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .web-search-modal .btn-confirm {
+    grid-column: 1;
+  }
+  
+  .web-search-modal .action-buttons button {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .web-search-modal .modal-header h3 {
+    font-size: 1.25rem;
+  }
+  
+  .web-search-modal .result-card h4 {
+    font-size: 1.25rem;
+  }
+  
+  .web-search-modal .result-card p {
+    font-size: 0.9rem;
+  }
+}
+
+/* ========================================
+   DARK MODE SUPPORT
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+  .web-search-modal {
+    background: #1f2937;
+    color: #f9fafb;
+  }
+  
+  .web-search-modal .modal-header h3 {
+    color: #f9fafb;
+  }
+  
+  .web-search-modal .result-card {
+    background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+    border-color: #4b5563;
+  }
+  
+  .web-search-modal .result-card h4,
+  .web-search-modal .result-card p {
+    color: #f9fafb;
+  }
+  
+  .web-search-modal .result-card .description {
+    background: #111827;
+    border-left-color: #60a5fa;
+  }
+  
+  .web-search-loading {
+    background: #1f2937;
+  }
+  
+  .web-search-loading h3 {
+    color: #f9fafb;
+  }
+}

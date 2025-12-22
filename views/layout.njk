@@ -1,55 +1,465 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta http-equiv="content-type; X-UA-Compatible"
-		content="text/html; IE=edge; charset=UTF-8; X-Content-Type-Options=nosniff">
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% endblock %}</title>
+    <meta name="description" content="SharingBeer 2.0 - La piattaforma per gli amanti della birra artigianale">
+    <title>{% block title %}SharingBeer 2.0{% endblock %}</title>
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    
+    <!-- CSS Framework (Bootstrap) -->
+    <link href="/css/libs/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/libs/fontawesome-7.0.1.min.css">
+    
+    <!-- Tailwind CSS Framework (Standalone Local) -->
+    <script src="/js/tailwind-standalone.js"></script>
+    
+    <!-- Tailwind Custom Components SharingBeer -->
+    <link rel="stylesheet" href="/css/tailwind-custom.css">
+    
+    <!-- Design System -->
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css";
+    
+    <!-- Legacy CSS (da migrare) -->
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/toggle.css">
+    <link rel="stylesheet" href="/css/roleSelector.css">
+    <link rel="stylesheet" href="/css/webSearch.css">
+    
+    <!-- Review Modal CSS -->
+    <link rel="stylesheet" href="/css/reviewModal.css">
+    
+    <!-- Geolocation Consent Modal CSS -->
+    <link rel="stylesheet" href="/css/geolocation.css"> <!-- 📍 NEW -->
+    
+    <!-- Notifications System CSS -->
+    <link rel="stylesheet" href="/css/notifications.css"> <!-- 🔔 Toast notifications -->
+    
+    <!-- Welcome Page Modules CSS -->
+    <link rel="stylesheet" href="/css/breweriesModule.css"> <!-- 🏭 Breweries grid -->
+    <link rel="stylesheet" href="/css/latestReviewsModule.css"> <!-- ⭐ Latest reviews -->
+    
+    {% block head %}{% endblock %}
 </head>
+
 <body>
-    <script>
-        console.log('Valore di message:', '{{ message | dump | safe }}');
-    </script>
-    <!-- Gestione dei message -->
-    {% if message %}
-        {% if message.error %}
-            <div class="alert alert-danger">
-                {{ message.error }}
-            </div>
-        {% endif %}
-        {% if message.info %}
-            <div class="alert alert-info">
-                {{ message.info }}
-            </div>
-        {% endif %}
-        {% if message.warning %}
-            <div class="alert alert-warning">
-                {{ message.warning }}
-            </div>
-        {% endif %}
-    {% endif %}
-    <header>
-        <h1>{% block header %}{% endblock %}</h1>
-        <nav>
-            <ul>
-                {% if alreadyLoggedIn %}
-                    <li><a href="/dashboard">Dashboard</a></li>
-                    <li><a href="/logout">Logout</a></li>
+    <!-- Notifications Container (Toast) -->
+    <div id="notifications-container" class="notifications-container"></div>
+
+    <!-- Navigation -->
+        <!-- Navigation -->
+    <nav class="navbar" role="navigation" aria-label="Navigazione principale">
+        <div class="navbar-container">
+            <!-- Left Section: Hamburger Menu or Home Icon -->
+            <div class="navbar-left">
+                {% if user %}
+                    {# Determine if role menu has items based on role #}
+                    {% set rolePriorityNav = ['administrator', 'brewery', 'customer'] %}
+                    {% set sortedRolesNav = [] %}
+                    {% for role in rolePriorityNav %}
+                        {% if user.role is defined and (user.role is iterable and role in user.role or user.role == role) %}
+                            {% set sortedRolesNav = sortedRolesNav.concat([role]) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% set currentRoleNav = (activeRole if activeRole is defined and activeRole else (sortedRolesNav | first)) %}
+                    
+                    {# Check if role has menu items - customer menu is empty #}
+                    {% set hasMenuItems = (currentRoleNav == 'administrator' or currentRoleNav == 'brewery') %}
+                    
+                    {% if hasMenuItems %}
+                        <!-- Mobile Menu Toggle (Hamburger) -->
+                        <button class="navbar-toggle" aria-label="Menu" aria-expanded="false" id="navbar-toggle">
+                            <span class="navbar-toggle-icon"></span>
+                        </button>
+                    {% else %}
+                        <!-- Home Icon (no menu items for this role) -->
+                        <a href="/" class="navbar-home-btn" aria-label="Torna alla home">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                            </svg>
+                        </a>
+                    {% endif %}
                 {% else %}
-                    <li><a href="/login">Login</a></li>
-                    <li><a href="/register">Registrati</a></li>
+                    <!-- Guest: Home Icon -->
+                    <a href="/" class="navbar-home-btn" aria-label="Torna alla home">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                        </svg>
+                    </a>
+                {% endif %}
+            </div>
+
+            <!-- Center Section: Brand -->
+            <div class="navbar-center">
+                <a href="/" class="navbar-brand" aria-label="Torna alla home">
+                    <span class="navbar-brand-text">SharingBeer</span>
+                </a>
+            </div>
+
+            <!-- Right Section: Auth -->
+            <div class="navbar-right">
+                {% if user %}
+                    <!-- User Profile Dropdown with Gradient Background -->
+                    <div class="dropdown">
+                        <button class="btn navbar-user-btn" id="profile-dropdown" aria-haspopup="true" aria-expanded="false">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor" aria-hidden="true">
+                                <path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"/>
+                            </svg>
+                            <span class="user-name">{{ user.username }}</span>
+                        </button>
+                        <div class="dropdown-menu user-dropdown-menu" id="profile-menu">
+                            <!-- User Header -->
+                            <div class="dropdown-header">
+                                <div class="user-info">
+                                    <div class="font-semibold user-name-large">{{ user.username }}</div>
+                                    <div class="text-sm text-gray-500">
+                                        Ruolo attivo: {% if activeRole %}{{ activeRole | capitalize }}{% else %}{{ user.defaultRole | capitalize }}{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Role Management Section -->
+                            {% if user.role and (user.role | length > 0) %}
+                            <div class="dropdown-section">
+                                <div class="dropdown-section-title">Gestione Ruoli</div>
+                                
+                                <!-- Active Role Selector -->
+                                <div class="role-selector-container">
+                                    {% set rolePriority = ['administrator', 'brewery', 'customer'] %}
+                                    {% set sortedRoles = [] %}
+                                    {% for role in rolePriority %}
+                                        {% if user.role is defined and (user.role is iterable and role in user.role or user.role == role) %}
+                                            {% set sortedRoles = sortedRoles.concat([role]) %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% set currentRole = (activeRole if activeRole is defined and activeRole else (sortedRoles | first)) %}
+                                    
+                                    <label for="dropdown-role-selector" class="role-label">Ruolo Attivo:</label>
+                                    <select id="dropdown-role-selector" class="dropdown-role-selector" onchange="changeRole(this.value)">
+                                        {% for role in sortedRoles %}
+                                        <option value="{{ role }}" {% if role == currentRole %}selected{% endif %}>
+                                            {{ role | capitalize }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <!-- Default Role Selector -->
+                                <div class="role-selector-container">
+                                    <label for="dropdown-default-role" class="role-label">Ruolo Predefinito:</label>
+                                    <select id="dropdown-default-role" class="dropdown-role-selector" onchange="changeDefaultRole(this.value)">
+                                        {% for role in sortedRoles %}
+                                            {% if role != 'administrator' %}
+                                            <option value="{{ role }}" {% if role == user.defaultRole %}selected{% endif %}>
+                                                {{ role | capitalize }}
+                                            </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="dropdown-divider"></div>
+                            
+                            <!-- Profile Actions -->
+                            <a href="/complete-profile" class="dropdown-item">
+                                <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor">
+                                    <path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"/>
+                                </svg>
+                                I tuoi dati
+                            </a>
+                            
+                            <div class="dropdown-divider"></div>
+                            
+                            <a href="/logout" class="dropdown-item text-error">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewbox="0 0 24 24">
+                                    <path d="M5,5h6c0.55,0,1-0.45,1-1v0c0-0.55-0.45-1-1-1H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h6c0.55,0,1-0.45,1-1v-1 c0-0.55-0.45-1-1-1H5V5z"/>
+                                    <path d="M20.65,11.65l-2.79-2.79C17.54,8.54,17,8.76,17,9.21V11h-7c-0.55,0-1,0.45-1,1v0c0,0.55,0.45,1,1,1h7v1.79 c0,0.45,0.54,0.67,0.85,0.35l2.79-2.79C20.84,12.16,20.84,11.84,20.65,11.65z"/>
+                                    </svg>
+                                    Esci
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Login Button (when not logged in) -->
+                    <a href="/login" class="btn navbar-auth-btn">
+                        <!-- Hidden SVG gradient definition - Ambra/Dorato -->
+                        <svg width="0" height="0" style="position: absolute;">
+                            <defs>
+                                <linearGradient id="loginGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+                                    <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                        </svg>
+                        <span>Accedi</span>
+                    </a>
+                {% endif %}
+            </div>            <!-- Mobile/Desktop Navigation Menu -->
+            <ul class="navbar-menu" id="navbar-menu">
+                {% if user %}
+                    <!-- Menu Items based on current role -->
+                    {% set rolePriority = ['administrator', 'brewery', 'customer'] %}
+                    {% set sortedRoles = [] %}
+                    {% for role in rolePriority %}
+                        {% if user.role is defined and (user.role is iterable and role in user.role or user.role == role) %}
+                            {% set sortedRoles = sortedRoles.concat([role]) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% set currentRole = (activeRole if activeRole is defined and activeRole else (sortedRoles | first)) %}
+                    
+                    {% if currentRole == 'administrator' %}
+                        {% include 'partials/navbar_admin.njk' %}
+                    {% elif currentRole == 'brewery' %}
+                        {% include 'partials/navbar_brewery.njk' %}
+                    {% elif currentRole == 'customer' %}
+                        {% include 'partials/navbar_customer.njk' %}
+                    {% endif %}
+                {% else %}
+                    <!-- Guest menu items -->
+                    <li class="nav-menu-item">
+                        <a href="/" class="nav-menu-link">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                            </svg>
+                            <span>Home</span>
+                        </a>
+                    </li>
                 {% endif %}
             </ul>
-        </nav>
-    </header>
-    <main>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" role="main">
+        <!-- Flash Messages (nel corpo pagina) -->
+        {% if message %}
+        <div class="flash-messages-container" role="alert" aria-live="polite">
+            {% if message.error %}
+            <div class="flash-message flash-error">
+                <span class="flash-icon">❌</span>
+                <span class="flash-text">{{ message.error }}</span>
+                <button class="flash-close" aria-label="Chiudi">×</button>
+            </div>
+            {% endif %}
+            
+            {% if message.success %}
+            <div class="flash-message flash-success">
+                <span class="flash-icon">✅</span>
+                <span class="flash-text">{{ message.success }}</span>
+                <button class="flash-close" aria-label="Chiudi">×</button>
+            </div>
+            {% endif %}
+            
+            {% if message.info %}
+            <div class="flash-message flash-info">
+                <span class="flash-icon">ℹ️</span>
+                <span class="flash-text">{{ message.info }}</span>
+                <button class="flash-close" aria-label="Chiudi">×</button>
+            </div>
+            {% endif %}
+            
+            {% if message.warning %}
+            <div class="flash-message flash-warning">
+                <span class="flash-icon">⚠️</span>
+                <span class="flash-text">{{ message.warning }}</span>
+                <button class="flash-close" aria-label="Chiudi">×</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
         {% block content %}{% endblock %}
     </main>
-    <footer>
-        <p>&copy; 2023 SharingBeer2_0. Tutti i diritti riservati.</p>
+
+    <!-- Footer -->
+    <footer class="footer" role="contentinfo">
+        <div class="footer-container container">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="/privacy" class="footer-link">Privacy</a>
+                    <a href="/terms" class="footer-link">Termini</a>
+                    <a href="/contact" class="footer-link">Contatti</a>
+                </div>
+                <div class="footer-copyright">
+                    © {{ year if year else 2025 }} SharingBeer 2.0. Tutti i diritti riservati.
+                </div>
+            </div>
+        </div>
     </footer>
+
+    <!-- AI Loading Overlay -->
+    <div id="ai-loading-overlay" class="ai-loading-overlay" role="status" aria-live="polite" aria-hidden="true">
+        <div class="beer-loading-container">
+            <!-- Animated Beer Glass -->
+            <div class="beer-glass">
+                <div class="beer-liquid-wave"></div>
+                <div class="beer-bubbles">
+                    <span></span><span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="beer-foam-layer"></div>
+                <div class="glass-shine"></div>
+            </div>
+            
+            <!-- Loading Text with Dots Animation -->
+            <div class="loading-message">
+                <span class="loading-text-main">Analisi in corso</span>
+                <span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+            </div>
+            
+            <!-- Subtle Tagline -->
+            <p class="loading-tagline">La magia della birra sta per rivelarsi 🍺</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/libs/bootstrap.bundle.min.js"></script>
+    
+    <!-- Core modules -->
+    <script src="/js/eventManager.js"></script>
+    <script src="/js/sessionCleanupManager.js"></script>
+    
+    <!-- Feature modules -->
+    <script src="/js/modules/utilsModule.js"></script>
+    <script src="/js/modules/aiModule.js"></script>
+    <script src="/js/modules/webSearchModule.js"></script>
+    <script src="/js/modules/reviewModule.js"></script>
+    <script src="/js/modules/breweriesModule.js"></script>
+    <script src="/js/modules/latestReviewsModule.js"></script>
+    <script src="/js/modules/geolocationModule.js"></script> <!-- 📍 NEW: Geolocation with consent -->
+    <script src="/js/roleSelector.js"></script>
+    <script src="/js/modularApp.js"></script>
     <script src="/js/scripts.js"></script>
+
+    <!-- UI Enhancements -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mobile menu toggle
+        const navbarToggle = document.getElementById('navbar-toggle');
+        const navbarMenu = document.getElementById('navbar-menu');
+        
+        if (navbarToggle && navbarMenu) {
+            navbarToggle.addEventListener('click', function() {
+                const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                this.setAttribute('aria-expanded', !isExpanded);
+                navbarMenu.classList.toggle('active');
+            });
+        }
+        
+        // Profile dropdown
+        const profileDropdown = document.getElementById('profile-dropdown');
+        const profileMenu = document.getElementById('profile-menu');
+        
+        if (profileDropdown && profileMenu) {
+            profileDropdown.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                this.setAttribute('aria-expanded', !isExpanded);
+                profileMenu.classList.toggle('show');
+            });
+            
+            // Close on click outside
+            document.addEventListener('click', function(e) {
+                if (!profileDropdown.contains(e.target) && !profileMenu.contains(e.target)) {
+                    profileDropdown.setAttribute('aria-expanded', 'false');
+                    profileMenu.classList.remove('show');
+                }
+            });
+            
+            // Close on ESC
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && profileMenu.classList.contains('show')) {
+                    profileDropdown.setAttribute('aria-expanded', 'false');
+                    profileMenu.classList.remove('show');
+                    profileDropdown.focus();
+                }
+            });
+        }
+        
+        // Role selector
+        const roleSelector = document.getElementById('role-selector');
+        if (roleSelector) {
+            window.changeRole = function(newRole) {
+                fetch('/profile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'activeRole=' + encodeURIComponent(newRole)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Errore nel cambio ruolo');
+                    }
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    alert('Errore nel cambio ruolo');
+                });
+            };
+        }
+        
+        // Alert dismissible
+        const alertCloseButtons = document.querySelectorAll('.alert-close');
+        alertCloseButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                this.closest('.alert').remove();
+            });
+        });
+        
+        // Flash messages dismissible
+        const flashCloseButtons = document.querySelectorAll('.flash-close');
+        flashCloseButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const flashMessage = this.closest('.flash-message');
+                flashMessage.style.animation = 'fadeOut 300ms ease';
+                setTimeout(() => flashMessage.remove(), 300);
+            });
+        });
+        
+        // Auto-dismiss flash messages after 6 seconds
+        const flashMessages = document.querySelectorAll('.flash-message');
+        flashMessages.forEach(flash => {
+            setTimeout(() => {
+                flash.style.animation = 'fadeOut 300ms ease';
+                setTimeout(() => flash.remove(), 300);
+            }, 6000);
+        });
+        
+        // Auto-dismiss alerts after 5 seconds
+        const alerts = document.querySelectorAll('.alert-dismissible');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                alert.style.animation = 'fadeOut 300ms ease';
+                setTimeout(() => alert.remove(), 300);
+            }, 5000);
+        });
+    });
+    </script>
+
+    {% block scripts %}{% endblock %}
+
+    <!-- Review Modal -->
+    {% include "customer/reviewModal.njk" %}
+
+    <!-- Disclaimer Maggiore Età -->
+    {% if showDisclaimer %}
+        {% include "partials/disclaimer.njk" %}
+    {% endif %}
 </body>
 </html>
