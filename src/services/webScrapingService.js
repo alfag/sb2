@@ -91,6 +91,7 @@ class WebScrapingService {
         url: websiteUrl,
         breweryName: breweryNameFromAI
       });
+      logger.info(`[WebScraping] 🌐 URL in lavorazione: ${websiteUrl}`);
 
       // Normalizza URL
       if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
@@ -160,6 +161,7 @@ class WebScrapingService {
         hasBeers: scrapedData.data.beers?.length > 0,
         beersCount: scrapedData.data.beers?.length || 0
       });
+      logger.info(`[WebScraping] 🏁 URL completato: ${websiteUrl} - Confidence: ${scrapedData.confidence.toFixed(2)}`);
 
       return scrapedData;
 
@@ -169,6 +171,7 @@ class WebScrapingService {
         error: error.message,
         errorType: error.constructor?.name
       });
+      logger.error(`[WebScraping] 💥 URL fallito: ${websiteUrl} - Errore: ${error.message}`);
 
       return {
         success: false,
@@ -627,6 +630,11 @@ class WebScrapingService {
       
       // Nome birra
       const nameEl = $title || $container.find('h2, h3, h4, .name, .title, .product-name, .beer-name').first();
+      // Fix: controlla che l'elemento sia valido prima di chiamare .text()
+      if (!nameEl || nameEl.length === 0 || typeof nameEl.text !== 'function') {
+        logger.warn('[WebScraping] ⚠️ Nome birra: elemento non trovato o non valido');
+        return {}; // Skip se elemento non trovato o non valido
+      }
       beer.beerName = nameEl.text().trim();
       
       // Valida nome birra con filtri anti-slogan

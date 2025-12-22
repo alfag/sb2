@@ -1,360 +1,134 @@
 {% extends "../layout.njk" %}
-
 {% block title %}{{ title }}{% endblock %}
-
-{% block scripts %}
-<script src="/js/adminUserFilters.js"></script>
-{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/admin-dashboard.css">{% endblock %}
+{% block scripts %}<script src="/js/adminUserFilters.js"></script>{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="admin-page">
     <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="h3 mb-0">
-                    <i class="fas fa-users me-2 text-primary"></i>
-                    {{ title }}
-                </h1>
-                <div>
-                    <a href="/administrator/users/new" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Nuovo Utente
-                    </a>
-                </div>
-            </div>
+    <div class="page-head">
+        <div class="page-head-left">
+            <h1><i class="fas fa-users"></i> {{ title }}</h1>
+            <span class="head-count">{{ stats.totalUsers }} utenti</span>
         </div>
+        <a href="/administrator/users/new" class="sys-btn primary"><i class="fas fa-plus"></i> Nuovo</a>
     </div>
-    
-    <!-- Messaggi flash -->
-    {% if message.success %}
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle me-2"></i>
-            {{ message.success[0] }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    {% endif %}
-    
-    {% if message.error %}
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            {{ message.error[0] }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    {% endif %}
-    
-    <!-- Statistiche rapide con filtro -->
+
+    {% if message.success %}<div class="admin-alert success"><i class="fas fa-check-circle"></i> {{ message.success[0] }}</div>{% endif %}
+    {% if message.error %}<div class="admin-alert error"><i class="fas fa-times-circle"></i> {{ message.error[0] }}</div>{% endif %}
+
     {% if users.length > 0 %}
-        <div class="row mb-4">
-            <!-- Totali -->
-            <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card border-primary h-100 role-filter-card" data-role="all" style="cursor: pointer;" title="Clicca per mostrare tutti gli utenti">
-                    <div class="card-body text-center py-2">
-                        <div class="d-flex align-items-center justify-content-center">
-                            <i class="fas fa-users text-primary me-2"></i>
-                            <div>
-                                <h4 class="mb-0">{{ stats.totalUsers }}</h4>
-                                <small class="text-muted">Totali</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Clienti -->
-            <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card border-success h-100 role-filter-card" data-role="customer" style="cursor: pointer;" title="Clicca per filtrare solo i clienti">
-                    <div class="card-body text-center py-2">
-                        <div class="d-flex align-items-center justify-content-center">
-                            <i class="fas fa-user-check text-success me-2"></i>
-                            <div>
-                                <h4 class="mb-0">{{ stats.customers }}</h4>
-                                <small class="text-muted">Clienti</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Birrifici -->
-            <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card border-warning h-100 role-filter-card" data-role="brewery" style="cursor: pointer;" title="Clicca per filtrare solo i birrifici">
-                    <div class="card-body text-center py-2">
-                        <div class="d-flex align-items-center justify-content-center">
-                            <i class="fas fa-industry text-warning me-2"></i>
-                            <div>
-                                <h4 class="mb-0">{{ stats.breweries }}</h4>
-                                <small class="text-muted">Birrifici</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Administrator -->
-            <div class="col-md-3 col-sm-6 mb-2">
-                <div class="card border-danger h-100 role-filter-card" data-role="administrator" style="cursor: pointer;" title="Clicca per filtrare solo gli amministratori">
-                    <div class="card-body text-center py-2">
-                        <div class="d-flex align-items-center justify-content-center">
-                            <i class="fas fa-user-shield text-danger me-2"></i>
-                            <div>
-                                <h4 class="mb-0">{{ stats.administrators }}</h4>
-                                <small class="text-muted">Admin</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <!-- Stats Pills -->
+    <div class="stats-row">
+        <div class="stat-box role-filter-card active" data-role="all">
+            <i class="fas fa-users"></i>
+            <div class="stat-info"><span class="stat-num">{{ stats.totalUsers }}</span><span class="stat-label">Totali</span></div>
         </div>
-        
-        <!-- Indicatore filtro attivo -->
-        <div class="row mb-3" id="filter-indicator" style="display: none;">
-            <div class="col-12">
-                <div class="alert alert-info d-flex align-items-center justify-content-between">
-                    <div>
-                        <i class="fas fa-filter me-2"></i>
-                        <span id="filter-message">Filtro attivo</span>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="clearRoleFilter()">
-                        <i class="fas fa-times me-1"></i>Rimuovi Filtro
-                    </button>
-                </div>
-            </div>
+        <div class="stat-box role-filter-card" data-role="customer">
+            <i class="fas fa-user-check" style="color:#10b981"></i>
+            <div class="stat-info"><span class="stat-num">{{ stats.customers }}</span><span class="stat-label">Clienti</span></div>
         </div>
+        <div class="stat-box role-filter-card" data-role="brewery">
+            <i class="fas fa-industry" style="color:#f59e0b"></i>
+            <div class="stat-info"><span class="stat-num">{{ stats.breweries }}</span><span class="stat-label">Birrifici</span></div>
+        </div>
+        <div class="stat-box role-filter-card" data-role="administrator">
+            <i class="fas fa-user-shield" style="color:#ef4444"></i>
+            <div class="stat-info"><span class="stat-num">{{ stats.administrators }}</span><span class="stat-label">Admin</span></div>
+        </div>
+    </div>
+
+    <!-- Filter indicator -->
+    <div class="admin-alert info" id="filter-indicator" style="display:none">
+        <i class="fas fa-filter"></i> <span id="filter-message">Filtro attivo</span>
+        <button class="sys-btn small" onclick="clearRoleFilter()" style="margin-left:auto"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th><i class="fas fa-user"></i> Utente</th>
+                    <th><i class="fas fa-tags"></i> Ruoli</th>
+                    <th><i class="fas fa-star"></i> Default</th>
+                    <th style="width:100px"><i class="fas fa-cogs"></i></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr class="user-row" data-user-roles="{{ user.role.join(',') }}">
+                    <td>
+                        <div class="user-cell">
+                            <div class="user-avatar {% if user.role.includes('administrator') %}admin{% elif user.role.includes('brewery') %}brewery{% else %}customer{% endif %}">
+                                <i class="fas {% if user.role.includes('administrator') %}fa-user-shield{% elif user.role.includes('brewery') %}fa-industry{% else %}fa-user{% endif %}"></i>
+                            </div>
+                            <div class="user-info">
+                                <span class="user-name">{{ user.username }}</span>
+                                {% if user._id.toString() == currentUser._id.toString() %}<span class="user-meta"><i class="fas fa-check-circle"></i> Tu</span>{% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% for role in user.role %}
+                        <span class="role-badge {% if role == 'administrator' %}admin{% elif role == 'brewery' %}brewery{% else %}customer{% endif %}">
+                            {% if role == 'administrator' %}Admin{% elif role == 'brewery' %}Birrificio{% elif role == 'customer' %}Cliente{% else %}{{ role }}{% endif %}
+                        </span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if user.defaultRole %}
+                        <span class="role-badge default">{{ user.defaultRole }}</span>
+                        {% else %}<span class="text-muted">-</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="action-btns">
+                            <a href="/administrator/users/update?userUpdateId={{ user._id }}" class="act-btn edit" title="Modifica"><i class="fas fa-edit"></i></a>
+                            {% if user._id.toString() != currentUser._id.toString() %}
+                            <button class="act-btn delete" onclick="confirmDeleteUser('{{ user._id }}', '{{ user.username }}')" title="Elimina"><i class="fas fa-trash"></i></button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-users"></i>
+        <h3>Nessun Utente</h3>
+        <p>Non ci sono utenti registrati</p>
+        <a href="/administrator/users/new" class="sys-btn primary"><i class="fas fa-plus"></i> Crea Primo Utente</a>
+    </div>
     {% endif %}
-    
-    <!-- Tabella utenti -->
-    <div class="row">
-        <div class="col-12">
-            {% if users.length > 0 %}
-                <div class="card">
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover mb-0">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th class="text-center align-middle"><i class="fas fa-user"></i> Username</th>
-                                        <th class="text-center align-middle"><i class="fas fa-tags"></i> Ruoli</th>
-                                        <th class="text-center align-middle"><i class="fas fa-star"></i> Ruolo Attivo</th>
-                                        <th class="text-center align-middle"><i class="fas fa-cogs"></i> Azioni</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for user in users %}
-                                    <tr class="user-row" data-user-roles="{{ user.role.join(',') }}">
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="avatar-sm me-2">
-                                                    <span class="avatar-title rounded-circle 
-                                                        {% if user.role.includes('administrator') %}bg-danger
-                                                        {% elif user.role.includes('brewery') %}bg-warning
-                                                        {% else %}bg-primary
-                                                        {% endif %}">
-                                                        {% if user.role.includes('administrator') %}
-                                                            <i class="fas fa-user-shield"></i>
-                                                        {% elif user.role.includes('brewery') %}
-                                                            <i class="fas fa-industry"></i>
-                                                        {% else %}
-                                                            <i class="fas fa-user"></i>
-                                                        {% endif %}
-                                                    </span>
-                                                </div>
-                                                <div>
-                                                    <h6 class="mb-0">{{ user.username }}</h6>
-                                                    {% if user._id.toString() == currentUser._id.toString() %}
-                                                        <small class="text-success">
-                                                            <i class="fas fa-check-circle"></i> Tu
-                                                        </small>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            {% for role in user.role %}
-                                                <span class="badge 
-                                                    {% if role == 'administrator' %}bg-danger
-                                                    {% elif role == 'brewery' %}bg-warning text-dark
-                                                    {% elif role == 'customer' %}bg-primary
-                                                    {% else %}bg-secondary
-                                                    {% endif %} me-1">
-                                                    {% if role == 'administrator' %}
-                                                        <i class="fas fa-user-shield me-1"></i>Admin
-                                                    {% elif role == 'brewery' %}
-                                                        <i class="fas fa-industry me-1"></i>Birrificio
-                                                    {% elif role == 'customer' %}
-                                                        <i class="fas fa-user me-1"></i>Cliente
-                                                    {% else %}
-                                                        {{ role }}
-                                                    {% endif %}
-                                                </span>
-                                            {% endfor %}
-                                        </td>
-                                        <td>
-                                            {% if user.defaultRole %}
-                                                <span class="badge bg-info">
-                                                    {% if user.defaultRole == 'administrator' %}
-                                                        <i class="fas fa-user-shield me-1"></i>Admin
-                                                    {% elif user.defaultRole == 'brewery' %}
-                                                        <i class="fas fa-industry me-1"></i>Birrificio
-                                                    {% elif user.defaultRole == 'customer' %}
-                                                        <i class="fas fa-user me-1"></i>Cliente
-                                                    {% else %}
-                                                        {{ user.defaultRole }}
-                                                    {% endif %}
-                                                </span>
-                                            {% else %}
-                                                <span class="text-muted">Non impostato</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm" role="group">
-                                                <a href="/administrator/users/update?userUpdateId={{ user._id }}" 
-                                                   class="btn btn-outline-primary"
-                                                   title="Modifica utente">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                                {% if user._id.toString() != currentUser._id.toString() %}
-                                                <button type="button" 
-                                                        class="btn btn-outline-danger"
-                                                        onclick="confirmDeleteUser('{{ user._id }}', '{{ user.username }}')"
-                                                        title="Elimina utente">
-                                                    <i class="fas fa-trash-alt"></i>
-                                                </button>
-                                                {% else %}
-                                                <button type="button" 
-                                                        class="btn btn-outline-secondary"
-                                                        title="Non puoi eliminare te stesso"
-                                                        disabled>
-                                                    <i class="fas fa-ban"></i>
-                                                </button>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            {% else %}
-                <!-- Stato vuoto -->
-                <div class="card">
-                    <div class="card-body text-center py-5">
-                        <div class="mb-4">
-                            <i class="fas fa-users fa-4x text-muted"></i>
-                        </div>
-                        <h4 class="text-muted">Nessun Utente Trovato</h4>
-                        <p class="text-muted mb-4">
-                            Non ci sono utenti registrati nel sistema.
-                        </p>
-                        <a href="/administrator/users/new" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Crea Primo Utente
-                        </a>
-                    </div>
-                </div>
-            {% endif %}
-        </div>
-    </div>
 </div>
 
-<!-- Modal per conferma eliminazione -->
-<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteUserModalLabel">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Conferma Eliminazione
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Sei sicuro di voler eliminare l'utente <strong id="deleteUserName"></strong>?</p>
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Attenzione:</strong> Questa azione non può essere annullata e eliminerà permanentemente:
-                    <ul class="mb-0 mt-2">
-                        <li>L'account utente</li>
-                        <li>Tutti i dati associati</li>
-                        <li>Le recensioni create dall'utente</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                <form id="deleteUserForm" method="post" style="display: inline;">
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-trash-alt me-2"></i>Elimina Definitivamente
-                    </button>
-                </form>
-            </div>
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content" style="background:#1a1a2e;border:1px solid #333">
+        <div class="modal-header" style="background:linear-gradient(135deg,#ef4444,#dc2626);border:0">
+            <h5 class="modal-title" style="color:#fff"><i class="fas fa-exclamation-triangle"></i> Conferma Eliminazione</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
-    </div>
+        <div class="modal-body" style="color:#ccc">
+            <p>Eliminare l'utente <strong id="deleteUserName" style="color:#fff"></strong>?</p>
+            <div class="admin-alert error" style="margin:0"><i class="fas fa-exclamation-triangle"></i> Azione irreversibile. Verranno eliminati account, dati e recensioni.</div>
+        </div>
+        <div class="modal-footer" style="border-color:#333">
+            <button class="sys-btn" data-bs-dismiss="modal">Annulla</button>
+            <form id="deleteUserForm" method="post" style="display:inline">
+                <button type="submit" class="sys-btn danger"><i class="fas fa-trash"></i> Elimina</button>
+            </form>
+        </div>
+    </div></div>
 </div>
-
-<style>
-.avatar-sm {
-    width: 32px;
-    height: 32px;
-}
-
-.avatar-title {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-}
-
-.table th {
-    font-weight: 600;
-    border-bottom: 2px solid #dee2e6;
-}
-
-.badge {
-    font-size: 0.75em;
-}
-
-.btn-group-sm .btn {
-    padding: 0.25rem 0.5rem;
-}
-
-/* Stili per le card filtro */
-.role-filter-card {
-    transition: all 0.3s ease;
-}
-
-.role-filter-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.role-filter-card.active {
-    box-shadow: 0 0 20px rgba(0,123,255,0.5);
-    transform: translateY(-3px);
-}
-
-.role-filter-card.active .card-body {
-    background: linear-gradient(135deg, rgba(0,123,255,0.1) 0%, rgba(0,123,255,0.05) 100%);
-}
-
-/* Animazioni per le righe filtrate */
-.user-row {
-    transition: opacity 0.3s ease;
-}
-
-.user-row.filtered-out {
-    opacity: 0.3;
-    display: none;
-}
-</style>
 
 <script>
-// Funzione per confermare l'eliminazione dell'utente
 function confirmDeleteUser(userId, username) {
     document.getElementById('deleteUserName').textContent = username;
     document.getElementById('deleteUserForm').action = '/administrator/users/delete/' + userId;
-    
-    const modal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
-    modal.show();
+    new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
 }
 </script>
 {% endblock %}

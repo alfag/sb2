@@ -168,11 +168,11 @@ class AIValidationService {
         const qualityScore = this.assessDataQuality(breweryData.verifiedData, breweryData);
 
         // 🎯 LOGICA INTELLIGENTE GROUNDING:
-        // - Se quality score >= 0.7 → SALVA (dati AI ricchi e coerenti)
-        // - Strict grounding richiesto SOLO se quality score < 0.7 (dati dubbiosi)
+        // - Se quality score >= 0.6 → SALVA (dati AI ricchi e coerenti)
+        // - Strict grounding richiesto SOLO se quality score < 0.6 (dati dubbiosi)
         const strictGrounding = config.STRICT_AI_GROUNDING === true || config.STRICT_AI_GROUNDING === 'true';
 
-        if (qualityScore >= 0.7) {
+        if (qualityScore >= 0.6) {
           // ✅ Quality score sufficiente → SALVA DIRETTAMENTE
           // Il grounding è un bonus ma non blocca se i dati sono ricchi
           validation.isValid = true;
@@ -182,13 +182,13 @@ class AIValidationService {
           logger.info('[AIValidation] Nuovo birrificio verificato - salvataggio diretto', {
             breweryName: breweryData.verifiedData.breweryName,
             qualityScore: qualityScore,
-            threshold: 0.7,
+            threshold: 0.6,
             hasWebVerification: !!(breweryData.webVerification?.sourcesFound?.length),
             groundingRequired: false
           });
 
           return validation;
-        } else if (strictGrounding && qualityScore < 0.7) {
+        } else if (strictGrounding && qualityScore < 0.6) {
           // ⚠️ Quality score basso → verifica se abbiamo almeno grounding web come backup
           const hasGrounding = this.isGrounded(breweryData);
           
@@ -236,11 +236,11 @@ class AIValidationService {
           }
         } else {
           // Quality score basso ma strict grounding disabilitato → segnala solo warning
-          validation.issues.push(`Dati di qualità insufficiente (score: ${qualityScore.toFixed(2)}, richiesto: 0.70)`);
+          validation.issues.push(`Dati di qualità insufficiente (score: ${qualityScore.toFixed(2)}, richiesto: 0.60)`);
           logger.warn('[AIValidation] Quality score insufficiente per salvataggio automatico', {
             breweryName: breweryData.verifiedData.breweryName,
             qualityScore: qualityScore,
-            threshold: 0.7,
+            threshold: 0.6,
             missingFields: this.findMissingFields(breweryData.verifiedData)
           });
         }
@@ -406,7 +406,7 @@ class AIValidationService {
       const qualityScore = this.assessBeerDataQuality(beerDataToValidate);
       
       // Se il birrificio è verificato e i dati birra sono di qualità sufficiente → SALVA
-      if (qualityScore >= 0.7) {
+      if (qualityScore >= 0.6) {
         validation.isValid = true;
         validation.action = 'SAVE_DIRECTLY';
         validation.confidence = qualityScore;
@@ -423,7 +423,7 @@ class AIValidationService {
       }
       
       // Check 3: Qualità insufficiente - verifica se ci sono conflitti web
-      if (beerData.webVerification?.dataMatch === 'VERIFIED' && qualityScore < 0.7) {
+      if (beerData.webVerification?.dataMatch === 'VERIFIED' && qualityScore < 0.6) {
         validation.issues.push('Dati birra di qualità insufficiente');
       }
 
@@ -737,7 +737,7 @@ class AIValidationService {
       rawScore: score,
       maxScore: maxScore,
       finalScore: finalScore,
-      threshold: 0.7
+      threshold: 0.6
     });
 
     return finalScore;
@@ -796,11 +796,11 @@ class AIValidationService {
         return false;
       }
 
-      // 🚨 REGOLA #2: Confidence minima globale 0.7 per salvare dati AI
-      if (confidence < 0.7) {
+      // 🚨 REGOLA #2: Confidence minima globale 0.6 per salvare dati AI
+      if (confidence < 0.6) {
         logger.warn('[isGrounded] Confidence troppo bassa per salvare dati AI', {
           confidence: confidence,
-          threshold: 0.7
+          threshold: 0.6
         });
         return false;
       }
@@ -971,22 +971,27 @@ class AIValidationService {
       }
     }
 
-    // Verifica presenza elementi essenziali (via/piazza E numero E città)
-    const hasStreetName = /via|viale|piazza|corso|strada|contrada|località/i.test(address);
+    // Verifica presenza elementi essenziali con validazione FLESSIBILE
+    const hasStreetName = /via|viale|piazza|corso|strada|contrada|località|borgo|frazione|regione/i.test(address);
     const hasNumber = /\d+/.test(address);
-    const hasCityOrProvince = /[A-Za-z]{2}(?:\)|,|\s|$)/i.test(address) || // Provincia (BI), (ao), etc - case insensitive
+    const hasCityOrProvince = /[A-Za-z]{2,}(?:\)|,|\s|$)/i.test(address) || // Provincia (BI), (ao), etc - case insensitive
                                address.split(',').length >= 2;       // Almeno "via, città"
     
-    // Indirizzo valido deve avere almeno: (tipo strada + numero) O (città + numero)
+    // 🔓 VALIDAZIONE FLESSIBILE: Accetta vari formati di indirizzo valido
+    // 1. Formato completo: tipo strada + numero + città/provincia
+    // 2. Formato semplificato: numero + almeno 2 parti (es: "Molignati 12, Candelo")
+    // 3. Formato breve: numero + provincia (es: "12, Candelo (BI)")
     const isComplete = (hasStreetName && hasNumber && hasCityOrProvince) || 
-                       (hasNumber && address.split(',').length >= 2);
+                       (hasNumber && address.split(',').length >= 2) ||
+                       (hasNumber && hasCityOrProvince);
 
     if (!isComplete) {
       logger.debug('[isValidAddress] Indirizzo incompleto', {
         address: address,
         hasStreetName: hasStreetName,
         hasNumber: hasNumber,
-        hasCityOrProvince: hasCityOrProvince
+        hasCityOrProvince: hasCityOrProvince,
+        parts: address.split(',').length
       });
     }
 
@@ -1232,6 +1237,8 @@ class AIValidationService {
     const description = (verifiedData.description || '').toLowerCase();
     const otherText = (labelData.otherText || '').toLowerCase();
     const ingredients = (verifiedData.ingredients || '').toLowerCase();
+    // 🆕 FIX 21 Dicembre 2025: Aggiunto readingNotes per catturare "liqueur" e simili
+    const readingNotes = (labelData.readingNotes || '').toLowerCase();
     
     // Categorie di bevande NON-birra
     const liquorKeywords = [
@@ -1295,13 +1302,14 @@ class AIValidationService {
     }
     
     // Check 2: Verifica descrizione (con controllo contestuale per "amaro")
+    // 🆕 FIX 21 Dicembre 2025: Aggiunto readingNotes al controllo
     for (const keyword of liquorKeywords) {
-      if (description.includes(keyword) || otherText.includes(keyword)) {
+      if (description.includes(keyword) || otherText.includes(keyword) || readingNotes.includes(keyword)) {
         return {
           type: 'liquor',
           displayType: 'Liquore/Distillato',
           detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
-          reason: `Descrizione contiene parola chiave liquore: "${keyword}"`,
+          reason: `Descrizione/readingNotes contiene parola chiave liquore: "${keyword}"`,
           suggestedApp: 'App dedicata a liquori e distillati',
           confidence: 0.85
         };
@@ -1340,6 +1348,34 @@ class AIValidationService {
       }
       
       // Se è solo contesto gusto birra, continua (è una birra normale)
+    }
+    
+    // 🆕 Check 2c: Verifica wine keywords in description/otherText/readingNotes
+    for (const keyword of wineKeywords) {
+      if (description.includes(keyword) || otherText.includes(keyword) || readingNotes.includes(keyword)) {
+        return {
+          type: 'wine',
+          displayType: 'Vino',
+          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+          reason: `Descrizione/readingNotes contiene parola chiave vino: "${keyword}"`,
+          suggestedApp: 'App dedicata a vini',
+          confidence: 0.85
+        };
+      }
+    }
+    
+    // 🆕 Check 2d: Verifica cider keywords in description/otherText/readingNotes
+    for (const keyword of ciderKeywords) {
+      if (description.includes(keyword) || otherText.includes(keyword) || readingNotes.includes(keyword)) {
+        return {
+          type: 'cider',
+          displayType: 'Sidro/Cidro',
+          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+          reason: `Descrizione/readingNotes contiene parola chiave sidro: "${keyword}"`,
+          suggestedApp: 'App dedicata a sidri',
+          confidence: 0.85
+        };
+      }
     }
     
     // Check 3: Verifica conflitti web verification

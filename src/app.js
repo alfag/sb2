@@ -270,6 +270,8 @@ app.use('/administrator/validation', validationRoutes); // Gestisce validazione 
 app.use('/api/cache', cacheRoutes); // Gestisce le rotte cache (admin)
 // app.use('/', reviewRoutes); // RIMOSSO: Le rotte review sono già incluse in baseRoutes con prefisso /review
 app.use('/review', require('./routes/aiVerificationRoutes')); // Sistema Anti-Allucinazioni AI
+app.use('/review', require('./routes/reviewAsyncRoutes')); // Sistema Async Recensioni con Bull+Redis (punto 15) - MOUNT SU /review
+app.use('/review', require('./routes/reviewTestRoutes')); // 🧪 ROTTE TEST - ZERO SALVATAGGI DATABASE
 app.use('/api/web-search', require('./routes/webSearchRoutes')); // Sistema Ricerca Web Automatica
 app.use('/content-moderation', contentModerationRoutes); // Gestisce le rotte di test moderazione contenuti (admin)
 

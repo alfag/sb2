@@ -76,14 +76,23 @@ class UtilsModule {
    */
   createNotificationElement(message, type, id) {
     const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
+    notification.className = `notification ${type}`;
     notification.dataset.notificationId = id;
     
+    // Icone per tipo
+    const icons = {
+      success: '✓',
+      error: '✕',
+      warning: '⚠',
+      info: 'ℹ'
+    };
+    
     notification.innerHTML = `
+      <div class="notification-icon">${icons[type] || 'ℹ'}</div>
       <div class="notification-content">
-        <span class="notification-message">${message}</span>
-        <button class="notification-close" data-notification-id="${id}">×</button>
+        <p class="notification-message">${message}</p>
       </div>
+      <button class="notification-close" data-notification-id="${id}" aria-label="Chiudi">×</button>
     `;
 
     // Aggiungi event listener per il pulsante di chiusura
@@ -101,7 +110,7 @@ class UtilsModule {
   removeNotification(id) {
     const notification = this.notifications.get(id);
     if (notification) {
-      notification.classList.add('notification-fade-out');
+      notification.classList.add('removing');
       setTimeout(() => {
         if (notification.parentNode) {
           notification.parentNode.removeChild(notification);
@@ -402,3 +411,6 @@ class UtilsModule {
 
 // Export per uso globale
 window.UtilsModule = UtilsModule;
+
+// 🔥 Istanziazione automatica per uso immediato
+window.utils = new UtilsModule();

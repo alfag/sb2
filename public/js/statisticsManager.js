@@ -425,12 +425,12 @@ class StatisticsManager {
     extractBreweryData() {
         console.log('📊 Estrazione dati birrifici dalla tabella...');
         
-        // Debug: Verifica che la tabella esista
-        const table = document.querySelector('.table-modern table');
+        // Debug: Verifica che la tabella esista (supporta sia .table-modern che .data-table)
+        const table = document.querySelector('.table-section .data-table') || document.querySelector('.table-modern table');
         console.log('🔍 Tabella trovata:', table);
         
         if (!table) {
-            console.error('❌ Tabella .table-modern table non trovata nel DOM');
+            console.error('❌ Tabella birrifici non trovata nel DOM');
             return {
                 names: ['Dati non disponibili'],
                 reviews: [0],
@@ -452,8 +452,8 @@ class StatisticsManager {
                 
                 // Il nome del birrificio è nella seconda colonna (td:nth-child(2) a)
                 const nameCell = row.querySelector('td:nth-child(2) a');
-                // Le recensioni sono nella quarta colonna (td:nth-child(4) .badge) 
-                const reviewsCell = row.querySelector('td:nth-child(4) .badge');
+                // Le recensioni sono nella quarta colonna (td:nth-child(4) .role-badge o .badge) 
+                const reviewsCell = row.querySelector('td:nth-child(4) .role-badge') || row.querySelector('td:nth-child(4) .badge');
                 
                 console.log(`   - Nome cell:`, nameCell);
                 console.log(`   - Reviews cell:`, reviewsCell);
@@ -632,12 +632,12 @@ class StatisticsManager {
         console.log('Raw beer types data:', stats);
 
         if (!stats || stats.length === 0) {
-            console.warn('⚠️ Nessuna tipologia di birra trovata');
+            console.warn('⚠️ Nessuna tipologia di birra trovata (beerType non popolato nelle birre)');
             return {
                 types: ['Nessun dato'],
                 ratings: [0],
                 hasError: true,
-                errorMessage: 'Non ci sono ancora abbastanza dati per le tipologie di birre. Torna più avanti!'
+                errorMessage: 'Nessuna birra con tipologia definita. Le birre devono avere il campo "Tipo Birra" popolato per apparire in questo grafico.'
             };
         }
 

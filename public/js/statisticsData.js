@@ -4,9 +4,9 @@ console.log('📊 Caricamento dati analytics nel frontend...');
 
 try {
     window.analyticsData = {
-        ratingDistribution: [{"_id":1,"count":1},{"_id":3,"count":1},{"_id":4,"count":1},{"_id":5,"count":1}],
-        monthlyTrend: [{"_id":{"year":2025,"month":10},"count":1}],
-        beerTypesStats: [{"_id":"Lager","count":4,"avgRating":3.25}]
+        ratingDistribution: [{"_id":5,"count":1}],
+        monthlyTrend: [{"_id":{"year":2025,"month":12},"count":1}],
+        beerTypesStats: [{"_id":"Ale","count":1,"avgRating":5}]
     };
     console.log('✅ Dati analytics caricati nel frontend:', window.analyticsData);
     console.log('🔍 Rating distribution:', window.analyticsData.ratingDistribution);

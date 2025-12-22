@@ -25,6 +25,14 @@
   --color-secondary-light: #fbbf24;
   --color-secondary-dark: #d97706;
   
+  /* Beer Theme - Ambra/Dorato per accenti */
+  --color-beer-amber: #f59e0b;
+  --color-beer-gold: #fbbf24;
+  --color-beer-dark: #b45309;
+  --color-beer-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
+  --color-beer-gradient-light: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+  --color-beer-glow: rgba(245, 158, 11, 0.3)
+  
   /* Success */
   --color-success: #10b981;
   --color-success-light: #34d399;

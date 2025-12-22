@@ -137,6 +137,8 @@ class AddressVerificationService {
 
   /**
    * STRATEGIA 1: HTMLParser - Estrazione diretta dal sito ufficiale
+   * 🔥 P0.2 FIX (7 dic 2025): Restituisce TUTTI i dati estratti, non solo address/email/phone
+   * 🔥 FIX 9 DIC 2025: Accetta dati anche senza indirizzo, purché ci sia QUALCOSA di utile
    */
   static async tryHTMLParsing(websiteUrl, breweryName) {
     try {
@@ -144,34 +146,97 @@ class AddressVerificationService {
 
       const htmlData = await HTMLParser.extractBreweryInfoFromWebsite(websiteUrl);
 
-      if (!htmlData || !htmlData.address || htmlData.confidence < 0.5) {
-        logger.warn('[AddressVerification] ⚠️ HTMLParser: Dati insufficienti', {
-          hasAddress: !!htmlData?.address,
-          confidence: htmlData?.confidence || 0
+      if (!htmlData) {
+        logger.warn('[AddressVerification] ⚠️ HTMLParser: Nessun dato restituito');
+        return null;
+      }
+
+      // 🔥 FIX 9 DIC 2025: Conta quanti campi utili abbiamo estratto
+      const usefulFields = [
+        htmlData.address,
+        htmlData.email,
+        htmlData.phone,
+        htmlData.description,
+        htmlData.foundingYear,
+        htmlData.history,
+        htmlData.mainProducts && htmlData.mainProducts.length > 0,
+        htmlData.socialMedia && Object.keys(htmlData.socialMedia).length > 0,
+        htmlData.awards && htmlData.awards.length > 0
+      ].filter(Boolean).length;
+
+      // Se non abbiamo NESSUN dato utile, ritorna null
+      if (usefulFields === 0) {
+        logger.warn('[AddressVerification] ⚠️ HTMLParser: Nessun campo utile estratto', {
+          hasAddress: !!htmlData.address,
+          hasDescription: !!htmlData.description,
+          hasMainProducts: !!(htmlData.mainProducts?.length),
+          confidence: htmlData.confidence || 0
         });
         return null;
       }
 
-      // Valida l'indirizzo estratto
-      if (!AIValidationService.isValidAddress(htmlData.address)) {
-        logger.warn('[AddressVerification] ⚠️ HTMLParser: Indirizzo non valido pattern', {
-          address: htmlData.address
-        });
-        return null;
+      // Se abbiamo indirizzo, validalo
+      let validAddress = null;
+      if (htmlData.address) {
+        if (AIValidationService.isValidAddress(htmlData.address)) {
+          validAddress = htmlData.address;
+        } else {
+          logger.warn('[AddressVerification] ⚠️ HTMLParser: Indirizzo non valido pattern, ma continuo con altri dati', {
+            address: htmlData.address
+          });
+        }
       }
 
-      logger.info('[AddressVerification] ✅ HTMLParser: Indirizzo valido estratto', {
-        address: htmlData.address,
-        confidence: htmlData.confidence,
+      // Calcola confidence basata su quanti dati abbiamo
+      const calculatedConfidence = Math.min(usefulFields / 5, 1.0);
+      const finalConfidence = htmlData.confidence > 0 ? htmlData.confidence : calculatedConfidence;
+
+      logger.info('[AddressVerification] ✅ HTMLParser: Dati estratti', {
+        usefulFields,
+        hasValidAddress: !!validAddress,
+        email: !!htmlData.email,
+        phone: !!htmlData.phone,
+        foundingYear: htmlData.foundingYear,
+        hasDescription: !!htmlData.description,
+        hasHistory: !!htmlData.history,
+        hasSocialMedia: !!htmlData.socialMedia,
+        hasMainProducts: !!(htmlData.mainProducts?.length),
+        hasAwards: !!(htmlData.awards?.length),
+        confidence: finalConfidence,
         source: htmlData.source
       });
 
+      // 🔥 DEBUG 10 DIC 2025: Log dettagliato per verificare cosa viene restituito
+      logger.info('[AddressVerification] 📦 Contenuto dati da HTMLParser', {
+        description: htmlData.description?.substring(0, 100) || null,
+        mainProducts: htmlData.mainProducts?.slice(0, 3) || [],
+        descriptionLength: htmlData.description?.length || 0,
+        mainProductsCount: htmlData.mainProducts?.length || 0
+      });
+
+      // 🔥 P0.2 FIX: Restituisci TUTTI i dati estratti da HTMLParser
+      // 🔥 FIX 9 DIC 2025: Usa validAddress invece di htmlData.address, e finalConfidence
       return {
         found: true,
-        address: htmlData.address,
+        address: validAddress, // Può essere null se indirizzo non valido
         email: htmlData.email,
         phone: htmlData.phone,
-        confidence: Math.min(htmlData.confidence, 1.0), // Cap a 1.0
+        // 🔥 P0.2: Nuovi campi da HTMLParser
+        foundingYear: htmlData.foundingYear,
+        description: htmlData.description,
+        history: htmlData.history,
+        brewerySize: htmlData.brewerySize,
+        employeeCount: htmlData.employeeCount,
+        productionVolume: htmlData.productionVolume,
+        masterBrewer: htmlData.masterBrewer,
+        socialMedia: htmlData.socialMedia,
+        mainProducts: htmlData.mainProducts,
+        awards: htmlData.awards,
+        fiscalCode: htmlData.fiscalCode,
+        reaCode: htmlData.reaCode,
+        acciseCode: htmlData.acciseCode,
+        // Metadati
+        confidence: finalConfidence, // 🔥 FIX: usa confidence calcolata
         source: 'HTML_PARSER',
         sourceUrl: htmlData.source,
         verified: true,

@@ -142,14 +142,15 @@
 
 /* Button Variants */
 .btn-primary {
-  background-color: var(--color-primary);
+  background: var(--color-beer-gradient);
   color: var(--color-white);
+  box-shadow: 0 2px 8px var(--color-beer-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px var(--color-beer-glow);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -207,6 +208,19 @@
 
 .btn-ghost:hover:not(:disabled) {
   background-color: var(--color-gray-100);
+}
+
+/* Beer Themed Button - Ambra/Dorato */
+.btn-beer {
+  background: var(--color-beer-gradient);
+  color: var(--color-white);
+  box-shadow: 0 2px 8px var(--color-beer-glow);
+}
+
+.btn-beer:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--color-beer-glow);
 }
 
 /* Button Sizes */
@@ -752,11 +766,15 @@ select.form-control {
 .text-gray-500 { color: var(--color-gray-500); }
 .text-gray-700 { color: var(--color-gray-700); }
 .text-gray-900 { color: var(--color-gray-900); }
+.text-beer { color: var(--color-beer-amber); }
+.text-beer-dark { color: var(--color-beer-dark); }
 
 .bg-white { background-color: var(--color-white); }
 .bg-gray-50 { background-color: var(--color-gray-50); }
 .bg-gray-100 { background-color: var(--color-gray-100); }
 .bg-primary { background-color: var(--color-primary); }
+.bg-beer { background: var(--color-beer-gradient); }
+.bg-beer-light { background: var(--color-beer-gradient-light); }
 
 /* Display */
 .block { display: block; }

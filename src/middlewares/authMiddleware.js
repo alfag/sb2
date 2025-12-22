@@ -34,6 +34,56 @@ const isAuthenticated = (req, res, next) => {
     next(); // Passa al middleware successivo o alla rotta
 };
 
+/**
+ * Middleware per autenticazione OPZIONALE
+ * Permette accesso anche a utenti non autenticati (guest)
+ * Utile per pagine pubbliche che vogliono identificare utenti loggati
+ */
+const isAuthenticatedOptional = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        req.alreadyLoggedIn = true;
+        logger.info(`Utente autenticato rilevato: ${req.user.toJSON().username}`);
+    } else {
+        req.alreadyLoggedIn = false;
+        logger.debug('Accesso guest consentito');
+    }
+    next(); // Continua sempre, autenticato o meno
+};
+
+/**
+ * Middleware per richiedere autenticazione SOLO per recensioni
+ * Blocca solo quando si tenta di creare/modificare recensioni
+ */
+const requireAuthForReview = (req, res, next) => {
+    if (!req.isAuthenticated()) {
+        logger.warn('Tentativo di recensione senza autenticazione');
+        
+        // Per richieste AJAX/API, restituisci JSON
+        if (req.xhr || 
+            req.headers.accept?.includes('application/json') ||
+            req.headers['content-type']?.includes('application/json') ||
+            req.path.startsWith('/api/') ||
+            req.path.startsWith('/review/')) {
+            
+            return res.status(401).json({
+                success: false,
+                authenticated: false,
+                message: 'Devi effettuare il login per lasciare una recensione.',
+                requiresLogin: true,
+                action: 'review',
+                redirectUrl: '/login'
+            });
+        }
+        
+        // Per richieste normali
+        req.flash('error', 'Devi effettuare il login per lasciare una recensione.');
+        return res.redirect('/');
+    }
+    
+    logger.info(`Utente autenticato per recensione: ${req.user.toJSON().username}`);
+    next();
+};
+
 exports.isAdmin = (req, res, next) => {
     if (
         req.isAuthenticated() &&
@@ -70,6 +120,28 @@ exports.isCustomer = (req, res, next) => {
     ) {
         return next();
     }
+    
+    logger.warn('Accesso negato. Utente non ha ruolo customer.');
+    
+    // Per richieste AJAX/API, restituisci JSON invece di redirect
+    if (req.xhr || 
+        req.headers.accept?.includes('application/json') ||
+        req.headers['content-type']?.includes('application/json') ||
+        req.path.startsWith('/api/') ||
+        req.path.startsWith('/review/')) {
+        
+        return res.status(403).json({
+            success: false,
+            authenticated: req.isAuthenticated(),
+            authorized: false,
+            message: 'Accesso negato. Solo utenti con ruolo customer possono creare recensioni.',
+            requiredRole: 'customer',
+            currentRole: req.session?.activeRole || null
+        });
+    }
+    
+    // Per richieste normali, usa redirect
+    req.flash('error', 'Accesso negato. Solo utenti customer possono accedere a questa sezione.');
     res.redirect('/login');
 };
 
@@ -178,6 +250,8 @@ const disclaimerMiddleware = (req, res, next) => {
 
 module.exports = {
     isAuthenticated,
+    isAuthenticatedOptional, // NUOVO: Autenticazione opzionale per navigazione libera
+    requireAuthForReview, // NUOVO: Richiede auth solo per recensioni
     isAdmin: exports.isAdmin,
     isBrewery: exports.isBrewery,
     isCustomer: exports.isCustomer,

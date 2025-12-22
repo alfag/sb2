@@ -130,16 +130,16 @@ function deduplicateBottles(bottles) {
   }
 
   const originalCount = bottles.length;
-  const bottleMap = new Map(); // Key: beerName|breweryName, Value: bottle object
+  const bottleMap = new Map(); // Key: beerName, Value: bottle object
   const duplicateSummary = [];
 
   for (const bottle of bottles) {
-    // Normalizza i nomi per il confronto (case-insensitive, trim whitespace)
+    // Normalizza il nome birra per il confronto (case-insensitive, trim whitespace)
     const beerName = (bottle.beerName || bottle.labelData?.beerName || 'Birra Sconosciuta').trim().toLowerCase();
-    const breweryName = (bottle.breweryName || bottle.brewery || bottle.labelData?.breweryName || 'Birrificio Sconosciuto').trim().toLowerCase();
     
-    // Crea chiave univoca per identificare la combinazione birra+birrificio
-    const uniqueKey = `${beerName}|${breweryName}`;
+    // ⚠️ ATTENZIONE: Non usiamo più breweryName dall'AI - solo beerName
+    // Crea chiave univoca per identificare la birra
+    const uniqueKey = beerName;
     
     if (bottleMap.has(uniqueKey)) {
       // Bottiglia duplicata trovata - incrementa il conteggio
@@ -155,18 +155,16 @@ function deduplicateBottles(bottles) {
         duplicateSummary.push({
           uniqueKey,
           beerName: bottle.beerName || bottle.labelData?.beerName || 'Birra Sconosciuta',
-          breweryName: bottle.breweryName || bottle.brewery || bottle.labelData?.breweryName || 'Birrificio Sconosciuto',
           count: 2 // Primo duplicato = 2 bottiglie totali
         });
       }
       
       logger.debug('[GeminiAI] 🔄 Duplicato rilevato', {
         beerName: bottle.beerName || bottle.labelData?.beerName,
-        breweryName: bottle.breweryName || bottle.brewery || bottle.labelData?.breweryName,
         newCount: existingBottle.bottleCount
       });
     } else {
-      // Prima occorrenza di questa combinazione birra+birrificio
+      // Prima occorrenza di questa birra
       bottleMap.set(uniqueKey, {
         ...bottle,
         bottleCount: 1, // Inizializza conteggio a 1
@@ -317,6 +315,11 @@ async function validateImage(image, reviewId = null, userId = null, sessionId = 
       cleanedText = cleanedText.replace(/\s*```$/, '');
     }
     
+    // FIX: Correggi apostrofi non escaped all'interno delle stringhe JSON
+    // L'AI a volte genera escape sequences non valide come \'  dentro stringhe
+    // Dobbiamo convertire \' in ' (apostrofo semplice) perché JSON non supporta \'
+    cleanedText = cleanedText.replace(/\\'/g, "'");
+    
     // Parsing JSON
     // Prova a parsare la risposta JSON
     let aiResult;
@@ -355,7 +358,6 @@ async function validateImage(image, reviewId = null, userId = null, sessionId = 
     logger.info('[GeminiAI] Analisi completata con successo', {
       bottlesFound: aiResult.bottles?.length || 0,
       duplicatesRemoved: deduplicationResult.duplicatesFound,
-      breweryDetected: !!aiResult.brewery,
       analysisComplete: aiResult.analysisComplete
     });
 

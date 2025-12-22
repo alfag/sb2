@@ -547,7 +547,8 @@ exports.firstCheckAI = async (req, res) => {
           enrichedBottles.push({
             ...bottle,
             dataSource: 'label_only',
-            needsValidation: true
+            needsValidation: true,
+            validationReason: 'Nessuna query di ricerca disponibile - impossibile cercare online il birrificio'
           });
           continue;
         }
@@ -710,7 +711,8 @@ exports.firstCheckAI = async (req, res) => {
           enrichedBottles.push({
             ...bottle,
             dataSource: 'label_only',
-            needsValidation: true
+            needsValidation: true,
+            validationReason: 'Ricerca web non ha prodotto risultati - dati limitati a etichetta'
           });
           
           logger.warn(`[firstCheckAI] ⚠️ Bottiglia ${i + 1}: Solo dati etichetta`);
@@ -1022,7 +1024,7 @@ exports.firstCheckAI = async (req, res) => {
             originalImageUrl: imageDataUrl,
             // Field mapping per frontend compatibility - usa verifiedData quando disponibile
             bottleLabel: bottle.verifiedData?.beerName || bottle.labelData?.beerName || bottle.beerName || bottle.bottleLabel || bottle.name || 'Birra sconosciuta',
-            breweryName: bottle.verifiedData?.breweryName || bottle.labelData?.breweryName || bottle.breweryName || bottle.brewery || 'Birrificio sconosciuto',
+            breweryName: webScrapingData?.data?.breweryName || bottle.verifiedData?.breweryName || bottle.labelData?.breweryName || bottle.breweryName || bottle.brewery || 'Birrificio sconosciuto',
             beerType: bottle.verifiedData?.beerType || bottle.labelData?.beerStyle || bottle.beerType || bottle.type || bottle.style || 'Tipo non specificato',
             alcoholContent: bottle.verifiedData?.alcoholContent || bottle.labelData?.alcoholContent || bottle.alcoholContent || bottle.abv || bottle.alcohol || 'N/A',
             // Aggiungi campi aggiuntivi dai verified data
@@ -1087,7 +1089,7 @@ exports.firstCheckAI = async (req, res) => {
           originalImageUrl: imageDataUrl,
           // Field mapping per frontend compatibility 
           bottleLabel: bottle.beerName || bottle.bottleLabel || bottle.name || 'Birra sconosciuta',
-          breweryName: bottle.breweryName || bottle.brewery || 'Birrificio sconosciuto', 
+          breweryName: webScrapingData?.data?.breweryName || bottle.breweryName || bottle.brewery || 'Birrificio sconosciuto', 
           beerType: bottle.beerType || bottle.type || bottle.style || 'Tipo non specificato',
           alcoholContent: bottle.alcoholContent || bottle.abv || bottle.alcohol || 'N/A'
         })) : [],
@@ -1100,7 +1102,10 @@ exports.firstCheckAI = async (req, res) => {
       });
     }
 
-    // Salva i dati di analisi in sessione per persistenza
+    // 💾 TIMING: Salva i dati di analisi in sessione per persistenza
+    // Questi dati vengono salvati IMMEDIATAMENTE dopo l'analisi AI
+    // Il frontend riceverà success=true e aprirà il modal
+    // Il modal farà polling su getAiDataFromSession() per ottenere questi dati
     req.session.aiReviewData = {
       data: aiResult,
       timestamp: new Date().toISOString(),
@@ -1150,7 +1155,7 @@ exports.firstCheckAI = async (req, res) => {
             originalImageUrl: imageDataUrl,
             // Field mapping per frontend compatibility 
             bottleLabel: bottle.beerName || bottle.bottleLabel || bottle.name || 'Birra sconosciuta',
-            breweryName: bottle.breweryName || bottle.brewery || 'Birrificio sconosciuto', 
+            breweryName: webScrapingData?.data?.breweryName || bottle.breweryName || bottle.brewery || 'Birrificio sconosciuto', 
             beerType: bottle.beerType || bottle.type || bottle.style || 'Tipo non specificato',
             alcoholContent: bottle.alcoholContent || bottle.abv || bottle.alcohol || 'N/A'
           })) : []
@@ -1181,7 +1186,7 @@ exports.firstCheckAI = async (req, res) => {
         originalImageUrl: imageDataUrl,
         // Field mapping per frontend compatibility 
         bottleLabel: bottle.beerName || bottle.bottleLabel || bottle.name || 'Birra sconosciuta',
-        breweryName: bottle.breweryName || bottle.brewery || 'Birrificio sconosciuto', 
+        breweryName: webScrapingData?.data?.breweryName || bottle.breweryName || bottle.brewery || 'Birrificio sconosciuto', 
         beerType: bottle.beerType || bottle.type || bottle.style || 'Tipo non specificato',
         alcoholContent: bottle.alcoholContent || bottle.abv || bottle.alcohol || 'N/A'
       })) : []
@@ -1475,6 +1480,10 @@ exports.createMultipleReviews = async (req, res) => {
       reviewsData: reviews.map(r => ({ 
         beerName: r?.beerName, 
         rating: r?.rating, 
+        notes: r?.notes,
+        hasNotes: !!r?.notes,
+        hasDetailedRatings: !!r?.detailedRatings,
+        detailedRatings: r?.detailedRatings,
         hasData: !!r?.aiData,
         beerId: r?.beerId
       }))
@@ -1535,6 +1544,36 @@ exports.createMultipleReviews = async (req, res) => {
     // Usa i dati validati (e potenzialmente sanificati)
     const validatedReviews = validationResult.data.reviews;
     const createdReviews = [];
+
+    // 🔍 FILTRO RECENSIONI: Salva SOLO bottiglie con rating compilato (rating > 0)
+    // Questo previene salvataggio di bottiglie presenti nella foto ma non recensite dall'utente
+    const reviewsWithRating = validatedReviews.filter(review => {
+      const hasRating = review.rating && review.rating > 0;
+      if (!hasRating) {
+        logger.info('[createMultipleReviews] ⏭️ Bottiglia saltata - nessuna recensione compilata', {
+          beerName: review.beerName,
+          rating: review.rating
+        });
+      }
+      return hasRating;
+    });
+
+    if (reviewsWithRating.length === 0) {
+      logger.warn('[createMultipleReviews] ⚠️ Nessuna recensione con rating valido trovata', {
+        totalReviews: validatedReviews.length,
+        sessionId: req.sessionID
+      });
+      return res.status(400).json({ 
+        error: 'Nessuna recensione valida. Devi dare almeno una valutazione (stelle) per salvare.',
+        details: 'Compila almeno una recensione prima di inviare.'
+      });
+    }
+
+    logger.info('[createMultipleReviews] ✅ Recensioni filtrate', {
+      totalBottles: validatedReviews.length,
+      bottlesWithReview: reviewsWithRating.length,
+      skipped: validatedReviews.length - reviewsWithRating.length
+    });
 
     // Crea una singola review con ratings multipli (seguendo il modello Review esistente)
     const ratingsArray = [];
@@ -1609,12 +1648,27 @@ exports.createMultipleReviews = async (req, res) => {
     let beerIds = sessionAiData?.data?.beerIds || [];
     
     // 🔧 ARRICCHIMENTO UNIVERSALE: Esegui arricchimento dati SEMPRE quando abbiamo bottles
+    // IMPORTANTE: Arricchiamo SOLO le bottiglie per cui l'utente ha compilato una recensione
+    // Filtriamo aiAnalysisData.bottles per includere solo quelle in reviewsWithRating
+    const reviewedBottleNames = reviewsWithRating.map(r => r.beerName?.toLowerCase());
+    const bottlesToEnrich = aiAnalysisData?.bottles?.filter(bottle => {
+      const bottleName = (bottle.beerName || bottle.bottleLabel || bottle.verifiedData?.beerName)?.toLowerCase();
+      return reviewedBottleNames.includes(bottleName);
+    }) || [];
+
+    logger.info('[createMultipleReviews] 🔍 Bottiglie da arricchire', {
+      totalInPhoto: aiAnalysisData?.bottles?.length || 0,
+      withReview: reviewsWithRating.length,
+      toEnrich: bottlesToEnrich.length
+    });
+    
     // Non solo nel fallback, ma anche nel flusso normale con dati in sessione
-    if (aiAnalysisData?.bottles && aiAnalysisData.bottles.length > 0) {
+    if (bottlesToEnrich.length > 0) {
       const needsEnrichment = beerIds.length === 0 || usingFallbackData || true; // SEMPRE arricchisci
       
       logger.info('[createMultipleReviews] 🔧 Esecuzione arricchimento dati birrificio e birre', {
-        bottlesCount: aiAnalysisData.bottles.length,
+        totalBottlesInPhoto: aiAnalysisData?.bottles?.length || 0,
+        bottlesToEnrich: bottlesToEnrich.length,
         beerIdsCount: beerIds.length,
         usingFallback: usingFallbackData,
         sessionId: req.sessionID
@@ -1629,7 +1683,8 @@ exports.createMultipleReviews = async (req, res) => {
         
         // Funzione helper per ottenere o creare birrificio
         const getOrCreateBrewery = async (bottle) => {
-          const breweryName = bottle.breweryName || bottle.brewery || 'Birrificio Sconosciuto';
+          // 🔧 FIX BREWERY NAME: Priorità ai dati web scraping verificati
+          const breweryName = webScrapingData?.data?.breweryName || bottle.breweryName || bottle.brewery || 'Birrificio Sconosciuto';
           
           // Se già processato in questa richiesta, riusa lo stesso
           if (processedBreweries.has(breweryName)) {
@@ -1936,8 +1991,8 @@ exports.createMultipleReviews = async (req, res) => {
         return brewery;
       }; // Fine funzione helper getOrCreateBrewery
       
-      // 🔧 CICLO MULTI-BREWERY: Elabora ogni birra con il proprio birrificio
-      for (const bottle of aiAnalysisData.bottles) {
+      // 🔧 CICLO MULTI-BREWERY: Elabora SOLO birre con recensione compilata
+      for (const bottle of bottlesToEnrich) {
         // Ottieni o crea il birrificio specifico per questa bottiglia
         const brewery = await getOrCreateBrewery(bottle);
         
@@ -1949,7 +2004,7 @@ exports.createMultipleReviews = async (req, res) => {
         // 🛡️ VALIDAZIONE DATI AI: Controlla confidence e web verification
         const hasWebVerification = !!(beerAiData.webVerification || bottle.webVerification);
         const confidence = beerAiData.confidence || bottle.confidence || 0;
-        const isReliable = confidence >= 0.7 || hasWebVerification;
+        const isReliable = confidence >= 0.6 || hasWebVerification;
         
         logger.info('[createMultipleReviews] 🔍 Validazione dati birra AI', {
           beerName: beerName,
@@ -2011,7 +2066,7 @@ exports.createMultipleReviews = async (req, res) => {
               beerId: beer._id,
               beerName: beerName,
               confidence: beer.aiConfidence,
-              reason: 'Confidence < 0.7 e nessuna web verification'
+              reason: 'Confidence < 0.5 e nessuna web verification'
             });
           }
         } else {
@@ -2059,7 +2114,7 @@ exports.createMultipleReviews = async (req, res) => {
               beerId: beer._id,
               beerName: beerName,
               confidence: confidence,
-              reason: 'Confidence < 0.7 e nessuna web verification'
+              reason: 'Confidence < 0.5 e nessuna web verification'
             });
             
             // Flag per revisione manuale
@@ -2123,7 +2178,8 @@ exports.createMultipleReviews = async (req, res) => {
       }
     }
     
-    for (const [index, reviewData] of validatedReviews.entries()) {
+    // Itera SOLO su recensioni compilate (già filtrate)
+    for (const [index, reviewData] of reviewsWithRating.entries()) {
       // Verifica che reviewData sia definito e abbia le proprietà necessarie
       if (!reviewData || typeof reviewData !== 'object') {
         logger.warn('[createMultipleReviews] ReviewData non valido, skipping', {
@@ -2213,11 +2269,13 @@ exports.createMultipleReviews = async (req, res) => {
       logger.info('[createMultipleReviews] Rating aggiunto', {
         beerName: reviewData.beerName || 'undefined',
         rating: reviewData.rating,
+        notes: reviewData.notes,
+        notesLength: reviewData.notes?.length || 0,
         beerId: beerId,
         breweryId: breweryId,
         hasNotes: !!reviewData.notes,
         hasDetailedRatings: !!reviewData.detailedRatings,
-        detailedCategories: reviewData.detailedRatings ? Object.keys(reviewData.detailedRatings).filter(key => reviewData.detailedRatings[key]) : []
+        detailedRatingsCategories: reviewData.detailedRatings ? Object.keys(reviewData.detailedRatings).filter(key => reviewData.detailedRatings[key]) : []
       });
     }
 
@@ -2225,31 +2283,70 @@ exports.createMultipleReviews = async (req, res) => {
       return res.status(400).json({ error: 'Nessuna recensione valida è stata creata.' });
     }
 
-    // Crea una singola review con tutti i ratings
-    const newReview = new Review({
-      imageUrl: req.body.reviews?.[0]?.thumbnail || 'data:image/jpeg;base64,placeholder', // Usa il thumbnail della prima birra o placeholder
-      user: req.user ? req.user._id : null,
-      sessionId: req.sessionID,
-      ratings: ratingsArray,
-      status: 'completed',
-      date: new Date(),
-      aiAnalysis: {
+    // ✅ FIX #3: UPDATE Review esistente invece di CREATE nuovo
+    let savedReview;
+    if (req.body.reviewId) {
+      // UPDATE: Review già creata in STEP 1, aggiungi solo ratings e user
+      logger.info('[createMultipleReviews] 📥 reviewId ricevuto da STEP 1, aggiornamento Review esistente', {
+        reviewId: req.body.reviewId,
+        ratingsCount: ratingsArray.length
+      });
+      
+      const existingReview = await Review.findById(req.body.reviewId);
+      if (!existingReview) {
+        logger.error('[createMultipleReviews] ❌ Review non trovata', { reviewId: req.body.reviewId });
+        return res.status(404).json({ error: 'Recensione non trovata. Riprova.' });
+      }
+      
+      existingReview.user = req.user ? req.user._id : null;
+      existingReview.ratings = ratingsArray;
+      existingReview.status = 'completed';
+      existingReview.processingStatus = 'pending_validation';
+      existingReview.aiAnalysis = {
         webSearchPerformed: aiAnalysisData?.webSearchPerformed || false,
         imageQuality: aiAnalysisData?.imageQuality || 'buona',
         analysisComplete: true,
         overallConfidence: aiAnalysisData?.overallConfidence || 0.8,
         processingTime: aiAnalysisData?.processingTime || '2s'
-      }
-    });
-
-    const savedReview = await newReview.save();
-    createdReviews.push(savedReview);
-
-    logger.info('[createMultipleReviews] Recensione salvata', {
-      reviewId: savedReview._id,
-      ratingsCount: ratingsArray.length,
-      sessionId: req.sessionID
-    });
+      };
+      
+      savedReview = await existingReview.save();
+      createdReviews.push(savedReview);
+      
+      logger.info('[createMultipleReviews] ✅ Review aggiornata (NO duplicato!)', {
+        reviewId: savedReview._id,
+        ratingsCount: ratingsArray.length,
+        sessionId: req.sessionID
+      });
+    } else {
+      // CREATE: Fallback legacy (caso edge se reviewId manca)
+      logger.warn('[createMultipleReviews] ⚠️ reviewId mancante, creazione nuova Review (legacy fallback)');
+      
+      const newReview = new Review({
+        imageUrl: req.body.reviews?.[0]?.thumbnail || 'data:image/jpeg;base64,placeholder',
+        user: req.user ? req.user._id : null,
+        sessionId: req.sessionID,
+        ratings: ratingsArray,
+        status: 'completed',
+        date: new Date(),
+        aiAnalysis: {
+          webSearchPerformed: aiAnalysisData?.webSearchPerformed || false,
+          imageQuality: aiAnalysisData?.imageQuality || 'buona',
+          analysisComplete: true,
+          overallConfidence: aiAnalysisData?.overallConfidence || 0.8,
+          processingTime: aiAnalysisData?.processingTime || '2s'
+        }
+      });
+      
+      savedReview = await newReview.save();
+      createdReviews.push(savedReview);
+      
+      logger.info('[createMultipleReviews] Recensione salvata (legacy)', {
+        reviewId: savedReview._id,
+        ratingsCount: ratingsArray.length,
+        sessionId: req.sessionID
+      });
+    }
 
     if (createdReviews.length === 0) {
       return res.status(400).json({ error: 'Nessuna recensione valida è stata creata.' });
@@ -2262,12 +2359,15 @@ exports.createMultipleReviews = async (req, res) => {
       sessionId: req.sessionID
     });
 
-    // Marca i dati di analisi come completati in sessione
+    // 🔄 TIMING CRITICO: Marca i dati di analisi come completati in sessione
+    // Questo FERMA il polling del frontend (getAiDataFromSession restituirà hasData: false)
+    // Il frontend chiuderà il modal e mostrerà il messaggio di successo
     if (req.session.aiReviewData) {
       req.session.aiReviewData.completed = true;
       req.session.aiReviewData.completedAt = new Date().toISOString();
-      logger.info('[createMultipleReviews] Dati analisi marcati come completati in sessione', {
-        sessionId: req.sessionID
+      logger.info('[createMultipleReviews] 🔄 Dati analisi marcati come completati - polling frontend si fermerà', {
+        sessionId: req.sessionID,
+        completedAt: req.session.aiReviewData.completedAt
       });
     }
 
@@ -2432,24 +2532,44 @@ exports.resolveDisambiguation = async (req, res) => {
 /**
  * Recupera i dati di analisi dalla sessione se presenti
  */
+/**
+ * Recupera i dati di analisi AI dalla sessione per aggiornare i modals frontend
+ * 
+ * TIMING E FLUSSO:
+ * 1. Upload immagine → firstCheckAI() → AI analizza immagine
+ * 2. AI completa → Salva risultati in req.session.aiReviewData
+ * 3. Frontend riceve risposta firstCheckAI con success=true
+ * 4. Frontend apre modal recensione
+ * 5. Frontend fa polling ogni 1-2s chiamando questo endpoint
+ * 6. Questo endpoint restituisce i dati aggiornati dalla sessione
+ * 7. Frontend aggiorna modal con dati birre/birrifici arricchiti
+ * 8. Quando utente invia recensione → completed=true → polling si ferma
+ * 
+ * NOTA: I dati sono GIÀ in sessione quando il modal si apre.
+ *       Il polling serve per aggiornare il modal se ci sono modifiche
+ *       (es: disambiguazione risolta, dati web scraping arrivati)
+ */
 exports.getAiDataFromSession = async (req, res) => {
   try {
     const sessionData = req.session.aiReviewData;
     
     if (!sessionData || sessionData.completed) {
-      // logger.info('[getAiDataFromSession] Nessun dato di analisi in sessione o già completato', {
-      //   sessionId: req.sessionID,
-      //   hasData: !!sessionData,
-      //   completed: sessionData?.completed
-      // });
+      logger.debug('[getAiDataFromSession] 🔄 Polling: Nessun dato o recensione completata', {
+        sessionId: req.sessionID,
+        hasData: !!sessionData,
+        completed: sessionData?.completed,
+        reason: !sessionData ? 'no_session_data' : 'review_completed'
+      });
       return res.json({ hasData: false });
     }
     
-    // logger.info('[getAiDataFromSession] Dati di analisi recuperati dalla sessione', {
-    //   sessionId: req.sessionID,
-    //   timestamp: sessionData.timestamp,
-    //   bottlesCount: sessionData.data?.bottles?.length || 0
-    // });
+    logger.debug('[getAiDataFromSession] ✅ Polling: Dati disponibili per modal', {
+      sessionId: req.sessionID,
+      timestamp: sessionData.timestamp,
+      bottlesCount: sessionData.data?.bottles?.length || 0,
+      needsDisambiguation: sessionData.data?.needsDisambiguation || false,
+      processed: sessionData.processed
+    });
     
     return res.json({ 
       hasData: true, 
@@ -2628,6 +2748,10 @@ exports.resolveDisambiguation = async (req, res) => {
         createdBy: 'ai_disambiguation',
         createdFromAI: true,
         needsValidation: !grounded,
+        // 🔥 FIX: Aggiungo validationReason (16 dic 2025)
+        validationReason: !grounded 
+          ? 'Creato da disambiguazione AI - dati non verificati online, richiede verifica manuale'
+          : null,
         validationNotes: grounded 
           ? 'Creato da disambiguazione con dati grounded' 
           : 'Creato da disambiguazione - dati estratti ma verifica web consigliata'

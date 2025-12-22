@@ -5,6 +5,7 @@ const reviewSchema = new mongoose.Schema({
   sessionId: { type: String }, // ID sessione per controllo duplicati
   ratings: [{
     bottleLabel: String,
+    bottleIndex: { type: Number, min: 0 }, // FIX #8: Indice bottiglia per correlazione multi-bottle
     rating: { type: Number, min: 1, max: 5 }, // Rating generale (mantenuto per compatibilità)
     brewery: { type: mongoose.Schema.Types.ObjectId, ref: 'Brewery' },
     beer: { type: mongoose.Schema.Types.ObjectId, ref: 'Beer' }, // Riferimento alla birra nel database
@@ -31,16 +32,43 @@ const reviewSchema = new mongoose.Schema({
   }],
   location: {
     address: String,
-    gps: {
-      lat: Number,
-      lng: Number
-    }
+    coordinates: {
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null },
+      accuracy: { type: Number, default: null }, // Accuratezza in metri
+      altitude: { type: Number, default: null }, // Altitudine in metri
+      altitudeAccuracy: { type: Number, default: null },
+      heading: { type: Number, default: null }, // Direzione movimento
+      speed: { type: Number, default: null } // Velocità in m/s
+    },
+    timestamp: { type: Date }, // Quando è stata acquisita la posizione
+    consentGiven: { type: Boolean, default: false }, // Se utente ha dato consenso
+    source: { type: String, enum: ['gps', 'network', 'manual', 'none'], default: 'none' } // Fonte della posizione
   },
   date: { type: Date, default: Date.now },
   deviceId: String,
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: { type: String, enum: ['pending', 'validated', 'completed'], default: 'pending' },
   aiFeedback: String,
+  // Campi per gestione asincrona (Punto 15)
+  processingStatus: { 
+    type: String, 
+    enum: ['pending_validation', 'processing', 'completed', 'failed', 'needs_admin_review'],
+    default: 'pending_validation',
+    index: true // Indice per query rapide
+  },
+  processingJobId: String, // ID del job Bull per tracking
+  processingError: String, // Messaggio errore se processing fallito
+  adminReviewReason: String, // Motivazione per cui è richiesta revisione admin (quando processingStatus = 'needs_admin_review')
+  processingAttempts: { type: Number, default: 0 }, // Numero tentativi processing
+  lastProcessingAttempt: Date, // Ultimo tentativo processing
+  completedAt: Date, // Data completamento processing
+  // Dati grezzi AI da processare in background
+  rawAiData: {
+    bottles: [mongoose.Schema.Types.Mixed],
+    brewery: mongoose.Schema.Types.Mixed,
+    imageDataUrl: String
+  },
   // Metadati dell'analisi AI
   aiAnalysis: {
     webSearchPerformed: Boolean,
@@ -53,6 +81,12 @@ const reviewSchema = new mongoose.Schema({
     analysisComplete: Boolean,
     overallConfidence: Number,
     processingTime: String
+  },
+  // Metadati elaborazione bottiglie (per frontend)
+  metadata: {
+    processedBottles: [mongoose.Schema.Types.Mixed], // Array bottiglie processate
+    bottlesCount: Number, // Conteggio bottiglie
+    lastUpdated: Date // Ultimo aggiornamento metadata
   }
 });
 

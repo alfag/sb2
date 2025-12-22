@@ -5,15 +5,17 @@ const logWithFileName = require('../utils/logger');
 const authRoutes = require('./authRoutes'); // Importa le rotte di autenticazione
 const administratorRoutes = require('./administratorRoutes'); // Importa le rotte amministrative
 const reviewRoutes = require('./reviewRoutes');
-const { isAuthenticated } = require('../middlewares/authMiddleware');
+const { isAuthenticated, isAuthenticatedOptional } = require('../middlewares/authMiddleware');
 const uploadMiddleware = require('../middlewares/uploadMiddleware'); // 🆕 Upload middleware
 const User = require('../models/User'); // Import per aggiornamento defaultRole
 const Brewery = require('../models/Brewery'); // 🆕 Import per gestione immagini
+const Review = require('../models/Review'); // 🆕 Import per ultime recensioni
 const profileController = require('../controllers/profileController'); // 🆕 Profile controller
 
 const logger = logWithFileName(__filename);
 
-router.get('/', (req, res) => {
+// Home page accessibile senza login - Autenticazione opzionale
+router.get('/', isAuthenticatedOptional, (req, res) => {
     // Debug logging per capire lo stato dell'utente
     if (req.user) {
         logger.info('Home access - User info:', {
@@ -21,8 +23,11 @@ router.get('/', (req, res) => {
             roles: req.user.role,
             defaultRole: req.user.defaultRole,
             sessionActiveRole: req.session.activeRole,
-            hasBreweryDetails: !!req.user.breweryDetails
+            hasBreweryDetails: !!req.user.breweryDetails,
+            alreadyLoggedIn: req.alreadyLoggedIn // Flag dal middleware opzionale
         });
+    } else {
+        logger.info('Home access - Guest user (no login required)');
     }
     
     // Se l'utente è autenticato e ha ruolo brewery attivo, redirect alla dashboard
@@ -36,6 +41,115 @@ router.get('/', (req, res) => {
     
     logger.info('Renderizzazione della pagina di benvenuto');
     res.render('welcome.njk', { user: req.user }); // Renderizza il template index.njk
+});
+
+// 🆕 Pagina tutte le recensioni - Accessibile a tutti
+router.get('/reviews', isAuthenticatedOptional, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = 20;
+        
+        logger.info(`Pagina recensioni - page: ${page}`);
+        
+        // Recupera TUTTE le recensioni ordinate per data
+        // Popola user con customerDetails per nome/cognome, e birra con tutti i dettagli
+        const allReviews = await Review.find({})
+            .sort({ date: -1 })
+            .populate('user', 'email username customerDetails')
+            .populate('ratings.brewery', 'breweryName')
+            .populate('ratings.beer', 'beerName beerType alcoholContent')
+            .lean();
+        
+        /**
+         * Helper per formattare il nome utente: "Nome C." (cognome puntato)
+         * Se non ha nome/cognome impostato, mostra "Utente anonimo" (no email)
+         */
+        function formatUserName(user) {
+            if (!user) return 'Utente anonimo';
+            
+            const firstName = user.customerDetails?.customerName || '';
+            const surname = user.customerDetails?.customerSurname || '';
+            
+            if (firstName && surname) {
+                // Gestisce cognomi multipli: "Rossi Verdi" -> "R. V."
+                const surnameInitials = surname
+                    .split(' ')
+                    .filter(s => s.length > 0)
+                    .map(s => s.charAt(0).toUpperCase() + '.')
+                    .join(' ');
+                return `${firstName} ${surnameInitials}`;
+            } else if (firstName) {
+                return firstName;
+            }
+            // Non mostriamo email o username per privacy
+            return 'Utente anonimo';
+        }
+        
+        // Appiattisci i ratings: ogni rating di ogni bottiglia diventa un elemento separato
+        const flattenedReviews = [];
+        allReviews.forEach(review => {
+            if (review.ratings && review.ratings.length > 0) {
+                review.ratings.forEach((rating, index) => {
+                    flattenedReviews.push({
+                        _id: review._id,
+                        date: review.date,
+                        imageUrl: review.imageUrl,
+                        user: review.user,
+                        userEmail: review.user?.email || 'Utente anonimo',
+                        // Nome utente formattato per display
+                        userName: formatUserName(review.user),
+                        // Dati del singolo rating
+                        rating: rating.rating,
+                        bottleLabel: rating.bottleLabel,
+                        beerName: rating.beer?.beerName || rating.bottleLabel || 'Birra',
+                        breweryName: rating.brewery?.breweryName || null,
+                        beerType: rating.beer?.beerType || null,
+                        alcoholContent: rating.beer?.alcoholContent || null,
+                        notes: rating.notes,
+                        detailedRatings: rating.detailedRatings,
+                        // Info multi-bottiglia
+                        totalBottlesInReview: review.ratings.length,
+                        bottleIndex: index,
+                        // 🆕 Stato elaborazione AI per indicatore visivo
+                        processingStatus: review.processingStatus || 'completed',
+                        isProcessing: review.processingStatus === 'pending_validation' || review.processingStatus === 'processing'
+                    });
+                });
+            }
+        });
+        
+        // Ordina per data discendente (l'ultimo rating inserito prima)
+        flattenedReviews.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // Conta totale e calcola paginazione
+        const totalReviews = flattenedReviews.length;
+        const totalPages = Math.ceil(totalReviews / limit);
+        const skip = (page - 1) * limit;
+        
+        // Paginazione
+        const paginatedReviews = flattenedReviews.slice(skip, skip + limit);
+        
+        res.render('review/allReviews.njk', { 
+            user: req.user,
+            reviews: paginatedReviews,
+            currentPage: page,
+            totalPages,
+            totalReviews,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1
+        });
+        
+    } catch (error) {
+        logger.error('Errore caricamento pagina recensioni:', error);
+        res.render('review/allReviews.njk', { 
+            user: req.user,
+            reviews: [],
+            currentPage: 1,
+            totalPages: 0,
+            totalReviews: 0,
+            error: 'Errore nel caricamento delle recensioni'
+        });
+    }
 });
 
 // Gestione accettazione disclaimer maggiore età
@@ -365,6 +479,107 @@ router.get('/api/breweries/all', async (req, res) => {
     }
 });
 
+// 🆕 API Endpoint per ottenere le ultime recensioni (per welcome page)
+// Ogni rating viene mostrato come recensione individuale, ordinate per data decrescente
+router.get('/api/reviews/latest', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 5;
+        
+        logger.info(`Richiesta ultime ${limit} recensioni (singoli rating) per welcome page`);
+        
+        // Recupera le recensioni con utente, birra e birrificio popolati
+        // Prendiamo più recensioni del limit perché ogni review può avere più ratings
+        const reviews = await Review.find({})
+            .sort({ date: -1 })
+            .limit(limit * 3) // Buffer per avere abbastanza ratings
+            .populate('user', 'email username customerDetails')
+            .populate('ratings.beer', 'beerName beerType alcoholContent')
+            .populate('ratings.brewery', 'breweryName')
+            .lean();
+        
+        /**
+         * Helper per formattare il nome utente: "Nome C." (cognome puntato)
+         * Se non ha nome/cognome impostato, mostra "Utente anonimo" (no email)
+         */
+        function formatUserName(user) {
+            if (!user) return 'Utente anonimo';
+            
+            const firstName = user.customerDetails?.customerName || '';
+            const surname = user.customerDetails?.customerSurname || '';
+            
+            if (firstName && surname) {
+                // Gestisce cognomi multipli: "Rossi Verdi" -> "R. V."
+                const surnameInitials = surname
+                    .split(' ')
+                    .filter(s => s.length > 0)
+                    .map(s => s.charAt(0).toUpperCase() + '.')
+                    .join(' ');
+                return `${firstName} ${surnameInitials}`;
+            } else if (firstName) {
+                return firstName;
+            }
+            // Non mostriamo email o username per privacy
+            return 'Utente anonimo';
+        }
+        
+        // "Appiattisce" i ratings: ogni rating diventa una recensione individuale
+        // Mantiene la data della review parent per ordinamento
+        const flattenedRatings = [];
+        
+        for (const review of reviews) {
+            if (review.ratings && review.ratings.length > 0) {
+                for (const rating of review.ratings) {
+                    flattenedRatings.push({
+                        _id: review._id,
+                        ratingId: rating._id,
+                        imageUrl: review.imageUrl,
+                        date: review.date,
+                        userEmail: review.user?.email || review.user?.username || 'Utente anonimo',
+                        // Nome utente formattato per display
+                        userName: formatUserName(review.user),
+                        beerName: rating.beer?.beerName || rating.bottleLabel || 'Birra',
+                        bottleLabel: rating.bottleLabel || rating.beer?.beerName || 'Birra',
+                        rating: rating.rating,
+                        notes: rating.notes,
+                        // Per distinguere recensioni con più bottiglie
+                        totalBottlesInReview: review.ratings.length,
+                        bottleIndex: review.ratings.indexOf(rating) + 1,
+                        // Dati aggiuntivi per popup dettagli
+                        breweryName: rating.brewery?.breweryName || null,
+                        beerType: rating.beer?.beerType || null,
+                        alcoholContent: rating.beer?.alcoholContent || null,
+                        // Valutazioni dettagliate
+                        detailedRatings: rating.detailedRatings || null,
+                        // 🆕 Stato elaborazione AI per indicatore visivo
+                        processingStatus: review.processingStatus || 'completed',
+                        isProcessing: review.processingStatus === 'pending_validation' || review.processingStatus === 'processing'
+                    });
+                }
+            }
+        }
+        
+        // Ordina per data decrescente e limita al numero richiesto
+        flattenedRatings.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const limitedRatings = flattenedRatings.slice(0, limit);
+        
+        logger.info(`Trovate ${limitedRatings.length} recensioni individuali (da ${reviews.length} review totali)`);
+        
+        res.json({
+            success: true,
+            reviews: limitedRatings,
+            count: limitedRatings.length
+        });
+        
+    } catch (error) {
+        logger.error('Errore nel recupero ultime recensioni:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Errore interno del server',
+            reviews: []
+        });
+    }
+});
+
 router.post('/api/user/roles', isAuthenticated, async (req, res) => {
     try {
         const { activeRole, defaultRole } = req.body;
@@ -446,6 +661,130 @@ router.post('/api/log-error', (req, res) => {
         userId: req.user ? req.user._id : 'guest'
     });
     res.status(200).json({ success: true });
+});
+
+// 📍 GEOLOCATION CONSENT API
+// GET - Ottiene le preferenze di geolocalizzazione dell'utente
+router.get('/api/user/location-consent', isAuthenticated, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Utente non trovato' 
+            });
+        }
+
+        const consent = user.customerDetails?.locationConsent || { 
+            enabled: null,  // null = chiedi ogni volta
+            lastUpdated: null,
+            updatedBy: null
+        };
+
+        logger.info('Richiesta preferenze geolocalizzazione', {
+            userId: user._id,
+            username: user.username,
+            consentEnabled: consent.enabled,
+            lastUpdated: consent.lastUpdated
+        });
+
+        res.json({
+            success: true,
+            consent: {
+                enabled: consent.enabled,
+                lastUpdated: consent.lastUpdated,
+                updatedBy: consent.updatedBy
+            }
+        });
+
+    } catch (error) {
+        logger.error('Errore nel recupero preferenze geolocalizzazione:', {
+            error: error.message,
+            userId: req.user._id,
+            stack: error.stack
+        });
+
+        res.status(500).json({
+            success: false,
+            error: 'Errore nel recupero delle preferenze'
+        });
+    }
+});
+
+// POST - Salva/aggiorna le preferenze di geolocalizzazione dell'utente
+router.post('/api/user/location-consent', isAuthenticated, async (req, res) => {
+    try {
+        const { enabled, rememberChoice } = req.body;
+
+        // Validazione input
+        if (typeof enabled !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                error: 'Il campo "enabled" deve essere un valore boolean'
+            });
+        }
+
+        const user = await User.findById(req.user._id);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'Utente non trovato'
+            });
+        }
+
+        // Inizializza customerDetails se non esiste
+        if (!user.customerDetails) {
+            user.customerDetails = {};
+        }
+
+        // Aggiorna le preferenze
+        user.customerDetails.locationConsent = {
+            enabled: rememberChoice === true ? enabled : null,  // null se non vuole ricordare
+            lastUpdated: new Date(),
+            updatedBy: 'user_settings'
+        };
+
+        // ⚠️ CRITICAL: Marca customerDetails come modificato per Mongoose
+        user.markModified('customerDetails');
+
+        await user.save();
+
+        logger.info('✅ Preferenze geolocalizzazione aggiornate e salvate su DB', {
+            userId: user._id,
+            username: user.username,
+            enabled: user.customerDetails.locationConsent.enabled,
+            rememberChoice: rememberChoice === true,
+            lastUpdated: user.customerDetails.locationConsent.lastUpdated,
+            customerDetailsExists: !!user.customerDetails,
+            locationConsentExists: !!user.customerDetails.locationConsent
+        });
+
+        res.json({
+            success: true,
+            message: rememberChoice === true 
+                ? 'Preferenza salvata con successo' 
+                : 'Preferenza applicata (verrà richiesta nuovamente la prossima volta)',
+            consent: {
+                enabled: user.customerDetails.locationConsent.enabled,
+                lastUpdated: user.customerDetails.locationConsent.lastUpdated,
+                updatedBy: user.customerDetails.locationConsent.updatedBy
+            }
+        });
+
+    } catch (error) {
+        logger.error('Errore nel salvataggio preferenze geolocalizzazione:', {
+            error: error.message,
+            userId: req.user._id,
+            stack: error.stack
+        });
+
+        res.status(500).json({
+            success: false,
+            error: 'Errore nel salvataggio delle preferenze'
+        });
+    }
 });
 
 // 🆕 COMPLETE PROFILE MANAGEMENT ROUTES

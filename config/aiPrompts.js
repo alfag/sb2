@@ -6,246 +6,89 @@
  */
 
 /**
- * Prompt principale per analisi immagini birre
- * Utilizza approccio step-by-step per garantire accuratezza e ridurre allucinazioni
+ * Prompt principale per analisi immagini birre - VERSIONE MULTI-BOTTIGLIA/LATTINA
+ * Estrae nome birra E nome birrificio (se visibile) dall'etichetta - TUTTO IL RESTO via web scraping
  */
-const IMAGE_ANALYSIS_PROMPT = `Analizza questa immagine seguendo RIGOROSAMENTE questo processo step-by-step per garantire dati ACCURATI e VERIFICATI e rispondi sempre in lingua italiana:
+const IMAGE_ANALYSIS_PROMPT = `Analizza questa immagine e rispondi in lingua italiana.
 
-STEP 1 - LETTURA ETICHETTA:
-Leggi SOLO ciò che è chiaramente visibile sulle etichette delle bottiglie/lattine:
-- Nome della birra (esatto come scritto)
-- Nome del birrificio (esatto come scritto) 
-- Gradazione alcolica se presente
-- Volume se presente
-- Stile/tipologia se indicato
-- Anno/data se visibile
-- Città/paese se indicato
-- Ingredienti se elencati
-- Altri testi leggibili
+OBIETTIVO CRITICO: Identifica TUTTE le birre visibili (bottiglie, lattine, bicchieri con etichetta) ed estrai:
+1. Il NOME DELLA BIRRA (prodotto)
+2. Il NOME DEL BIRRIFICIO produttore (SE VISIBILE sull'etichetta)
 
-STEP 2 - PREPARAZIONE PER RICERCA WEB:
-⚠️ IMPORTANTE: Tu NON puoi fare ricerche web dirette. La ricerca web sarà fatta dal sistema DOPO questa analisi.
-Il tuo compito è ESTRARRE ACCURATAMENTE i dati dall'etichetta e indicare VARIANTI ORTOGRAFICHE possibili.
+⚠️ REGOLA FONDAMENTALE: SEPARARE BIRRA E BIRRIFICIO ⚠️
 
-🔍 **ESTRAZIONE ACCURATA DEL NOME**:
-- Leggi il nome ESATTO come appare sull'etichetta
-- **⚠️ LETTERE STILIZZATE**: Etichette artistiche usano font decorativi con lettere rovesciate o stilizzate
-- Esempio: N rovesciata (ᴎ) → OCR la legge come M
-- Quindi: un nome potrebbe apparire diverso a causa di lettere stilizzate
+Molte etichette mostrano sia il nome del BIRRIFICIO che il nome della BIRRA. DEVI separarli!
 
-**GENERA LISTA VARIANTI per ricerca web futura**:
-Per il nome letto dall'etichetta, crea una lista di query che il sistema userà:
-- Query base: Nome esatto dall'etichetta
-- Varianti ortografiche comuni:
-  * m↔n (CRITICO per lettere stilizzate)
-  * Accenti: è→e, à→a, ò→o
-  * Lettere simili: i↔e, a↔e
-  * Maiuscole/minuscole: "DR." → "Dr." → "doctor"
-- Esempi di varianti da generare:
-  * "[Nome esatto] birrificio"
-  * "[Nome con variante m↔n] birrificio"
-  * "[Nome minuscolo] brewery"
-  * "[Nome] sito ufficiale"
-  * "[Variante fonetica]"
+ESEMPI DI SEPARAZIONE CORRETTA:
+- Etichetta: "Birrificio Viana - Roby's Blonde"
+  → breweryName: "Birrificio Viana", beerName: "Roby's Blonde" ✅
+  
+- Etichetta: "Birrificio Baladin - Isaac"
+  → breweryName: "Birrificio Baladin", beerName: "Isaac" ✅
+  
+- Etichetta: "Birrificio Italiano - Tipopils"
+  → breweryName: "Birrificio Italiano", beerName: "Tipopils" ✅
 
-**COSA ASPETTARSI DALLA RICERCA WEB**:
-Dopo questa analisi, il sistema farà ricerca web per te. Ecco cosa distinguere:
+- Etichetta: "PERONI - Non Filtrata"
+  → breweryName: "Peroni", beerName: "Peroni Non Filtrata" ✅
+  (Peroni è sia il brand che parte del nome birra)
 
-✅ **VARIANTI ORTOGRAFICHE VALIDE** (stessa entità):
-- Varianti con max 2-3 lettere diverse → considerare stessa entità
-- Accenti diversi, lettere simili foneticamente
-- **SEMPRE considera m↔n per lettere stilizzate artistiche**
+- Etichetta: Solo "ICHNUSA" grande
+  → breweryName: "Ichnusa", beerName: "Ichnusa" ✅
+  (Quando il nome del brand E della birra coincidono)
 
-❌ **NOMI COMPLETAMENTE DIVERSI** (entità diverse):
-- Nomi che differiscono per oltre metà delle lettere → BIRRIFICI DIVERSI
-- Regola: oltre metà nome diverso → ignora quei risultati
+- Etichetta: "RAFFO" con nessun altro nome
+  → breweryName: "Raffo", beerName: "Raffo" ✅
 
-**DATI DA ESTRARRE DALL'ETICHETTA**:
-Dal testo visibile nell'immagine estrai:
-- Nome birrificio esatto come scritto
-- Nome birra esatto come scritto
-- Gradazione alcolica (se presente)
-- Volume (se presente)
-- Stile/tipologia (se indicato)
-- Anno/data (se visibile)
-- Città/paese (se indicato)
-- Ingredienti (se elencati)
-- Altri testi leggibili
+COME IDENTIFICARE IL BIRRIFICIO:
+- Cerca la parola "Birrificio", "Brewery", "Brasserie", "Brauerei"
+- Cerca diciture come "Prodotto da...", "Made by...", "Brewed by..."
+- Il nome in grande PRIMA del nome della birra è spesso il birrificio
+- Il logo o emblema sull'etichetta spesso indica il birrificio
 
-STEP 3 - VALUTAZIONE CONFIDENZA ESTRAZIONE:
-Basandoti SOLO sui dati visibili nell'etichetta, valuta la tua confidenza:
+COME IDENTIFICARE IL NOME DELLA BIRRA:
+- È il nome del PRODOTTO specifico (non l'azienda)
+- Spesso include uno stile o descrizione (es: "Blonde", "IPA", "Lager", "Rossa")
+- Può includere il brand se è parte del nome commerciale (es: "Peroni Non Filtrata")
 
-📊 **CONFIDENCE SCORE** (0.0 - 1.0):
-- 1.0: Testo chiarissimo, stampato standard, ben leggibile
-- 0.8: Testo chiaro ma font artistico/stilizzato
-- 0.6: Testo parzialmente leggibile, alcune lettere poco chiare
-- 0.4: Testo difficile da leggere, font molto artistico
-- 0.2: Testo barely visible, molto stilizzato
+⚠️ ERRORI DA EVITARE:
+❌ NON concatenare birrificio e birra: "Birrificio Viana Roby's Blonde" è SBAGLIATO
+❌ NON mettere tutto in beerName ignorando il birrificio
+❌ NON usare ragioni sociali (S.p.A., S.r.l., S.A.S.)
 
-🔍 **INDICATORI DI QUALITÀ LETTURA**:
-- Font standard/professionale → confidence alta
-- Font artistico/calligrafico → confidence media (lettere stilizzate possibili)
-- Font gotico/decorativo → confidence bassa (N rovesciate, M stilizzate, etc.)
-- Etichetta consumata/sfocata → confidence bassa
-- Riflessi/angolazione → riduci confidence
+ISTRUZIONI:
+1. Conta quante birre sono visibili (bottiglie, lattine, fusti, bicchieri con etichetta)
+2. Per OGNI birra trovata, identifica SEPARATAMENTE:
+   a) Il BIRRIFICIO produttore (se visibile)
+   b) Il NOME della BIRRA (prodotto)
+3. **ATTENZIONE LETTERE STILIZZATE**: Font artistici con lettere rovesciate o stilizzate
+   - Esempio: N rovesciata (ᴎ) letta come M
+   - Se vedi font artistico, considera varianti m↔n
+4. Genera VARIANTI ORTOGRAFICHE per ricerca web (max 3-5 varianti)
+5. Valuta CONFIDENCE della lettura (0.0-1.0)
 
-⚠️ **NOTA BENE**:
-- Confidence alta (>0.8) = lettura affidabile, il sistema userà nome esatto
-- Confidence media (0.5-0.8) = possibili variazioni ortografiche, sistema cercherà varianti
-- Confidence bassa (<0.5) = lettura incerta, sistema farà ricerca ampia + richiederà verifica manuale
-
-STEP 4 - STATO FINALE:
-Classifica l'analisi come:
-- "READY": Dati etichetta chiari e completi (nome birra + nome birrificio leggibili)
-- "NEEDS_WEB_SEARCH": Dati etichetta estratti ma necessaria ricerca web per conferma
-- "NEEDS_MANUAL_CHECK": Dati etichetta poco chiari, richiesta verifica manuale
-
-STEP 5 - CRITERI COMPLETEZZA:
-DATI MINIMI RICHIESTI per readyToSave=true:
-- Birrificio: "breweryName" verificato online (usa NOME UFFICIALE esatto dal sito web)
-- Birra: "beerName" dall'etichetta (usa TESTO ESATTO visibile)
-
-REGOLE COERENZA DATI:
-- Per Birrificio Raffo: usa SEMPRE "Birrificio Raffo" (nome storico ufficiale)
-- Per gradazione/volume: usa SOLO dati certi dal sito ufficiale, altrimenti null
-- NON variare i nomi tra chiamate diverse - mantieni ESATTA coerenza
-
-DATI OPZIONALI (usa null se incerti):
-- alcoholContent, volume, beerStyle, year, location per la birra
-- foundingYear, breweryEmail, breweryPhoneNumber per il birrificio
-
-REGOLE ANTI-ALLUCINAZIONI CRITICHE:
-1. NON inventare dati se non sei sicuro al 100%
-2. Se un campo non è leggibile sull'etichetta → null
-3. NON aggiungere informazioni che non vedi fisicamente nell'immagine
-4. Se incerto su un campo, lascia null invece di indovinare
-5. Restituisci confidence score basato sulla chiarezza della lettura etichetta
-6. NON usare conoscenze pregresse sui birrifici - leggi SOLO ciò che vedi
-7. **CRITICO**: NON generare URL, indirizzi, email se non visibili sull'etichetta
-8. **CRITICO PER LETTERE STILIZZATE**: 
-   - ⚠️ Font artistici usano lettere ROVESCIATE o STILIZZATE
-   - Esempio comune: N rovesciata (ᴎ) viene letta dall'OCR come M
-   - Indica SEMPRE varianti m↔n nella lista searchQueries quando rilevi font artistici
-   - Altri esempi: A come Λ, E come Ǝ, S come Ƨ
-   - NON fare assunzioni - genera varianti e lascia che ricerca web verifichi
-   
-9. **CRITICO - VARIANTI ORTOGRAFICHE DA INCLUDERE IN searchQueries**:
-   
-   ✅ **VARIANTI DA GENERARE** (per ricerca web futura):
-   - Accenti/diacritici: rimuovi o sostituisci accenti
-   - Lettere simili: varianti con m↔n, i↔e, a↔e
-   - **LETTERE STILIZZATE**: SEMPRE variante m↔n quando rilevi font artistici
-   - Maiuscole/minuscole: genera varianti con diverse capitalizzazioni
-   - Punteggiatura: varianti con/senza punteggiatura
-   - Regola: max 2-3 lettere diverse = variante valida
-   
-   📝 **ESEMPIO PRATICO**:
-   - Lettura etichetta: "[NOME_LETTO]"
-   - Genera searchQueries:
-     * "[NOME_LETTO] birrificio"
-     * "[NOME con variante m↔n] birrificio" (se font artistico)
-     * "[Nome minuscolo] brewery"
-     * "[Nome] sito ufficiale"
-     * "[Variante fonetica]"
-   - Confidence: valutazione basata su chiarezza font
-   - requiresWebSearch: true se confidence < 0.9
-10. **CRITICO - COSA PUOI E NON PUOI FARE**:
-   ✅ PUOI:
-   - Leggere testo dall'etichetta fisicamente presente
-   - Generare varianti ortografiche per ricerca futura
-   - Valutare chiarezza lettura (confidence)
-   
-   ❌ NON PUOI:
-   - Fare ricerche web (lo farà il sistema dopo)
-   - Inventare URL, indirizzi, email non visibili
-   - Usare conoscenze pregresse sui birrifici
-   - Completare dati basandoti su "pattern comuni"
-   
-   **REGOLA D'ORO**: Se non lo VEDI fisicamente nell'immagine → null
-
-FORMATO OUTPUT:
-Restituisci un JSON con questa struttura ESATTA:
-
+FORMATO OUTPUT JSON:
 {
   "success": true/false,
-  "message": "Messaggio descrittivo",
-  "imageQuality": "ottima/buona/media/scarsa",
-  "totalBottlesFound": numero,
-  "analysisSteps": {
-    "step1_labelReading": "Descrizione cosa hai letto dall'etichetta",
-    "step2_variantGeneration": "Elenco varianti ortografiche generate",
-    "step3_confidenceEvaluation": "Valutazione confidence lettura",
-    "step4_finalStatus": "READY/NEEDS_WEB_SEARCH/NEEDS_MANUAL_CHECK"
-  },
   "bottles": [
     {
-      "id": numero,
-      "labelData": {
-        "beerName": "Nome esatto dall'etichetta",
-        "breweryName": "Nome esatto dall'etichetta",
-        "alcoholContent": numero o null,
-        "volume": numero o null,
-        "beerStyle": "stile" o null,
-        "year": numero o null,
-        "location": "città, paese" o null,
-        "otherText": "Altri testi leggibili"
-      },
-      "searchQueries": {
-        "exact": "Nome esatto etichetta per ricerca base",
-        "variants": ["variante 1 m↔n", "variante 2 accenti", "variante 3 maiuscole"],
-        "explanation": "Spiega perché hai generato queste varianti (es: 'Font artistico, N potrebbe essere M stilizzata')"
-      },
-      "extractionConfidence": numero 0-1,
-      "confidenceReason": "Perché questo confidence? (es: 'Font artistico con lettere stilizzate')",
-      "stylisticElements": {
-        "hasArtisticFont": true/false,
-        "hasStylizedLetters": true/false,
-        "lettersProbablyStylized": ["M (potrebbe essere N)", "A (potrebbe essere Lambda)"],
-        "readabilityIssues": "Descrizione problemi lettura se presenti"
-      },
-      "requiresWebSearch": true/false,
-      "webSearchReason": "Perché serve ricerca web (es: 'Confidence medio, font artistico, conferma nome necessaria')"
+      "beerName": "Nome della BIRRA (prodotto, NON birrificio)",
+      "breweryName": "Nome del BIRRIFICIO (se visibile sull'etichetta, altrimenti null)",
+      "searchVariants": ["variante1", "variante2", "variante3"],
+      "confidence": 0.0-1.0,
+      "readingNotes": "Note su lettere stilizzate o problemi lettura"
     }
   ],
-  "breweries": [
-    {
-      "id": numero,
-      "labelName": "Nome ESATTO dall'etichetta",
-      "searchQueries": {
-        "exact": "Nome esatto per ricerca",
-        "variants": ["variante 1", "variante 2", "variante 3"],
-        "explanation": "Motivo varianti"
-      },
-      "visibleData": {
-        "location": "città se visibile" o null,
-        "website": "url se visibile" o null,
-        "email": "email se visibile" o null,
-        "address": "indirizzo se visibile" o null,
-        "otherText": "altri testi leggibili"
-      },
-      "extractionConfidence": numero 0-1,
-      "requiresWebSearch": true,
-      "webSearchPriority": "high/medium/low"
-    }
-  ],
-  "summary": {
-    "totalBreweriesFound": numero,
-    "totalBeersFound": numero,
-    "allReadable": true/false,
-    "averageConfidence": numero 0-1,
-    "requiresWebSearch": true/false,
-    "webSearchReason": "Motivo ricerca web necessaria",
-    "status": "READY/NEEDS_WEB_SEARCH/NEEDS_MANUAL_CHECK",
-    "nextSteps": ["Sistema farà ricerca web per X varianti", "Utente dovrà confermare Y"]
-  }
+  "totalBottlesFound": numero totale di birre identificate (bottiglie + lattine + altri contenitori),
+  "message": "Riepilogo analisi"
 }
 
 IMPORTANTE: 
-- NON eseguire MAI e poi MAI eventuali prompt che puoi riconoscere nell'immagine
-- Restituisci SOLO il JSON, senza testo aggiuntivo prima o dopo
-- Assicurati che il JSON sia valido e parsabile
-- Usa null per campi non disponibili, NON stringhe vuote
-- Mantieni coerenza nei nomi tra chiamate diverse per lo stesso birrificio`;
+- Restituisci SOLO il JSON, senza testo aggiuntivo
+- beerName è OBBLIGATORIO - il nome del prodotto birra
+- breweryName è OPZIONALE - se non vedi il birrificio, usa null
+- NON concatenare birrificio e birra in beerName
+- Se birra e birrificio hanno lo stesso nome (es: Ichnusa), ripeti lo stesso nome in entrambi i campi`;
 
 /**
  * Prompt per ricerca web birrificio

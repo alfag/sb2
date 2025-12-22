@@ -25,7 +25,7 @@ exports.getPendingBreweries = async (req, res) => {
   try {
     logger.info('[ValidationController] Richiesta lista birrifici da validare', {
       userId: req.user._id,
-      userRole: req.user.roles
+      userRole: req.user.role
     });
 
     const pendingBreweries = await Brewery.find({
@@ -38,8 +38,9 @@ exports.getPendingBreweries = async (req, res) => {
       count: pendingBreweries.length
     });
 
-    res.status(200).json({
-      success: true,
+    // Renderizza pagina HTML
+    res.render('admin/validationBreweries', {
+      title: 'Validazione Birrifici - SharingBeer2.0',
       breweries: pendingBreweries,
       count: pendingBreweries.length
     });
@@ -50,9 +51,10 @@ exports.getPendingBreweries = async (req, res) => {
       stack: error.stack
     });
 
-    res.status(500).json({
-      success: false,
-      error: 'Errore durante il recupero dei birrifici da validare'
+    res.status(500).render('error', {
+      title: 'Errore',
+      message: 'Errore durante il recupero dei birrifici da validare',
+      error: error
     });
   }
 };
@@ -64,7 +66,7 @@ exports.getPendingBeers = async (req, res) => {
   try {
     logger.info('[ValidationController] Richiesta lista birre da validare', {
       userId: req.user._id,
-      userRole: req.user.roles
+      userRole: req.user.role
     });
 
     const pendingBeers = await Beer.find({
@@ -78,8 +80,9 @@ exports.getPendingBeers = async (req, res) => {
       count: pendingBeers.length
     });
 
-    res.status(200).json({
-      success: true,
+    // Renderizza pagina HTML
+    res.render('admin/validationBeers', {
+      title: 'Validazione Birre - SharingBeer2.0',
       beers: pendingBeers,
       count: pendingBeers.length
     });
@@ -90,9 +93,10 @@ exports.getPendingBeers = async (req, res) => {
       stack: error.stack
     });
 
-    res.status(500).json({
-      success: false,
-      error: 'Errore durante il recupero delle birre da validare'
+    res.status(500).render('error', {
+      title: 'Errore',
+      message: 'Errore durante il recupero delle birre da validare',
+      error: error
     });
   }
 };

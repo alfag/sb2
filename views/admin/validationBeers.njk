@@ -4,132 +4,129 @@
 
 {% block content %}
 <div class="validation-container">
+    <a href="/administrator" class="back-button">
+        <i class="fas fa-arrow-left"></i>
+        <span>Dashboard</span>
+    </a>
+    
     <div class="validation-header">
         <h1>🍺 Validazione Birre</h1>
         <p class="subtitle">Rivedi e approva le birre estratte automaticamente</p>
     </div>
 
-    <!-- Loading spinner -->
-    <div id="loadingSpinner" class="loading-spinner">
-        <div class="spinner"></div>
-        <p>Caricamento birre...</p>
+    <!-- Badge conteggio -->
+    <div class="validation-stats">
+        <div class="stat-card">
+            <span class="stat-number">{{ count }}</span>
+            <span class="stat-label">In Attesa</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number" id="validatedToday">-</span>
+            <span class="stat-label">Validati Oggi</span>
+        </div>
     </div>
 
+    {% if count > 0 %}
     <!-- Lista birre -->
-    <div id="beersList" class="beers-list" style="display: none;">
-        <!-- Popolato dinamicamente via JavaScript -->
+    <div id="beersList" class="beers-list">
+        {% for beer in beers %}
+        <div class="brewery-card" id="beer-{{ beer._id }}">
+            <div class="brewery-card-header">
+                <div class="brewery-info">
+                    <h3>{{ beer.beerName or 'Nome non disponibile' }}</h3>
+                    <p style="color: #666; margin-top: 0.5rem;">Birrificio: {{ beer.brewery.breweryName if beer.brewery else 'Sconosciuto' }}</p>
+                    <span class="brewery-badge {% if beer.dataSource == 'web_scraped' or beer.dataSource == 'web_scraped+ai' %}badge-scraped{% else %}badge-ai{% endif %}">
+                        {% if beer.dataSource == 'web_scraped' or beer.dataSource == 'web_scraped+ai' %}Web Scraping{% else %}AI Extract{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="brewery-details">
+                {% if beer.beerType %}
+                <div class="detail-item">
+                    <span class="detail-icon">🏷️</span>
+                    <div class="detail-content">
+                        <div class="detail-label">Tipo</div>
+                        <div class="detail-value">{{ beer.beerType }}</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if beer.alcoholContent %}
+                <div class="detail-item">
+                    <span class="detail-icon">🌡️</span>
+                    <div class="detail-content">
+                        <div class="detail-label">Gradazione</div>
+                        <div class="detail-value">{{ beer.alcoholContent }}%</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if beer.ibu %}
+                <div class="detail-item">
+                    <span class="detail-icon">🔢</span>
+                    <div class="detail-content">
+                        <div class="detail-label">IBU</div>
+                        <div class="detail-value">{{ beer.ibu }}</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if beer.description %}
+                <div class="detail-item" style="grid-column: 1 / -1;">
+                    <span class="detail-icon">📝</span>
+                    <div class="detail-content">
+                        <div class="detail-label">Descrizione</div>
+                        <div class="detail-value">{{ beer.description | truncate(200) }}</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="brewery-actions">
+                <button class="btn btn-approve" onclick="approveBeer('{{ beer._id }}')">✅ Approva</button>
+                <button class="btn btn-edit" onclick="editBeer('{{ beer._id }}')">✏️ Modifica</button>
+                <button class="btn btn-reject" onclick="rejectBeer('{{ beer._id }}')">❌ Rifiuta</button>
+            </div>
+        </div>
+        {% endfor %}
     </div>
-
+    {% else %}
     <!-- Empty state -->
-    <div id="emptyState" class="empty-state" style="display: none;">
+    <div class="empty-state">
         <div class="empty-icon">✅</div>
         <h3>Tutto Validato!</h3>
         <p>Non ci sono birre in attesa di validazione.</p>
     </div>
+    {% endif %}
 </div>
 
 <link rel="stylesheet" href="/css/validationBreweries.css">
 
+<style>
+.back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 50px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    margin-bottom: 2rem;
+}
+
+.back-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    color: white;
+}
+
+.back-button i {
+    font-size: 1rem;
+}
+</style>
+
 <script>
-// Carica birre da validare
-async function loadPendingBeers() {
-    try {
-        document.getElementById('loadingSpinner').style.display = 'block';
-        document.getElementById('beersList').style.display = 'none';
-        document.getElementById('emptyState').style.display = 'none';
-
-        const response = await fetch('/administrator/validation/beers');
-        const data = await response.json();
-
-        document.getElementById('loadingSpinner').style.display = 'none';
-
-        if (data.success && data.beers.length > 0) {
-            renderBeers(data.beers);
-        } else {
-            document.getElementById('emptyState').style.display = 'block';
-        }
-    } catch (error) {
-        console.error('Errore caricamento birre:', error);
-        alert('Errore durante il caricamento delle birre');
-    }
-}
-
-// Render lista birre
-function renderBeers(beers) {
-    const container = document.getElementById('beersList');
-    container.innerHTML = '';
-    container.style.display = 'grid';
-
-    beers.forEach(beer => {
-        const card = createBeerCard(beer);
-        container.appendChild(card);
-    });
-}
-
-// Crea card birra
-function createBeerCard(beer) {
-    const card = document.createElement('div');
-    card.className = 'brewery-card'; // Riusa stili brewery
-    card.id = `beer-${beer._id}`;
-
-    card.innerHTML = `
-        <div class="brewery-card-header">
-            <div class="brewery-info">
-                <h3>${beer.beerName || 'Nome non disponibile'}</h3>
-                <p style="color: #666; margin-top: 0.5rem;">Birrificio: ${beer.brewery?.breweryName || 'Sconosciuto'}</p>
-            </div>
-        </div>
-        <div class="brewery-details">
-            ${beer.beerType ? `
-            <div class="detail-item">
-                <span class="detail-icon">🏷️</span>
-                <div class="detail-content">
-                    <div class="detail-label">Tipo</div>
-                    <div class="detail-value">${beer.beerType}</div>
-                </div>
-            </div>` : ''}
-            ${beer.alcoholContent ? `
-            <div class="detail-item">
-                <span class="detail-icon">🌡️</span>
-                <div class="detail-content">
-                    <div class="detail-label">Gradazione</div>
-                    <div class="detail-value">${beer.alcoholContent}%</div>
-                </div>
-            </div>` : ''}
-            ${beer.ibu ? `
-            <div class="detail-item">
-                <span class="detail-icon">🔢</span>
-                <div class="detail-content">
-                    <div class="detail-label">IBU</div>
-                    <div class="detail-value">${beer.ibu}</div>
-                </div>
-            </div>` : ''}
-            ${beer.description ? `
-            <div class="detail-item" style="grid-column: 1 / -1;">
-                <span class="detail-icon">📝</span>
-                <div class="detail-content">
-                    <div class="detail-label">Descrizione</div>
-                    <div class="detail-value">${beer.description.substring(0, 200)}${beer.description.length > 200 ? '...' : ''}</div>
-                </div>
-            </div>` : ''}
-            ${beer.reviewReason ? `
-            <div class="detail-item" style="grid-column: 1 / -1;">
-                <span class="detail-icon">⚠️</span>
-                <div class="detail-content">
-                    <div class="detail-label">Motivo Revisione</div>
-                    <div class="detail-value" style="color: #f5576c;">${beer.reviewReason}</div>
-                </div>
-            </div>` : ''}
-        </div>
-        <div class="brewery-actions">
-            <button class="btn btn-approve" onclick="approveBeer('${beer._id}')">✅ Approva</button>
-            <button class="btn btn-reject" onclick="rejectBeer('${beer._id}')">❌ Rifiuta</button>
-        </div>
-    `;
-
-    return card;
-}
-
 // Approva birra
 async function approveBeer(beerId) {
     if (!confirm('Sei sicuro di voler approvare questa birra?')) return;
@@ -145,7 +142,9 @@ async function approveBeer(beerId) {
         if (data.success) {
             document.getElementById(`beer-${beerId}`).remove();
             alert('Birra approvata con successo!');
-            loadPendingBeers();
+            
+            // Ricarica la pagina per aggiornare il conteggio
+            location.reload();
         } else {
             alert('Errore durante l\'approvazione: ' + data.error);
         }
@@ -153,6 +152,12 @@ async function approveBeer(beerId) {
         console.error('Errore approvazione:', error);
         alert('Errore durante l\'approvazione della birra');
     }
+}
+
+// Modifica birra
+function editBeer(beerId) {
+    alert('Funzione di modifica birra in arrivo!\nID: ' + beerId);
+    // TODO: Implementare modal di modifica birra
 }
 
 // Rifiuta birra
@@ -172,7 +177,9 @@ async function rejectBeer(beerId) {
         if (data.success) {
             document.getElementById(`beer-${beerId}`).remove();
             alert('Birra rifiutata ed eliminata');
-            loadPendingBeers();
+            
+            // Ricarica la pagina per aggiornare il conteggio
+            location.reload();
         } else {
             alert('Errore durante il rifiuto: ' + data.error);
         }
@@ -181,8 +188,5 @@ async function rejectBeer(beerId) {
         alert('Errore durante il rifiuto della birra');
     }
 }
-
-// Carica al load della pagina
-document.addEventListener('DOMContentLoaded', loadPendingBeers);
 </script>
 {% endblock %}

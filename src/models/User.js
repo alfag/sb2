@@ -34,6 +34,12 @@ const userSchema = new mongoose.Schema({
             shippingAddress: { type: String },
         },
         customerPhoneNumber: { type: String },
+        // Preferenza consenso geolocalizzazione per recensioni
+        locationConsent: {
+            enabled: { type: Boolean, default: null }, // null = chiedi ogni volta, true/false = ricorda preferenza
+            lastUpdated: { type: Date },
+            updatedBy: { type: String } // 'user' o 'system'
+        },
         customerPurchases: [{
             type: Object,
             purchaseDate: { type: Date, default: Date.now },

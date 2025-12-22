@@ -15,7 +15,7 @@
                     </svg>
                 </div>
                 <div class="user-info">
-                    <h1>Ciao, {{ user.username }}!</h1>
+                    <h1>Ciao, {{ user.customerDetails.customerName if user.customerDetails and user.customerDetails.customerName else user.username }}!</h1>
                     <div class="role-collection">
                         {% for role in user.role %}
                             <span class="role-chip {{ role }} {% if activeRole == role %}active{% endif %}">
@@ -654,19 +654,19 @@
 
 .profile-hero {
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-info) 100%);
-    padding: var(--space-12) var(--space-8);
+    padding: var(--space-4) var(--space-6);
     color: var(--color-white);
 }
 
 .hero-content {
     display: flex;
     align-items: center;
-    gap: var(--space-8);
+    gap: var(--space-4);
 }
 
 .user-avatar {
-    width: 100px;
-    height: 100px;
+    width: 56px;
+    height: 56px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: var(--radius-full);
     display: flex;
@@ -675,23 +675,28 @@
     flex-shrink: 0;
 }
 
+.user-avatar svg {
+    width: 32px;
+    height: 32px;
+}
+
 .user-info h1 {
-    margin: 0 0 var(--space-3) 0;
-    font-size: var(--text-3xl);
+    margin: 0 0 var(--space-1) 0;
+    font-size: var(--text-xl);
     font-weight: var(--font-bold);
 }
 
 .user-info p {
     margin: 0;
-    font-size: var(--text-lg);
+    font-size: var(--text-sm);
     opacity: 0.9;
-    line-height: 1.6;
+    line-height: 1.4;
 }
 
 .role-collection {
     display: flex;
     gap: var(--space-2);
-    margin: var(--space-4) 0;
+    margin: var(--space-2) 0;
     flex-wrap: wrap;
 }
 
@@ -726,13 +731,13 @@
 
 .modern-tab-button {
     flex: 1;
-    padding: var(--space-6) var(--space-4);
+    padding: var(--space-3) var(--space-4);
     background: none;
     border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--space-3);
     transition: all var(--transition-base);
     border-bottom: 3px solid transparent;
 }
@@ -747,8 +752,8 @@
 }
 
 .tab-icon {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     background: var(--color-gray-200);
     border-radius: var(--radius-lg);
     display: flex;
@@ -756,6 +761,11 @@
     justify-content: center;
     flex-shrink: 0;
     transition: all var(--transition-base);
+}
+
+.tab-icon svg {
+    width: 20px;
+    height: 20px;
 }
 
 .modern-tab-button.active .tab-icon {
@@ -783,7 +793,7 @@
 
 .modern-tab-content {
     display: none;
-    padding: var(--space-8);
+    padding: var(--space-4) var(--space-4);
 }
 
 .modern-tab-content.active {
@@ -795,41 +805,43 @@
 }
 
 .form-section-modern {
-    margin-bottom: var(--space-12);
-    padding-bottom: var(--space-8);
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
     border-bottom: 1px solid var(--color-gray-100);
 }
 
 .form-section-modern:last-of-type {
     border-bottom: none;
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-2);
 }
 
 .section-header {
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-3);
 }
 
 .section-title {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
-    font-size: var(--text-2xl);
+    gap: var(--space-2);
+    font-size: var(--text-base);
     font-weight: var(--font-bold);
     color: var(--color-gray-900);
-    margin: 0 0 var(--space-2) 0;
+    margin: 0;
+}
+
+.section-title svg {
+    width: 20px;
+    height: 20px;
 }
 
 .section-description {
-    color: var(--color-gray-600);
-    font-size: var(--text-base);
-    line-height: 1.6;
-    margin: 0;
+    display: none;
 }
 
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: var(--space-6);
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-4);
 }
 
 .address-grid {
@@ -837,17 +849,22 @@
 }
 
 .form-group {
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-2);
 }
 
 .form-label {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     font-weight: var(--font-semibold);
     color: var(--color-gray-800);
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--space-1);
     font-size: var(--text-sm);
+}
+
+.form-label svg {
+    width: 16px;
+    height: 16px;
 }
 
 .form-label.required::after {
@@ -859,10 +876,10 @@
 .form-select,
 .form-textarea {
     width: 100%;
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
     border: 1px solid var(--color-gray-300);
     border-radius: var(--radius-lg);
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     transition: all var(--transition-base);
     background: var(--color-white);
     color: var(--color-gray-900);
@@ -873,22 +890,17 @@
 .form-textarea:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-    transform: translateY(-1px);
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
 
 .form-textarea {
-    min-height: 120px;
+    min-height: 80px;
     resize: vertical;
     font-family: inherit;
 }
 
 .form-hint {
-    display: block;
-    color: var(--color-gray-500);
-    font-size: var(--text-xs);
-    margin-top: var(--space-1);
-    line-height: 1.4;
+    display: none;
 }
 
 .brewery-selection-section {
@@ -971,7 +983,7 @@
 }
 
 .form-actions {
-    padding-top: var(--space-8);
+    padding-top: var(--space-4);
     border-top: 1px solid var(--color-gray-100);
     text-align: center;
 }
@@ -980,10 +992,10 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-3) var(--space-6);
+    padding: var(--space-2) var(--space-4);
     border: none;
     border-radius: var(--radius-lg);
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     font-weight: var(--font-semibold);
     text-decoration: none;
     cursor: pointer;
@@ -998,8 +1010,8 @@
 
 .btn-primary:hover {
     background: #3730a3;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 .btn-secondary {
@@ -1009,21 +1021,21 @@
 
 .btn-secondary:hover {
     background: #4b5563;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 .btn-large {
-    padding: var(--space-4) var(--space-8);
-    font-size: var(--text-lg);
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--text-base);
 }
 
 .alert {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-4) var(--space-6);
-    margin: var(--space-6) var(--space-8);
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    margin: var(--space-3) var(--space-6);
     border-radius: var(--radius-lg);
     border-left: 4px solid;
 }
@@ -1049,25 +1061,42 @@
 /* Responsive Design */
 @media (max-width: 768px) {
     .complete-profile-container {
-        padding: var(--space-4);
+        padding: var(--space-3);
+    }
+    
+    .profile-hero {
+        padding: var(--space-3) var(--space-4);
     }
     
     .hero-content {
         flex-direction: column;
         text-align: center;
-        gap: var(--space-4);
+        gap: var(--space-3);
     }
     
     .modern-tabs-nav {
-        flex-direction: column;
+        flex-direction: row;
+        overflow-x: auto;
     }
     
     .modern-tab-button {
         justify-content: center;
+        padding: var(--space-2) var(--space-3);
+        min-width: 0;
+        flex: 1;
+    }
+    
+    .tab-text {
+        display: none;
+    }
+    
+    .tab-icon {
+        width: 32px;
+        height: 32px;
     }
     
     .modern-tab-content {
-        padding: var(--space-6) var(--space-4);
+        padding: var(--space-4) var(--space-3);
     }
     
     .form-grid {
@@ -1079,7 +1108,7 @@
     }
     
     .brewery-selection-section {
-        padding: var(--space-8) var(--space-4);
+        padding: var(--space-6) var(--space-4);
     }
 }
 

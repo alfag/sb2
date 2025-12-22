@@ -89,6 +89,8 @@ const brewerySchema = new mongoose.Schema({
     },
     validatedAt: Date,
     validationNotes: String,
+    needsValidation: { type: Boolean, default: false }, // Flag per validazione dati
+    validationReason: String, // Motivazione per cui è richiesta validazione (quando needsValidation = true)
     needsManualReview: { type: Boolean, default: false },
     reviewReason: String
 }, {

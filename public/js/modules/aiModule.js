@@ -166,12 +166,12 @@ class AIModule {
   }
 
   /**
-   * Esegue analisi AI
+   * Esegue analisi AI con sistema di code asincrono Bull/Redis
    */
-  async performAnalysis(file) {
+  async performAnalysis(file, isTestMode = false) {
     try {
       this.setProcessingState(true);
-      this.showLoadingState('Analisi in corso...');
+      this.showLoadingState('📤 Invio immagine alla coda di elaborazione...');
 
       // Notifica inizio analisi al SessionCleanupManager
       if (window.sessionCleanupManager) {
@@ -182,12 +182,25 @@ class AIModule {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch('/review/api/gemini/firstcheck', {
+      // 🚀 NUOVO: Endpoint asincrono che usa Bull/Redis queue
+      const response = await fetch('/review/async', {
         method: 'POST',
         body: formData
       });
 
       const result = await response.json();
+
+      // 🛡️ Gestione limite massimo bottiglie
+      if (result.errorType === 'TOO_MANY_BOTTLES') {
+        this.setProcessingState(false);
+        this.showInfo(
+          result.userMessage || `Abbiamo rilevato ${result.data.detectedCount} bottiglie. ` +
+          `Per una recensione accurata, puoi valutare al massimo ${result.data.maxAllowed} birre per foto. ` +
+          `Scatta più foto separate!`,
+          12000 // 12 secondi
+        );
+        return;
+      }
 
       // Gestione rate limiting
       if (response.status === 429) {
@@ -196,7 +209,7 @@ class AIModule {
       }
 
       if (!response.ok) {
-        throw new Error(result.message || 'Errore durante l\'analisi');
+        throw new Error(result.message || 'Errore durante l\'invio alla coda');
       }
 
       // Gestione warning rate limit
@@ -209,58 +222,12 @@ class AIModule {
         this.showRemainingRequests(result.rateLimitInfo);
       }
 
-      this.currentAnalysisData = result.data || result;
-
-      // 🔍 DEBUG: Log completo della risposta per debugging
-      console.log('[AIModule] DEBUG - Risposta completa ricevuta:', result);
-      console.log('[AIModule] DEBUG - Bottles ricevute:', result.bottles || result.data?.bottles);
-      console.log('[AIModule] DEBUG - antiHallucinationActive:', result.antiHallucinationActive);
-      console.log('[AIModule] DEBUG - needsVerification:', result.needsVerification);
-      console.log('[AIModule] DEBUG - redirectUrl:', result.redirectUrl);
-      console.log('[AIModule] DEBUG - Condizione anti-allucinazioni:', !!(result.antiHallucinationActive && result.needsVerification));
-
-      // 🎯 USA IL METODO CENTRALIZZATO per gestire tutte le risposte AI
-      const handleResult = AIModule.handleAIResponse(result, {
-        closeModal: () => {
-          // Non c'è modal da chiudere in aiModule, ma manteniamo l'interfaccia
-          console.log('[AIModule] Modal close request (N/A)');
-        },
-        showWarningMessage: (message) => {
-          this.showError(message);
-        },
-        hideLoadingOverlay: () => {
-          this.hideLoadingState();
-        }
-      });
-
-      // Se la risposta è stata gestita (redirect, errore, etc.), esci
-      if (handleResult.handled) {
-        console.log('[AIModule] Risposta gestita centralmente:', handleResult.action);
-        return;
-      }
-
-      // Altrimenti continua con flusso normale
-      console.log('[AIModule] Continuando con flusso normale:', handleResult.action);
+      // � NUOVO: Avvio polling dello stato del job
+      const reviewId = result.data.reviewId;
+      console.log('[AIModule] 🎯 ReviewId ricevuto:', reviewId, '- Avvio polling');
       
-      // CRITICO: Gestione disambiguazione con SessionCleanupManager
-      const needsDisambiguation = result.data?.needsDisambiguation || result.needsDisambiguation;
-      if (needsDisambiguation && window.sessionCleanupManager) {
-        console.log('[AIModule] Disambiguazione richiesta - blocco pulizia automatica');
-        window.sessionCleanupManager.startDisambiguation();
-      }
-
-      // Mostra i risultati normali
-      this.showAnalysisResults(handleResult.data || result.data || result);
-
-      // CRITICO: Gestione legacy per compatibilità (se esiste)
-      if (typeof isAIAnalysisActive !== 'undefined') {
-        if (!needsDisambiguation) {
-          isAIAnalysisActive = false;
-          console.log('[AIModule] Pulizia automatica sessione riabilitata (legacy) - nessuna disambiguazione necessaria');
-        } else {
-          console.log('[AIModule] Pulizia automatica sessione MANTENUTA DISABILITATA (legacy) per disambiguazione');
-        }
-      }
+      // Polling dello stato con UI progress
+      await this.pollJobStatus(reviewId, isTestMode);
 
     } catch (error) {
       console.error('[AIModule] Errore analisi:', error);
@@ -276,8 +243,190 @@ class AIModule {
         isAIAnalysisActive = false;
         console.log('[AIModule] Pulizia automatica sessione riabilitata (legacy) dopo errore AI');
       }
-    } finally {
+      
       this.setProcessingState(false);
+    }
+  }
+
+  /**
+   * 🔄 Polling dello stato del job nella coda Bull
+   */
+  async pollJobStatus(reviewId, isTestMode = false) {
+    const maxAttempts = 120; // 2 minuti max (polling ogni 1s)
+    const pollInterval = 1000; // 1 secondo
+    let attempts = 0;
+
+    const poll = async () => {
+      try {
+        attempts++;
+        
+        const response = await fetch(`/review/${reviewId}/status`);
+        const result = await response.json();
+
+        console.log(`[AIModule] 📊 Polling tentativo ${attempts}/${maxAttempts}:`, result.data);
+
+        // Aggiorna UI con lo stato corrente
+        this.updateProgressState(result.data, isTestMode);
+
+        // Gestione stati terminali
+        if (result.data.status === 'completed') {
+          console.log('[AIModule] ✅ Job completato con successo');
+          this.currentAnalysisData = result.data.result || result.data;
+
+          // 🎯 USA IL METODO CENTRALIZZATO per gestire tutte le risposte AI
+          const handleResult = AIModule.handleAIResponse(result.data.result, {
+            closeModal: () => {
+              console.log('[AIModule] Modal close request (N/A)');
+            },
+            showWarningMessage: (message) => {
+              this.showError(message);
+            },
+            hideLoadingOverlay: () => {
+              this.hideLoadingState();
+            }
+          });
+
+          // Se la risposta è stata gestita (redirect, errore, etc.), esci
+          if (handleResult.handled) {
+            console.log('[AIModule] Risposta gestita centralmente:', handleResult.action);
+            this.setProcessingState(false);
+            return;
+          }
+
+          // CRITICO: Gestione disambiguazione con SessionCleanupManager
+          const needsDisambiguation = result.data.result?.needsDisambiguation;
+          if (needsDisambiguation && window.sessionCleanupManager) {
+            console.log('[AIModule] Disambiguazione richiesta - blocco pulizia automatica');
+            window.sessionCleanupManager.startDisambiguation();
+          }
+
+          // Mostra i risultati normali
+          this.showAnalysisResults(handleResult.data || result.data.result);
+
+          // CRITICO: Gestione legacy per compatibilità
+          if (typeof isAIAnalysisActive !== 'undefined') {
+            if (!needsDisambiguation) {
+              isAIAnalysisActive = false;
+              console.log('[AIModule] Pulizia automatica sessione riabilitata (legacy)');
+            } else {
+              console.log('[AIModule] Pulizia automatica sessione MANTENUTA DISABILITATA (legacy) per disambiguazione');
+            }
+          }
+
+          this.setProcessingState(false);
+          return;
+        }
+
+        if (result.data.status === 'failed') {
+          console.error('[AIModule] ❌ Job fallito:', result.data.error);
+          throw new Error(result.data.error || 'Elaborazione fallita');
+        }
+
+        // Continua polling se ancora in processing
+        if (attempts < maxAttempts) {
+          setTimeout(poll, pollInterval);
+        } else {
+          throw new Error('Timeout: elaborazione troppo lunga');
+        }
+
+      } catch (error) {
+        console.error('[AIModule] Errore durante polling:', error);
+        this.showError(`Errore durante l'elaborazione: ${error.message}`);
+        this.setProcessingState(false);
+        
+        // Notifica errore al SessionCleanupManager
+        if (window.sessionCleanupManager) {
+          window.sessionCleanupManager.cleanupOnReviewError(error);
+        }
+      }
+    };
+
+    // Avvia il polling
+    await poll();
+  }
+
+  /**
+   * 📊 Aggiorna UI con lo stato corrente del processing
+   */
+  updateProgressState(statusData, isTestMode = false) {
+    const stateMessages = {
+      'waiting': '⏳ In attesa nella coda...',
+      'active': '🔄 Elaborazione in corso...',
+      'ai-analysis': '🤖 Analisi AI dell\'immagine...',
+      'web-search': '🌐 Ricerca informazioni online...',
+      'web-scraping': '🕷️ Estrazione dati dai siti web...',
+      'validation': '✅ Validazione dati...',
+      'completed': '✅ Completato!',
+      'failed': '❌ Errore'
+    };
+
+    const message = stateMessages[statusData.currentStep] || stateMessages[statusData.status] || 'Elaborazione...';
+    
+    // Calcola percentuale progress (approssimativa)
+    let progress = 0;
+    if (statusData.status === 'waiting') progress = 10;
+    else if (statusData.currentStep === 'ai-analysis') progress = 30;
+    else if (statusData.currentStep === 'web-search') progress = 50;
+    else if (statusData.currentStep === 'web-scraping') progress = 70;
+    else if (statusData.currentStep === 'validation') progress = 90;
+    else if (statusData.status === 'completed') progress = 100;
+
+    // 🚫 NUOVO: Mostra loading SOLO in modalità test
+    if (isTestMode) {
+      this.showLoadingState(message, progress);
+    }
+    
+    console.log('[AIModule] 📊 Progress update:', {
+      status: statusData.status,
+      step: statusData.currentStep,
+      progress: `${progress}%`,
+      message,
+      isTestMode
+    });
+  }
+
+  /**
+   * Mostra stato di loading con progress opzionale
+   */
+  showLoadingState(message, progress = null) {
+    const loadingContainer = document.getElementById('ai-loading-state');
+    if (loadingContainer) {
+      const messageEl = loadingContainer.querySelector('.loading-message');
+      if (messageEl) {
+        messageEl.textContent = message;
+      }
+      
+      // Aggiorna progress bar se esiste e progress è fornito
+      if (progress !== null) {
+        let progressBar = loadingContainer.querySelector('.progress-bar');
+        if (!progressBar) {
+          // Crea progress bar se non esiste
+          const progressContainer = document.createElement('div');
+          progressContainer.className = 'progress-container';
+          progressContainer.style.cssText = 'width: 100%; height: 6px; background: #e0e0e0; border-radius: 3px; margin-top: 10px; overflow: hidden;';
+          
+          progressBar = document.createElement('div');
+          progressBar.className = 'progress-bar';
+          progressBar.style.cssText = 'height: 100%; background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); transition: width 0.3s ease; width: 0%;';
+          
+          progressContainer.appendChild(progressBar);
+          loadingContainer.appendChild(progressContainer);
+        }
+        
+        progressBar.style.width = `${progress}%`;
+      }
+      
+      loadingContainer.style.display = 'block';
+    }
+  }
+
+  /**
+   * Nascondi stato di loading
+   */
+  hideLoadingState() {
+    const loadingContainer = document.getElementById('ai-loading-state');
+    if (loadingContainer) {
+      loadingContainer.style.display = 'none';
     }
   }
 
@@ -464,6 +613,39 @@ class AIModule {
       status.style.display = 'block';
     }
     this.setProcessingState(false);
+  }
+
+  /**
+   * Mostra messaggio informativo (blu, non warning)
+   * @param {string} message - Messaggio da mostrare
+   * @param {number} duration - Durata in millisecondi (default: 10000)
+   */
+  showInfo(message, duration = 10000) {
+    // Rimuovi messaggi info esistenti
+    const existingInfo = document.querySelectorAll('.info-message');
+    existingInfo.forEach(el => el.remove());
+
+    // Crea nuovo messaggio info
+    const infoEl = document.createElement('div');
+    infoEl.className = 'info-message';
+    infoEl.innerHTML = `
+      <div class="info-content">
+        <span class="info-icon">ℹ️</span>
+        <span class="info-text">${message}</span>
+      </div>
+    `;
+    
+    document.body.appendChild(infoEl);
+    
+    // Auto-rimozione dopo durata specificata
+    setTimeout(() => {
+      infoEl.style.opacity = '0';
+      setTimeout(() => {
+        if (infoEl.parentNode) {
+          infoEl.remove();
+        }
+      }, 300); // Tempo per fade-out animation
+    }, duration);
   }
 
   /**

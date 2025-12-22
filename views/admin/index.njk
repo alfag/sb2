@@ -1,236 +1,127 @@
 {% extends "../layout.njk" %}
 
+{% block head %}
+<link rel="stylesheet" href="/css/admin-dashboard.css">
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <h1>{{ title }}</h1>
-    
-    <!-- Benvenuto -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="alert alert-info">
-                <h4><i class="fas fa-tachometer-alt"></i> Benvenuto nella Dashboard Amministrativa</h4>
-                <p class="mb-0">Da qui puoi gestire tutti gli aspetti del sistema SharingBeer.</p>
+<div class="admin-dash">
+    <!-- Header compatto con stats inline -->
+    <header class="dash-header">
+        <div class="dash-brand">
+            <span class="dash-icon">⚡</span>
+            <div class="dash-title">
+                <h1>Admin Panel</h1>
+                <span>SharingBeer Management</span>
             </div>
         </div>
-    </div>
-    
-    <!-- Menu principale -->
-    <div class="row">
-        <!-- Gestione Utenti -->
-        <div class="col-md-6 col-xl-3 mb-4">
-            <div class="card h-100 border-primary">
-                <div class="card-body text-center">
-                    <i class="fas fa-users fa-3x text-primary mb-3"></i>
-                    <h5 class="card-title">Gestione Utenti</h5>
-                    <p class="card-text">Crea, modifica ed elimina utenti del sistema. Gestisci ruoli e permessi.</p>
-                    <div class="mt-auto">
-                        <a href="/administrator/users" class="btn btn-primary">
-                            <i class="fas fa-list"></i> Lista Utenti
-                        </a>
-                        <a href="/administrator/users/new" class="btn btn-outline-primary">
-                            <i class="fas fa-plus"></i> Nuovo
-                        </a>
-                    </div>
-                </div>
-            </div>
+        <div class="dash-stats">
+            <div class="stat-pill"><span id="sUsers">-</span> utenti</div>
+            <div class="stat-pill"><span id="sBreweries">-</span> birrifici</div>
+            <div class="stat-pill"><span id="sBeers">-</span> birre</div>
+            <div class="stat-pill"><span id="sReviews">-</span> review</div>
         </div>
-        
-        <!-- Gestione Birrifici -->
-        <div class="col-md-6 col-xl-3 mb-4">
-            <div class="card h-100 border-warning">
-                <div class="card-body text-center">
-                    <i class="fas fa-industry fa-3x text-warning mb-3"></i>
-                    <h5 class="card-title">Gestione Birrifici</h5>
-                    <p class="card-text">Amministra i birrifici registrati. Visualizza dettagli, statistiche e gestisci i dati.</p>
-                    <div class="mt-auto">
-                        <a href="/administrator/breweries" class="btn btn-warning">
-                            <i class="fas fa-list"></i> Lista Birrifici
-                        </a>
-                        <a href="/administrator/breweries/new" class="btn btn-outline-warning">
-                            <i class="fas fa-plus"></i> Nuovo
-                        </a>
-                    </div>
-                </div>
+    </header>
+
+    <!-- Grid principale -->
+    <main class="dash-main">
+        <!-- Gestione Dati -->
+        <section class="dash-section">
+            <h2><i class="fas fa-database"></i> Gestione</h2>
+            <div class="cards-row">
+                <a href="/administrator/users" class="dash-card blue">
+                    <i class="fas fa-users"></i>
+                    <div><strong>Utenti</strong><span>Account e ruoli</span></div>
+                    <em>→</em>
+                </a>
+                <a href="/administrator/breweries" class="dash-card amber">
+                    <i class="fas fa-industry"></i>
+                    <div><strong>Birrifici</strong><span>Database birrifici</span></div>
+                    <em>→</em>
+                </a>
+                <a href="/administrator/statistics" class="dash-card green">
+                    <i class="fas fa-chart-line"></i>
+                    <div><strong>Statistiche</strong><span>Analytics e report</span></div>
+                    <em>→</em>
+                </a>
             </div>
-        </div>
-        
-        <!-- Gestione Recensioni -->
-        <div class="col-md-6 col-xl-3 mb-4">
-            <div class="card h-100 border-success">
-                <div class="card-body text-center">
-                    <i class="fas fa-star fa-3x text-success mb-3"></i>
-                    <h5 class="card-title">Gestione Recensioni</h5>
-                    <p class="card-text">Monitora recensioni, gestisci contenuti e visualizza statistiche di sistema.</p>
-                    <div class="mt-auto">
-                        <a href="/administrator/statistics" class="btn btn-success">
-                            <i class="fas fa-chart-bar"></i> Statistiche
-                        </a>
-                        <small class="text-muted d-block mt-2">Dashboard completa</small>
-                    </div>
-                </div>
+        </section>
+
+        <!-- Validazione AI -->
+        <section class="dash-section">
+            <h2><i class="fas fa-robot"></i> Validazione AI</h2>
+            <div class="cards-row">
+                <a href="/administrator/validation/breweries" class="dash-card purple">
+                    <i class="fas fa-building"></i>
+                    <div><strong>Birrifici</strong><span>Da approvare</span></div>
+                    <span class="badge" id="breweryBadge">0</span>
+                </a>
+                <a href="/administrator/validation/beers" class="dash-card purple">
+                    <i class="fas fa-beer-mug-empty"></i>
+                    <div><strong>Birre</strong><span>Da approvare</span></div>
+                    <span class="badge" id="beerBadge">0</span>
+                </a>
+                <a href="/administrator/review-beer-connections" class="dash-card purple">
+                    <i class="fas fa-link"></i>
+                    <div><strong>Connessioni</strong><span>Review → Beer</span></div>
+                    <em>→</em>
+                </a>
             </div>
-        </div>
-        
-        <!-- Validazione Dati -->
-        <div class="col-md-6 col-xl-3 mb-4">
-            <div class="card h-100 border-danger">
-                <div class="card-body text-center">
-                    <i class="fas fa-check-circle fa-3x text-danger mb-3"></i>
-                    <h5 class="card-title">Validazione Dati</h5>
-                    <p class="card-text">Rivedi e approva birrifici e birre estratti automaticamente dall'AI.</p>
-                    <div class="mt-auto">
-                        <a href="/administrator/validation/breweries" class="btn btn-danger">
-                            <i class="fas fa-industry"></i> Valida Birrifici
-                            <span id="breweryBadge" class="badge bg-light text-dark ms-1" style="display: none;">0</span>
-                        </a>
-                        <a href="/administrator/validation/beers" class="btn btn-outline-danger mt-2">
-                            <i class="fas fa-beer"></i> Valida Birre
-                            <span id="beerBadge" class="badge bg-light text-dark ms-1" style="display: none;">0</span>
-                        </a>
-                    </div>
-                </div>
+        </section>
+
+        <!-- Sistema -->
+        <section class="dash-section">
+            <h2><i class="fas fa-cogs"></i> Sistema</h2>
+            <div class="sys-grid">
+                <a href="/api/cache" class="sys-btn"><i class="fas fa-database"></i> Cache</a>
+                <a href="/administrator/queues" class="sys-btn"><i class="fas fa-tasks"></i> Code</a>
+                <a href="/content-moderation" class="sys-btn"><i class="fas fa-shield-alt"></i> Moderazione</a>
+                <a href="/administrator/brewery-matching-test" class="sys-btn"><i class="fas fa-search"></i> Test AI</a>
             </div>
-        </div>
-        
-        <!-- Sistema e Cache -->
-        <div class="col-md-6 col-xl-3 mb-4">
-            <div class="card h-100 border-info">
-                <div class="card-body text-center">
-                    <i class="fas fa-cogs fa-3x text-info mb-3"></i>
-                    <h5 class="card-title">Sistema</h5>
-                    <p class="card-text">Gestisci cache, logs di sistema e impostazioni globali dell'applicazione.</p>
-                    <div class="mt-auto">
-                        <a href="/api/cache" class="btn btn-info">
-                            <i class="fas fa-database"></i> Gestione Cache
-                        </a>
-                        <a href="/content-moderation" class="btn btn-outline-info">
-                            <i class="fas fa-shield-alt"></i> Moderazione
-                        </a>
-                        <a href="/administrator/brewery-matching-test" class="btn btn-outline-info mt-2">
-                            <i class="fas fa-search-location"></i> Test AI Matching
-                        </a>
-                    </div>
-                </div>
+        </section>
+
+        <!-- Azioni Rapide -->
+        <section class="dash-section">
+            <h2><i class="fas fa-bolt"></i> Azioni Rapide</h2>
+            <div class="quick-row">
+                <a href="/administrator/users/new" class="qbtn blue"><i class="fas fa-user-plus"></i> Nuovo Utente</a>
+                <a href="/administrator/breweries/new" class="qbtn amber"><i class="fas fa-plus"></i> Nuovo Birrificio</a>
+                <a href="/administrator/incomplete-breweries" class="qbtn red"><i class="fas fa-exclamation-triangle"></i> Incompleti</a>
+                <a href="/" class="qbtn gray"><i class="fas fa-home"></i> Home</a>
             </div>
-        </div>
-    </div>
-    
-    <!-- Statistiche rapide -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-chart-bar"></i> Statistiche Rapide</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-md-3">
-                            <div class="border-end">
-                                <h3 class="text-primary">--</h3>
-                                <p class="text-muted">Utenti Totali</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="border-end">
-                                <h3 class="text-warning">--</h3>
-                                <p class="text-muted">Birrifici</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="border-end">
-                                <h3 class="text-success">--</h3>
-                                <p class="text-muted">Recensioni</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <h3 class="text-info">--</h3>
-                            <p class="text-muted">Birre</p>
-                        </div>
-                    </div>
-                    <small class="text-muted">
-                        <i class="fas fa-info-circle"></i> 
-                        <a href="/administrator/statistics" class="text-decoration-none">Visualizza statistiche complete ›</a>
-                    </small>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Azioni rapide -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-bolt"></i> Azioni Rapide</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Gestione Contenuti</h6>
-                            <div class="d-flex flex-wrap gap-2">
-                                <a href="/administrator/users/new" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-user-plus"></i> Nuovo Utente
-                                </a>
-                                <a href="/administrator/breweries/new" class="btn btn-sm btn-outline-warning">
-                                    <i class="fas fa-plus"></i> Nuovo Birrificio
-                                </a>
-                                <a href="/api/cache" class="btn btn-sm btn-outline-info">
-                                    <i class="fas fa-trash"></i> Pulisci Cache
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Monitoraggio</h6>
-                            <div class="d-flex flex-wrap gap-2">
-                                <a href="/content-moderation" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-shield-alt"></i> Test Moderazione
-                                </a>
-                                <a href="/administrator/brewery-matching-test" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-search-location"></i> Test AI Matching
-                                </a>
-                                <button class="btn btn-sm btn-outline-secondary" disabled>
-                                    <i class="fas fa-chart-line"></i> Report
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" disabled>
-                                    <i class="fas fa-download"></i> Export Dati
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        </section>
+    </main>
 </div>
 
 <script>
-// Carica conteggi validazione
-async function loadValidationCounts() {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Quick stats
     try {
-        const response = await fetch('/administrator/validation/counts');
-        const data = await response.json();
-        
-        if (data.success) {
-            // Aggiorna badge birrifici
-            if (data.counts.breweries > 0) {
-                const breweryBadge = document.getElementById('breweryBadge');
-                breweryBadge.textContent = data.counts.breweries;
-                breweryBadge.style.display = 'inline';
-            }
-            
-            // Aggiorna badge birre
-            if (data.counts.beers > 0) {
-                const beerBadge = document.getElementById('beerBadge');
-                beerBadge.textContent = data.counts.beers;
-                beerBadge.style.display = 'inline';
+        const r = await fetch('/administrator/api/quick-stats');
+        if (r.ok) {
+            const d = await r.json();
+            if (d.success) {
+                document.getElementById('sUsers').textContent = d.stats.users || 0;
+                document.getElementById('sBreweries').textContent = d.stats.breweries || 0;
+                document.getElementById('sBeers').textContent = d.stats.beers || 0;
+                document.getElementById('sReviews').textContent = d.stats.reviews || 0;
             }
         }
-    } catch (error) {
-        console.error('Errore caricamento conteggi validazione:', error);
-    }
-}
-
-// Carica al load della pagina
-document.addEventListener('DOMContentLoaded', loadValidationCounts);
+    } catch(e) {}
+    
+    // Validation counts
+    try {
+        const r = await fetch('/administrator/validation/counts');
+        if (r.ok) {
+            const d = await r.json();
+            if (d.success) {
+                const bb = document.getElementById('breweryBadge');
+                const be = document.getElementById('beerBadge');
+                if (d.counts.breweries > 0) { bb.textContent = d.counts.breweries; bb.classList.add('active'); }
+                if (d.counts.beers > 0) { be.textContent = d.counts.beers; be.classList.add('active'); }
+            }
+        }
+    } catch(e) {}
+});
 </script>
 {% endblock %}

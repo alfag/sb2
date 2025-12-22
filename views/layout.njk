@@ -35,65 +35,64 @@
     <!-- Review Modal CSS -->
     <link rel="stylesheet" href="/css/reviewModal.css">
     
+    <!-- Geolocation Consent Modal CSS -->
+    <link rel="stylesheet" href="/css/geolocation.css"> <!-- 📍 NEW -->
+    
+    <!-- Notifications System CSS -->
+    <link rel="stylesheet" href="/css/notifications.css"> <!-- 🔔 Toast notifications -->
+    
+    <!-- Welcome Page Modules CSS -->
+    <link rel="stylesheet" href="/css/breweriesModule.css"> <!-- 🏭 Breweries grid -->
+    <link rel="stylesheet" href="/css/latestReviewsModule.css"> <!-- ⭐ Latest reviews -->
+    
     {% block head %}{% endblock %}
 </head>
 
 <body>
-    <!-- Alert Messages -->
-    {% if message %}
-    <div class="alert-container" role="alert" aria-live="polite">
-        {% if message.error %}
-        <div class="alert alert-error alert-dismissible">
-            <div class="alert-icon">⚠️</div>
-            <div class="alert-content">
-                <div class="alert-message">{{ message.error }}</div>
-            </div>
-            <button class="alert-close" aria-label="Chiudi">×</button>
-        </div>
-        {% endif %}
-        
-        {% if message.success %}
-        <div class="alert alert-success alert-dismissible">
-            <div class="alert-icon">✓</div>
-            <div class="alert-content">
-                <div class="alert-message">{{ message.success }}</div>
-            </div>
-            <button class="alert-close" aria-label="Chiudi">×</button>
-        </div>
-        {% endif %}
-        
-        {% if message.info %}
-        <div class="alert alert-info alert-dismissible">
-            <div class="alert-icon">ℹ️</div>
-            <div class="alert-content">
-                <div class="alert-message">{{ message.info }}</div>
-            </div>
-            <button class="alert-close" aria-label="Chiudi">×</button>
-        </div>
-        {% endif %}
-        
-        {% if message.warning %}
-        <div class="alert alert-warning alert-dismissible">
-            <div class="alert-icon">⚠️</div>
-            <div class="alert-content">
-                <div class="alert-message">{{ message.warning }}</div>
-            </div>
-            <button class="alert-close" aria-label="Chiudi">×</button>
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
+    <!-- Notifications Container (Toast) -->
+    <div id="notifications-container" class="notifications-container"></div>
 
     <!-- Navigation -->
         <!-- Navigation -->
     <nav class="navbar" role="navigation" aria-label="Navigazione principale">
         <div class="navbar-container">
-            <!-- Left Section: Hamburger Menu -->
+            <!-- Left Section: Hamburger Menu or Home Icon -->
             <div class="navbar-left">
-                <!-- Mobile Menu Toggle -->
-                <button class="navbar-toggle" aria-label="Menu" aria-expanded="false" id="navbar-toggle">
-                    <span class="navbar-toggle-icon"></span>
-                </button>
+                {% if user %}
+                    {# Determine if role menu has items based on role #}
+                    {% set rolePriorityNav = ['administrator', 'brewery', 'customer'] %}
+                    {% set sortedRolesNav = [] %}
+                    {% for role in rolePriorityNav %}
+                        {% if user.role is defined and (user.role is iterable and role in user.role or user.role == role) %}
+                            {% set sortedRolesNav = sortedRolesNav.concat([role]) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% set currentRoleNav = (activeRole if activeRole is defined and activeRole else (sortedRolesNav | first)) %}
+                    
+                    {# Check if role has menu items - customer menu is empty #}
+                    {% set hasMenuItems = (currentRoleNav == 'administrator' or currentRoleNav == 'brewery') %}
+                    
+                    {% if hasMenuItems %}
+                        <!-- Mobile Menu Toggle (Hamburger) -->
+                        <button class="navbar-toggle" aria-label="Menu" aria-expanded="false" id="navbar-toggle">
+                            <span class="navbar-toggle-icon"></span>
+                        </button>
+                    {% else %}
+                        <!-- Home Icon (no menu items for this role) -->
+                        <a href="/" class="navbar-home-btn" aria-label="Torna alla home">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                            </svg>
+                        </a>
+                    {% endif %}
+                {% else %}
+                    <!-- Guest: Home Icon -->
+                    <a href="/" class="navbar-home-btn" aria-label="Torna alla home">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                        </svg>
+                    </a>
+                {% endif %}
             </div>
 
             <!-- Center Section: Brand -->
@@ -192,12 +191,13 @@
                 {% else %}
                     <!-- Login Button (when not logged in) -->
                     <a href="/login" class="btn navbar-auth-btn">
-                        <!-- Hidden SVG gradient definition -->
+                        <!-- Hidden SVG gradient definition - Ambra/Dorato -->
                         <svg width="0" height="0" style="position: absolute;">
                             <defs>
                                 <linearGradient id="loginGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-                                    <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                                    <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+                                    <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
                                 </linearGradient>
                             </defs>
                         </svg>
@@ -244,6 +244,43 @@
 
     <!-- Main Content -->
     <main class="main-content" role="main">
+        <!-- Flash Messages (nel corpo pagina) -->
+        {% if message %}
+        <div class="flash-messages-container" role="alert" aria-live="polite">
+            {% if message.error %}
+            <div class="flash-message flash-error">
+                <span class="flash-icon">❌</span>
+                <span class="flash-text">{{ message.error }}</span>
+                <button class="flash-close" aria-label="Chiudi">×</button>
+            </div>
+            {% endif %}
+            
+            {% if message.success %}
+            <div class="flash-message flash-success">
+                <span class="flash-icon">✅</span>
+                <span class="flash-text">{{ message.success }}</span>
+                <button class="flash-close" aria-label="Chiudi">×</button>
+            </div>
+            {% endif %}
+            
+            {% if message.info %}
+            <div class="flash-message flash-info">
+                <span class="flash-icon">ℹ️</span>
+                <span class="flash-text">{{ message.info }}</span>
+                <button class="flash-close" aria-label="Chiudi">×</button>
+            </div>
+            {% endif %}
+            
+            {% if message.warning %}
+            <div class="flash-message flash-warning">
+                <span class="flash-icon">⚠️</span>
+                <span class="flash-text">{{ message.warning }}</span>
+                <button class="flash-close" aria-label="Chiudi">×</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
         {% block content %}{% endblock %}
     </main>
 
@@ -251,9 +288,6 @@
     <footer class="footer" role="contentinfo">
         <div class="footer-container container">
             <div class="footer-content">
-                <div class="footer-brand">
-                    <strong>SharingBeer 2.0</strong>
-                </div>
                 <div class="footer-links">
                     <a href="/privacy" class="footer-link">Privacy</a>
                     <a href="/terms" class="footer-link">Termini</a>
@@ -268,14 +302,26 @@
 
     <!-- AI Loading Overlay -->
     <div id="ai-loading-overlay" class="ai-loading-overlay" role="status" aria-live="polite" aria-hidden="true">
-        <div class="beer-bottle-spinner">
-            <div class="bottle-container">
-                <div class="bottle-neck"></div>
-                <div class="bottle-label">BEER<br>ANALYSIS</div>
-                <div class="beer-liquid"></div>
-                <div class="beer-foam"></div>
+        <div class="beer-loading-container">
+            <!-- Animated Beer Glass -->
+            <div class="beer-glass">
+                <div class="beer-liquid-wave"></div>
+                <div class="beer-bubbles">
+                    <span></span><span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="beer-foam-layer"></div>
+                <div class="glass-shine"></div>
             </div>
-            <h3 class="loading-text">Attendere...</h3>
+            
+            <!-- Loading Text with Dots Animation -->
+            <div class="loading-message">
+                <span class="loading-text-main">Analisi in corso</span>
+                <span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+            </div>
+            
+            <!-- Subtle Tagline -->
+            <p class="loading-tagline">La magia della birra sta per rivelarsi 🍺</p>
         </div>
     </div>
 
@@ -292,6 +338,8 @@
     <script src="/js/modules/webSearchModule.js"></script>
     <script src="/js/modules/reviewModule.js"></script>
     <script src="/js/modules/breweriesModule.js"></script>
+    <script src="/js/modules/latestReviewsModule.js"></script>
+    <script src="/js/modules/geolocationModule.js"></script> <!-- 📍 NEW: Geolocation with consent -->
     <script src="/js/roleSelector.js"></script>
     <script src="/js/modularApp.js"></script>
     <script src="/js/scripts.js"></script>
@@ -372,6 +420,25 @@
             button.addEventListener('click', function() {
                 this.closest('.alert').remove();
             });
+        });
+        
+        // Flash messages dismissible
+        const flashCloseButtons = document.querySelectorAll('.flash-close');
+        flashCloseButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const flashMessage = this.closest('.flash-message');
+                flashMessage.style.animation = 'fadeOut 300ms ease';
+                setTimeout(() => flashMessage.remove(), 300);
+            });
+        });
+        
+        // Auto-dismiss flash messages after 6 seconds
+        const flashMessages = document.querySelectorAll('.flash-message');
+        flashMessages.forEach(flash => {
+            setTimeout(() => {
+                flash.style.animation = 'fadeOut 300ms ease';
+                setTimeout(() => flash.remove(), 300);
+            }, 6000);
         });
         
         // Auto-dismiss alerts after 5 seconds

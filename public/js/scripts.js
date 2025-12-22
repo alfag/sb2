@@ -21,6 +21,14 @@ function logDebug(message, data = null) {
     }
 }
 
+function logWarn(message, data = null) {
+    if (data) {
+        console.warn(`[Photo Crop Warning] ${message}:`, data);
+    } else {
+        console.warn(`[Photo Crop Warning] ${message}`);
+    }
+}
+
 // Funzione per mostrare dialog di scelta sorgente foto su mobile
 function showPhotoSourceDialog(reviewPhotoInput) {
   // Crea un dialog per scegliere la sorgente della foto su mobile
@@ -344,7 +352,7 @@ function initializeReviewButtonFallback() {
     return false;
 }
 
-function handleReviewButtonClick(e) {
+async function handleReviewButtonClick(e) {
     console.log('=== CLICK INTERCETTATO ===');
     console.log('Timestamp:', new Date().toISOString());
     console.log('Event type:', e.type);
@@ -361,6 +369,114 @@ function handleReviewButtonClick(e) {
     
     logDebug('=== BOTTONE PRINCIPALE CLICCATO ===');
     logDebug('Bottone principale "Pubblica una recensione" cliccato');
+    
+    // 🔒 CONTROLLO AUTENTICAZIONE E RUOLO CUSTOMER
+    console.log('Verifica autenticazione e ruolo customer...');
+    try {
+        const authResponse = await fetch('/api/user/roles', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!authResponse.ok) {
+            console.log('Utente non autenticato - redirect al login');
+            
+            // Salva l'intenzione di creare una recensione per riprenderla dopo il login
+            sessionStorage.setItem('pendingAction', 'createReview');
+            
+            // Mostra notifica temporizzata invece di alert bloccante
+            if (window.utils && window.utils.showNotification) {
+                window.utils.showNotification(
+                    'Accesso richiesto. Reindirizzamento al login in corso...',
+                    'info',
+                    3000
+                );
+            }
+            
+            // Auto-redirect dopo 3 secondi (migliore UX)
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 3000);
+            
+            return;
+        }
+        
+        const userData = await authResponse.json();
+        console.log('Dati utente ricevuti:', userData);
+        
+        // Verifica ruolo customer
+        const hasCustomerRole = userData.roles && userData.roles.includes('customer');
+        const isCustomerActive = userData.activeRole === 'customer';
+        
+        if (!hasCustomerRole) {
+            console.log('Utente non ha ruolo customer');
+            if (window.utils && window.utils.showNotification) {
+                window.utils.showNotification(
+                    'Per creare recensioni è necessario il ruolo customer. Contatta l\'amministratore per maggiori informazioni.',
+                    'warning',
+                    5000
+                );
+            } else {
+                alert('Per creare recensioni è necessario il ruolo customer.\n\nPer maggiori informazioni contatta l\'amministratore.');
+            }
+            return;
+        }
+        
+        if (!isCustomerActive) {
+            console.log('Ruolo customer non attivo - deve essere selezionato');
+            if (window.utils && window.utils.showNotification) {
+                window.utils.showNotification(
+                    'Per creare recensioni devi selezionare il ruolo "Customer" dal menu in alto. Clicca sul tuo nome utente.',
+                    'warning',
+                    5000
+                );
+            } else {
+                alert('Per creare recensioni devi selezionare il ruolo "Customer" dal menu in alto.\n\nClicca sul tuo nome utente e seleziona "Customer" dal menu a tendina.');
+            }
+            return;
+        }
+        
+        console.log('✅ Autenticazione e ruolo customer verificati - procedo con il processo');
+        logDebug('Utente autenticato con ruolo customer - avvio processo recensione');
+        
+    } catch (error) {
+        console.error('Errore nella verifica autenticazione:', error);
+        logError('Errore verifica autenticazione', error);
+        alert('Errore nella verifica dell\'autenticazione. Ricarica la pagina e riprova.');
+        return;
+    }
+
+    // 📍 CATTURA GEOLOCALIZZAZIONE CON MODAL CONSENT
+    // Modal appare PRIMA, browser viene chiamato SOLO se utente clicca "Consenti"
+    // Questo previene la doppia richiesta di permesso
+    console.log('📍 Richiesta consenso geolocalizzazione...');
+    
+    try {
+        // Mostra modal e aspetta decisione utente
+        // Il modal gestisce internamente la chiamata al browser solo se necessario
+        const locationData = await window.GeolocationModule.getLocation(true);
+        window.currentReviewLocation = locationData;
+        
+        if (locationData.consentGiven && locationData.coordinates) {
+            console.log('📍 ✅ GPS acquisito con consenso:', {
+                lat: locationData.coordinates.latitude,
+                lng: locationData.coordinates.longitude,
+                accuracy: locationData.coordinates.accuracy,
+                source: locationData.source
+            });
+        } else {
+            console.log('📍 ℹ️ GPS non condiviso dall\'utente');
+        }
+    } catch (error) {
+        // Errore o consenso negato
+        console.log('📍 ℹ️ GPS non disponibile:', error.message);
+        window.currentReviewLocation = null;
+    }
+    
+    // 🔧 Issue 3: File picker si apre DOPO che l'utente ha deciso sul GPS
+    console.log('📸 Procedo con apertura file picker');
     
     // Debug elementi DOM
     const reviewPhotoInput = document.getElementById('reviewPhoto');
@@ -467,6 +583,22 @@ document.addEventListener('DOMContentLoaded', function () {
     
     if ('serviceWorker' in navigator && !isDevelopment) {
         window.addEventListener('load', function() {
+            // 🔄 Issue 2: Controlla se c'è una pendingAction da eseguire dopo il login
+            const pendingAction = sessionStorage.getItem('pendingAction');
+            if (pendingAction === 'createReview') {
+                console.log('🔄 Ripresa automatica flusso recensione dopo login');
+                sessionStorage.removeItem('pendingAction'); // Pulisci
+                
+                // Aspetta che il DOM sia completamente pronto
+                setTimeout(() => {
+                    const reviewBtn = document.getElementById('reviewButton');
+                    if (reviewBtn) {
+                        console.log('🔄 Trigger automatico bottone recensione');
+                        reviewBtn.click();
+                    }
+                }, 500); // Piccolo delay per assicurare che tutto sia pronto
+            }
+            
             navigator.serviceWorker.register('/service-worker.js')
                 .then(function(registration) {
                     console.log('[INFO] Service Worker registrato con successo:', registration);
@@ -643,6 +775,11 @@ document.addEventListener('DOMContentLoaded', function () {
             showWarningMessage(message);
         }
     }
+    
+    // ===== NOTA: Polling asincrono rimosso =====
+    // L'elaborazione avviene completamente in background sul server.
+    // L'utente riceve solo una conferma immediata dell'upload.
+    // I dati vengono salvati automaticamente nel database quando pronti.
     
     // Funzione per iniziare il processo di recensione con i dati AI
     function startReviewProcess(aiData) {
@@ -1053,9 +1190,134 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         
+        // 🔧 FIX SESSIONE: Se reviewId già esiste, salta STEP 1 e vai direttamente a STEP 2
+        // Questo previene la perdita di sessione quando l'utente riprova dopo errore di moderazione
+        if (window.currentReviewId) {
+            console.log('♻️ ReviewId già esistente - SKIP STEP 1, vado direttamente a STEP 2:', window.currentReviewId);
+            
+            // Mostra loading
+            if (window.utils && window.utils.showNotification) {
+                window.utils.showNotification('Pubblicazione recensioni in corso...', 'info', 3000);
+            }
+            
+            // Vai direttamente a STEP 2 con confirmData fake
+            const fakeConfirmData = {
+                success: true,
+                data: {
+                    reviewId: window.currentReviewId,
+                    status: 'existing',
+                    isRetry: true
+                }
+            };
+            
+            return submitUserReviews(reviews, callbacks, fakeConfirmData);
+        }
+        
+        // Mostra loading
+        if (window.utils && window.utils.showNotification) {
+            window.utils.showNotification('Creazione recensione in corso...', 'info', 3000);
+        }
+
+        // ✨ STEP 1: Chiama /confirm-and-create per creare Review in DB
+        // Invia anche le reviews per la moderazione PREVENTIVA (Soluzione B)
+        fetch('/review/confirm-and-create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                reviews: reviews.map(r => ({
+                    beerName: r.beerName,
+                    breweryName: r.breweryName,
+                    tastingNotes: r.tastingNotes,
+                    reviewNotes: r.reviewNotes,
+                    notes: r.notes,
+                    appearance: r.appearance,
+                    aroma: r.aroma,
+                    taste: r.taste,
+                    mouthfeel: r.mouthfeel
+                }))
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    // 🛡️ Gestione errore moderazione da STEP 1
+                    if (data.inappropriateContent) {
+                        console.log('❌ STEP 1 - Moderazione fallita:', data);
+                        
+                        // Mostra SOLO notifica toast (no banner duplicato)
+                        const errorMsg = data.message || '⚠️ Contenuto inappropriato rilevato. Rivedi le tue note ed evita linguaggio offensivo.';
+                        
+                        if (window.utils && window.utils.showNotification) {
+                            window.utils.showNotification(errorMsg, 'error', 10000);
+                        }
+                        
+                        if (callbacks.onError) {
+                            callbacks.onError(errorMsg);
+                        }
+                        
+                        throw new Error(errorMsg);
+                    }
+                    throw new Error(data.message || 'Errore creazione Review');
+                });
+            }
+            return response.json();
+        })
+        .then(confirmData => {
+            console.log('✅ Step 1 - Review creato:', confirmData);
+            
+            if (!confirmData.success) {
+                throw new Error(confirmData.message || 'Errore creazione Review');
+            }
+
+            // 🔧 FIX #2: Salva reviewId globalmente per STEP 2
+            if (confirmData.data && confirmData.data.reviewId) {
+                window.currentReviewId = confirmData.data.reviewId;
+                console.log('📥 ReviewId salvato per STEP 2:', window.currentReviewId);
+            } else {
+                console.warn('⚠️ ReviewId NON presente in risposta STEP 1');
+            }
+
+            // ✨ STEP 2: Ora invia le valutazioni utente a /create-multiple
+            return submitUserReviews(reviews, callbacks, confirmData);
+        })
+        .catch(error => {
+            console.error('❌ Errore Step 1 (confirm-and-create):', error);
+            
+            // Se è errore di moderazione, già gestito nel .then() - non duplicare notifiche
+            if (error.message && error.message.includes('Contenuto inappropriato')) {
+                return; // Exit early - notifica già mostrata
+            }
+            
+            let errorMessage = 'Si è verificato un problema durante la creazione della recensione.';
+            if (error.message && error.message.includes('Sessione scaduta')) {
+                errorMessage = 'Sessione scaduta. Ricarica l\'immagine.';
+            }
+            
+            if (window.utils && window.utils.showNotification) {
+                window.utils.showNotification(errorMessage, 'error', 5000);
+            }
+            
+            if (callbacks.onError) {
+                callbacks.onError(errorMessage);
+            }
+        });
+    };
+
+    /**
+     * Step 2: Invia le valutazioni utente dopo che Review è stato creato
+     */
+    function submitUserReviews(reviews, callbacks, confirmData) {
         // Prepara payload per backend
         const payload = {
-            reviews: reviews.map(review => {
+            reviews: reviews.map((review, idx) => {
+                console.log(`🔍 DEBUG Review ${idx}:`, {
+                    overallRating: review.overallRating,
+                    beerName: review.beerName,
+                    allKeys: Object.keys(review)
+                });
+                
                 const detailedRatings = {};
                 
                 // Aggiungi solo i rating dettagliati che hanno valore > 0
@@ -1095,20 +1357,72 @@ document.addEventListener('DOMContentLoaded', function () {
                     aiData: review.aiData,
                     thumbnail: review.thumbnail
                 };
-            }),
-            // 🔧 FIX: Includi dati AI completi come fallback per sessioni scadute
-            // Mappa la struttura che il backend si aspetta
-            aiAnalysisData: window.currentReviewData ? {
+            })
+        };
+        
+        // 🔧 FIX: Includi aiAnalysisData solo se esiste, altrimenti ometti il campo
+        console.log('🔍 DEBUG: Verifica window.currentReviewData prima di payload:', {
+            exists: !!window.currentReviewData,
+            bottles: window.currentReviewData?.bottles?.length || 0,
+            brewery: window.currentReviewData?.brewery,
+            breweryId: window.currentReviewData?.breweryId,
+            beerIds: window.currentReviewData?.beerIds?.length || 0
+        });
+        
+        if (window.currentReviewData) {
+            payload.aiAnalysisData = {
                 bottles: window.currentReviewData.bottles,
                 brewery: window.currentReviewData.brewery,
                 breweryId: window.currentReviewData.breweryId,
                 beerIds: window.currentReviewData.beerIds,
+                analysisId: window.currentReviewData.analysisId,
+                timestamp: window.currentReviewData.timestamp,
                 // Include anche i dati grezzi per compatibilità
                 ...window.currentReviewData
-            } : null
-        };
+            };
+        } else {
+            console.warn('⚠️ WARNING: window.currentReviewData è null - aiAnalysisData non incluso nel payload');
+            console.log('🔍 DEBUG: Verifica window.reviewModalState come fallback:', {
+                exists: !!window.reviewModalState,
+                bottles: window.reviewModalState?.bottles?.length || 0,
+                hasBottles: window.reviewModalState?.bottles?.every(b => b.beerName !== 'Birra 1')
+            });
+            
+            // Fallback: usa window.reviewModalState se currentReviewData non esiste
+            if (window.reviewModalState && window.reviewModalState.bottles && window.reviewModalState.bottles.length > 0) {
+                console.log('🔄 Fallback: uso window.reviewModalState per aiAnalysisData');
+                payload.aiAnalysisData = {
+                    bottles: window.reviewModalState.bottles,
+                    brewery: window.reviewModalState.bottles[0]?.breweryName,
+                    breweryId: window.reviewModalState.bottles[0]?.breweryId,
+                    beerIds: window.reviewModalState.bottles.map(b => b.beerId).filter(id => id),
+                    analysisId: 'fallback_from_modal_state',
+                    timestamp: new Date().toISOString()
+                };
+            }
+        }
+        
+        // ✨ NUOVO: Aggiungi reviewId dal step di conferma
+        if (confirmData && confirmData.data && confirmData.data.reviewId) {
+            payload.reviewId = confirmData.data.reviewId;
+            console.log('✅ ReviewId aggiunto al payload:', confirmData.data.reviewId);
+        }
+        
+        // 📍 NUOVO: Aggiungi dati geolocalizzazione se disponibili
+        if (window.currentReviewLocation) {
+            payload.locationData = window.currentReviewLocation;
+            console.log('📍 Dati geolocalizzazione aggiunti al payload:', {
+                consentGiven: window.currentReviewLocation.consentGiven,
+                source: window.currentReviewLocation.source,
+                hasCoordinates: !!window.currentReviewLocation.coordinates,
+                timestamp: window.currentReviewLocation.timestamp
+            });
+        } else {
+            console.log('📍 Nessun dato geolocalizzazione disponibile (consent negato o non richiesto)');
+        }
         
         console.log('📦 Payload preparato:', payload);
+        console.log('🔍 Payload.reviews[0] dettagliato:', JSON.stringify(payload.reviews[0], null, 2));
         
         // Mostra loading
         if (window.utils && window.utils.showNotification) {
@@ -1126,6 +1440,14 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(response => response.json())
         .then(data => {
             console.log('✅ Risposta backend:', data);
+            
+            // 🔍 DEBUG: Log dettagli errore validazione
+            if (data.error && data.details) {
+                console.error('❌ Dettagli errore validazione:', JSON.stringify(data.details, null, 2));
+                data.details.forEach((detail, idx) => {
+                    console.error(`   ${idx + 1}. Recensione ${detail.reviewIndex + 1}: ${detail.violatingFields} campo/i inappropriato/i - Campi: ${detail.fieldNames ? detail.fieldNames.join(', ') : 'N/A'}`);
+                });
+            }
             
             if (data.success) {
                 if (window.utils && window.utils.showNotification) {
@@ -1152,43 +1474,52 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (data.details && Array.isArray(data.details)) {
                         data.details.forEach(violation => {
                             const reviewIndex = violation.reviewIndex;
-                            const field = violation.field;
+                            const fieldNames = violation.fieldNames || [];
                             
-                            // Trova il campo textarea corrispondente
-                            let selector = null;
-                            if (field === 'tastingNotes' || field === 'reviewNotes' || field === 'notes') {
-                                // Campi note generali
-                                selector = `[data-notes="${reviewIndex}"][data-category="general"]`;
-                            } else if (field === 'appearance' || field === 'aroma' || field === 'taste' || field === 'mouthfeel') {
-                                // Campi note dettagliate per categoria
-                                selector = `[data-notes="${reviewIndex}"][data-category="${field}"]`;
-                            }
-                            
-                            if (selector) {
-                                const textarea = document.querySelector(selector);
-                                if (textarea) {
-                                    // Aggiungi classe errore e bordo rosso
-                                    textarea.classList.add('field-error');
-                                    textarea.style.borderColor = '#ef4444';
-                                    textarea.style.borderWidth = '2px';
-                                    textarea.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
-                                    
-                                    // Rimuovi errore quando utente modifica
-                                    textarea.addEventListener('input', function clearError() {
-                                        textarea.classList.remove('field-error');
-                                        textarea.style.borderColor = '';
-                                        textarea.style.borderWidth = '';
-                                        textarea.style.boxShadow = '';
-                                        textarea.removeEventListener('input', clearError);
-                                    }, { once: true });
-                                    
-                                    // Scroll al primo campo con errore
-                                    if (!document.querySelector('.field-error-scrolled')) {
-                                        textarea.classList.add('field-error-scrolled');
-                                        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            // Itera attraverso tutti i campi inappropriati
+                            fieldNames.forEach(field => {
+                                // Trova il campo textarea corrispondente
+                                let selector = null;
+                                if (field === 'tastingNotes' || field === 'reviewNotes' || field === 'notes') {
+                                    // Campi note generali
+                                    selector = `[data-notes="${reviewIndex}"][data-category="general"]`;
+                                } else if (field === 'appearance' || field === 'aroma' || field === 'taste' || field === 'mouthfeel') {
+                                    // Campi note dettagliate per categoria
+                                    selector = `[data-notes="${reviewIndex}"][data-category="${field}"]`;
+                                } else if (field === 'beerName') {
+                                    // Campo nome birra (se presente nel form)
+                                    selector = `[data-beer-name="${reviewIndex}"]`;
+                                } else if (field === 'breweryName') {
+                                    // Campo nome birrificio (se presente nel form)
+                                    selector = `[data-brewery-name="${reviewIndex}"]`;
+                                }
+                                
+                                if (selector) {
+                                    const textarea = document.querySelector(selector);
+                                    if (textarea) {
+                                        // Aggiungi classe errore e bordo rosso
+                                        textarea.classList.add('field-error');
+                                        textarea.style.borderColor = '#ef4444';
+                                        textarea.style.borderWidth = '2px';
+                                        textarea.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                                        
+                                        // Rimuovi errore quando utente modifica
+                                        textarea.addEventListener('input', function clearError() {
+                                            textarea.classList.remove('field-error');
+                                            textarea.style.borderColor = '';
+                                            textarea.style.borderWidth = '';
+                                            textarea.style.boxShadow = '';
+                                            textarea.removeEventListener('input', clearError);
+                                        }, { once: true });
+                                        
+                                        // Scroll al primo campo con errore
+                                        if (!document.querySelector('.field-error-scrolled')) {
+                                            textarea.classList.add('field-error-scrolled');
+                                            textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        }
                                     }
                                 }
-                            }
+                            });
                         });
                     }
                 } else if (data.needsReanalysis) {
@@ -1200,8 +1531,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     callbacks.onError(errorMessage);
                 }
                 
-                // Mostra anche notifica globale
-                if (window.utils && window.utils.showNotification) {
+                // ⚠️ NON mostrare notifica globale per inappropriateContent - usa solo banner nel modal
+                // Mostra notifica globale SOLO per altri tipi di errore (non contenuto inappropriato)
+                if (!data.inappropriateContent && window.utils && window.utils.showNotification) {
                     window.utils.showNotification(errorMessage, 'error', 10000);
                 }
                 
@@ -1227,7 +1559,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         });
-    };
+    } // Fine submitUserReviews
     
     function publishReviews() {
         // Se il ReviewModule è disponibile, non usare questo sistema legacy
@@ -1793,7 +2125,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let lastMid = null;
 
         reviewPhotoInput.addEventListener('change', function () {
-            // Reset stato crop e preview
+            // Reset COMPLETO stato crop e preview per evitare invio immagini precedenti
             cropRect = null;
             isDragging = false;
             draggingImg = false;
@@ -1808,6 +2140,7 @@ document.addEventListener('DOMContentLoaded', function () {
             endY = undefined;
             croppedImageForAI = null; // Reset immagine croppata
             originalImageSrc = null; // Reset immagine originale
+            photoPreview.src = ''; // Reset preview per evitare invio immagine precedente
             photoPreview.className = 'photo-preview-image';
             photoPreview.style.width = '';
             photoPreview.style.height = '';
@@ -1866,7 +2199,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     logError('Tipo file non valido', { type: file.type, name: file.name });
                 }
                 
-                // Mostra il bottone "Invia ad AI" per tutte le immagini valide
+                // Mostra il bottone "Usa immagine" per tutte le immagini valide
                 const sendToAIBtn = document.getElementById('sendToAI');
                 if (sendToAIBtn) sendToAIBtn.style.display = 'block';
                 
@@ -2018,9 +2351,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Ripristina modalità di composizione normale
                 ctx.globalCompositeOperation = 'source-over';
 
-                // Disegna il bordo della selezione
-                ctx.strokeStyle = '#FFD600';
-                ctx.lineWidth = 2;
+                // Disegna il bordo della selezione con gradiente ambra/dorato
+                const gradient = ctx.createLinearGradient(rectX, rectY, rectX + rectW, rectY + rectH);
+                gradient.addColorStop(0, '#fbbf24');    // Ambra chiaro
+                gradient.addColorStop(0.5, '#f59e0b');  // Ambra medio
+                gradient.addColorStop(1, '#d97706');    // Ambra scuro
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 3;
                 ctx.setLineDash([6, 4]);
                 ctx.strokeRect(rectX, rectY, rectW, rectH);
 
@@ -2335,94 +2672,183 @@ document.addEventListener('DOMContentLoaded', function () {
                 return false;
             }
             
+            // Verifica che originalImageSrc sia valido
+            if (!originalImageSrc) {
+                console.error('applyCrop: originalImageSrc non disponibile');
+                return false;
+            }
+            
+            // Salva cropRect locale per evitare problemi di timing (iOS)
+            const savedCropRect = { ...cropRect };
+            console.log('applyCrop: savedCropRect =', savedCropRect);
+            
+            // Funzione interna che esegue il crop effettivo
+            function executeCrop(imgElement) {
+                try {
+                    // Usa le dimensioni dell'immagine originale per i calcoli
+                    const originalWidth = imgElement.naturalWidth || imgElement.width;
+                    const originalHeight = imgElement.naturalHeight || imgElement.height;
+                    
+                    console.log('executeCrop: dimensioni immagine =', { originalWidth, originalHeight });
+                    
+                    // Verifica dimensioni valide
+                    if (!originalWidth || !originalHeight || originalWidth <= 0 || originalHeight <= 0) {
+                        console.error('executeCrop: dimensioni immagine non valide', { originalWidth, originalHeight });
+                        return;
+                    }
+                    
+                    // Ottieni le dimensioni del canvas renderizzato (quello che vede l'utente)
+                    const canvasRect = photoCanvas.getBoundingClientRect();
+                    const canvasDisplayWidth = canvasRect.width;
+                    const canvasDisplayHeight = canvasRect.height;
+                    
+                    // Verifica dimensioni canvas valide
+                    if (!canvasDisplayWidth || !canvasDisplayHeight || canvasDisplayWidth <= 0 || canvasDisplayHeight <= 0) {
+                        console.error('executeCrop: dimensioni canvas non valide', { canvasDisplayWidth, canvasDisplayHeight });
+                        return;
+                    }
+                    
+                    // Calcola il rapporto di scala tra canvas interno e canvas visualizzato
+                    const scaleXCanvas = photoCanvas.width / canvasDisplayWidth;
+                    const scaleYCanvas = photoCanvas.height / canvasDisplayHeight;
+                    
+                    // Calcola il rapporto di scala tra immagine originale e canvas interno
+                    const scaleXOriginal = originalWidth / photoCanvas.width;
+                    const scaleYOriginal = originalHeight / photoCanvas.height;
+                    
+                    // Converti le coordinate del rettangolo di crop dalle coordinate canvas alle coordinate immagine originale
+                    const imgX = savedCropRect.x * scaleXOriginal;
+                    const imgY = savedCropRect.y * scaleYOriginal;
+                    const imgW = savedCropRect.w * scaleXOriginal;
+                    const imgH = savedCropRect.h * scaleYOriginal;
+                    
+                    // Assicurati che le coordinate siano entro i limiti dell'immagine originale
+                    const clampedX = Math.max(0, Math.min(imgX, originalWidth));
+                    const clampedY = Math.max(0, Math.min(imgY, originalHeight));
+                    let clampedW = Math.min(imgW, originalWidth - clampedX);
+                    let clampedH = Math.min(imgH, originalHeight - clampedY);
+                    
+                    // Validazione finale delle dimensioni (minimo 1px)
+                    clampedW = Math.max(1, Math.round(clampedW));
+                    clampedH = Math.max(1, Math.round(clampedH));
+                    
+                    console.log('Crop coordinates calculation:', { 
+                        savedCropRect,
+                        canvasSize: { w: photoCanvas.width, h: photoCanvas.height },
+                        canvasDisplay: { w: canvasDisplayWidth, h: canvasDisplayHeight },
+                        originalSize: { w: originalWidth, h: originalHeight },
+                        scaleCanvas: { x: scaleXCanvas, y: scaleYCanvas },
+                        scaleOriginal: { x: scaleXOriginal, y: scaleYOriginal },
+                        imageCoords: { x: imgX, y: imgY, w: imgW, h: imgH },
+                        clampedCoords: { x: clampedX, y: clampedY, w: clampedW, h: clampedH }
+                    });
+                    
+                    // Verifica coordinate valide
+                    if (isNaN(clampedW) || isNaN(clampedH) || clampedW <= 0 || clampedH <= 0) {
+                        console.error('executeCrop: coordinate clamped non valide', { clampedX, clampedY, clampedW, clampedH });
+                        return;
+                    }
+                    
+                    // Crea canvas temporaneo per l'area croppata
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = clampedW;
+                    tempCanvas.height = clampedH;
+                    const tctx = tempCanvas.getContext('2d');
+                    
+                    if (!tctx) {
+                        console.error('executeCrop: impossibile ottenere context 2d');
+                        return;
+                    }
+                    
+                    tctx.fillStyle = '#f2f2f2';
+                    tctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    
+                    // Disegna l'area croppata dall'immagine originale pulita (senza bordi)
+                    tctx.drawImage(imgElement, 
+                        clampedX, clampedY, clampedW, clampedH,  // area sorgente nell'immagine originale
+                        0, 0, clampedW, clampedH                 // area destinazione (dimensioni reali)
+                    );
+                    
+                    // Salva per invio AI e per display
+                    const resultDataUrl = tempCanvas.toDataURL('image/jpeg', 0.92);
+                    croppedImageForAI = resultDataUrl;
+                    
+                    // Reset completo dello stato crop per evitare bordi residui
+                    cropRect = null;
+                    isDragging = false;
+                    startX = undefined;
+                    startY = undefined;
+                    endX = undefined;
+                    endY = undefined;
+                    
+                    // Nascondi il canvas PRIMA di cambiare l'immagine per evitare sovrapposizioni
+                    photoCanvas.style.display = 'none';
+                    photoCanvas.style.opacity = '0';
+                    photoCanvas.style.pointerEvents = 'none';
+                    photoCanvas.classList.remove('active-crop');
+                    
+                    // Mostra l'immagine zoomata - con la nuova struttura le dimensioni sono gestite dal CSS
+                    photoPreview.src = resultDataUrl;
+                    
+                    // Mantieni la classe CSS per il layout responsive fisso
+                    photoPreview.className = 'photo-preview-image';
+                    
+                    // Mostra la freccia di ritorno e il bottone "Usa immagine"
+                    const backArrow = document.getElementById('backArrow');
+                    if (backArrow) backArrow.style.display = 'flex';
+                    const sendToAIBtn = document.getElementById('sendToAI');
+                    if (sendToAIBtn) sendToAIBtn.style.display = 'block';
+                    
+                    console.log('Crop applicato con successo - dimensioni:', { w: clampedW, h: clampedH });
+                } catch (err) {
+                    console.error('executeCrop: errore durante esecuzione crop', err);
+                }
+            }
+            
             // Crea un elemento immagine temporaneo dall'immagine originale per ottenere le dimensioni corrette
             const tempImg = new Image();
+            
+            // Imposta crossOrigin per evitare problemi CORS con canvas tainted
+            tempImg.crossOrigin = 'anonymous';
+            
+            // Flag per evitare doppia esecuzione
+            let cropExecuted = false;
+            
             tempImg.onload = function() {
-                // Usa le dimensioni dell'immagine originale per i calcoli
-                const originalWidth = tempImg.naturalWidth;
-                const originalHeight = tempImg.naturalHeight;
-                
-                // Ottieni le dimensioni del canvas renderizzato (quello che vede l'utente)
-                const canvasRect = photoCanvas.getBoundingClientRect();
-                const canvasDisplayWidth = canvasRect.width;
-                const canvasDisplayHeight = canvasRect.height;
-                
-                // Calcola il rapporto di scala tra canvas interno e canvas visualizzato
-                const scaleXCanvas = photoCanvas.width / canvasDisplayWidth;
-                const scaleYCanvas = photoCanvas.height / canvasDisplayHeight;
-                
-                // Calcola il rapporto di scala tra immagine originale e canvas interno
-                const scaleXOriginal = originalWidth / photoCanvas.width;
-                const scaleYOriginal = originalHeight / photoCanvas.height;
-                
-                // Converti le coordinate del rettangolo di crop dalle coordinate canvas alle coordinate immagine originale
-                const imgX = cropRect.x * scaleXOriginal;
-                const imgY = cropRect.y * scaleYOriginal;
-                const imgW = cropRect.w * scaleXOriginal;
-                const imgH = cropRect.h * scaleYOriginal;
-                
-                // Assicurati che le coordinate siano entro i limiti dell'immagine originale
-                const clampedX = Math.max(0, Math.min(imgX, originalWidth));
-                const clampedY = Math.max(0, Math.min(imgY, originalHeight));
-                const clampedW = Math.min(imgW, originalWidth - clampedX);
-                const clampedH = Math.min(imgH, originalHeight - clampedY);
-                
-                console.log('Crop coordinates calculation:', { 
-                    cropRect,
-                    canvasSize: { w: photoCanvas.width, h: photoCanvas.height },
-                    canvasDisplay: { w: canvasDisplayWidth, h: canvasDisplayHeight },
-                    originalSize: { w: originalWidth, h: originalHeight },
-                    scaleCanvas: { x: scaleXCanvas, y: scaleYCanvas },
-                    scaleOriginal: { x: scaleXOriginal, y: scaleYOriginal },
-                    imageCoords: { x: imgX, y: imgY, w: imgW, h: imgH },
-                    clampedCoords: { x: clampedX, y: clampedY, w: clampedW, h: clampedH }
-                });
-                
-                // Crea canvas temporaneo per l'area croppata
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = clampedW;
-                tempCanvas.height = clampedH;
-                const tctx = tempCanvas.getContext('2d');
-                tctx.fillStyle = '#f2f2f2';
-                tctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                
-                // Disegna l'area croppata dall'immagine originale pulita (senza bordi)
-                tctx.drawImage(tempImg, 
-                    clampedX, clampedY, clampedW, clampedH,  // area sorgente nell'immagine originale
-                    0, 0, clampedW, clampedH                 // area destinazione (dimensioni reali)
-                );
-                
-                // Salva per invio AI e per display
-                croppedImageForAI = tempCanvas.toDataURL('image/jpeg', 0.92); // Mantieni il data URL completo
-                
-                // Reset completo dello stato crop per evitare bordi residui
-                cropRect = null;
-                isDragging = false;
-                startX = undefined;
-                startY = undefined;
-                endX = undefined;
-                endY = undefined;
-                
-                // Nascondi il canvas PRIMA di cambiare l'immagine per evitare sovrapposizioni
-                photoCanvas.style.display = 'none';
-                photoCanvas.style.opacity = '0';
-                photoCanvas.style.pointerEvents = 'none';
-                photoCanvas.classList.remove('active-crop');
-                
-                // Mostra l'immagine zoomata - con la nuova struttura le dimensioni sono gestite dal CSS
-                photoPreview.src = tempCanvas.toDataURL('image/jpeg', 0.92);
-                
-                // Mantieni la classe CSS per il layout responsive fisso
-                photoPreview.className = 'photo-preview-image';
-                
-                // Mostra la freccia di ritorno e il bottone "Invia ad AI"
-                const backArrow = document.getElementById('backArrow');
-                if (backArrow) backArrow.style.display = 'flex';
-                const sendToAIBtn = document.getElementById('sendToAI');
-                if (sendToAIBtn) sendToAIBtn.style.display = 'block';
-                
-                console.log('Crop applicato - dimensioni:', { w: clampedW, h: clampedH });
+                if (!cropExecuted) {
+                    cropExecuted = true;
+                    console.log('tempImg.onload: immagine caricata correttamente');
+                    executeCrop(tempImg);
+                }
             };
+            
+            tempImg.onerror = function(e) {
+                console.error('tempImg.onerror: errore caricamento immagine', e);
+                // Fallback: prova a usare photoPreview direttamente se già caricata
+                if (photoPreview && photoPreview.naturalWidth > 0 && !cropExecuted) {
+                    cropExecuted = true;
+                    console.log('Fallback: uso photoPreview esistente');
+                    executeCrop(photoPreview);
+                }
+            };
+            
+            // Timeout di sicurezza per iOS Safari dove onload potrebbe non scattare
+            setTimeout(function() {
+                if (!cropExecuted) {
+                    console.warn('applyCrop: timeout - tentativo fallback');
+                    if (tempImg.complete && tempImg.naturalWidth > 0) {
+                        cropExecuted = true;
+                        console.log('Fallback timeout: tempImg già completa');
+                        executeCrop(tempImg);
+                    } else if (photoPreview && photoPreview.naturalWidth > 0) {
+                        cropExecuted = true;
+                        console.log('Fallback timeout: uso photoPreview');
+                        executeCrop(photoPreview);
+                    } else {
+                        console.error('applyCrop: impossibile eseguire crop - nessuna immagine disponibile');
+                    }
+                }
+            }, 500);
             
             // Usa l'immagine originale senza il canvas sovrapposto
             tempImg.src = originalImageSrc;
@@ -2528,11 +2954,11 @@ document.addEventListener('DOMContentLoaded', function () {
             backArrow.setAttribute('aria-label', 'Torna all\'immagine originale');
         }
 
-        // Gestione del nuovo bottone "Invia ad AI" con controlli robusti
+        // Gestione del bottone "Usa immagine" con controlli robusti
         const sendToAIBtn = document.getElementById('sendToAI');
         if (sendToAIBtn) {
             sendToAIBtn.addEventListener('click', function () {
-                logDebug('Invia ad AI premuto');
+                logDebug('Usa immagine premuto');
                 
                 // Previeni doppi click
                 if (sendToAIBtn.disabled) {
@@ -2542,10 +2968,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 let imageToSend = croppedImageForAI;
                 
-                // Se non c'è un'immagine croppata, usa l'immagine originale
+                // Se non c'è un'immagine croppata, usa originalImageSrc (più affidabile di photoPreview.src)
+                // originalImageSrc contiene sempre l'ultima immagine caricata dal FileReader
+                if (!imageToSend && originalImageSrc) {
+                    logDebug('Uso originalImageSrc per invio AI (nessun crop)', {
+                        dataSize: originalImageSrc.length
+                    });
+                    imageToSend = originalImageSrc;
+                }
+                
+                // Fallback: se per qualche motivo originalImageSrc non è disponibile, usa photoPreview
                 if (!imageToSend && photoPreview.src && photoPreview.complete) {
                     try {
-                        logDebug('Preparazione immagine originale per AI');
+                        logDebug('Fallback: Preparazione immagine da photoPreview per AI');
                         // Crea canvas temporaneo per l'immagine originale
                         const tempCanvas = document.createElement('canvas');
                         tempCanvas.width = photoPreview.naturalWidth;
@@ -2559,7 +2994,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         ctx.drawImage(photoPreview, 0, 0);
                         imageToSend = tempCanvas.toDataURL('image/jpeg', 0.92); // Mantieni il data URL completo
                         
-                        logDebug('Immagine originale preparata per AI', {
+                        logDebug('Immagine preparata da photoPreview per AI', {
                             width: tempCanvas.width,
                             height: tempCanvas.height,
                             dataSize: imageToSend.length
@@ -2577,6 +3012,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
+                // Log dettagliato per debug - quale sorgente immagine è stata usata
+                logDebug('🔍 Sorgente immagine per invio AI:', {
+                    usaCroppedImage: !!croppedImageForAI,
+                    usaOriginalSrc: (imageToSend === originalImageSrc),
+                    usaPhotoPreviewFallback: (!croppedImageForAI && imageToSend !== originalImageSrc),
+                    imageDataSize: imageToSend.length,
+                    originalSrcSize: originalImageSrc ? originalImageSrc.length : 0,
+                    imageStartsWith: imageToSend.substring(0, 50)
+                });
+
                 // Mostra overlay spinner a schermo intero
                 const loadingOverlay = document.getElementById('ai-loading-overlay');
                 if (loadingOverlay) {
@@ -2588,8 +3033,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 logDebug('Invio immagine ad AI', { dataSize: imageToSend.length });
 
-                // Invio dell'immagine all'AI con gestione robusta
-                logDebug('Invio fetch a /review/api/gemini/firstcheck');
+                // Invio dell'immagine all'AI con gestione ASINCRONA
+                logDebug('Invio fetch a /review/async (ASYNC ENDPOINT)');
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout 30 secondi
@@ -2647,7 +3092,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         });
                     }
                     
-                    fetch('/review/api/gemini/firstcheck', {
+                    fetch('/review/async', {
                         method: 'POST',
                         body: formData, // Rimuovi Content-Type per permettere a browser di impostare multipart/form-data
                         signal: controller.signal
@@ -2728,12 +3173,72 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 })
                 .then(data => {
-                    logDebug('Risposta AI ricevuta (JSON parsato)', data);
+                    logDebug('Risposta ASYNC endpoint ricevuta', data);
                     
                     if (data.error) {
                         logError('Errore presente nella risposta data.error', data.error);
                         throw new Error(data.error);
                     }
+                    
+                    // 🔍 DEBUG: Verifica struttura risposta
+                    console.log('🔍 Struttura risposta completa:', {
+                        hasReviewId: !!data.reviewId,
+                        hasDataReviewId: !!data.data?.reviewId,
+                        status: data.status,
+                        dataStatus: data.data?.status,
+                        fullData: data
+                    });
+                    
+                    // Risposta asincrona: { reviewId, status, jobId, bottlesCount }
+                    // 🎯 FIX: I dati possono essere sia in data diretto che in data.data (nested)
+                    const reviewData = data.data || data; // Estrai i dati dal livello corretto
+                    const reviewId = reviewData.reviewId || data.reviewId;
+                    const status = reviewData.status || data.status;
+                    const bottlesCount = reviewData.bottlesCount || data.bottlesCount;
+                    
+                    console.log('🔍 Dati estratti:', { reviewId, status, bottlesCount });
+                    
+                    if (reviewId && status === 'pending_validation') {
+                        logDebug('Job creato - elaborazione in background', {
+                            reviewId: reviewId,
+                            jobId: reviewData.jobId,
+                            bottlesCount: bottlesCount
+                        });
+                        
+                        // Nascondi overlay caricamento iniziale
+                        const loadingOverlay = document.getElementById('ai-loading-overlay');
+                        if (loadingOverlay) {
+                            loadingOverlay.classList.remove('show');
+                        }
+                        
+                        // ✅ APRI MODAL RECENSIONI per permettere all'utente di compilare le valutazioni
+                        // I dati sono già salvati sul DB con processingStatus='pending_validation'
+                        // Il job asincrono continua in background per arricchimento
+                        
+                        // 🔍 Controlla se abbiamo i dati delle bottiglie dalla risposta
+                        // bottles può essere al top level o in data.bottles
+                        const bottlesData = data.bottles || reviewData.bottles;
+                        
+                        if (bottlesData && bottlesData.length > 0) {
+                            logInfo(`📋 Apertura modal recensioni per ${bottlesData.length} birre`);
+                            
+                            // Apri modal con i dati estratti dall'AI
+                            openReviewModalWithEmptyForms(bottlesData, imageDataUrl);
+                            
+                            // Mostra messaggio info che l'arricchimento continua in background
+                            showAlert('info', `📸 Immagine analizzata! Compila le recensioni mentre completiamo i dati in background.`);
+                        } else {
+                            // Fallback: se non abbiamo i dati delle bottiglie, mostra errore
+                            logWarn('⚠️ Risposta asincrona senza dati bottiglie', data);
+                            closeModal();
+                            showAlert('warning', 'Elaborazione avviata ma impossibile mostrare il form. Controlla il database per i risultati.');
+                        }
+                        
+                        return; // Esce qui - elaborazione continua in background sul server
+                    }
+                    
+                    // Fallback: se non è async response, gestisci come prima (backward compatible)
+                    logWarn('Risposta NON asincrona - fallback al flusso vecchio', data);
                     
                     // 🎯 GESTIONE CENTRALIZZATA: Usa AIModule per tutte le risposte AI
                     const handleResult = window.AIModule.handleAIResponse(data, {
@@ -2757,10 +3262,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Altrimenti continua con flusso normale per successo
                     logDebug('AIModule indica di continuare con flusso normale:', handleResult.action);
                     
-                    // Il caso NO_BEER_DETECTED è ora gestito centralmente da AIModule
-                    
-                    // NOTA: Rimosso controllo duplicati per permettere repository di recensioni multiple
-                    
                     // Se l'analisi è andata a buon fine, procedi con la recensione
                     if (data.success && data.bottles && data.bottles.length > 0) {
                         logDebug('AI ha riconosciuto birre, procedendo con recensione', {
@@ -2770,8 +3271,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         
                         // Chiudi il modal mantenendo i dati sessione per il processo recensione
                         closeModal({ preserveSessionData: true });
-                        
-                        // NOTA: Rimosso tracking birre recensite per permettere recensioni multiple
                         
                         // Procedi con la funzionalità di recensione
                         startReviewProcess(data);
@@ -2784,30 +3283,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
                 .catch(error => {
                     clearTimeout(timeoutId);
-                    logError('Errore nell\'invio all\'AI', error);
+                    logError('Errore nella gestione dell\'upload', error);
                     
-                    let errorMessage = 'Errore nell\'invio all\'AI';
+                    // Messaggio generico user-friendly senza riferimenti tecnici
+                    let errorMessage = 'Siamo spiacenti, si è verificato un problema durante l\'elaborazione. Riprova tra qualche istante.';
                     
+                    // Personalizza il messaggio in base al tipo di errore (senza dettagli tecnici)
                     if (error.name === 'AbortError') {
-                        errorMessage = 'Timeout: l\'analisi sta richiedendo troppo tempo. Riprova.';
+                        errorMessage = 'L\'elaborazione sta richiedendo più tempo del previsto. Riprova tra qualche minuto.';
                     } else if (error.message.includes('RATE_LIMIT_EXCEEDED')) {
                         // Estrai il messaggio specifico dal server
                         const rateLimitMessage = error.message.replace('RATE_LIMIT_EXCEEDED: ', '');
                         errorMessage = rateLimitMessage + '\n\nSuggerimento: Registrati per avere più analisi disponibili!';
                     } else if (error.message.includes('HTTP 413')) {
-                        errorMessage = 'Immagine troppo grande. Prova a ridimensionarla.';
+                        errorMessage = 'Immagine troppo grande. Prova a ridimensionarla o scegli un\'immagine più piccola.';
                     } else if (error.message.includes('HTTP 429')) {
-                        errorMessage = 'Troppe richieste. Attendi un momento e riprova.';
+                        errorMessage = 'Troppe richieste. Attendi un momento prima di riprovare.';
                     } else if (error.message.includes('Sessione scaduta')) {
                         errorMessage = 'La sessione è scaduta. Ricarica la pagina e riprova.';
                     } else if (error.message.includes('Risposta HTML ricevuta')) {
-                        errorMessage = 'Errore del server. Ricarica la pagina e riprova.';
+                        errorMessage = 'Si è verificato un problema tecnico. Ricarica la pagina e riprova.';
                     } else if (error.message.includes('Risposta non valida dal server')) {
-                        errorMessage = 'Il server ha restituito una risposta non valida. Riprova più tardi.';
+                        errorMessage = 'Problema di comunicazione con il server. Riprova più tardi.';
                     } else if (error.message.includes('Failed to fetch')) {
-                        errorMessage = 'Problema di connessione. Controlla la tua connessione internet.';
+                        errorMessage = 'Problema di connessione. Controlla la tua connessione internet e riprova.';
                     } else if (error.message.includes('JSON.parse')) {
-                        errorMessage = 'Errore nella comunicazione con il server. Riprova.';
+                        errorMessage = 'Problema di comunicazione. Riprova tra qualche istante.';
                     }
                     
                     alert(errorMessage);
@@ -2844,7 +3345,181 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 });
-// Aggiungi funzionalità per mostrare/nascondere la password
+
+/**
+ * Apre il modal review con form vuoti per il numero specificato di bottiglie
+ * @param {number} bottlesCount - Numero di bottiglie rilevate
+ * @param {string} reviewId - ID della review asincrona
+ * @param {string} thumbnailImage - Data URL dell'immagine thumbnail reale
+ */
+function openReviewModalWithEmptyForms(bottlesCount, reviewId, thumbnailImage) {
+    logDebug('Apertura modal review con form vuoti', { 
+        bottlesCount, 
+        reviewId, 
+        thumbnailImage: thumbnailImage ? 'presente (' + thumbnailImage.substring(0, 50) + '...)' : 'mancante'
+    });
+    
+    if (!bottlesCount || bottlesCount <= 0) {
+        logError('Nessuna bottiglia da recensire');
+        return;
+    }
+    
+    // Crea array di bottiglie vuote con struttura minima
+    const emptyBottles = [];
+    for (let i = 0; i < bottlesCount; i++) {
+        emptyBottles.push({
+            beerName: `Birra ${i + 1}`,
+            thumbnail: thumbnailImage || '/images/default-beer.svg',
+            // Altri campi verranno popolati dal polling
+        });
+    }
+    
+    // Apre il modal con le bottiglie vuote
+    if (typeof window.openReviewModal === 'function') {
+        window.openReviewModal(emptyBottles);
+        
+        // Mostra messaggio di progresso nel modal
+        showReviewProgressMessage('Analisi dell\'immagine in corso... I dettagli delle birre verranno popolati automaticamente.');
+        
+        logDebug('Modal review aperto con form vuoti per async processing');
+    } else {
+        logError('Funzione window.openReviewModal non disponibile');
+        alert('Errore tecnico: sistema di recensioni non disponibile. Ricarica la pagina.');
+    }
+}
+
+/**
+ * Mostra messaggio di progresso nel modal review
+ * @param {string} message - Messaggio da mostrare
+ */
+function showReviewProgressMessage(message) {
+    // Usa la funzione showModalNotification del modal review se disponibile
+    if (typeof window.reviewModalState !== 'undefined' && 
+        typeof window.showModalNotification === 'function') {
+        window.showModalNotification(message, 'info');
+    } else {
+        // Fallback: cerca il modal e mostra notifica
+        const modalBody = document.getElementById('reviewModalBody');
+        if (modalBody) {
+            // Rimuovi notifiche esistenti
+            const existingNotifications = modalBody.querySelectorAll('.modal-notification');
+            existingNotifications.forEach(n => n.remove());
+            
+            // Crea nuova notifica
+            const notification = document.createElement('div');
+            notification.className = 'modal-notification modal-notification-info';
+            notification.innerHTML = `
+                <span class="modal-notification-icon">ℹ️</span>
+                <span class="modal-notification-message">${message}</span>
+            `;
+            
+            modalBody.insertBefore(notification, modalBody.firstChild);
+            
+            // Auto-dismiss dopo 10 secondi
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 10000);
+        }
+    }
+}
+
+/**
+ * Popola il modal review con i dati ricevuti dall'AI dopo il completamento del job asincrono
+ * @param {Array} bottles - Array di bottiglie con dati completi dall'AI
+ */
+function populateReviewModalWithAIData(bottles) {
+    console.log('🔄 Popolamento modal con dati AI:', bottles);
+    console.log('🔍 Struttura prima bottiglia:', bottles[0] ? JSON.stringify(bottles[0], null, 2) : 'N/A');
+    
+    if (!bottles || bottles.length === 0) {
+        console.error('❌ Nessun dato bottiglia da popolare');
+        return;
+    }
+    
+    // Aggiorna window.reviewModalState.bottles con i dati reali
+    if (window.reviewModalState && window.reviewModalState.bottles) {
+        console.log('✅ Aggiornamento window.reviewModalState.bottles');
+        console.log('🔍 Stato PRIMA aggiornamento:', JSON.stringify(window.reviewModalState.bottles[0], null, 2));
+        
+        // Sostituisci i dati generici con quelli reali
+        bottles.forEach((bottle, index) => {
+            if (window.reviewModalState.bottles[index]) {
+                // Mantieni i rating già inseriti dall'utente
+                const existingRatings = window.reviewModalState.ratings[index] || {};
+                
+                // Aggiorna i dati della bottiglia
+                window.reviewModalState.bottles[index] = {
+                    ...window.reviewModalState.bottles[index],
+                    ...bottle,
+                    // Preserva campi importanti per il salvataggio
+                    beerName: bottle.beerName || bottle.bottleLabel || `Birra ${index + 1}`,
+                    breweryName: bottle.breweryName || 'Sconosciuto',
+                    thumbnail: bottle.thumbnail || bottle.imageDataUrl || '/images/default-beer.svg',
+                    aiData: bottle.aiData || bottle,
+                    breweryId: bottle.breweryId,
+                    beerId: bottle.beerId
+                };
+                
+                console.log(`✅ Bottiglia ${index} aggiornata:`, {
+                    beerName: window.reviewModalState.bottles[index].beerName,
+                    breweryName: window.reviewModalState.bottles[index].breweryName,
+                    hasAiData: !!window.reviewModalState.bottles[index].aiData,
+                    breweryId: window.reviewModalState.bottles[index].breweryId,
+                    beerId: window.reviewModalState.bottles[index].beerId
+                });
+            }
+        });
+        
+        console.log('🔍 Stato DOPO aggiornamento:', JSON.stringify(window.reviewModalState.bottles[0], null, 2));
+        
+        // Aggiorna anche window.currentReviewData per compatibilità
+        if (window.currentReviewData) {
+            window.currentReviewData.bottles = window.reviewModalState.bottles;
+        }
+        
+        // 🔧 FIX: Assicurati che window.currentReviewData sia completamente impostato
+        window.currentReviewData = {
+            bottles: window.reviewModalState.bottles,
+            brewery: bottles[0]?.breweryName || 'Birrificio Sconosciuto',
+            breweryId: bottles[0]?.breweryId,
+            beerIds: bottles.map(b => b.beerId).filter(id => id),
+            analysisId: 'populated_from_modal_' + Date.now(),
+            timestamp: new Date().toISOString()
+        };
+        
+        console.log('💾 DEBUG: window.currentReviewData impostato completamente:', {
+            bottles: window.currentReviewData.bottles.length,
+            brewery: window.currentReviewData.brewery,
+            breweryId: window.currentReviewData.breweryId,
+            beerIds: window.currentReviewData.beerIds.length,
+            analysisId: window.currentReviewData.analysisId
+        });
+        
+        // Aggiorna le etichette visibili nel modal (nomi birre/birrifici)
+        bottles.forEach((bottle, index) => {
+            const beerNameElement = document.querySelector(`[data-bottle-index="${index}"] .bottle-name`);
+            if (beerNameElement) {
+                beerNameElement.textContent = bottle.beerName || bottle.bottleLabel || `Birra ${index + 1}`;
+            }
+            
+            const breweryNameElement = document.querySelector(`[data-bottle-index="${index}"] .brewery-name`);
+            if (breweryNameElement) {
+                breweryNameElement.textContent = bottle.breweryName || '';
+            }
+            
+            const thumbnailElement = document.querySelector(`[data-bottle-index="${index}"] .beer-thumbnail`);
+            if (thumbnailElement) {
+                thumbnailElement.src = bottle.thumbnail || bottle.imageDataUrl || '/images/default-beer.svg';
+            }
+        });
+        
+        console.log('✅ Modal popolato con successo con dati AI');
+    } else {
+        console.error('❌ window.reviewModalState non disponibile');
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function () {
     // Listener per la selezione del ruolo nella creazione utente
@@ -2937,8 +3612,22 @@ document.addEventListener('DOMContentLoaded', function () {
         togglePassword.addEventListener('click', () => {
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
-            const iconSrc = type === 'password' ? '/images/visibility.svg' : '/images/visibility_off.svg';
-            togglePassword.setAttribute('src', iconSrc);
+            
+            // Toggle SVG icons (non usare più img src)
+            const eyeOpen = togglePassword.querySelector('.eye-open');
+            const eyeClosed = togglePassword.querySelector('.eye-closed');
+            
+            if (eyeOpen && eyeClosed) {
+                if (type === 'password') {
+                    // Password nascosta → mostra occhio aperto
+                    eyeOpen.style.display = 'block';
+                    eyeClosed.style.display = 'none';
+                } else {
+                    // Password visibile → mostra occhio barrato
+                    eyeOpen.style.display = 'none';
+                    eyeClosed.style.display = 'block';
+                }
+            }
         });
     }
 

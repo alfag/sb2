@@ -222,13 +222,17 @@
   right: 1rem;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
-  padding: 0.35rem 0.75rem;
+  padding: 0.4rem 0.85rem;
   border-radius: 20px;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
   z-index: 10;
   animation: slideInLeft 0.4s ease;
+  white-space: nowrap;
+  max-width: calc(100% - 2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Header Bottiglia */
@@ -277,34 +281,37 @@
 .bottle-header-inline {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   margin-bottom: 1rem;
-  padding: 0.75rem;
+  padding: 1rem;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-radius: 12px;
   border: 2px solid #dee2e6;
 }
 
 .bottle-thumbnail-inline {
-  width: 50px;
-  height: 50px;
+  width: 70px;
+  height: 70px;
   object-fit: cover;
-  border-radius: 8px;
-  border: 2px solid #fff;
+  border-radius: 10px;
+  border: 3px solid #fff;
   flex-shrink: 0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  transition: transform 0.3s ease;
+}
+
+.bottle-thumbnail-inline:hover {
+  transform: scale(1.05);
 }
 
 .bottle-info-inline {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
 }
 
 .bottle-name-inline {
-  font-size: 0.938rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #1f2937;
   margin: 0;
@@ -313,11 +320,12 @@
   gap: 0.5rem;
 }
 
+/* Stili brewery non più utilizzati - mantenuti per compatibilità legacy */
 .bottle-brewery-inline {
   font-size: 0.813rem;
   color: #6b7280;
   margin: 0;
-  display: inline-flex;
+  display: none; /* Nascosto perché non più utilizzato */
   align-items: center;
   gap: 0.5rem;
 }
@@ -676,5 +684,69 @@
   .review-modal-footer {
     padding: 1rem;
     flex-direction: column;
+  }
+}
+
+/* ====================================
+   INFO MESSAGE - Toast Notification (Blue)
+   Messaggio informativo top-right
+   ==================================== */
+
+.info-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(52, 152, 219, 0.3), 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  animation: slideInRight 0.3s ease;
+  max-width: 450px;
+  min-width: 300px;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.info-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.info-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.info-text {
+  flex: 1;
+  line-height: 1.5;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Animazione slide-in from right */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive per info-message */
+@media (max-width: 768px) {
+  .info-message {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: calc(100% - 20px);
+    min-width: unset;
   }
 }

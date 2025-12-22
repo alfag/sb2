@@ -31,6 +31,138 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 class WebSearchService {
 
   /**
+   * 🔍 P0.1 FIX: Estrae il VERO nome del birrificio dai risultati di ricerca
+   * NON usa più "beerName birrificio produttore" come nome
+   * Estrae da: title DuckDuckGo, URL, snippet
+   * @param {Array} searchResults - Risultati DuckDuckGo [{title, url, snippet}]
+   * @param {string} beerName - Nome birra per context (es: "Ichnusa Non Filtrata")
+   * @returns {string|null} Nome reale birrificio estratto o null
+   */
+  static extractRealBreweryName(searchResults, beerName) {
+    try {
+      if (!searchResults || searchResults.length === 0) {
+        return null;
+      }
+
+      // Pulisci beerName per matching
+      const beerNameClean = beerName.toLowerCase()
+        .replace(/birrificio produttore$/i, '')
+        .replace(/birrificio$/i, '')
+        .trim();
+      
+      // Pattern per riconoscere nomi birrificio nei titoli
+      const breweryPatterns = [
+        /^(Birrificio|Brewery)\s+([A-Z][a-zA-Zàèéìòù\s&'.,-]+)/i,  // "Birrificio Menabrea"
+        /^(Birra)\s+([A-Z][a-zA-Zàèéìòù\s&'.,-]+)/i,              // "Birra Ichnusa"
+        /^([A-Z][a-zA-Zàèéìòù\s&'.,-]+)\s*[-–|]\s*(Birrificio|Brewery|Sito|Home)/i, // "Menabrea - Sito Ufficiale"
+        /^([A-Z][a-zA-Zàèéìòù\s&'.,-]+)\s+(Birrificio|Brewery)/i, // "Peroni Birrificio"
+      ];
+      
+      // Parole da rimuovere dal nome finale
+      const wordsToStrip = [
+        'sito ufficiale', 'official site', 'home', 'homepage',
+        'birre artigianali', 'craft beer', 'dal', 'since',
+        'birrificio', 'brewery', 'birra', 'beer'
+      ];
+
+      for (const result of searchResults.slice(0, 3)) { // Analizza primi 3 risultati
+        const title = result.title || '';
+        
+        // Prova ogni pattern
+        for (const pattern of breweryPatterns) {
+          const match = title.match(pattern);
+          if (match) {
+            // Estrai il nome dal gruppo catturato (gruppo 2 per i primi pattern)
+            let extractedName = match[2] || match[1];
+            
+            // Pulisci il nome estratto
+            for (const word of wordsToStrip) {
+              extractedName = extractedName.replace(new RegExp(`\\s*[-–|]?\\s*${word}.*$`, 'i'), '');
+            }
+            
+            extractedName = extractedName.trim();
+            
+            // Valida: deve essere almeno 2 caratteri e non contenere solo il nome della birra
+            if (extractedName.length >= 2 && !beerNameClean.includes(extractedName.toLowerCase())) {
+              // Formatta: "MENABREA" → "Menabrea", "g. menabrea e figli" → "G. Menabrea e figli"
+              const formattedName = this.formatBreweryName(extractedName);
+              
+              logger.info('[WebSearch] 🎯 P0.1: Nome birrificio REALE estratto', {
+                originalTitle: title,
+                extractedName: formattedName,
+                pattern: pattern.toString().substring(0, 50),
+                beerName: beerName
+              });
+              
+              return formattedName;
+            }
+          }
+        }
+        
+        // Fallback: estrai dal dominio URL
+        if (result.url) {
+          try {
+            const urlObj = new URL(result.url);
+            const hostname = urlObj.hostname.replace(/^www\./, '');
+            // Es: "birraichnusa.it" → "Ichnusa", "birramenabrea.com" → "Menabrea"
+            const domainName = hostname.split('.')[0]
+              .replace(/^birra/, '')
+              .replace(/^birrificio/, '')
+              .replace(/^brewery/, '');
+            
+            if (domainName.length >= 3) {
+              const formattedDomainName = this.formatBreweryName(domainName);
+              logger.info('[WebSearch] 🎯 P0.1: Nome birrificio estratto da dominio', {
+                url: result.url,
+                domainName: formattedDomainName
+              });
+              return formattedDomainName;
+            }
+          } catch (e) {
+            // Ignora errori URL
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      logger.warn('[WebSearch] ⚠️ P0.1: Errore estrazione nome birrificio', { 
+        error: error.message,
+        beerName 
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Formatta nome birrificio con capitalizzazione corretta
+   * "MENABREA" → "Menabrea", "g. menabrea e figli" → "G. Menabrea E Figli"
+   */
+  static formatBreweryName(name) {
+    if (!name) return name;
+    
+    // Se tutto maiuscolo, converti a Title Case
+    if (name === name.toUpperCase()) {
+      return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    }
+    
+    // Title Case per parole separate
+    return name.split(' ')
+      .map(word => {
+        // Preserva acronimi corti (es: "S.p.A.", "G.")
+        if (word.length <= 2 || word.includes('.')) {
+          return word.toUpperCase();
+        }
+        // Parole minori in minuscolo
+        if (['e', 'di', 'del', 'della', 'dei', 'degli', 'and', 'of'].includes(word.toLowerCase())) {
+          return word.toLowerCase();
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
+      .join(' ');
+  }
+
+  /**
    * Normalizza un URL al dominio base (senza path specifici)
    * Esempio: https://www.birraichnusa.it/intro/storia → https://www.birraichnusa.it/
    * @param {string} url - URL da normalizzare
@@ -759,7 +891,11 @@ OUTPUT JSON RICHIESTO:
    * Ricerca birrificio sul web usando SISTEMA MULTI-STRATEGIA INTELLIGENTE
    * Combina: DuckDuckGo scraping + HTMLParser + Database fuzzy matching
    * NON USA PIÙ GEMINI AI - Se non trova dati, salva con needsValidation per admin
-   * @param {string} name - Nome del birrificio
+   * 
+   * 🔥 P0.1 FIX (7 dic 2025): Estrae il VERO nome birrificio dai risultati
+   * NON usa più il searchTerm "beerName birrificio produttore" come nome
+   * 
+   * @param {string} name - Nome/query di ricerca (es: "Ichnusa Non Filtrata birrificio produttore")
    * @param {string} [location] - Località opzionale
    * @returns {Promise<Object>} Risultato della ricerca web
    */
@@ -783,6 +919,26 @@ OUTPUT JSON RICHIESTO:
       }
       
       const googleResults = searchResults; // Compatibilità con codice esistente
+      
+      // 🔥 P0.1 FIX: Estrai il VERO nome del birrificio dai risultati
+      let realBreweryName = this.extractRealBreweryName(googleResults, name);
+      
+      // Se non estratto, pulisci almeno "birrificio produttore" dal nome
+      if (!realBreweryName) {
+        realBreweryName = name
+          .replace(/\s*birrificio\s*produttore\s*$/i, '')
+          .replace(/\s*birrificio\s*$/i, '')
+          .trim();
+        logger.warn('[WebSearch] ⚠️ P0.1: Nome birrificio non estratto, uso fallback pulito', {
+          original: name,
+          cleaned: realBreweryName
+        });
+      }
+      
+      logger.info('[WebSearch] 🎯 P0.1: Nome birrificio FINALE', {
+        searchQuery: name,
+        realBreweryName: realBreweryName
+      });
       
       let websiteData = { websiteUrl: null, confidence: 0 };
       
@@ -847,6 +1003,11 @@ OUTPUT JSON RICHIESTO:
           source: verificationResult.source,
           confidence: verificationResult.confidence,
           address: verificationResult.address,
+          // 🔥 P0.2: Log nuovi campi estratti
+          foundingYear: verificationResult.foundingYear,
+          hasDescription: !!verificationResult.description,
+          hasHistory: !!verificationResult.history,
+          hasSocialMedia: !!verificationResult.socialMedia,
           verificationMethod: verificationResult.verificationMethod
         });
 
@@ -855,11 +1016,25 @@ OUTPUT JSON RICHIESTO:
           confidence: verificationResult.confidence,
           source: verificationResult.source,
           brewery: {
-            breweryName: name,
+            breweryName: realBreweryName, // 🔥 P0.1 FIX: Usa nome REALE estratto
             breweryWebsite: this.normalizeToBaseUrl(websiteData.websiteUrl || verificationResult.sourceUrl),
             breweryLegalAddress: verificationResult.address,
             breweryEmail: verificationResult.email || null,
-            breweryPhoneNumber: verificationResult.phone || null
+            breweryPhoneNumber: verificationResult.phone || null,
+            // 🔥 P0.2 FIX: Mappa TUTTI i dati da HTMLParser
+            breweryDescription: verificationResult.description || null,
+            foundingYear: verificationResult.foundingYear || null,
+            history: verificationResult.history || null,
+            brewerySize: verificationResult.brewerySize || null,
+            employeeCount: verificationResult.employeeCount || null,
+            productionVolume: verificationResult.productionVolume || null,
+            masterBrewer: verificationResult.masterBrewer || null,
+            brewerySocialMedia: verificationResult.socialMedia || {},
+            mainProducts: verificationResult.mainProducts || [],
+            awards: verificationResult.awards || [],
+            breweryFiscalCode: verificationResult.fiscalCode || null,
+            breweryREAcode: verificationResult.reaCode || null,
+            breweryacciseCode: verificationResult.acciseCode || null
           },
           sources: verificationResult.sourceUrl ? [verificationResult.sourceUrl] : [],
           dataQuality: 'VERIFIED_' + verificationResult.source,
@@ -872,7 +1047,8 @@ OUTPUT JSON RICHIESTO:
       // Restituiamo found: false per permettere salvataggio con needsValidation
       
       logger.warn('[WebSearch] ⚠️ Nessun dato trovato con metodi diretti', {
-        breweryName: name,
+        breweryName: realBreweryName, // 🔥 P0.1 FIX: Usa nome REALE
+        originalSearch: name,
         location: location,
         multiStrategyFound: verificationResult.found,
         multiStrategyConfidence: verificationResult.confidence
@@ -891,18 +1067,25 @@ OUTPUT JSON RICHIESTO:
           confidence: verificationResult.confidence,
           source: verificationResult.source,
           brewery: {
-            breweryName: name,
+            breweryName: realBreweryName, // 🔥 P0.1 FIX: Usa nome REALE estratto
             breweryWebsite: this.normalizeToBaseUrl(websiteData.websiteUrl || null),
             breweryLegalAddress: verificationResult.address || null,
             breweryEmail: verificationResult.email || null,
             breweryPhoneNumber: verificationResult.phone || null,
-            breweryDescription: null,
-            foundingYear: null,
-            brewerySize: null,
-            mainProducts: [],
-            awards: [],
-            brewerySocialMedia: {},
-            history: null
+            // 🔥 P0.2 FIX: Mappa TUTTI i dati da HTMLParser
+            breweryDescription: verificationResult.description || null,
+            foundingYear: verificationResult.foundingYear || null,
+            history: verificationResult.history || null,
+            brewerySize: verificationResult.brewerySize || null,
+            employeeCount: verificationResult.employeeCount || null,
+            productionVolume: verificationResult.productionVolume || null,
+            masterBrewer: verificationResult.masterBrewer || null,
+            brewerySocialMedia: verificationResult.socialMedia || {},
+            mainProducts: verificationResult.mainProducts || [],
+            awards: verificationResult.awards || [],
+            breweryFiscalCode: verificationResult.fiscalCode || null,
+            breweryREAcode: verificationResult.reaCode || null,
+            breweryacciseCode: verificationResult.acciseCode || null
           },
           sources: verificationResult.sourceUrl ? [verificationResult.sourceUrl] : [],
           dataQuality: 'VERIFIED_' + verificationResult.source,
@@ -912,7 +1095,8 @@ OUTPUT JSON RICHIESTO:
 
       // Nessun dato trovato - restituisci found: false per salvataggio con needsValidation
       logger.info('[WebSearch] 📝 Salvataggio con needsValidation - admin dovrà completare', {
-        breweryName: name,
+        breweryName: realBreweryName, // 🔥 P0.1 FIX: Usa nome REALE
+        originalSearch: name,
         reason: 'Nessun dato trovato da metodi diretti'
       });
 
@@ -921,6 +1105,7 @@ OUTPUT JSON RICHIESTO:
         confidence: 0, 
         brewery: null,
         needsValidation: true,
+        validationReason: 'Nessun dato trovato con metodi diretti (DuckDuckGo, HTMLParser, Database)',
         reason: 'Nessun dato trovato con metodi diretti (DuckDuckGo, HTMLParser, Database)'
       };
 
@@ -934,6 +1119,7 @@ OUTPUT JSON RICHIESTO:
         confidence: 0, 
         brewery: null,
         needsValidation: true,
+        validationReason: 'Errore durante ricerca web: ' + error.message,
         reason: 'Errore durante ricerca web: ' + error.message
       };
     }

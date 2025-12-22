@@ -630,7 +630,7 @@ async function getStatisticsDashboard(req, res) {
                     avgRating: { $avg: '$ratings.rating' }
                 }
             },
-            { $match: { count: { $gte: 2 } } }, // Solo tipi con almeno 2 recensioni
+            { $match: { count: { $gte: 1 } } }, // Solo tipi con almeno 1 recensione (ridotto da 2)
             { $sort: { count: -1 } },
             { $limit: 8 } // Top 8 tipi più recensiti
         ]);

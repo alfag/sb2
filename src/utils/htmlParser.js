@@ -1,15 +1,369 @@
 /**
  * HTML Parser per estrazione dati birrifici da siti web
  * Estrae informazioni REALI dai contenuti HTML invece di affidarsi all'AI
+ * Usa Puppeteer STEALTH per bypassare protezioni anti-bot (Cloudflare, etc.)
  */
 
-const axios = require('axios');
+// Puppeteer con plugin Stealth per mascherare automazione
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
+
 const cheerio = require('cheerio');
+const axios = require('axios'); // 🆕 FIX: Import axios per extractBeerInfoFromWebsite
 const logWithFileName = require('./logger');
 const logger = logWithFileName(__filename);
 
+// Cache browser per riutilizzo tra chiamate
+let browserInstance = null;
+
+// Funzione per ottenere browser singleton con Stealth
+async function getBrowser() {
+  if (!browserInstance) {
+    logger.info('[HTMLParser] 🚀 Avvio browser con configurazione Stealth AGGRESSIVA anti-rilevamento');
+    browserInstance = await puppeteer.launch({
+      headless: 'new', // Headless mode con flag anti-rilevamento
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-web-security',
+        '--disable-site-isolation-trials',
+        '--disable-features=VizDisplayCompositor',
+        '--window-size=1920,1080',
+        '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        '--lang=it-IT',
+        '--disable-extensions',
+        '--disable-background-networking',
+        '--disable-sync',
+        '--metrics-recording-only',
+        '--disable-default-apps',
+        '--mute-audio',
+        '--no-first-run',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-ipc-flooding-protection'
+      ],
+      ignoreDefaultArgs: ['--enable-automation'],
+      ignoreHTTPSErrors: true,
+      defaultViewport: null
+    });
+    
+    // Cleanup quando processo termina
+    process.on('exit', async () => {
+      if (browserInstance) {
+        await browserInstance.close();
+      }
+    });
+  }
+  return browserInstance;
+}
+
 class HTMLParser {
   
+  /**
+   * 🔄 Helper: Attende completamento post-age-gate
+   * Gestisce sia redirect JavaScript che semplice rimozione overlay
+   * @param {Page} page - Puppeteer page object
+   * @returns {Promise<string>} Tipo di completamento ('navigation'|'content-visible'|'timeout')
+   */
+  static async waitForAgeGateCompletion(page) {
+    try {
+      const result = await Promise.race([
+        // Caso 1: Navigazione JavaScript (es: Ichnusa fa window.location.href = ...)
+        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 })
+          .then(() => ({ type: 'navigation' })),
+        // Caso 2: Solo overlay nascosto, contenuto già presente
+        page.waitForSelector('nav a, .menu a, .navigation a, header a, footer a', { 
+          visible: true, timeout: 10000 
+        }).then(() => ({ type: 'content-visible' })),
+        // Caso 3: Timeout di sicurezza
+        new Promise(resolve => setTimeout(() => resolve({ type: 'timeout' }), 8000))
+      ]);
+      logger.info('[HTMLParser] ✅ Post-age-gate completato', { resultType: result.type });
+      return result.type;
+    } catch (waitError) {
+      logger.debug('[HTMLParser] ⏱️ Attesa post-age-gate fallita, continuo comunque...', { 
+        error: waitError.message 
+      });
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      return 'error-fallback';
+    }
+  }
+  
+  /**
+   * 🔞 GESTIONE AGE-GATE GENERICA per siti birrifici/alcolici
+   * Cerca e clicca automaticamente bottoni di conferma maggiore età
+   * Funziona con qualsiasi sito usando ricerca testo JavaScript (non selettori CSS)
+   * 
+   * @param {Page} page - Puppeteer page object
+   * @param {string} url - URL del sito (per logging)
+   * @returns {Promise<boolean>} true se age-gate gestito, false altrimenti
+   */
+  static async handleAgeGate(page, url) {
+    try {
+      // Testi da cercare nei bottoni (case-insensitive)
+      // Ordine: più specifici prima, generici dopo
+      const buttonTexts = [
+        // Italiano - conferma età esplicita
+        'ho più di 18 anni',
+        'ho 18 anni',
+        'sono maggiorenne',
+        'maggiorenne',
+        'ho compiuto 18',
+        'età legale',
+        // Italiano - conferma generica (ma nel contesto age-gate)
+        'conferma età',
+        'verifica età',
+        'accedi al sito',
+        'entra nel sito',
+        'accetto',
+        'conferma',
+        'continua',
+        'entra',
+        'accedi',
+        'si',   // ⚠️ IMPORTANTE: "Sì" senza accento (comune in form italiani)
+        'sì',   // Con accento
+        // Inglese - conferma età esplicita
+        'i am over 18',
+        'i am 18',
+        'over 18',
+        'of legal age',
+        '18 years',
+        '21 years',
+        'legal drinking age',
+        // Inglese - conferma generica
+        'confirm age',
+        'verify age',
+        'enter site',
+        'accept',
+        'confirm',
+        'continue',
+        'enter',
+        'yes',
+        // Tedesco
+        'ich bin 18',
+        'über 18',
+        'volljährig',
+        // Francese
+        'j\'ai 18 ans',
+        'plus de 18',
+        'majeur',
+        // Spagnolo
+        'soy mayor de 18',
+        'tengo 18',
+        'mayor de edad'
+      ];
+
+      // Selettori CSS per elementi age-gate comuni
+      const cssSelectors = [
+        // ⚠️ PRIORITÀ ALTA: ID specifici italiani (comune in siti birrifici italiani come Ichnusa)
+        '#conferma',           // Ichnusa e simili
+        '#age-confirm-yes',
+        '#btn-conferma',
+        // ID comuni internazionali
+        '#age-confirm', '#age-gate-confirm', '#age-gate-yes', '#confirm-age',
+        '#btn-age-confirm', '#accept-age', '#age-verification-yes', '#agegate-yes',
+        '#enter-site', '#age-yes', '#legal-age-yes', '#verify-age-btn',
+        // Classi specifiche con suffisso --yes (comune in BEM)
+        '.age-gate__submit--yes',  // Ichnusa e simili
+        '.age-confirm--yes',
+        // Classi comuni
+        '.age-confirm', '.age-gate-yes', '.age-gate-button', '.confirm-age',
+        '.btn-age-confirm', '.age-verification-btn', '.agegate-btn', '.enter-site-btn',
+        // Data attributes
+        '[data-age-confirm]', '[data-age-gate="yes"]', '[data-age-verify="true"]',
+        '[data-agegate-yes]', '[data-action="age-confirm"]',
+        // Classi parziali (contengono parole chiave) - ULTIMO RESORT
+        '[class*="age-confirm"]', '[class*="age-gate"]', '[class*="age-verify"]',
+        '[class*="agegate"]', '[class*="age-check"]', '[class*="legal-age"]',
+        '[id*="age-confirm"]', '[id*="age-gate"]', '[id*="agegate"]'
+      ];
+      
+      // 🔥 STRATEGIA 0 (PRIORITÀ MASSIMA): Click diretto su #conferma con page.click()
+      // Questo bypassa problemi di jQuery event handlers che non vengono triggerati da el.click() nel browser
+      const prioritySelectors = ['#conferma', '.age-gate__submit--yes', '#age-confirm-yes'];
+      for (const selector of prioritySelectors) {
+        try {
+          const element = await page.$(selector);
+          if (element) {
+            logger.info('[HTMLParser] 🎯 Trovato selettore prioritario age-gate', { url, selector });
+            
+            // Usa page.click() nativo di Puppeteer che simula click reale del mouse
+            await page.click(selector);
+            logger.info('[HTMLParser] ✅ Age-gate superato (click nativo Puppeteer)', { url, selector });
+            
+            await HTMLParser.waitForAgeGateCompletion(page);
+            return true;
+          }
+        } catch (e) {
+          logger.debug('[HTMLParser] Selettore prioritario non trovato o errore click', { selector, error: e.message });
+          continue;
+        }
+      }
+
+      // STRATEGIA 1: Cerca per testo nei bottoni/link usando JavaScript nel browser
+      const clickedByText = await page.evaluate((texts) => {
+        // Trova tutti gli elementi cliccabili
+        const clickables = document.querySelectorAll('button, a, input[type="button"], input[type="submit"], [role="button"], span[onclick], div[onclick]');
+        
+        for (const text of texts) {
+          for (const el of clickables) {
+            const elText = (el.textContent || el.value || '').toLowerCase().trim();
+            if (elText.includes(text.toLowerCase())) {
+              // Verifica che sia visibile
+              const rect = el.getBoundingClientRect();
+              if (rect.width > 0 && rect.height > 0) {
+                el.click();
+                return { success: true, text: elText, method: 'text-match' };
+              }
+            }
+          }
+        }
+        return { success: false };
+      }, buttonTexts);
+
+      if (clickedByText.success) {
+        logger.info('[HTMLParser] ✅ Age-gate superato (ricerca testo)', { 
+          url, 
+          buttonText: clickedByText.text,
+          method: clickedByText.method
+        });
+        await HTMLParser.waitForAgeGateCompletion(page);
+        return true;
+      }
+
+      // STRATEGIA 2: Cerca per selettori CSS
+      for (const selector of cssSelectors) {
+        try {
+          const element = await page.$(selector);
+          if (element) {
+            // Verifica visibilità
+            const isVisible = await page.evaluate(el => {
+              const rect = el.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0;
+            }, element);
+            
+            if (isVisible) {
+              await element.click();
+              logger.info('[HTMLParser] ✅ Age-gate superato (selettore CSS)', { 
+                url, 
+                selector,
+                method: 'css-selector'
+              });
+              await HTMLParser.waitForAgeGateCompletion(page);
+              return true;
+            }
+          }
+        } catch (e) {
+          // Selettore non trovato, continua
+          continue;
+        }
+      }
+
+      // STRATEGIA 3: Cerca checkbox "sono maggiorenne" + bottone submit
+      const checkboxHandled = await page.evaluate(() => {
+        // Cerca checkbox con testo età
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        for (const cb of checkboxes) {
+          const label = cb.labels?.[0] || cb.closest('label') || cb.parentElement;
+          const labelText = (label?.textContent || '').toLowerCase();
+          if (labelText.includes('18') || labelText.includes('maggiorenne') || 
+              labelText.includes('legal') || labelText.includes('età')) {
+            cb.checked = true;
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Cerca bottone submit vicino
+            const form = cb.closest('form');
+            const submitBtn = form?.querySelector('button[type="submit"], input[type="submit"]') ||
+                             document.querySelector('.age-gate button, .age-verify button, [class*="agegate"] button');
+            if (submitBtn) {
+              submitBtn.click();
+              return { success: true, method: 'checkbox+submit' };
+            }
+          }
+        }
+        return { success: false };
+      });
+
+      if (checkboxHandled.success) {
+        logger.info('[HTMLParser] ✅ Age-gate superato (checkbox + submit)', { url });
+        await HTMLParser.waitForAgeGateCompletion(page);
+        return true;
+      }
+
+      // STRATEGIA 4: Cerca form di verifica anno di nascita
+      const birthYearHandled = await page.evaluate(() => {
+        // Cerca select per anno di nascita
+        const selects = document.querySelectorAll('select');
+        for (const select of selects) {
+          const name = (select.name || select.id || '').toLowerCase();
+          const label = select.closest('label')?.textContent?.toLowerCase() || '';
+          
+          if (name.includes('year') || name.includes('anno') || name.includes('birth') ||
+              label.includes('year') || label.includes('anno') || label.includes('nascita')) {
+            // Seleziona anno che rende maggiorenne (es: 1990)
+            const option1990 = select.querySelector('option[value="1990"]');
+            if (option1990) {
+              select.value = '1990';
+              select.dispatchEvent(new Event('change', { bubbles: true }));
+              
+              // Cerca bottone submit
+              const form = select.closest('form');
+              const submitBtn = form?.querySelector('button[type="submit"], input[type="submit"]');
+              if (submitBtn) {
+                submitBtn.click();
+                return { success: true, method: 'birth-year' };
+              }
+            }
+          }
+        }
+        return { success: false };
+      });
+
+      if (birthYearHandled.success) {
+        logger.info('[HTMLParser] ✅ Age-gate superato (selezione anno nascita)', { url });
+        await HTMLParser.waitForAgeGateCompletion(page);
+        return true;
+      }
+
+      // STRATEGIA 5: Gestione cookie consent che potrebbe bloccare age-gate
+      const cookieHandled = await page.evaluate(() => {
+        const cookieSelectors = [
+          '#accept-cookies', '#cookie-accept', '.cookie-accept', '[data-cookie-accept]',
+          '#onetrust-accept-btn-handler', '.optanon-allow-all', '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
+          'button[aria-label*="cookie"]', 'button[aria-label*="Accept"]'
+        ];
+        
+        for (const sel of cookieSelectors) {
+          const btn = document.querySelector(sel);
+          if (btn) {
+            btn.click();
+            return { success: true, type: 'cookie-consent' };
+          }
+        }
+        return { success: false };
+      });
+
+      if (cookieHandled.success) {
+        logger.info('[HTMLParser] ℹ️ Cookie consent gestito, riprovo age-gate', { url });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Riprova strategia 1 dopo aver gestito cookies
+        return await this.handleAgeGate(page, url);
+      }
+
+      logger.info('[HTMLParser] ℹ️ Nessun age-gate rilevato (o già superato)', { url });
+      return false;
+
+    } catch (error) {
+      logger.warn('[HTMLParser] ⚠️ Errore gestione age-gate', { url, error: error.message });
+      return false;
+    }
+  }
+
   /**
    * Estrae link interni utili da una pagina web
    * Cerca link che potrebbero contenere info contatti/chi-siamo
@@ -20,28 +374,123 @@ class HTMLParser {
     try {
       logger.info('[HTMLParser] 🔗 Estrazione link dalla homepage', { url: websiteUrl });
       
-      const response = await axios.get(websiteUrl, {
-        timeout: 5000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8'
-        }
+      // Usa Puppeteer STEALTH per bypassare protezioni anti-bot (Cloudflare/403)
+      const browser = await getBrowser();
+      const page = await browser.newPage();
+      
+      // Configura user-agent realistico (Chrome desktop aggiornato)
+      const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+      await page.setUserAgent(userAgent);
+      logger.info('[HTMLParser] 🎭 User-Agent configurato:', { userAgent });
+      
+      // Configura viewport desktop standard
+      await page.setViewport({ 
+        width: 1920, 
+        height: 1080,
+        deviceScaleFactor: 1
       });
       
-      const $ = cheerio.load(response.data);
+      // Headers HTTP completi per simulare browser reale
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0'
+      });
+      
+      // Elimina flag webdriver per evasione completa
+      await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => false,
+        });
+      });
+      
+      // Naviga alla pagina con timeout 45s
+      const response = await page.goto(websiteUrl, { 
+        waitUntil: 'domcontentloaded',
+        timeout: 45000 
+      });
+      
+      // Log HTTP status code per verificare bypass 403
+      const statusCode = response.status();
+      logger.info('[HTMLParser] 📡 HTTP Status Code:', { statusCode, url: websiteUrl });
+      
+      // Attendi completamento challenge Cloudflare (se presente)
+      logger.info('[HTMLParser] ⏳ Attesa 5s per completamento challenge anti-bot...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // Verifica titolo pagina DOPO attesa
+      const pageTitle = await page.title();
+      logger.info('[HTMLParser] 📄 Titolo pagina:', { title: pageTitle });
+      
+      if (statusCode === 403 || pageTitle.includes('403') || pageTitle.includes('Forbidden')) {
+        logger.error('[HTMLParser] ❌ ERRORE 403 FORBIDDEN - Protezione anti-bot ancora attiva!');
+        logger.error('[HTMLParser] 💡 Suggerimento: Cloudflare potrebbe richiedere proxy o metodo alternativo');
+      } else if (statusCode === 200) {
+        logger.info('[HTMLParser] ✅ Accesso riuscito (200 OK) - Bypass protezione completato!');
+      }
+      
+      // 🔞 GESTIONE DISCLAIMER MAGGIORE ETÀ (comune su siti birrifici/alcolici)
+      // Sistema GENERICO che funziona per qualsiasi sito di birra/alcolici
+      logger.info(`[HTMLParser] 🔍 Controllo presenza disclaimer maggiore età su URL: ${websiteUrl}`);
+      
+      // Attendi 2s per rendering completo disclaimer (se presente)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Gestisci age-gate con funzione dedicata
+      const disclaimerHandled = await this.handleAgeGate(page, websiteUrl);
+      
+      // Attendi rendering completo dopo disclaimer (importante!)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Ottieni HTML della pagina renderizzata (dopo disclaimer)
+      const html = await page.content();
+      
+      // 🔍 DEBUG: Salva HTML per analisi
+      const fs = require('fs');
+      const path = require('path');
+      const debugPath = path.join(__dirname, '../../logs/debug-html.html');
+      fs.writeFileSync(debugPath, html, 'utf8');
+      logger.debug('[HTMLParser] 🔍 HTML salvato per debug', { 
+        path: debugPath,
+        htmlLength: html.length 
+      });
+      
+      await page.close();
+      
+      const $ = cheerio.load(html);
       const baseUrl = new URL(websiteUrl);
       const usefulLinks = new Set(); // Usa Set per evitare duplicati
       
+      // 🔍 DEBUG: Conta tutti i link <a> presenti
+      const totalLinksInPage = $('a[href]').length;
+      logger.debug('[HTMLParser] 🔍 Link totali nella pagina', { 
+        totalLinks: totalLinksInPage,
+        websiteUrl 
+      });
+      
       // Keywords che indicano pagine utili (priorità alta)
+      // 🔥 P2.8 FIX: Aggiunte keyword per pagine birre (7 dic 2025)
       const highPriorityKeywords = [
+        // Pagine birre (PRIORITÀ MASSIMA per estrazione dati birra)
+        'birre', 'beers', 'beer', 'birra', 'le-nostre-birre', 'our-beers',
+        'prodotti', 'products', 'catalogo', 'catalog', 'gamma', 'range',
+        // Pagine contatto/info
         'contatt', 'contact', 'chi-siamo', 'about', 'dove-siamo', 
         'dove-trovarci', 'location', 'trova', 'find', 'info'
       ];
       
       // Keywords secondarie (priorità media)
       const mediumPriorityKeywords = [
-        'azien', 'company', 'storia', 'history', 'team', 'people'
+        'azien', 'company', 'storia', 'history', 'team', 'people',
+        // 🔥 P2.8: Aggiunti stili birra come keyword media
+        'ipa', 'lager', 'pils', 'weiss', 'stout', 'ale', 'porter'
       ];
       
       // Estrai tutti i link dalla pagina
@@ -57,7 +506,9 @@ class HTMLParser {
           if (href.startsWith('http')) {
             fullUrl = href;
           } else if (href.startsWith('/')) {
-            fullUrl = `${baseUrl.protocol}//${baseUrl.hostname}${href}`;
+            // 🔥 FIX: Evita doppio slash rimuovendo trailing slash dal baseUrl
+            const cleanHost = `${baseUrl.protocol}//${baseUrl.hostname}`.replace(/\/$/, '');
+            fullUrl = `${cleanHost}${href}`;
           } else if (href.startsWith('#')) {
             return; // Skip anchor interni
           } else {
@@ -123,6 +574,36 @@ class HTMLParser {
         mediumPriority: linksArray.filter(l => l.priority === 2).length
       });
       
+      // 🔥 FALLBACK: Se nessun link trovato, usa pagine comuni
+      if (linksArray.length === 0) {
+        logger.warn('[HTMLParser] ⚠️ Nessun link trovato nella homepage, uso fallback pagine comuni');
+        
+        // Rimuovi /intro/ e trailing slash per evitare doppi slash
+        const baseUrlClean = websiteUrl
+          .replace(/\/(intro|enter|age-gate|disclaimer)\/?$/, '')
+          .replace(/\/$/, ''); // 🔥 FIX: Rimuovi trailing slash
+        
+        // 🔥 P2.8 FIX: Aggiunte pagine birre al fallback (7 dic 2025)
+        return [
+          baseUrlClean,
+          // Pagine birre (PRIORITÀ ALTA)
+          `${baseUrlClean}/birre`,
+          `${baseUrlClean}/le-nostre-birre`,
+          `${baseUrlClean}/beers`,
+          `${baseUrlClean}/our-beers`,
+          `${baseUrlClean}/prodotti`,
+          `${baseUrlClean}/products`,
+          // Pagine contatto/info
+          `${baseUrlClean}/contatti`,
+          `${baseUrlClean}/chi-siamo`,
+          `${baseUrlClean}/about`,
+          `${baseUrlClean}/contact`,
+          `${baseUrlClean}/about-us`,
+          `${baseUrlClean}/dove-siamo`,
+          `${baseUrlClean}/location`
+        ];
+      }
+      
       // Ritorna solo gli URL
       return linksArray.map(l => l.url);
       
@@ -133,12 +614,13 @@ class HTMLParser {
       });
       
       // Fallback: ritorna array di pagine comuni
+      const cleanUrl = websiteUrl.replace(/\/$/, ''); // 🔥 FIX: Evita doppi slash
       return [
         websiteUrl,
-        `${websiteUrl.replace(/\/$/, '')}/contatti`,
-        `${websiteUrl.replace(/\/$/, '')}/chi-siamo`,
-        `${websiteUrl.replace(/\/$/, '')}/about`,
-        `${websiteUrl.replace(/\/$/, '')}/contact`
+        `${cleanUrl}/contatti`,
+        `${cleanUrl}/chi-siamo`,
+        `${cleanUrl}/about`,
+        `${cleanUrl}/contact`
       ];
     }
   }
@@ -185,14 +667,31 @@ class HTMLParser {
         logger.info(`[HTMLParser] 📄 Scraping pagina ${i + 1}/${uniquePages.length}`, { url });
         
         try {
-          const response = await axios.get(url, {
-            timeout: 8000, // Aumentato timeout
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
+          // Usa Puppeteer per bypassare protezioni anti-bot
+          const browser = await getBrowser();
+          const page = await browser.newPage();
+          
+          // Configura headers realistici
+          await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+          await page.setExtraHTTPHeaders({
+            'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
           });
-
-          const html = response.data;
+          
+          // Naviga alla pagina con timeout 30s
+          await page.goto(url, { 
+            waitUntil: 'networkidle2',
+            timeout: 30000 
+          });
+          
+          // 🔞 GESTIONE DISCLAIMER MAGGIORE ETÀ (potrebbe essere su ogni pagina)
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Breve attesa per rendering
+          await this.handleAgeGate(page, url);
+          
+          // Ottieni HTML della pagina renderizzata
+          const html = await page.content();
+          await page.close();
+          
           const $ = cheerio.load(html);
           
           logger.debug('[HTMLParser] ✅ HTML ricevuto', { 
@@ -247,6 +746,12 @@ class HTMLParser {
 
           // Estrai descrizione
           const description = this.extractDescriptionFromHTML(html, $);
+          logger.info('[HTMLParser] 📝 Estrazione descrizione', { 
+            url,
+            found: !!description, 
+            preview: description?.substring(0, 80) || 'NESSUNA',
+            length: description?.length || 0
+          });
           if (description && !extractedData.description) {
             extractedData.description = description;
           }
@@ -289,6 +794,12 @@ class HTMLParser {
 
           // Estrai prodotti principali
           const mainProducts = this.extractMainProductsFromHTML(html, $);
+          logger.info('[HTMLParser] 🍺 Estrazione mainProducts', { 
+            url,
+            found: !!mainProducts, 
+            products: mainProducts || 'NESSUNO',
+            count: mainProducts?.length || 0
+          });
           if (mainProducts && !extractedData.mainProducts) {
             extractedData.mainProducts = mainProducts;
           }
@@ -332,8 +843,50 @@ class HTMLParser {
         confidence: extractedData.confidence
       });
 
+      // 🔥 FIX 9 DIC 2025: Calcola confidence basata su TUTTI i campi trovati, non solo indirizzo
+      const fieldsFound = [
+        extractedData.address,
+        extractedData.email,
+        extractedData.phone,
+        extractedData.fiscalCode,
+        extractedData.reaCode,
+        extractedData.acciseCode,
+        extractedData.foundingYear,
+        extractedData.description,
+        extractedData.history,
+        extractedData.brewerySize,
+        extractedData.employeeCount,
+        extractedData.productionVolume,
+        extractedData.masterBrewer,
+        extractedData.socialMedia,
+        extractedData.mainProducts && extractedData.mainProducts.length > 0,
+        extractedData.awards && extractedData.awards.length > 0
+      ].filter(Boolean).length;
+
+      // Se abbiamo trovato almeno qualcosa, calcola confidence
+      if (fieldsFound > 0 && extractedData.confidence === 0) {
+        // Base: 0.3 + (campi_trovati * 0.05), max 0.8 senza indirizzo
+        extractedData.confidence = Math.min(0.3 + (fieldsFound * 0.05), 0.8);
+        logger.info('[HTMLParser] 📊 Confidence ricalcolata senza indirizzo', {
+          fieldsFound,
+          newConfidence: extractedData.confidence
+        });
+      }
+
       if (extractedData.address) {
         logger.info('[HTMLParser] 🎯 Dati estratti con successo dal sito', extractedData);
+      } else if (fieldsFound > 0) {
+        // 🔥 DEBUG 10 DIC 2025: Log dettagliato per verificare contenuto dati
+        logger.info('[HTMLParser] 🎯 Dati parziali estratti (senza indirizzo)', {
+          fieldsFound,
+          hasDescription: !!extractedData.description,
+          descriptionLength: extractedData.description?.length || 0,
+          descriptionPreview: extractedData.description?.substring(0, 100) || null,
+          hasMainProducts: !!(extractedData.mainProducts?.length),
+          mainProductsCount: extractedData.mainProducts?.length || 0,
+          mainProductsPreview: extractedData.mainProducts?.slice(0, 3) || [],
+          confidence: extractedData.confidence
+        });
       } else {
         logger.warn('[HTMLParser] ⚠️ Nessun dato trovato sul sito', { url: websiteUrl });
       }
@@ -352,6 +905,8 @@ class HTMLParser {
   /**
    * Estrae indirizzo da HTML usando pattern regex avanzati
    * Migliorato per gestire HTML minificato e case-insensitive
+   * FIX 22 Dic 2025: Aggiunto pattern per formato "ADDRESS: VIA XXX N.X CAP CITTÀ (PROV)"
+   * e corretto troncamento città (es: "Bie" invece di "Biella")
    */
   static extractAddressFromHTML(html) {
     // Rimuovi tag HTML e normalizza spazi
@@ -359,15 +914,21 @@ class HTMLParser {
 
     // Pattern per indirizzi italiani - CASE INSENSITIVE
     const patterns = [
+      // Pattern 0 (PRIORITÀ MASSIMA): Formato "ADDRESS: VIA XXX N.X CAP CITTÀ (PROV) COUNTRY"
+      // Es: "ADDRESS: VIA RAMELLA GERMANIN N.4 13900 BIELLA (BI) ITALY"
+      // Cattura tutto fino alla provincia tra parentesi inclusa
+      /address[\s:]+(?:via|viale|piazza|corso|strada)\s+([a-zàèéìòù\s\.''-]+?)\s*(?:n\.?\s*)?(\d+(?:[-\/]\d+)?)\s*(\d{5})\s+([a-zàèéìòù]+)\s*\(([a-z]{2})\)/gi,
+      
       // Pattern SPECIALE per formato "CITTÀ (PROVINCIA) – Località/loc. Nome n. numero – CAP xxxxx"
       // Es: "POLLEIN (AO) – Località L'Île-des-Lapins n. 11 – CAP 11020"
       /([a-zàèéìòù\s]+?)\s*\(([A-Z]{2})\)\s*[–-]\s*(?:località|localita|loc\.?)\s+([a-zàèéìòù\s\.''-]+?)\s*(?:n\.\s*)?(\d+(?:[-\/]\d+)?)\s*[–-]\s*(?:cap\s*)?(\d{5})/gi,
       
-      // Pattern completo: via/viale/corso/località + nome + numero + CAP + città + provincia
-      /(?:via|viale|piazza|corso|strada|contrada|località|localita|loc\.?)\s+([a-zàèéìòù\s\.''-]+?)\s*(?:n\.\s*)?(\d+(?:[-\/]\d+)?)\s*[,\s–-]+(?:cap\s*)?(\d{5})?\s*([a-zàèéìòù\s]+?)\s*\(?([A-Z]{2})\)?/gi,
+      // Pattern completo: via/viale/corso + nome + numero + CAP + città + provincia
+      // FIX: città usa [a-zàèéìòù]+ (greedy, non lazy) per catturare nome completo
+      /(?:via|viale|piazza|corso|strada|contrada|località|localita|loc\.?)\s+([a-zàèéìòù\s\.''-]{1,100}?)\s*(?:n\.?\s*)?(\d+(?:[-\/]\d+)?)\s*[,\s–-]*(\d{5})\s+([a-zàèéìòù]+)\s*\(?([A-Z]{2})\)?/gi,
       
       // Pattern senza CAP ma con provincia
-      /(?:via|viale|piazza|corso|strada|località|localita|loc\.?)\s+([a-zàèéìòù\s\.''-]+?)\s*(?:n\.\s*)?(\d+(?:[-\/]\d+)?)\s*[,\s–-]+([a-zàèéìòù\s]+?)\s*\(?([A-Z]{2})\)?/gi,
+      /(?:via|viale|piazza|corso|strada|località|localita|loc\.?)\s+([a-zàèéìòù\s\.''-]{1,100}?)\s*(?:n\.?\s*)?(\d+(?:[-\/]\d+)?)\s*[,\s–-]+([a-zàèéìòù]+)\s*\(?([A-Z]{2})\)?/gi,
       
       // Pattern minimalista per HTML minificato (es: "via matteotti 14-22<br>28010 cavallirio (no)")
       /(?:via|viale|piazza|corso|strada)\s+([a-zàèéìòù]+)\s+(\d+(?:[-\/]\d+)?)\s*(?:<br>|<br\/>)?\s*(\d{5})?\s*([a-zàèéìòù]+)\s*\(([a-z]{2})\)/gi
@@ -383,6 +944,12 @@ class HTMLParser {
       for (const match of matches) {
         let fullMatch = match[0].trim();
         
+        // Rimuovi keyword "ADDRESS:" se presente all'inizio
+        fullMatch = fullMatch.replace(/^address[\s:]+/i, '');
+        
+        // Rimuovi "ITALY" o "ITALIA" se presente alla fine
+        fullMatch = fullMatch.replace(/\s*(italy|italia)\s*$/i, '');
+        
         // Rimuovi eventuali tag residui
         fullMatch = fullMatch.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         
@@ -397,6 +964,9 @@ class HTMLParser {
         // Calcola confidence basata su completezza
         let confidence = 0.6; // Base più alta per pattern migliorati
         
+        // Bonus ALTO per pattern 0 (ADDRESS: keyword)
+        if (patternIndex === 0) confidence += 0.3;
+        
         // Bonus per CAP presente
         if (/\d{5}/.test(fullMatch)) confidence += 0.2;
         
@@ -407,11 +977,16 @@ class HTMLParser {
         if (/\d+-\d+/.test(fullMatch)) confidence += 0.1;
         
         // Bonus per lunghezza ragionevole
-        if (fullMatch.length > 25 && fullMatch.length < 100) confidence += 0.1;
+        if (fullMatch.length > 25 && fullMatch.length < 120) confidence += 0.1;
 
         if (confidence > bestConfidence) {
           bestMatch = fullMatch;
           bestConfidence = confidence;
+          
+          // Se trovato con pattern ADDRESS (priorità 0), log e usa questo
+          if (patternIndex === 0) {
+            logger.info('[HTMLParser] 📍 Indirizzo estratto con keyword ADDRESS', { address: fullMatch });
+          }
         }
       }
     }
@@ -448,26 +1023,75 @@ class HTMLParser {
 
   /**
    * Estrae telefono da HTML
+   * FIX 22 Dic 2025: Pattern più specifici per evitare cattura di numeri casuali (P.IVA, ID prodotto, etc.)
+   * Il pattern precedente catturava qualsiasi sequenza di 9+ numeri causando falsi positivi
    */
   static extractPhoneFromHTML(html) {
-    // Pattern per numeri italiani
+    const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+    
+    // Pattern SPECIFICI per numeri telefonici italiani - in ordine di priorità
     const phonePatterns = [
-      /(?:\+39\s?)?(?:\d{2,4}[\s.-]?)?\d{6,8}/g,
-      /(?:tel\.?|telefono|phone)[\s:]+(\+?[\d\s\.-]+)/gi
+      // Pattern 1 (ALTA PRIORITÀ): Numero con keyword "PHONE:" o "TEL:" davanti
+      // Es: "PHONE: +39 (0) 152522320" o "TEL: 0141 123456"
+      /(?:phone|tel|telefono)[\s:]+\+?39?\s*\(?0?\)?\s*(\d{2,4})[\s.-]?(\d{5,8})/gi,
+      
+      // Pattern 2 (ALTA PRIORITÀ): Formato +39 esplicito con prefisso
+      // Es: "+39 0141 123456" o "+39 (0) 152522320"
+      /\+39\s*\(?0?\)?\s*(\d{2,4})[\s.-]?(\d{5,8})/g,
+      
+      // Pattern 3 (MEDIA PRIORITÀ): Formato italiano con prefisso 0XX
+      // Es: "0141.123456" o "0141-123456" o "0141 123456"
+      /\b0(\d{2,3})[\s.-](\d{5,8})\b/g,
+      
+      // Pattern 4 (BASSA PRIORITÀ): Numero con almeno un separatore (per evitare ID/codici)
+      // Es: "141.123456" o "141-123456" - RICHIEDE separatore per distinguere da codici
+      /\b(\d{3,4})[\s.-](\d{5,7})\b/g
     ];
 
-    for (const pattern of phonePatterns) {
-      const matches = html.match(pattern);
-      if (matches && matches.length > 0) {
-        // Pulisci e normalizza
-        let phone = matches[0].replace(/[^\d+]/g, '');
-        if (phone.length >= 9) {
-          return phone;
+    let bestMatch = null;
+    let bestPriority = 999;
+
+    for (let priority = 0; priority < phonePatterns.length; priority++) {
+      const pattern = phonePatterns[priority];
+      const matches = [...text.matchAll(pattern)];
+      
+      for (const match of matches) {
+        // Ricostruisci numero completo
+        let phone = match[0].replace(/[^\d+]/g, '');
+        
+        // Rimuovi prefisso +39 se presente per normalizzazione
+        phone = phone.replace(/^\+?39/, '');
+        
+        // Aggiungi 0 iniziale se mancante per FISSI (prefissi area iniziano con 0)
+        // NON aggiungere 0 ai CELLULARI (iniziano con 3)
+        if (!phone.startsWith('0') && !phone.startsWith('3') && phone.length >= 9 && phone.length <= 11) {
+          phone = '0' + phone;
+        }
+        
+        // Validazione: numero italiano deve essere 9-12 cifre e iniziare con 0 (fisso) o 3 (cellulare)
+        // Fissi: 0XX XXXXXXX (9-11 cifre), Cellulari: 3XX XXXXXXX (10 cifre)
+        if (phone.length >= 9 && phone.length <= 12 && (phone.startsWith('0') || phone.startsWith('3'))) {
+          // Verifica che NON sia una P.IVA (11 cifre senza 0 iniziale non è telefono)
+          // e che NON sia un codice REA (6-7 cifre)
+          if (priority < bestPriority) {
+            bestMatch = phone;
+            bestPriority = priority;
+            
+            // Se trovato con keyword PHONE/TEL (priorità 0), usa questo
+            if (priority === 0) {
+              logger.info('[HTMLParser] 📞 Telefono estratto con keyword', { phone, pattern: 'PHONE/TEL keyword' });
+              return phone;
+            }
+          }
         }
       }
     }
 
-    return null;
+    if (bestMatch) {
+      logger.info('[HTMLParser] 📞 Telefono estratto', { phone: bestMatch, priority: bestPriority });
+    }
+    
+    return bestMatch;
   }
 
   /**
@@ -493,15 +1117,29 @@ class HTMLParser {
   }
 
   /**
-   * Estrae numero REA da HTML
+   * Estrae numero REA da HTML con validazione formato
+   * Formato valido: 2 lettere maiuscole + dash/spazio + 6 cifre (es: MI-1234567, TO 987654)
+   * FIX: Previene confusione con nomi birre (es: "La 150" non è un REA code)
    */
   static extractREACodeFromHTML(html) {
     const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-    const pattern = /(?:rea|r\.e\.a\.|registro\s+imprese)[\s:]+([A-Z]{2}[\s-]?\d+)/gi;
+    
+    // Pattern più specifico: REA + 2 lettere + dash/spazio opzionale + 6-7 cifre
+    const pattern = /(?:rea|r\.e\.a\.|registro\s+imprese)[\s:]+([A-Z]{2}[\s-]?\d{6,7})/gi;
     const match = text.match(pattern);
     
     if (match && match[0]) {
-      return match[0].replace(/^.*?([A-Z]{2}[\s-]?\d+).*$/i, '$1').trim();
+      const extracted = match[0].replace(/^.*?([A-Z]{2}[\s-]?\d{6,7}).*$/i, '$1').trim();
+      
+      // Validazione formato: XX-123456 o XX 123456 (2 lettere + 6-7 cifre)
+      const validFormat = /^[A-Z]{2}[\s-]?\d{6,7}$/i.test(extracted);
+      
+      if (validFormat) {
+        return extracted;
+      } else {
+        logger.warn(`[HTMLParser] ⚠️ REA code estratto non valido (formato errato): ${extracted}`);
+        return null;
+      }
     }
     return null;
   }
@@ -1072,7 +1710,8 @@ class HTMLParser {
 
   /**
    * Estrae tutte le info birra da una pagina web specifica
-   * @param {string} websiteUrl - URL della pagina prodotto birra
+   * MIGLIORATO: Cerca prima la pagina specifica della birra, poi fallback alla homepage
+   * @param {string} websiteUrl - URL base del sito birrificio
    * @param {string} beerName - Nome della birra da cercare
    * @returns {Promise<Object>} Dati birra estratti
    */
@@ -1080,16 +1719,67 @@ class HTMLParser {
     try {
       logger.info('[HTMLParser] 🍺 Estrazione dati birra da sito', { websiteUrl, beerName });
 
-      const response = await axios.get(websiteUrl, {
-        timeout: 8000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-      });
+      // 1. Costruisci possibili URL per pagina specifica birra
+      const baseUrl = websiteUrl.replace(/\/$/, ''); // Rimuovi trailing slash
+      const beerSlug = beerName
+        .toLowerCase()
+        .replace(/[àáâãäå]/g, 'a')
+        .replace(/[èéêë]/g, 'e')
+        .replace(/[ìíîï]/g, 'i')
+        .replace(/[òóôõö]/g, 'o')
+        .replace(/[ùúûü]/g, 'u')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      
+      // Pattern comuni per pagine birra
+      const possibleUrls = [
+        `${baseUrl}/birre/${beerSlug}`,
+        `${baseUrl}/birra/${beerSlug}`,
+        `${baseUrl}/beers/${beerSlug}`,
+        `${baseUrl}/prodotti/${beerSlug}`,
+        `${baseUrl}/products/${beerSlug}`,
+        `${baseUrl}/${beerSlug}`,
+        `${baseUrl}/le-nostre-birre/${beerSlug}`,
+        `${baseUrl}/our-beers/${beerSlug}`,
+        baseUrl // Homepage come fallback finale
+      ];
 
-      const html = response.data;
+      let html = '';
+      let successUrl = '';
+
+      // 2. Prova ogni URL finché uno funziona
+      for (const url of possibleUrls) {
+        try {
+          logger.info(`[HTMLParser] 🔍 Provo URL birra: ${url}`);
+          const response = await axios.get(url, {
+            timeout: 6000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            validateStatus: (status) => status < 400 // Accetta solo 2xx e 3xx
+          });
+          
+          // Verifica che la pagina contenga contenuto rilevante
+          if (response.data && response.data.length > 1000) {
+            html = response.data;
+            successUrl = url;
+            logger.info(`[HTMLParser] ✅ URL birra trovato: ${url}`);
+            break;
+          }
+        } catch (urlError) {
+          // Continua con prossimo URL
+          continue;
+        }
+      }
+
+      if (!html) {
+        logger.warn('[HTMLParser] ⚠️ Nessun URL valido trovato per birra', { beerName });
+        return { confidence: 0, error: 'Nessun URL valido' };
+      }
+
       const $ = cheerio.load(html);
 
+      // 3. Estrai dati dalla pagina trovata
       const beerData = {
         alcoholContent: this.extractAlcoholContentFromHTML(html),
         beerType: this.extractBeerTypeFromHTML(html, $),
@@ -1102,11 +1792,11 @@ class HTMLParser {
         nutritionalInfo: this.extractNutritionalInfoFromHTML(html),
         price: this.extractPriceFromHTML(html),
         availability: this.extractAvailabilityFromHTML(html),
-        source: websiteUrl
+        source: successUrl
       };
 
       // Calcola confidence basato su campi trovati
-      const fieldsFound = Object.values(beerData).filter(v => v !== null && v !== websiteUrl).length;
+      const fieldsFound = Object.values(beerData).filter(v => v !== null && v !== successUrl).length;
       const totalFields = 11; // Numero totale di campi (escluso source)
       const confidence = fieldsFound / totalFields;
 
@@ -1115,6 +1805,7 @@ class HTMLParser {
 
       logger.info('[HTMLParser] ✅ Dati birra estratti', {
         beerName,
+        sourceUrl: successUrl,
         fieldsFound,
         confidence: confidence.toFixed(2),
         hasAlcohol: !!beerData.alcoholContent,

@@ -1,627 +1,127 @@
-{% extends "layout.njk" %}
-
-{% block title %}Validazione Birrifici - Administrator{% endblock %}
+{% extends "../layout.njk" %}
+{% block title %}Validazione Birrifici{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/admin-dashboard.css">{% endblock %}
 
 {% block content %}
-<div class="validation-container">
-    <div class="validation-header">
-        <h1>🛡️ Validazione Birrifici</h1>
-        <p class="subtitle">Rivedi e approva i birrifici estratti automaticamente</p>
+<div class="admin-page">
+    <div class="page-head">
+        <h1><i class="fas fa-shield-alt"></i> Validazione Birrifici</h1>
+        <a href="/administrator" class="btn-add"><i class="fas fa-arrow-left"></i> Dashboard</a>
     </div>
 
-    <!-- Badge conteggio -->
-    <div class="validation-stats">
-        <div class="stat-card">
-            <span class="stat-number" id="pendingCount">-</span>
-            <span class="stat-label">In Attesa</span>
-        </div>
-        <div class="stat-card">
-            <span class="stat-number" id="validatedToday">-</span>
-            <span class="stat-label">Validati Oggi</span>
-        </div>
+    <div class="stats-row">
+        <div class="stat-box" style="--accent:var(--dash-yellow)"><i class="fas fa-clock"></i><div class="num">{{ count or 0 }}</div><div class="lbl">In Attesa</div></div>
+        <div class="stat-box" style="--accent:var(--dash-green)"><i class="fas fa-check-circle"></i><div class="num" id="validatedToday">-</div><div class="lbl">Validati Oggi</div></div>
     </div>
 
-    <!-- Loading spinner -->
-    <div id="loadingSpinner" class="loading-spinner">
-        <div class="spinner"></div>
-        <p>Caricamento birrifici...</p>
-    </div>
-
-    <!-- Lista birrifici -->
-    <div id="breweriesList" class="breweries-list" style="display: none;">
-        <!-- Popolato dinamicamente via JavaScript -->
-    </div>
-
-    <!-- Empty state -->
-    <div id="emptyState" class="empty-state" style="display: none;">
-        <div class="empty-icon">✅</div>
-        <h3>Tutto Validato!</h3>
-        <p>Non ci sono birrifici in attesa di validazione.</p>
-    </div>
-</div>
-
-<!-- Modal modifica birrificio -->
-<div id="editModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Modifica Birrificio</h2>
-            <button class="close-btn" onclick="closeEditModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="editBreweryForm">
-                <input type="hidden" id="editBreweryId">
-                
-                <div class="form-group">
-                    <label for="editBreweryName">Nome Birrificio *</label>
-                    <input type="text" id="editBreweryName" class="form-control" required>
+    {% if count > 0 %}
+    <div class="validation-list" id="breweriesList">
+        {% for b in breweries %}
+        <div class="validation-card" id="brewery-{{ b._id }}">
+            <div class="validation-head">
+                <div class="validation-title">
+                    <h3>{{ b.breweryName or 'Nome non disponibile' }}</h3>
+                    <span class="role-badge" style="--badge-bg:{% if b.dataSource == 'web_scraped' %}var(--dash-green){% else %}var(--dash-blue){% endif %}">{% if b.dataSource == 'web_scraped' %}Web{% else %}AI{% endif %}</span>
                 </div>
-
-                <div class="form-group">
-                    <label for="editBreweryWebsite">Sito Web</label>
-                    <input type="url" id="editBreweryWebsite" class="form-control">
+                <div class="validation-actions">
+                    <button class="btn-approve" onclick="approveBrewery('{{ b._id }}')" title="Approva"><i class="fas fa-check"></i></button>
+                    <button class="btn-edit" onclick="editBrewery('{{ b._id }}')" title="Modifica"><i class="fas fa-edit"></i></button>
+                    <button class="btn-reject" onclick="rejectBrewery('{{ b._id }}')" title="Rifiuta"><i class="fas fa-times"></i></button>
                 </div>
-
-                <div class="form-group">
-                    <label for="editBreweryEmail">Email</label>
-                    <input type="email" id="editBreweryEmail" class="form-control">
-                </div>
-
-                <div class="form-group">
-                    <label for="editBreweryPhone">Telefono</label>
-                    <input type="tel" id="editBreweryPhone" class="form-control">
-                </div>
-
-                <div class="form-group">
-                    <label for="editBreweryAddress">Indirizzo</label>
-                    <textarea id="editBreweryAddress" class="form-control" rows="2"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="editBreweryDescription">Descrizione</label>
-                    <textarea id="editBreweryDescription" class="form-control" rows="4"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="editFoundingYear">Anno Fondazione</label>
-                    <input type="number" id="editFoundingYear" class="form-control" min="1900" max="2025">
-                </div>
-
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Annulla</button>
-                    <button type="submit" class="btn btn-primary">Salva e Approva</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<style>
-.validation-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 2rem;
-}
-
-.validation-header {
-    text-align: center;
-    margin-bottom: 3rem;
-}
-
-.validation-header h1 {
-    font-size: 2.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
-}
-
-.subtitle {
-    color: #666;
-    font-size: 1.1rem;
-}
-
-.validation-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 3rem;
-}
-
-.stat-card {
-    background: white;
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    text-align: center;
-    transition: transform 0.3s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-5px);
-}
-
-.stat-number {
-    display: block;
-    font-size: 3rem;
-    font-weight: bold;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.stat-label {
-    display: block;
-    color: #666;
-    font-size: 0.9rem;
-    margin-top: 0.5rem;
-}
-
-.loading-spinner {
-    text-align: center;
-    padding: 4rem 0;
-}
-
-.spinner {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #667eea;
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.breweries-list {
-    display: grid;
-    gap: 1.5rem;
-}
-
-.brewery-card {
-    background: white;
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
-}
-
-.brewery-card:hover {
-    box-shadow: 0 8px 12px rgba(0,0,0,0.15);
-}
-
-.brewery-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: start;
-    margin-bottom: 1.5rem;
-    border-bottom: 2px solid #f0f0f0;
-    padding-bottom: 1rem;
-}
-
-.brewery-info h3 {
-    font-size: 1.5rem;
-    color: #333;
-    margin-bottom: 0.5rem;
-}
-
-.brewery-badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.badge-ai {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.badge-scraped {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    color: white;
-}
-
-.brewery-details {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.detail-item {
-    display: flex;
-    align-items: start;
-    gap: 0.5rem;
-}
-
-.detail-icon {
-    font-size: 1.2rem;
-    min-width: 24px;
-}
-
-.detail-content {
-    flex: 1;
-}
-
-.detail-label {
-    font-size: 0.85rem;
-    color: #666;
-    margin-bottom: 0.25rem;
-}
-
-.detail-value {
-    color: #333;
-    word-break: break-word;
-}
-
-.detail-value a {
-    color: #667eea;
-    text-decoration: none;
-}
-
-.detail-value a:hover {
-    text-decoration: underline;
-}
-
-.brewery-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 2px solid #f0f0f0;
-}
-
-.btn {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.btn-approve {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    color: white;
-}
-
-.btn-approve:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(67, 233, 123, 0.3);
-}
-
-.btn-edit {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.btn-edit:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-}
-
-.btn-reject {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: white;
-}
-
-.btn-reject:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(245, 87, 108, 0.3);
-}
-
-.empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-}
-
-.empty-icon {
-    font-size: 5rem;
-    margin-bottom: 1rem;
-}
-
-.empty-state h3 {
-    font-size: 2rem;
-    color: #333;
-    margin-bottom: 0.5rem;
-}
-
-.empty-state p {
-    color: #666;
-    font-size: 1.1rem;
-}
-
-/* Modal */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.7);
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-content {
-    background: white;
-    border-radius: 12px;
-    width: 90%;
-    max-width: 600px;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border-bottom: 2px solid #f0f0f0;
-}
-
-.modal-header h2 {
-    margin: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.close-btn {
-    background: none;
-    border: none;
-    font-size: 2rem;
-    cursor: pointer;
-    color: #999;
-    transition: color 0.3s ease;
-}
-
-.close-btn:hover {
-    color: #333;
-}
-
-.modal-body {
-    padding: 2rem;
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-group label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: #333;
-}
-
-.form-control {
-    width: 100%;
-    padding: 0.75rem;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.3s ease;
-}
-
-.form-control:focus {
-    outline: none;
-    border-color: #667eea;
-}
-
-.modal-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-    margin-top: 2rem;
-}
-
-.btn-secondary {
-    background: #e0e0e0;
-    color: #333;
-}
-
-.btn-secondary:hover {
-    background: #d0d0d0;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-}
-</style>
-
-<script>
-// Carica birrifici da validare
-async function loadPendingBreweries() {
-    try {
-        document.getElementById('loadingSpinner').style.display = 'block';
-        document.getElementById('breweriesList').style.display = 'none';
-        document.getElementById('emptyState').style.display = 'none';
-
-        const response = await fetch('/administrator/validation/breweries');
-        const data = await response.json();
-
-        document.getElementById('loadingSpinner').style.display = 'none';
-
-        if (data.success && data.breweries.length > 0) {
-            renderBreweries(data.breweries);
-            document.getElementById('pendingCount').textContent = data.breweries.length;
-        } else {
-            document.getElementById('emptyState').style.display = 'block';
-            document.getElementById('pendingCount').textContent = '0';
-        }
-    } catch (error) {
-        console.error('Errore caricamento birrifici:', error);
-        alert('Errore durante il caricamento dei birrifici');
-    }
-}
-
-// Render lista birrifici
-function renderBreweries(breweries) {
-    const container = document.getElementById('breweriesList');
-    container.innerHTML = '';
-    container.style.display = 'block';
-
-    breweries.forEach(brewery => {
-        const card = createBreweryCard(brewery);
-        container.appendChild(card);
-    });
-}
-
-// Crea card birrificio
-function createBreweryCard(brewery) {
-    const card = document.createElement('div');
-    card.className = 'brewery-card';
-    card.id = `brewery-${brewery._id}`;
-
-    const badgeClass = brewery.dataSource === 'web_scraped' ? 'badge-scraped' : 'badge-ai';
-    const badgeText = brewery.dataSource === 'web_scraped' ? 'Web Scraping' : 'AI Extract';
-
-    card.innerHTML = `
-        <div class="brewery-card-header">
-            <div class="brewery-info">
-                <h3>${brewery.breweryName || 'Nome non disponibile'}</h3>
-                <span class="brewery-badge ${badgeClass}">${badgeText}</span>
+            </div>
+            <div class="validation-details">
+                {% if b.breweryWebsite %}<div class="vd-item"><i class="fas fa-globe"></i><a href="{{ b.breweryWebsite }}" target="_blank">{{ b.breweryWebsite | truncate(40) }}</a></div>{% endif %}
+                {% if b.breweryEmail %}<div class="vd-item"><i class="fas fa-envelope"></i>{{ b.breweryEmail }}</div>{% endif %}
+                {% if b.breweryPhoneNumber %}<div class="vd-item"><i class="fas fa-phone"></i>{{ b.breweryPhoneNumber }}</div>{% endif %}
+                {% if b.breweryLegalAddress %}<div class="vd-item"><i class="fas fa-map-marker-alt"></i>{{ b.breweryLegalAddress | truncate(50) }}</div>{% endif %}
+                {% if b.foundingYear %}<div class="vd-item"><i class="fas fa-calendar"></i>{{ b.foundingYear }}</div>{% endif %}
+                {% if b.breweryDescription %}<div class="vd-item full"><i class="fas fa-align-left"></i>{{ b.breweryDescription | truncate(150) }}</div>{% endif %}
             </div>
         </div>
-        <div class="brewery-details">
-            ${brewery.breweryWebsite ? `
-            <div class="detail-item">
-                <span class="detail-icon">🌐</span>
-                <div class="detail-content">
-                    <div class="detail-label">Sito Web</div>
-                    <div class="detail-value"><a href="${brewery.breweryWebsite}" target="_blank">${brewery.breweryWebsite}</a></div>
-                </div>
-            </div>` : ''}
-            ${brewery.breweryEmail ? `
-            <div class="detail-item">
-                <span class="detail-icon">📧</span>
-                <div class="detail-content">
-                    <div class="detail-label">Email</div>
-                    <div class="detail-value">${brewery.breweryEmail}</div>
-                </div>
-            </div>` : ''}
-            ${brewery.breweryPhoneNumber ? `
-            <div class="detail-item">
-                <span class="detail-icon">📞</span>
-                <div class="detail-content">
-                    <div class="detail-label">Telefono</div>
-                    <div class="detail-value">${brewery.breweryPhoneNumber}</div>
-                </div>
-            </div>` : ''}
-            ${brewery.breweryLegalAddress ? `
-            <div class="detail-item">
-                <span class="detail-icon">📍</span>
-                <div class="detail-content">
-                    <div class="detail-label">Indirizzo</div>
-                    <div class="detail-value">${brewery.breweryLegalAddress}</div>
-                </div>
-            </div>` : ''}
-            ${brewery.foundingYear ? `
-            <div class="detail-item">
-                <span class="detail-icon">📅</span>
-                <div class="detail-content">
-                    <div class="detail-label">Anno Fondazione</div>
-                    <div class="detail-value">${brewery.foundingYear}</div>
-                </div>
-            </div>` : ''}
-            ${brewery.breweryDescription ? `
-            <div class="detail-item" style="grid-column: 1 / -1;">
-                <span class="detail-icon">📝</span>
-                <div class="detail-content">
-                    <div class="detail-label">Descrizione</div>
-                    <div class="detail-value">${brewery.breweryDescription.substring(0, 200)}${brewery.breweryDescription.length > 200 ? '...' : ''}</div>
-                </div>
-            </div>` : ''}
-        </div>
-        <div class="brewery-actions">
-            <button class="btn btn-approve" onclick="approveBrewery('${brewery._id}')">✅ Approva</button>
-            <button class="btn btn-edit" onclick="editBrewery('${brewery._id}')">✏️ Modifica</button>
-            <button class="btn btn-reject" onclick="rejectBrewery('${brewery._id}')">❌ Rifiuta</button>
-        </div>
-    `;
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state"><i class="fas fa-check-double"></i><p>Nessun birrificio in attesa di validazione</p></div>
+    {% endif %}
+</div>
 
-    return card;
+<!-- Modal Modifica -->
+<div id="editModal" class="modal-overlay" style="display:none">
+    <div class="modal-box">
+        <div class="modal-head"><h3><i class="fas fa-edit"></i> Modifica Birrificio</h3><button class="modal-close" onclick="closeEditModal()">&times;</button></div>
+        <form id="editBreweryForm" class="modal-form">
+            <input type="hidden" id="editBreweryId">
+            <div class="form-row">
+                <label>Nome *</label><input type="text" id="editBreweryName" required>
+            </div>
+            <div class="form-row">
+                <label>Sito Web</label><input type="url" id="editBreweryWebsite">
+            </div>
+            <div class="form-row">
+                <label>Email</label><input type="email" id="editBreweryEmail">
+            </div>
+            <div class="form-row">
+                <label>Telefono</label><input type="tel" id="editBreweryPhone">
+            </div>
+            <div class="form-row">
+                <label>Indirizzo</label><textarea id="editBreweryAddress" rows="2"></textarea>
+            </div>
+            <div class="form-row">
+                <label>Descrizione</label><textarea id="editBreweryDescription" rows="3"></textarea>
+            </div>
+            <div class="form-row">
+                <label>Anno Fondazione</label><input type="number" id="editFoundingYear" min="1800" max="2025">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-delete" onclick="closeEditModal()">Annulla</button>
+                <button type="submit" class="btn-add">Salva e Approva</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function approveBrewery(id){
+    if(!confirm('Approvare questo birrificio?'))return;
+    try{
+        const r=await fetch(`/administrator/validation/brewery/${id}/approve`,{method:'POST',headers:{'Content-Type':'application/json'}});
+        const d=await r.json();
+        if(d.success){document.getElementById(`brewery-${id}`).remove();location.reload();}
+        else alert('Errore: '+d.error);
+    }catch(e){console.error(e);alert('Errore approvazione');}
 }
-
-// Approva birrificio
-async function approveBrewery(breweryId) {
-    if (!confirm('Sei sicuro di voler approvare questo birrificio?')) return;
-
-    try {
-        const response = await fetch(`/administrator/validation/brewery/${breweryId}/approve`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            document.getElementById(`brewery-${breweryId}`).remove();
-            alert('Birrificio approvato con successo!');
-            loadPendingBreweries(); // Ricarica lista
-        } else {
-            alert('Errore durante l\'approvazione: ' + data.error);
-        }
-    } catch (error) {
-        console.error('Errore approvazione:', error);
-        alert('Errore durante l\'approvazione del birrificio');
-    }
+async function rejectBrewery(id){
+    const reason=prompt('Motivo rifiuto (opzionale):');
+    if(reason===null)return;
+    try{
+        const r=await fetch(`/administrator/validation/brewery/${id}/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason})});
+        const d=await r.json();
+        if(d.success){document.getElementById(`brewery-${id}`).remove();location.reload();}
+        else alert('Errore: '+d.error);
+    }catch(e){console.error(e);alert('Errore rifiuto');}
 }
-
-// Rifiuta birrificio
-async function rejectBrewery(breweryId) {
-    const reason = prompt('Motivo del rifiuto (opzionale):');
-    if (reason === null) return; // Annullato
-
-    try {
-        const response = await fetch(`/administrator/validation/brewery/${breweryId}/reject`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            document.getElementById(`brewery-${breweryId}`).remove();
-            alert('Birrificio rifiutato ed eliminato');
-            loadPendingBreweries();
-        } else {
-            alert('Errore durante il rifiuto: ' + data.error);
-        }
-    } catch (error) {
-        console.error('Errore rifiuto:', error);
-        alert('Errore durante il rifiuto del birrificio');
-    }
-}
-
-// Mostra modal modifica
-function editBrewery(breweryId) {
-    // TODO: Caricare dati birrificio e popolare form
-    document.getElementById('editModal').style.display = 'flex';
-}
-
-// Chiudi modal
-function closeEditModal() {
-    document.getElementById('editModal').style.display = 'none';
-}
-
-// Carica al load della pagina
-document.addEventListener('DOMContentLoaded', loadPendingBreweries);
+function editBrewery(id){document.getElementById('editModal').style.display='flex';document.getElementById('editBreweryId').value=id;}
+function closeEditModal(){document.getElementById('editModal').style.display='none';}
+document.getElementById('editBreweryForm').addEventListener('submit',async function(e){
+    e.preventDefault();
+    const id=document.getElementById('editBreweryId').value;
+    const data={
+        breweryName:document.getElementById('editBreweryName').value,
+        breweryWebsite:document.getElementById('editBreweryWebsite').value,
+        breweryEmail:document.getElementById('editBreweryEmail').value,
+        breweryPhoneNumber:document.getElementById('editBreweryPhone').value,
+        breweryLegalAddress:document.getElementById('editBreweryAddress').value,
+        breweryDescription:document.getElementById('editBreweryDescription').value,
+        foundingYear:document.getElementById('editFoundingYear').value
+    };
+    try{
+        const r=await fetch(`/administrator/validation/brewery/${id}/update-approve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+        const d=await r.json();
+        if(d.success){closeEditModal();location.reload();}
+        else alert('Errore: '+d.error);
+    }catch(e){console.error(e);alert('Errore salvataggio');}
+});
 </script>
 {% endblock %}

@@ -63,7 +63,7 @@ class ValidationService {
           'array.min': 'È necessaria almeno una recensione',
           'array.max': 'Non è possibile recensire più di 10 birre alla volta'
         }),
-      aiAnalysisData: Joi.object().optional()
+      aiAnalysisData: Joi.object().optional().allow(null)
     });
 
     const { error, value } = schema.validate(data, { 
@@ -143,9 +143,10 @@ class ValidationService {
         message: 'Sono stati rilevati contenuti inappropriati in alcuni campi delle recensioni',
         inappropriateContent: true,
         details: inappropriateContentResults.map(result => ({
-          field: `reviews[${result.reviewIndex}]`,
-          message: `Linguaggio inappropriato rilevato in ${result.violatingFields} campo/i`,
+          reviewIndex: result.reviewIndex,
           violatingFields: result.violatingFields,
+          fieldNames: result.violations.map(v => v.field).filter((field, index, arr) => arr.indexOf(field) === index), // Nomi unici dei campi violati
+          message: `Recensione ${result.reviewIndex + 1}: linguaggio inappropriato rilevato in ${result.violatingFields} campo/i`,
           violations: result.violations
         })),
         sanitizedData: value // Restituisce i dati sanificati

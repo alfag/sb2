@@ -12,6 +12,20 @@ const beerSchema = new mongoose.Schema({
   ibu: { type: String, trim: true }, // International Bitterness Units
   volume: { type: String, trim: true },
   
+  // 🆕 ENRICHMENT FIELDS - Campi arricchimento da web scraping (FIX #6 Phase 13)
+  color: { type: String, trim: true }, // Colore birra (ambrata, dorata, scura)
+  servingTemperature: { type: String, trim: true }, // Temperatura servizio (6-8°C)
+  fermentation: { type: String, trim: true }, // Tipo fermentazione (alta/bassa)
+  glassType: { type: String, trim: true }, // Tipo bicchiere consigliato
+  
+  // Caratteristiche sensoriali
+  aroma: { type: String, trim: true }, // Profilo aromatico
+  appearance: { type: String, trim: true }, // Aspetto visivo dettagliato
+  mouthfeel: { type: String, trim: true }, // Sensazione in bocca
+  bitterness: { type: String, trim: true }, // Livello amaro
+  carbonation: { type: String, trim: true }, // Livello carbonazione
+  pairing: { type: [String], default: [] }, // Abbinamenti cibo
+  
   // Descrizioni e note
   description: { type: String, trim: true },
   ingredients: { type: String, trim: true },
@@ -30,6 +44,7 @@ const beerSchema = new mongoose.Schema({
   
   // 🛡️ Validazione dati AI
   needsValidation: { type: Boolean, default: false },
+  validationReason: { type: String, trim: true }, // Motivazione per cui è richiesta validazione (quando needsValidation = true)
   validationNotes: { type: String, trim: true },
   
   // Sistema di validazione

@@ -5,7 +5,9 @@ const ErrorHandler = require('../utils/errorHandler');
 const cacheService = require('../utils/cacheService');
 const Brewery = require('../models/Brewery');
 const AIValidationService = require('./aiValidationService');
-const MLOCRCorrector = require('../utils/ml_ocr_corrector_clean');
+// TEMPORANEO: Commentato per evitare errore MODULE_NOT_FOUND
+// TODO: Ripristinare quando ml_ocr_corrector_clean.js sarà creato
+// const MLOCRCorrector = require('../utils/ml_ocr_corrector_clean');
 
 const logger = logWithFileName(__filename);
 
@@ -207,11 +209,16 @@ class AIService {
 
       // 🤖 ML OCR CORRECTION: Applica correzione intelligente ai nomi delle birre
       if (analysisResult && analysisResult.bottles && analysisResult.bottles.length > 0) {
-        logger.info('[AIService] 🤖 Avvio correzione ML OCR per nomi birre', {
+        logger.info('[AIService] 🤖 Avvio correzione ML OCR per nomi birre (TEMPORANEAMENTE DISABILITATO)', {
           sessionId: session.id,
           bottlesCount: analysisResult.bottles.length
         });
 
+        // TEMPORANEO: ML OCR Corrector disabilitato
+        // TODO: Ripristinare quando ml_ocr_corrector_clean.js sarà implementato
+        logger.warn('[AIService] ⚠️ ML OCR Corrector non disponibile - skip correzioni ML');
+        
+        /*
         try {
           // Inizializza il correttore ML
           const mlCorrector = new MLOCRCorrector();
@@ -292,6 +299,7 @@ class AIService {
             sessionId: session.id
           });
         }
+        */
       }
 
       // 🌐 NUOVO STEP: Ricerca Web Automatica se richiesta dall'AI
