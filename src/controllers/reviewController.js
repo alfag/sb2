@@ -2292,25 +2292,33 @@ exports.createMultipleReviews = async (req, res) => {
         ratingsCount: ratingsArray.length
       });
       
-      const existingReview = await Review.findById(req.body.reviewId);
-      if (!existingReview) {
+      // 🔧 FIX: Uso findByIdAndUpdate invece di findById + save() per evitare VersionError
+      // La race condition avviene perché reviewProcessingService usa updateOne/bulkWrite
+      // mentre qui usavamo .save() - entrambi incrementano __v causando conflitto
+      savedReview = await Review.findByIdAndUpdate(
+        req.body.reviewId,
+        {
+          $set: {
+            user: req.user ? req.user._id : null,
+            ratings: ratingsArray,
+            status: 'completed',
+            processingStatus: 'pending_validation',
+            aiAnalysis: {
+              webSearchPerformed: aiAnalysisData?.webSearchPerformed || false,
+              imageQuality: aiAnalysisData?.imageQuality || 'buona',
+              analysisComplete: true,
+              overallConfidence: aiAnalysisData?.overallConfidence || 0.8,
+              processingTime: aiAnalysisData?.processingTime || '2s'
+            }
+          }
+        },
+        { new: true } // Ritorna il documento aggiornato
+      );
+      
+      if (!savedReview) {
         logger.error('[createMultipleReviews] ❌ Review non trovata', { reviewId: req.body.reviewId });
         return res.status(404).json({ error: 'Recensione non trovata. Riprova.' });
       }
-      
-      existingReview.user = req.user ? req.user._id : null;
-      existingReview.ratings = ratingsArray;
-      existingReview.status = 'completed';
-      existingReview.processingStatus = 'pending_validation';
-      existingReview.aiAnalysis = {
-        webSearchPerformed: aiAnalysisData?.webSearchPerformed || false,
-        imageQuality: aiAnalysisData?.imageQuality || 'buona',
-        analysisComplete: true,
-        overallConfidence: aiAnalysisData?.overallConfidence || 0.8,
-        processingTime: aiAnalysisData?.processingTime || '2s'
-      };
-      
-      savedReview = await existingReview.save();
       createdReviews.push(savedReview);
       
       logger.info('[createMultipleReviews] ✅ Review aggiornata (NO duplicato!)', {

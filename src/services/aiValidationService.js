@@ -1240,10 +1240,20 @@ class AIValidationService {
     // 🆕 FIX 21 Dicembre 2025: Aggiunto readingNotes per catturare "liqueur" e simili
     const readingNotes = (labelData.readingNotes || '').toLowerCase();
     
+    // 🆕 FIX 23 Dicembre 2025: Helper per cercare parola intera (evita false positive come "gin" in "coincidono")
+    const containsWholeWord = (text, word) => {
+      if (!text || !word) return false;
+      // Cerca la parola come parola intera usando word boundaries
+      const regex = new RegExp(`\\b${word}\\b`, 'i');
+      return regex.test(text);
+    };
+    
     // Categorie di bevande NON-birra
-    const liquorKeywords = [
+    // 🆕 FIX 23 Dicembre 2025: Parole corte (≤3 lettere) richiedono word boundary per evitare false positive
+    const liquorKeywordsShort = ['gin', 'rum']; // Parole corte che richiedono match esatto
+    const liquorKeywordsLong = [
       'liquore', 'liqueur', 'amaretto', 'grappa', 'brandy', 
-      'cognac', 'whisky', 'whiskey', 'rum', 'vodka', 'gin', 'tequila',
+      'cognac', 'whisky', 'whiskey', 'vodka', 'tequila',
       'limoncello', 'sambuca', 'vermouth', 'aperitivo', 'digestivo',
       'distillato', 'distilled', 'spirit', 'alchermes', 'nocino'
     ];
@@ -1257,22 +1267,55 @@ class AIValidationService {
       'vermentino', 'sangiovese', 'uva', 'grape', 'vendemmia', 'cantina'
     ];
     
-    const ciderKeywords = [
-      'cidre', 'cider', 'sidro', 'mele', 'apple', 'pera', 'pear'
+    // 🆕 FIX 23 Dicembre 2025: Parole corte anche per cider
+    const ciderKeywordsShort = ['mele', 'pera']; // Evita match dentro altre parole
+    const ciderKeywordsLong = [
+      'cidre', 'cider', 'sidro', 'apple', 'pear'
     ];
     
-    // Check 1: Verifica beerType esplicito
-    for (const keyword of liquorKeywords) {
-      if (beerType.includes(keyword)) {
-        return {
-          type: 'liquor',
-          displayType: 'Liquore/Distillato',
-          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
-          reason: `Tipo prodotto identificato come "${beerType}" (liquore/distillato)`,
-          suggestedApp: 'App dedicata a liquori e distillati',
-          confidence: 0.95
-        };
+    // 🆕 FIX 23 Dicembre 2025: Helper per verificare liquor keywords
+    const checkLiquorKeywords = (text) => {
+      // Prima controlla parole corte con word boundary
+      for (const keyword of liquorKeywordsShort) {
+        if (containsWholeWord(text, keyword)) {
+          return keyword;
+        }
       }
+      // Poi controlla parole lunghe con includes (sicuro)
+      for (const keyword of liquorKeywordsLong) {
+        if (text.includes(keyword)) {
+          return keyword;
+        }
+      }
+      return null;
+    };
+    
+    // 🆕 FIX 23 Dicembre 2025: Helper per verificare cider keywords
+    const checkCiderKeywords = (text) => {
+      for (const keyword of ciderKeywordsShort) {
+        if (containsWholeWord(text, keyword)) {
+          return keyword;
+        }
+      }
+      for (const keyword of ciderKeywordsLong) {
+        if (text.includes(keyword)) {
+          return keyword;
+        }
+      }
+      return null;
+    };
+    
+    // Check 1: Verifica beerType esplicito
+    const liquorInBeerType = checkLiquorKeywords(beerType);
+    if (liquorInBeerType) {
+      return {
+        type: 'liquor',
+        displayType: 'Liquore/Distillato',
+        detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+        reason: `Tipo prodotto identificato come "${beerType}" (liquore/distillato)`,
+        suggestedApp: 'App dedicata a liquori e distillati',
+        confidence: 0.95
+      };
     }
     
     for (const keyword of wineKeywords) {
@@ -1288,32 +1331,31 @@ class AIValidationService {
       }
     }
     
-    for (const keyword of ciderKeywords) {
-      if (beerType.includes(keyword)) {
-        return {
-          type: 'cider',
-          displayType: 'Sidro/Cidro',
-          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
-          reason: `Tipo prodotto identificato come "${beerType}" (sidro)`,
-          suggestedApp: 'App dedicata a sidri',
-          confidence: 0.90
-        };
-      }
+    const ciderInBeerType = checkCiderKeywords(beerType);
+    if (ciderInBeerType) {
+      return {
+        type: 'cider',
+        displayType: 'Sidro/Cidro',
+        detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+        reason: `Tipo prodotto identificato come "${beerType}" (sidro)`,
+        suggestedApp: 'App dedicata a sidri',
+        confidence: 0.90
+      };
     }
     
     // Check 2: Verifica descrizione (con controllo contestuale per "amaro")
     // 🆕 FIX 21 Dicembre 2025: Aggiunto readingNotes al controllo
-    for (const keyword of liquorKeywords) {
-      if (description.includes(keyword) || otherText.includes(keyword) || readingNotes.includes(keyword)) {
-        return {
-          type: 'liquor',
-          displayType: 'Liquore/Distillato',
-          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
-          reason: `Descrizione/readingNotes contiene parola chiave liquore: "${keyword}"`,
-          suggestedApp: 'App dedicata a liquori e distillati',
-          confidence: 0.85
-        };
-      }
+    // 🆕 FIX 23 Dicembre 2025: Usa checkLiquorKeywords per evitare false positive
+    const liquorInDesc = checkLiquorKeywords(description) || checkLiquorKeywords(otherText) || checkLiquorKeywords(readingNotes);
+    if (liquorInDesc) {
+      return {
+        type: 'liquor',
+        displayType: 'Liquore/Distillato',
+        detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+        reason: `Descrizione/readingNotes contiene parola chiave liquore: "${liquorInDesc}"`,
+        suggestedApp: 'App dedicata a liquori e distillati',
+        confidence: 0.85
+      };
     }
     
     // Check 2b: Controllo contestuale per "amaro" - distingue tra liquore e gusto birra
@@ -1365,20 +1407,21 @@ class AIValidationService {
     }
     
     // 🆕 Check 2d: Verifica cider keywords in description/otherText/readingNotes
-    for (const keyword of ciderKeywords) {
-      if (description.includes(keyword) || otherText.includes(keyword) || readingNotes.includes(keyword)) {
-        return {
-          type: 'cider',
-          displayType: 'Sidro/Cidro',
-          detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
-          reason: `Descrizione/readingNotes contiene parola chiave sidro: "${keyword}"`,
-          suggestedApp: 'App dedicata a sidri',
-          confidence: 0.85
-        };
-      }
+    // 🆕 FIX 23 Dicembre 2025: Usa checkCiderKeywords per evitare false positive
+    const ciderInDesc = checkCiderKeywords(description) || checkCiderKeywords(otherText) || checkCiderKeywords(readingNotes);
+    if (ciderInDesc) {
+      return {
+        type: 'cider',
+        displayType: 'Sidro/Cidro',
+        detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+        reason: `Descrizione/readingNotes contiene parola chiave sidro: "${ciderInDesc}"`,
+        suggestedApp: 'App dedicata a sidri',
+        confidence: 0.85
+      };
     }
     
     // Check 3: Verifica conflitti web verification
+    // 🆕 FIX 23 Dicembre 2025: Usa checkLiquorKeywords per evitare false positive
     if (webVerification.dataMatch === 'CONFLICTING' && webVerification.conflictingData) {
       for (const conflict of webVerification.conflictingData) {
         const conflictText = conflict.toLowerCase();
@@ -1386,17 +1429,16 @@ class AIValidationService {
         // Check se il conflitto menziona esplicitamente che non è una birra
         if (conflictText.includes('non') && conflictText.includes('birra')) {
           // Determina il tipo dal conflitto
-          for (const keyword of liquorKeywords) {
-            if (conflictText.includes(keyword)) {
-              return {
-                type: 'liquor',
-                displayType: 'Liquore/Distillato',
-                detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
-                reason: `Verifica web conferma: non è una birra ma un liquore`,
-                suggestedApp: 'App dedicata a liquori e distillati',
-                confidence: 0.90
-              };
-            }
+          const liquorInConflict = checkLiquorKeywords(conflictText);
+          if (liquorInConflict) {
+            return {
+              type: 'liquor',
+              displayType: 'Liquore/Distillato',
+              detectedName: verifiedData.beerName || labelData.beerName || 'Prodotto sconosciuto',
+              reason: `Verifica web conferma: non è una birra ma un liquore`,
+              suggestedApp: 'App dedicata a liquori e distillati',
+              confidence: 0.90
+            };
           }
           
           for (const keyword of wineKeywords) {

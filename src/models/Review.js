@@ -87,6 +87,24 @@ const reviewSchema = new mongoose.Schema({
     processedBottles: [mongoose.Schema.Types.Mixed], // Array bottiglie processate
     bottlesCount: Number, // Conteggio bottiglie
     lastUpdated: Date // Ultimo aggiornamento metadata
+  },
+  // Campi moderazione recensione
+  moderation: {
+    isHidden: { type: Boolean, default: false }, // Nascosta per violazione policy
+    moderatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    moderatedAt: { type: Date },
+    moderationReason: { type: String }, // Motivo nascondimento/moderazione
+    moderationHistory: [{
+      action: { type: String, enum: ['hidden', 'unhidden', 'status_changed', 'warning_sent'] },
+      previousStatus: String,
+      newStatus: String,
+      reason: { type: String },
+      moderatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      moderatedAt: { type: Date, default: Date.now }
+    }],
+    flagged: { type: Boolean, default: false }, // Segnalata da utenti
+    flagCount: { type: Number, default: 0 }, // Numero segnalazioni
+    flagReasons: [String] // Motivi segnalazioni
   }
 });
 

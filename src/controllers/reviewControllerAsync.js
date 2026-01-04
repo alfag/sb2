@@ -458,13 +458,6 @@ exports.getReviewStatus = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Recensione non trovata' });
     }
 
-    logger.debug('[getReviewStatus] 🔍 Review dal DB:', {
-      reviewId,
-      processingStatus: review.processingStatus,
-      hasMetadata: !!review.metadata,
-      bottlesCount: review.bottlesCount || 0
-    });
-
     const response = {
       success: true,
       data: {
@@ -488,37 +481,9 @@ exports.getReviewStatus = async (req, res) => {
         // Includi i dati delle bottiglie processate
         bottles: review.metadata?.processedBottles || review.metadata?.bottles || []
       };
-      
-      // 🔍 LOGGING DETTAGLIATO per debugging
-      logger.info('[getReviewStatus] ✅ Job completato, ritorno dati bottiglie:', {
-        reviewId,
-        hasMetadata: !!review.metadata,
-        hasProcessedBottles: !!review.metadata?.processedBottles,
-        hasBottles: !!review.metadata?.bottles,
-        bottlesCount: response.data.result.bottles.length,
-        firstBottle: response.data.result.bottles[0] ? {
-          beerName: response.data.result.bottles[0].beerName,
-          hasBreweryName: !!response.data.result.bottles[0].breweryName,
-          dataSource: response.data.result.bottles[0].dataSource
-        } : null
-      });
-      
-      logger.info('[getReviewStatus] 🔍 Response completa che sarà inviata al frontend:', {
-        success: response.success,
-        dataStatus: response.data.status,
-        hasResult: !!response.data.result,
-        hasResultBottles: !!response.data.result?.bottles,
-        resultBottlesLength: response.data.result?.bottles?.length || 0,
-        completed: response.completed,
-        shouldStopPolling: response.shouldStopPolling
-      });
-      
-      logger.info('[getReviewStatus] 🛑 POLLING DEVE FERMARSI - Job completato, completed=true');
     } else if (review.processingStatus === 'failed') {
       response.data.error = review.processingError || 'Errore sconosciuto';
       response.data.failedAt = review.processingFailedAt;
-      
-      logger.info('[getReviewStatus] ❌ POLLING DEVE FERMARSI - Job fallito, completed=true');
     }
 
     return res.status(200).json(response);

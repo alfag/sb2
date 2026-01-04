@@ -25,19 +25,23 @@ const getRedirectUrlByRole = (role) => {
 exports.postRegister = async (req, res) => {
     // Estrai i dati dal body coerentemente con il model User e i dettagli customerDetails
     const {
-        username,
+        username: rawUsername,
         password,
         customerName,
         customerSurname,
-        customerFiscalCode,
         customerBillingAddress,
         customerShippingAddress,
-        customerPhoneNumber
+        customerPhoneNumber,
+        termsAccepted,
+        newsletterSubscription
     } = req.body;
 
+    // Task 20: Converti email/username in lowercase per evitare duplicati
+    const username = rawUsername ? rawUsername.toLowerCase().trim() : '';
+
     try {
-        // Verifica se l'utente esiste già
-        const existingUser = await User.findOne({ username });
+        // Verifica se l'utente esiste già (cerca anche in lowercase per sicurezza)
+        const existingUser = await User.findOne({ username: username.toLowerCase() });
         if (existingUser) {
             logger.warn(`Tentativo di registrazione con username già esistente: ${username}`);
             return res.status(400).render('customer/registerUser.njk', {
@@ -49,26 +53,53 @@ exports.postRegister = async (req, res) => {
         // Il middleware pre-save del modello User si occupa automaticamente dell'hash
 
         // Crea il nuovo utente con ruolo customer (array) e dettagli customerDetails
+        // Task 21: Rimosso customerFiscalCode dalla registrazione
         const newUser = new User({
-            username,
+            username, // già in lowercase
             password, // Password in chiaro - verrà hashata dal middleware pre-save
             role: ['customer'],
             customerDetails: {
                 customerName,
                 customerSurname,
-                customerFiscalCode,
                 customerAddresses: {
                     billingAddress: customerBillingAddress,
                     shippingAddress: customerShippingAddress
                 },
-                customerPhoneNumber
+                customerPhoneNumber,
+                // Salva accettazione termini e privacy
+                termsAccepted: {
+                    accepted: termsAccepted === 'on' || termsAccepted === true || termsAccepted === 'true',
+                    acceptedAt: new Date(),
+                    version: '1.0'
+                },
+                // Salva consenso newsletter (opzionale)
+                newsletterSubscription: {
+                    subscribed: newsletterSubscription === 'on' || newsletterSubscription === true || newsletterSubscription === 'true',
+                    subscribedAt: (newsletterSubscription === 'on' || newsletterSubscription === true || newsletterSubscription === 'true') ? new Date() : null
+                }
             }
         });
 
         await newUser.save();
         logger.info(`Utente customer registrato con successo: ${username}`);
-        res.status(201).render('authViews/login.njk', {
-            message: { info: 'Registrazione avvenuta con successo. Ora puoi effettuare il login.' }
+
+        // Task 22: Auto-login dopo registrazione
+        req.logIn(newUser, (loginErr) => {
+            if (loginErr) {
+                logger.error(`Errore durante auto-login dopo registrazione: ${loginErr.message}`);
+                // Fallback: redirect alla pagina di login
+                return res.status(201).render('authViews/login.njk', {
+                    message: { info: 'Registrazione avvenuta con successo. Ora puoi effettuare il login.' }
+                });
+            }
+            
+            // Imposta il ruolo attivo in sessione
+            req.session.activeRole = 'customer';
+            
+            // Redirect alla welcome page con messaggio di benvenuto
+            req.flash('success', `Benvenuto/a ${customerName || 'su SharingBeer'}! La tua registrazione è avvenuta con successo.`);
+            logger.info(`Auto-login completato per utente: ${username}`);
+            return res.redirect('/');
         });
     } catch (error) {
         logger.error(`Errore durante la registrazione: ${error.message}`);

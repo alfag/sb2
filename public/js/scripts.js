@@ -3663,16 +3663,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Gestione cancellazione utente
-    const deleteUserBtn = document.getElementById('deleteUserBtn');
-    const deleteUserForm = document.getElementById('deleteUserForm');
-    if (deleteUserBtn && deleteUserForm) {
-        deleteUserBtn.addEventListener('click', function (e) {
-            if (confirm('Sei sicuro di voler cancellare questo utente? L\'operazione è irreversibile.')) {
-                deleteUserForm.submit();
-            }
-        });
-    }
+    // NOTA: La gestione cancellazione utente è stata spostata in updateUser.js
+    // per utilizzare il modal Bootstrap invece del confirm() nativo
 
     // Gestione cambio ruolo attivo (CSP safe)
     const changeRoleForm = document.getElementById('changeRoleForm');
@@ -3959,7 +3951,8 @@ function clearSessionDataOnNavigation() {
     window.addEventListener('beforeunload', function() {
         // Solo se l'utente sta navigando via dalla pagina di review
         if (window.location.pathname.includes('/review')) {
-            navigator.sendBeacon('/review/ai-session-data', JSON.stringify({}));
+            // sendBeacon usa sempre POST, quindi usa la route dedicata
+            navigator.sendBeacon('/review/clear-session-data', JSON.stringify({}));
         }
     });
 }

@@ -604,6 +604,88 @@ router.get('/statistics', authMiddleware.isAdmin, async (req, res) => {
 });
 
 // =====================================================
+// DASHBOARD MODERAZIONE RECENSIONI
+// =====================================================
+
+// Dashboard principale recensioni
+router.get('/reviews', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info('Accesso alla dashboard moderazione recensioni');
+        await adminController.getReviewsDashboard(req, res);
+    } catch (error) {
+        logger.error(`Errore durante il caricamento dashboard recensioni: ${error.message}`);
+        req.flash('error', 'Errore durante il caricamento della dashboard recensioni');
+        res.redirect('/administrator');
+    }
+});
+
+// API per ottenere dettagli singola recensione
+router.get('/api/reviews/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info(`API richiesta dettagli recensione: ${req.params.id}`);
+        await adminController.getReviewDetails(req, res);
+    } catch (error) {
+        logger.error(`Errore API dettagli recensione: ${error.message}`);
+        res.status(500).json({ success: false, error: 'Errore interno del server' });
+    }
+});
+
+// API per toggle visibilità recensione (nascondi/mostra)
+router.post('/api/reviews/:id/visibility', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info(`API toggle visibilità recensione: ${req.params.id}`);
+        await adminController.toggleReviewVisibility(req, res);
+    } catch (error) {
+        logger.error(`Errore API toggle visibilità: ${error.message}`);
+        res.status(500).json({ success: false, error: 'Errore interno del server' });
+    }
+});
+
+// API per cambiare stato recensione
+router.post('/api/reviews/:id/status', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info(`API cambio stato recensione: ${req.params.id}`);
+        await adminController.updateReviewStatus(req, res);
+    } catch (error) {
+        logger.error(`Errore API cambio stato: ${error.message}`);
+        res.status(500).json({ success: false, error: 'Errore interno del server' });
+    }
+});
+
+// API per eliminare recensione
+router.delete('/api/reviews/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info(`API eliminazione recensione: ${req.params.id}`);
+        await adminController.deleteReview(req, res);
+    } catch (error) {
+        logger.error(`Errore API eliminazione recensione: ${error.message}`);
+        res.status(500).json({ success: false, error: 'Errore interno del server' });
+    }
+});
+
+// API per bannare utente
+router.post('/api/users/:id/ban', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info(`API ban utente: ${req.params.id}`);
+        await adminController.banUser(req, res);
+    } catch (error) {
+        logger.error(`Errore API ban utente: ${error.message}`);
+        res.status(500).json({ success: false, error: 'Errore interno del server' });
+    }
+});
+
+// API per sbannare utente
+router.post('/api/users/:id/unban', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info(`API unban utente: ${req.params.id}`);
+        await adminController.unbanUser(req, res);
+    } catch (error) {
+        logger.error(`Errore API unban utente: ${error.message}`);
+        res.status(500).json({ success: false, error: 'Errore interno del server' });
+    }
+});
+
+// =====================================================
 // SISTEMA DI TEST MATCHING BIRRIFICI AI
 // =====================================================
 

@@ -273,6 +273,15 @@ class AIModule {
           console.log('[AIModule] ✅ Job completato con successo');
           this.currentAnalysisData = result.data.result || result.data;
 
+          // 🔄 AGGIORNA CARD RECENSIONE nelle pagine welcome/recensioni se presenti
+          if (window.LatestReviewsModule && typeof window.LatestReviewsModule.updateReviewCard === 'function') {
+            console.log('[AIModule] 🔄 Aggiornamento card recensione in pagina...');
+            const updateResult = window.LatestReviewsModule.updateReviewCard(reviewId, result.data.result);
+            if (updateResult) {
+              console.log('[AIModule] ✅ Card aggiornata con successo');
+            }
+          }
+
           // 🎯 USA IL METODO CENTRALIZZATO per gestire tutte le risposte AI
           const handleResult = AIModule.handleAIResponse(result.data.result, {
             closeModal: () => {

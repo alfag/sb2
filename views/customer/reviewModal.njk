@@ -616,6 +616,12 @@
   cancelBtn?.addEventListener('click', closeModal);
   
   submitBtn?.addEventListener('click', function() {
+    // 🛡️ PROTEZIONE ANTI-DOPPIO-CLICK: evita invii multipli
+    if (submitBtn.disabled) {
+      console.warn('⚠️ Click ignorato - invio già in corso');
+      return;
+    }
+    
     const validation = validateReviews();
     
     if (!validation.valid) {
@@ -623,6 +629,13 @@
       showModalNotification(validation.message, 'error');
       return; // ❌ NON chiudere il modal - lascialo aperto per correzioni
     }
+    
+    // 🔒 Disabilita il pulsante e mostra stato di caricamento
+    submitBtn.disabled = true;
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Invio in corso...';
+    submitBtn.style.opacity = '0.7';
+    submitBtn.style.cursor = 'not-allowed';
     
     const reviews = collectReviewData();
     console.log('📤 Submitting reviews:', reviews);
@@ -634,15 +647,26 @@
         onSuccess: () => {
           console.log('✅ Recensioni pubblicate - chiudo modal');
           closeModal(); // ✅ Chiudi SOLO se successo
+          // Non serve riabilitare - il modal si chiude
         },
         onError: (errorMessage) => {
           console.error('❌ Errore pubblicazione - modal rimane aperto');
+          // 🔓 Riabilita il pulsante in caso di errore per permettere nuovo tentativo
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+          submitBtn.style.opacity = '1';
+          submitBtn.style.cursor = 'pointer';
           // Mostra errore nel modal (non chiudere!)
           showModalNotification(errorMessage, 'error');
         }
       });
     } else {
       console.error('❌ window.submitReviews() non trovata');
+      // 🔓 Riabilita il pulsante in caso di errore
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+      submitBtn.style.opacity = '1';
+      submitBtn.style.cursor = 'pointer';
       showModalNotification('Errore tecnico: funzione di invio non disponibile', 'error');
       return; // ❌ NON chiudere il modal
     }

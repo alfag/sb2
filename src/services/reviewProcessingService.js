@@ -802,51 +802,78 @@ async function processReviewBackground(job) {
     });
 
     // 🔧 FIX #4: Gestione ratings array vuoto - Controlla se ratings è vuoto
+    // 🔄 FIX RACE CONDITION (23 dic 2025): Verifica se STEP 2 ha già salvato dati utente
     const review = await Review.findById(reviewId);
     if (!review) {
       logger.error('❌ Review non trovata:', { reviewId });
       throw new Error(`Review ${reviewId} non trovata`);
     }
 
+    // Controlla se ratings ha dati utente (rating o notes compilati)
+    const ratingsHasUserData = review.ratings?.some(r => 
+      (r.rating !== undefined && r.rating !== null) || 
+      (r.notes && r.notes.trim().length > 0)
+    );
     const ratingsIsEmpty = !review.ratings || review.ratings.length === 0;
-    logger.info(`🔍 Review ${reviewId} - ratings array ${ratingsIsEmpty ? 'VUOTO' : 'POPOLATO'} (length: ${review.ratings?.length || 0})`);
+    
+    logger.info(`🔍 Review ${reviewId} - ratings array ${ratingsIsEmpty ? 'VUOTO' : 'POPOLATO'} (length: ${review.ratings?.length || 0}), hasUserData: ${ratingsHasUserData}`);
 
     let updateData;
-    if (ratingsIsEmpty) {
-      // ✅ Ratings vuoto: CREA i ratings con i riferimenti brewery e beer
+    
+    // 🔄 RACE CONDITION FIX: Se ratings ha già dati utente da STEP 2, NON sovrascrivere!
+    // Usa sempre bulkWrite per aggiungere solo brewery/beer senza perdere rating/notes
+    if (ratingsIsEmpty && !ratingsHasUserData) {
+      // ✅ Ratings vuoto E senza dati utente: CREA i ratings con i riferimenti brewery e beer
       // IMPORTANTE: brewery e beer NON esistono a livello root nello schema Review!
       // Devono essere DENTRO l'array ratings[]
       logger.info('📝 Creazione RATINGS con riferimenti brewery/beer (ratings era vuoto)');
       
-      // Crea un rating per ogni bottiglia processata
-      const newRatings = processedBottles.map((bottle, index) => ({
-        bottleLabel: bottle.beerName || `Birra ${index + 1}`,
-        bottleIndex: index,
-        brewery: bottle.brewery, // ObjectId del birrificio
-        beer: bottle.beer,       // ObjectId della birra
-        // rating, notes, detailedRatings saranno compilati dall'utente
-      }));
+      // 🔄 RACE CONDITION FIX: Ri-leggi la review PRIMA di scrivere per evitare sovrascritture
+      const freshReview = await Review.findById(reviewId);
+      const freshRatingsHasUserData = freshReview?.ratings?.some(r => 
+        (r.rating !== undefined && r.rating !== null) || 
+        (r.notes && r.notes.trim().length > 0)
+      );
       
-      updateData = {
-        $set: {
-          processingStatus: errors.length > 0 ? 'needs_admin_review' : 'completed',
-          // 🔥 FIX: Aggiungo motivazione revisione admin (16 dic 2025)
-          adminReviewReason: errors.length > 0 
-            ? `Elaborazione completata con ${errors.length} errore/i: ${errors.map(e => e.error || e.message || 'Errore sconosciuto').join('; ')}`
-            : null,
-          completedAt: new Date(),
-          bottlesCount: processedBottles.length,
-          ratings: newRatings, // CREA l'array ratings con i riferimenti
-          'metadata.processedBottles': mappedBottles,
-          'metadata.bottlesCount': mappedBottles.length,
-          'metadata.lastUpdated': new Date()
-        }
-      };
-      
-      logger.info(`✅ Creati ${newRatings.length} ratings con riferimenti brewery/beer`);
-    } else {
+      if (freshRatingsHasUserData) {
+        // ⚠️ STEP 2 ha scritto nel frattempo! Non sovrascrivere, usa bulkWrite
+        logger.info('🔄 RACE CONDITION EVITATA: STEP 2 ha già salvato ratings utente, passo a bulkWrite');
+        // Imposta ratingsIsEmpty a false per usare la logica bulkWrite
+        // Il codice continuerà nel branch else sotto
+      } else {
+        // Ratings ancora vuoto, procedi con creazione
+        const newRatings = processedBottles.map((bottle, index) => ({
+          bottleLabel: bottle.beerName || `Birra ${index + 1}`,
+          bottleIndex: index,
+          brewery: bottle.brewery, // ObjectId del birrificio
+          beer: bottle.beer,       // ObjectId della birra
+          // rating, notes, detailedRatings saranno compilati dall'utente
+        }));
+        
+        updateData = {
+          $set: {
+            processingStatus: errors.length > 0 ? 'needs_admin_review' : 'completed',
+            // 🔥 FIX: Aggiungo motivazione revisione admin (16 dic 2025)
+            adminReviewReason: errors.length > 0 
+              ? `Elaborazione completata con ${errors.length} errore/i: ${errors.map(e => e.error || e.message || 'Errore sconosciuto').join('; ')}`
+              : null,
+            completedAt: new Date(),
+            bottlesCount: processedBottles.length,
+            ratings: newRatings, // CREA l'array ratings con i riferimenti
+            'metadata.processedBottles': mappedBottles,
+            'metadata.bottlesCount': mappedBottles.length,
+            'metadata.lastUpdated': new Date()
+          }
+        };
+        
+        logger.info(`✅ Creati ${newRatings.length} ratings con riferimenti brewery/beer`);
+      }
+    }
+    
+    // Se updateData non è stato settato (ratings popolato O race condition evitata), usa bulkWrite
+    if (!updateData) {
       // ✅ FIX #8: Ratings popolato - Correlazione corretta con bulkWrite (7 dic 2025)
-      logger.info('📝 Collegamento RATINGS → BOTTLES con correlazione bottleIndex');
+      logger.info('📝 Collegamento RATINGS → BOTTLES con correlazione bottleIndex (preservando rating/notes utente)');
       
       // Prima: update generale della Review
       updateData = {
