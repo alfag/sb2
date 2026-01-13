@@ -1467,10 +1467,53 @@ exports.incompleteBreweries = async (req, res) => {
 // Crea multiple recensioni da interfaccia AI
 exports.createMultipleReviews = async (req, res) => {
   try {
-    const { reviews, aiAnalysisData } = req.body;
+    const { reviews, aiAnalysisData, locationData } = req.body;
     
     if (!reviews || !Array.isArray(reviews) || reviews.length === 0) {
       return res.status(400).json({ error: 'Nessuna recensione da salvare.' });
+    }
+
+    // 📍 Processa dati geolocalizzazione (se disponibili)
+    let reviewLocation = null;
+    if (locationData) {
+      logger.info('[createMultipleReviews] 📍 Dati geolocalizzazione ricevuti:', {
+        consentGiven: locationData.consentGiven,
+        source: locationData.source,
+        hasCoordinates: !!locationData.coordinates
+      });
+      
+      // Valida e prepara i dati location per il Review
+      if (locationData.consentGiven && locationData.coordinates) {
+        reviewLocation = {
+          coordinates: {
+            latitude: locationData.coordinates.latitude,
+            longitude: locationData.coordinates.longitude,
+            accuracy: locationData.coordinates.accuracy,
+            altitude: locationData.coordinates.altitude,
+            altitudeAccuracy: locationData.coordinates.altitudeAccuracy,
+            heading: locationData.coordinates.heading,
+            speed: locationData.coordinates.speed
+          },
+          timestamp: locationData.timestamp ? new Date(locationData.timestamp) : new Date(),
+          consentGiven: true,
+          source: locationData.source || 'gps'
+        };
+        
+        logger.info('[createMultipleReviews] 📍 ✅ Location validata e preparata per salvataggio', {
+          latitude: reviewLocation.coordinates.latitude,
+          longitude: reviewLocation.coordinates.longitude,
+          accuracy: reviewLocation.coordinates.accuracy,
+          source: reviewLocation.source
+        });
+      } else {
+        logger.info('[createMultipleReviews] 📍 Consent negato o coordinate mancanti - location non salvata');
+        reviewLocation = {
+          consentGiven: false,
+          source: 'none'
+        };
+      }
+    } else {
+      logger.info('[createMultipleReviews] 📍 Nessun dato geolocalizzazione nel payload');
     }
 
     logger.info('[createMultipleReviews] Creazione recensioni multiple', {
@@ -1681,16 +1724,16 @@ exports.createMultipleReviews = async (req, res) => {
         // 🔧 FIX MULTI-BREWERY: Mappa per tracciare birrifici già processati in questa richiesta
         const processedBreweries = new Map(); // breweryName -> brewery document
         
-        // Funzione helper per ottenere o creare birrificio
-        const getOrCreateBrewery = async (bottle) => {
-          // 🔧 FIX BREWERY NAME: Priorità ai dati web scraping verificati
-          const breweryName = webScrapingData?.data?.breweryName || bottle.breweryName || bottle.brewery || 'Birrificio Sconosciuto';
+        // Funzione helper per CERCARE birrificio esistente (NON crea - lascia al job asincrono)
+        const getExistingBrewery = async (bottle) => {
+          // 🔧 FIX BREWERY NAME: Priorità ai dati della bottiglia
+          const breweryName = bottle.breweryName || bottle.brewery || 'Birrificio Sconosciuto';
           
           // Se già processato in questa richiesta, riusa lo stesso
           if (processedBreweries.has(breweryName)) {
             logger.debug('[createMultipleReviews] 🔄 Riuso birrificio già processato', {
               breweryName: breweryName,
-              breweryId: processedBreweries.get(breweryName)._id
+              breweryId: processedBreweries.get(breweryName)?._id || 'null (pending async)'
             });
             return processedBreweries.get(breweryName);
           }
@@ -1699,109 +1742,17 @@ exports.createMultipleReviews = async (req, res) => {
           let brewery = await Brewery.findOne({ breweryName: breweryName });
           
           if (!brewery) {
-            // Birrificio NON esiste - crealo
-            // 🔧 FIX: Trova il birrificio CORRETTO per questa bottiglia specifica
-            let breweryAiData = bottle.brewery || {};
-            
-            // Se non abbiamo dati nella bottiglia, cerca in aiAnalysisData.breweries
-            if (!breweryAiData || Object.keys(breweryAiData).length === 0) {
-              if (aiAnalysisData.breweries && aiAnalysisData.breweries.length > 0) {
-                // Cerca il birrificio che corrisponde a questa bottiglia per nome
-                const matchingBrewery = aiAnalysisData.breweries.find(b => 
-                  b.verifiedData?.breweryName?.toLowerCase() === breweryName.toLowerCase() ||
-                  b.labelData?.breweryName?.toLowerCase() === breweryName.toLowerCase()
-                );
-                
-                if (matchingBrewery) {
-                  breweryAiData = matchingBrewery.verifiedData || matchingBrewery.labelData || {};
-                  logger.debug('[createMultipleReviews] ✅ Trovato birrificio matching per creazione', {
-                    bottleBreweryName: breweryName,
-                    matchedBreweryName: breweryAiData.breweryName,
-                    matchedBreweryWebsite: breweryAiData.breweryWebsite,
-                    matchedBreweryAddress: breweryAiData.breweryLegalAddress
-                  });
-                } else {
-                  // Fallback al primo solo se non troviamo match (caso raro)
-                  breweryAiData = aiAnalysisData.breweries[0]?.verifiedData || {};
-                  logger.warn('[createMultipleReviews] ⚠️ Nessun birrificio matching trovato - usando primo (fallback creazione)', {
-                    bottleBreweryName: breweryName,
-                    availableBreweries: aiAnalysisData.breweries.map(b => b.verifiedData?.breweryName || b.labelData?.breweryName)
-                  });
-                }
-              } else if (aiAnalysisData.brewery) {
-                // Caso singolo birrificio
-                breweryAiData = aiAnalysisData.brewery;
-              }
-            }
-
-            // Verifica grounding usando il servizio di validazione AI
-            const AIValidationService = require('../services/aiValidationService');
-            const grounded = AIValidationService.isGrounded({ 
-              verifiedData: breweryAiData, 
-              webVerification: breweryAiData.webVerification || bottle.webVerification || aiAnalysisData.webVerification || {} 
-            });
-
-            // 🛡️ VALIDAZIONE INDIRIZZO: Prepara indirizzo solo se valido
-            const candidateAddress = bottle.breweryLocation || bottle.breweryLegalAddress || breweryAiData.breweryLegalAddress;
-            let validatedAddress = 'Non specificato';
-            
-            if (candidateAddress && AIValidationService.isValidAddress(candidateAddress)) {
-              validatedAddress = candidateAddress;
-              logger.info('[createMultipleReviews] ✅ Indirizzo validato per nuovo birrificio', { address: validatedAddress });
-            } else if (candidateAddress) {
-              logger.warn('[createMultipleReviews] ⚠️ Indirizzo RIFIUTATO per nuovo birrificio', { 
-                address: candidateAddress,
-                reason: 'Pattern sospetto o dati incompleti - salvato come Non specificato'
-              });
-            }
-
-            // Crea documento birrificio completo
-            const newBreweryDoc = {
+            // 🚫 FIX 13 GEN 2026: NON creare birrificio qui!
+            // Il job asincrono (reviewProcessingService) lo creerà DOPO il Google Search Retrieval
+            // con dati verificati (nome corretto, logo, website, ecc.)
+            logger.info('[createMultipleReviews] ⏳ Birrificio NON trovato - sarà creato dal job asincrono dopo GSR', {
               breweryName: breweryName,
-              breweryDescription: bottle.breweryDescription || breweryAiData.breweryDescription || '',
-              breweryLegalAddress: validatedAddress,
-              breweryLogo: bottle.breweryLogo || breweryAiData.breweryLogo || '',
-              brewerySocialMedia: bottle.brewerySocialMedia || breweryAiData.brewerySocialMedia || {},
-
-              // Campi AI aggiuntivi (non sensibili)
-              foundingYear: bottle.foundingYear || breweryAiData.foundingYear,
-              breweryProductionAddress: bottle.breweryProductionAddress || breweryAiData.breweryProductionAddress,
-              brewerySize: bottle.brewerySize || breweryAiData.brewerySize,
-              employeeCount: bottle.employeeCount || breweryAiData.employeeCount,
-              productionVolume: bottle.productionVolume || breweryAiData.productionVolume,
-              distributionArea: bottle.distributionArea || breweryAiData.distributionArea,
-              breweryHistory: bottle.breweryHistory || breweryAiData.breweryHistory,
-              masterBrewer: bottle.masterBrewer || breweryAiData.masterBrewer,
-              mainProducts: bottle.mainProducts || breweryAiData.mainProducts || [],
-              awards: bottle.awards || breweryAiData.awards || [],
-
-              // Metadati AI
-              aiExtracted: true,
-              aiConfidence: bottle.confidence || breweryAiData.confidence || 0.5,
-              lastAiUpdate: new Date()
-            };
-
-            // Aggiungi campi sensibili solo se grounded
-            if (grounded) {
-              newBreweryDoc.breweryPhoneNumber = bottle.breweryPhoneNumber || breweryAiData.breweryPhoneNumber || '';
-              newBreweryDoc.breweryWebsite = bottle.breweryWebsite || breweryAiData.breweryWebsite || '';
-              newBreweryDoc.breweryEmail = bottle.breweryEmail || breweryAiData.breweryEmail || '';
-            } else {
-              newBreweryDoc.needsValidation = true;
-              newBreweryDoc.validationNotes = 'Creata automaticamente da AI ma richiede verifica manuale per campi sensibili (website/email/phone).';
-            }
-
-            brewery = new Brewery(newBreweryDoc);
-            await brewery.save();
-            
-            logger.info('[createMultipleReviews] ✅ Birrificio creato (AI) - grounding:', {
-              breweryId: brewery._id,
-              breweryName: breweryName,
-              grounded: grounded,
-              hasWebsite: !!brewery.breweryWebsite,
-              hasEmail: !!brewery.breweryEmail,
-              needsValidation: !!brewery.needsValidation
+              reason: 'Evita creazione birrifici con nomi errati da AI OCR non verificata'
             });
+            
+            // Salva null nella mappa per non ripetere la ricerca
+            processedBreweries.set(breweryName, null);
+            return null;
           } else {
             // Birrificio ESISTE - arricchiscilo con nuovi dati se necessario
             let updated = false;
@@ -1993,8 +1944,17 @@ exports.createMultipleReviews = async (req, res) => {
       
       // 🔧 CICLO MULTI-BREWERY: Elabora SOLO birre con recensione compilata
       for (const bottle of bottlesToEnrich) {
-        // Ottieni o crea il birrificio specifico per questa bottiglia
-        const brewery = await getOrCreateBrewery(bottle);
+        // 🔧 OPZIONE A: Cerca SOLO birrificio esistente (creazione delegata a job asincrono GSR)
+        const brewery = await getExistingBrewery(bottle);
+        
+        // Se il birrificio non esiste ancora, skip - sarà creato dal job asincrono dopo verifica GSR
+        if (!brewery) {
+          logger.info('[createMultipleReviews] ⏳ Birrificio non ancora presente - la birra sarà creata dal job asincrono dopo verifica GSR', {
+            beerName: bottle.beerName || bottle.bottleLabel || 'N/A',
+            searchedBreweryName: bottle.breweryName || bottle.brewery || 'N/A'
+          });
+          continue;
+        }
         
         const beerName = bottle.beerName || bottle.bottleLabel || bottle.verifiedData?.beerName || bottle.labelData?.beerName || 'Birra Sconosciuta';
         
@@ -2292,25 +2252,35 @@ exports.createMultipleReviews = async (req, res) => {
         ratingsCount: ratingsArray.length
       });
       
-      const existingReview = await Review.findById(req.body.reviewId);
-      if (!existingReview) {
+      // 🔧 FIX: Uso findByIdAndUpdate invece di findById + save() per evitare VersionError
+      // La race condition avviene perché reviewProcessingService usa updateOne/bulkWrite
+      // mentre qui usavamo .save() - entrambi incrementano __v causando conflitto
+      savedReview = await Review.findByIdAndUpdate(
+        req.body.reviewId,
+        {
+          $set: {
+            user: req.user ? req.user._id : null,
+            ratings: ratingsArray,
+            status: 'completed',
+            processingStatus: 'pending_validation',
+            // 📍 Aggiungi location se disponibile
+            ...(reviewLocation && { location: reviewLocation }),
+            aiAnalysis: {
+              webSearchPerformed: aiAnalysisData?.webSearchPerformed || false,
+              imageQuality: aiAnalysisData?.imageQuality || 'buona',
+              analysisComplete: true,
+              overallConfidence: aiAnalysisData?.overallConfidence || 0.8,
+              processingTime: aiAnalysisData?.processingTime || '2s'
+            }
+          }
+        },
+        { new: true } // Ritorna il documento aggiornato
+      );
+      
+      if (!savedReview) {
         logger.error('[createMultipleReviews] ❌ Review non trovata', { reviewId: req.body.reviewId });
         return res.status(404).json({ error: 'Recensione non trovata. Riprova.' });
       }
-      
-      existingReview.user = req.user ? req.user._id : null;
-      existingReview.ratings = ratingsArray;
-      existingReview.status = 'completed';
-      existingReview.processingStatus = 'pending_validation';
-      existingReview.aiAnalysis = {
-        webSearchPerformed: aiAnalysisData?.webSearchPerformed || false,
-        imageQuality: aiAnalysisData?.imageQuality || 'buona',
-        analysisComplete: true,
-        overallConfidence: aiAnalysisData?.overallConfidence || 0.8,
-        processingTime: aiAnalysisData?.processingTime || '2s'
-      };
-      
-      savedReview = await existingReview.save();
       createdReviews.push(savedReview);
       
       logger.info('[createMultipleReviews] ✅ Review aggiornata (NO duplicato!)', {
@@ -2329,6 +2299,8 @@ exports.createMultipleReviews = async (req, res) => {
         ratings: ratingsArray,
         status: 'completed',
         date: new Date(),
+        // 📍 Aggiungi location se disponibile
+        ...(reviewLocation && { location: reviewLocation }),
         aiAnalysis: {
           webSearchPerformed: aiAnalysisData?.webSearchPerformed || false,
           imageQuality: aiAnalysisData?.imageQuality || 'buona',

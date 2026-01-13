@@ -1,7 +1,7 @@
 {% extends "../layout.njk" %}
 
 {% block head %}
-<link rel="stylesheet" href="/css/admin-dashboard.css">
+<link rel="stylesheet" href="/css/admin-dashboard.css?v=5">
 {% endblock %}
 
 {% block content %}
@@ -37,6 +37,11 @@
                 <a href="/administrator/breweries" class="dash-card amber">
                     <i class="fas fa-industry"></i>
                     <div><strong>Birrifici</strong><span>Database birrifici</span></div>
+                    <em>→</em>
+                </a>
+                <a href="/administrator/reviews" class="dash-card cyan">
+                    <i class="fas fa-star"></i>
+                    <div><strong>Recensioni</strong><span>Moderazione review</span></div>
                     <em>→</em>
                 </a>
                 <a href="/administrator/statistics" class="dash-card green">

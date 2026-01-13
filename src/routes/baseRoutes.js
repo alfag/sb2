@@ -51,14 +51,34 @@ router.get('/reviews', isAuthenticatedOptional, async (req, res) => {
         
         logger.info(`Pagina recensioni - page: ${page}`);
         
+        // 🔍 DEBUG: Verifica recensione nascosta PRIMA della query
+        const hiddenReviewId = '694aa7dcf5cdffe50f6a1701';
+        const checkHiddenReview = await Review.findById(hiddenReviewId).lean();
+        logger.warn(`🔍 DEBUG /reviews - Recensione ${hiddenReviewId}:`, {
+            exists: !!checkHiddenReview,
+            'moderation.isHidden': checkHiddenReview?.moderation?.isHidden,
+            'moderation.isHidden_type': typeof checkHiddenReview?.moderation?.isHidden
+        });
+        
         // Recupera TUTTE le recensioni ordinate per data
+        // FILTRO: esclude recensioni nascoste (moderation.isHidden: true) e di utenti bannati
         // Popola user con customerDetails per nome/cognome, e birra con tutti i dettagli
-        const allReviews = await Review.find({})
+        const allReviews = await Review.find({ 'moderation.isHidden': { $ne: true } })
             .sort({ date: -1 })
-            .populate('user', 'email username customerDetails')
+            .populate('user', 'email username customerDetails isBanned')
             .populate('ratings.brewery', 'breweryName')
             .populate('ratings.beer', 'beerName beerType alcoholContent')
             .lean();
+        
+        // 🔍 DEBUG: Verifica se la recensione nascosta è stata esclusa
+        const hiddenInResults = allReviews.find(r => r._id.toString() === hiddenReviewId);
+        logger.warn(`🔍 DEBUG /reviews - Recensione nascosta NEI RISULTATI: ${!!hiddenInResults}`);
+        if (hiddenInResults) {
+            logger.error(`❌ ERRORE: Recensione nascosta ${hiddenReviewId} NON è stata filtrata! moderation.isHidden=${hiddenInResults.moderation?.isHidden}`);
+        } else {
+            logger.info(`✅ OK: Recensione nascosta ${hiddenReviewId} correttamente esclusa`);
+        }
+        logger.info(`📊 Totale recensioni dopo filtro: ${allReviews.length}`);
         
         /**
          * Helper per formattare il nome utente: "Nome C." (cognome puntato)
@@ -85,9 +105,18 @@ router.get('/reviews', isAuthenticatedOptional, async (req, res) => {
             return 'Utente anonimo';
         }
         
+        // 🛡️ Filtra recensioni di utenti bannati (dopo il populate)
+        const visibleReviews = allReviews.filter(review => {
+            // Escludi se l'utente è bannato
+            if (review.user && review.user.isBanned) {
+                return false;
+            }
+            return true;
+        });
+        
         // Appiattisci i ratings: ogni rating di ogni bottiglia diventa un elemento separato
         const flattenedReviews = [];
-        allReviews.forEach(review => {
+        visibleReviews.forEach(review => {
             if (review.ratings && review.ratings.length > 0) {
                 review.ratings.forEach((rating, index) => {
                     flattenedReviews.push({
@@ -461,7 +490,8 @@ router.get('/api/breweries/all', async (req, res) => {
     try {
         logger.info('Richiesta lista completa birrifici per disambiguation');
         
-        const breweries = await Brewery.find({}, 'breweryName _id')
+        // Includo breweryLogo per visualizzazione thumbnail nella welcome page
+        const breweries = await Brewery.find({}, 'breweryName _id breweryLogo')
             .sort({ breweryName: 1 })
             .lean();
         
@@ -487,15 +517,35 @@ router.get('/api/reviews/latest', async (req, res) => {
         
         logger.info(`Richiesta ultime ${limit} recensioni (singoli rating) per welcome page`);
         
+        // 🔍 DEBUG: Verifica recensione nascosta PRIMA della query
+        const hiddenReviewId = '694aa7dcf5cdffe50f6a1701';
+        const checkHiddenReview = await Review.findById(hiddenReviewId).lean();
+        logger.warn(`🔍 DEBUG /api/reviews/latest - Recensione ${hiddenReviewId}:`, {
+            exists: !!checkHiddenReview,
+            'moderation.isHidden': checkHiddenReview?.moderation?.isHidden,
+            'moderation.isHidden_type': typeof checkHiddenReview?.moderation?.isHidden
+        });
+        
         // Recupera le recensioni con utente, birra e birrificio popolati
+        // FILTRO: esclude recensioni nascoste (moderation.isHidden: true) e di utenti bannati
         // Prendiamo più recensioni del limit perché ogni review può avere più ratings
-        const reviews = await Review.find({})
+        const reviews = await Review.find({ 'moderation.isHidden': { $ne: true } })
             .sort({ date: -1 })
             .limit(limit * 3) // Buffer per avere abbastanza ratings
-            .populate('user', 'email username customerDetails')
+            .populate('user', 'email username customerDetails isBanned')
             .populate('ratings.beer', 'beerName beerType alcoholContent')
             .populate('ratings.brewery', 'breweryName')
             .lean();
+        
+        // 🔍 DEBUG: Verifica se la recensione nascosta è stata esclusa
+        const hiddenInResults = reviews.find(r => r._id.toString() === hiddenReviewId);
+        logger.warn(`🔍 DEBUG /api/reviews/latest - Recensione nascosta NEI RISULTATI: ${!!hiddenInResults}`);
+        if (hiddenInResults) {
+            logger.error(`❌ ERRORE: Recensione nascosta ${hiddenReviewId} NON è stata filtrata! moderation.isHidden=${hiddenInResults.moderation?.isHidden}`);
+        } else {
+            logger.info(`✅ OK: Recensione nascosta ${hiddenReviewId} correttamente esclusa`);
+        }
+        logger.info(`📊 Totale recensioni dopo filtro (API): ${reviews.length}`);
         
         /**
          * Helper per formattare il nome utente: "Nome C." (cognome puntato)
@@ -522,11 +572,20 @@ router.get('/api/reviews/latest', async (req, res) => {
             return 'Utente anonimo';
         }
         
+        // 🛡️ Filtra recensioni di utenti bannati (dopo il populate)
+        const visibleReviews = reviews.filter(review => {
+            // Escludi se l'utente è bannato
+            if (review.user && review.user.isBanned) {
+                return false;
+            }
+            return true;
+        });
+        
         // "Appiattisce" i ratings: ogni rating diventa una recensione individuale
         // Mantiene la data della review parent per ordinamento
         const flattenedRatings = [];
         
-        for (const review of reviews) {
+        for (const review of visibleReviews) {
             if (review.ratings && review.ratings.length > 0) {
                 for (const rating of review.ratings) {
                     flattenedRatings.push({
@@ -562,7 +621,15 @@ router.get('/api/reviews/latest', async (req, res) => {
         flattenedRatings.sort((a, b) => new Date(b.date) - new Date(a.date));
         const limitedRatings = flattenedRatings.slice(0, limit);
         
-        logger.info(`Trovate ${limitedRatings.length} recensioni individuali (da ${reviews.length} review totali)`);
+        // Conta recensioni in elaborazione
+        const pendingReviews = limitedRatings.filter(r => r.isProcessing);
+        const pendingCount = pendingReviews.length;
+        
+        if (pendingCount > 0) {
+            logger.info(`📋 Ultime recensioni: ${limitedRatings.length} totali, ${pendingCount} in elaborazione (${pendingReviews.map(r => r.beerName || 'N/A').join(', ')})`);
+        } else {
+            logger.info(`📋 Ultime recensioni: ${limitedRatings.length} totali, tutte completate ✅`);
+        }
         
         res.json({
             success: true,

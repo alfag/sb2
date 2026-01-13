@@ -1,284 +1,754 @@
 {% extends "../layout.njk" %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1>{{ title }}</h1>
+<style>
+    /* ========== EDIT BREWERY PAGE STYLES ========== */
+    .edit-brewery-page {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        padding: 0;
+        margin: -1rem;
+        padding-bottom: 3rem;
+    }
     
-    <!-- Messaggi flash -->
-    {% if message.success %}
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ message.success[0] }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    {% endif %}
+    /* Header compatto */
+    .edit-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
     
-    {% if message.error %}
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            {{ message.error[0] }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    {% endif %}
+    .edit-header::before {
+        content: '✏️';
+        position: absolute;
+        font-size: 150px;
+        opacity: 0.1;
+        right: -20px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
     
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/administrator">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="/administrator/breweries">Birrifici</a></li>
-            <li class="breadcrumb-item active">Modifica {{ brewery.breweryName }}</li>
-        </ol>
-    </nav>
+    .edit-header .container {
+        position: relative;
+        z-index: 2;
+    }
     
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Modifica Birrificio: {{ brewery.breweryName }}</h5>
-                    <small class="text-muted">ID: {{ brewery._id }}</small>
+    .edit-header h1 {
+        color: white;
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .edit-header .subtitle {
+        color: rgba(255,255,255,0.8);
+        font-size: 0.95rem;
+        margin-top: 0.25rem;
+    }
+    
+    .edit-header .brewery-id {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-family: monospace;
+    }
+    
+    /* Breadcrumb moderno */
+    .modern-breadcrumb {
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 50px;
+        padding: 0.5rem 1.25rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .modern-breadcrumb a {
+        color: rgba(255,255,255,0.7);
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: color 0.2s;
+    }
+    
+    .modern-breadcrumb a:hover {
+        color: white;
+    }
+    
+    .modern-breadcrumb .separator {
+        color: rgba(255,255,255,0.4);
+        font-size: 0.75rem;
+    }
+    
+    .modern-breadcrumb .current {
+        color: white;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    
+    /* Flash messages */
+    .flash-message {
+        border-radius: 12px;
+        border: none;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .flash-message.success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+    
+    .flash-message.error {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+    }
+    
+    .flash-message .btn-close {
+        filter: brightness(0) invert(1);
+        opacity: 0.8;
+    }
+    
+    /* Form Card principale */
+    .form-card {
+        background: rgba(255,255,255,0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    /* Sezioni del form */
+    .form-section {
+        padding: 2rem;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .form-section:last-child {
+        border-bottom: none;
+    }
+    
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid transparent;
+        background: linear-gradient(90deg, #667eea, #764ba2) padding-box,
+                    linear-gradient(90deg, #667eea, #764ba2) border-box;
+        -webkit-background-clip: padding-box, border-box;
+        background-clip: padding-box, border-box;
+        border-bottom: 2px solid;
+        border-image: linear-gradient(90deg, #667eea, transparent) 1;
+    }
+    
+    .section-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        color: white;
+    }
+    
+    .section-icon.info { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .section-icon.legal { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+    .section-icon.address { background: linear-gradient(135deg, #10b981, #059669); }
+    .section-icon.production { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .section-icon.products { background: linear-gradient(135deg, #ec4899, #be185d); }
+    .section-icon.social { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+    
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+    }
+    
+    /* Form inputs modernizzati */
+    .modern-input {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: #f8fafc;
+    }
+    
+    .modern-input:focus {
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        outline: none;
+    }
+    
+    .modern-input:hover:not(:focus) {
+        border-color: #cbd5e1;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #475569;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .form-label .required {
+        color: #ef4444;
+        font-weight: 700;
+    }
+    
+    .form-label i {
+        color: #94a3b8;
+        font-size: 0.85rem;
+    }
+    
+    .form-text {
+        color: #94a3b8;
+        font-size: 0.8rem;
+        margin-top: 0.35rem;
+    }
+    
+    /* Select personalizzato */
+    .modern-select {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s;
+        background: #f8fafc url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") right 0.75rem center/1.25rem no-repeat;
+        appearance: none;
+        cursor: pointer;
+    }
+    
+    .modern-select:focus {
+        border-color: #667eea;
+        background-color: white;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        outline: none;
+    }
+    
+    /* Textarea */
+    .modern-textarea {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s;
+        background: #f8fafc;
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    .modern-textarea:focus {
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        outline: none;
+    }
+    
+    /* Input con icona social */
+    .social-input-wrapper {
+        position: relative;
+    }
+    
+    .social-input-wrapper .social-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.1rem;
+        z-index: 2;
+    }
+    
+    .social-input-wrapper .modern-input {
+        padding-left: 2.75rem;
+    }
+    
+    .social-icon.facebook { color: #1877f2; }
+    .social-icon.instagram { color: #e4405f; }
+    .social-icon.twitter { color: #1da1f2; }
+    .social-icon.linkedin { color: #0a66c2; }
+    .social-icon.youtube { color: #ff0000; }
+    
+    /* Pulsanti azione footer */
+    .form-actions {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        padding: 1.5rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .btn-action {
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .btn-back {
+        background: #64748b;
+        color: white;
+    }
+    
+    .btn-back:hover {
+        background: #475569;
+        color: white;
+        transform: translateX(-3px);
+    }
+    
+    .btn-view {
+        background: rgba(6, 182, 212, 0.1);
+        color: #0891b2;
+        border: 2px solid #06b6d4;
+    }
+    
+    .btn-view:hover {
+        background: #06b6d4;
+        color: white;
+    }
+    
+    .btn-save {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        color: white;
+    }
+    
+    .btn-save:active {
+        transform: translateY(0);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .edit-header {
+            padding: 1.5rem 0;
+        }
+        
+        .edit-header h1 {
+            font-size: 1.4rem;
+        }
+        
+        .form-section {
+            padding: 1.25rem;
+        }
+        
+        .section-icon {
+            width: 36px;
+            height: 36px;
+            font-size: 1rem;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+            padding: 1.25rem;
+        }
+        
+        .form-actions > * {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .form-actions .d-flex {
+            flex-direction: column;
+            width: 100%;
+            gap: 0.75rem;
+        }
+        
+        .form-actions .btn-action {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="edit-brewery-page">
+    <!-- Header compatto -->
+    <div class="edit-header">
+        <div class="container">
+            <!-- Breadcrumb -->
+            <nav class="modern-breadcrumb">
+                <a href="/administrator"><i class="fas fa-home"></i></a>
+                <span class="separator"><i class="fas fa-chevron-right"></i></span>
+                <a href="/administrator/breweries">Birrifici</a>
+                <span class="separator"><i class="fas fa-chevron-right"></i></span>
+                <span class="current">Modifica</span>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h1><i class="fas fa-edit me-2"></i>Modifica Birrificio</h1>
+                    <p class="subtitle mb-0">{{ brewery.breweryName }}</p>
                 </div>
-                <div class="card-body">
-                    <form method="POST" action="/administrator/breweries/edit/{{ brewery._id }}">
-                        
-                        <!-- Informazioni base -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Informazioni Base</h6>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryName" class="form-label">Nome Birrificio *</label>
-                                    <input type="text" class="form-control" id="breweryName" name="breweryName" 
-                                           value="{{ brewery.breweryName or '' }}" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryEmail" class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="breweryEmail" name="breweryEmail" 
-                                           value="{{ brewery.breweryEmail or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="mb-3">
-                                    <label for="breweryDescription" class="form-label">Descrizione</label>
-                                    <textarea class="form-control" id="breweryDescription" name="breweryDescription" rows="3">{{ brewery.breweryDescription or '' }}</textarea>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Dati legali -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Dati Legali</h6>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="breweryFiscalCode" class="form-label">Codice Fiscale</label>
-                                    <input type="text" class="form-control" id="breweryFiscalCode" name="breweryFiscalCode" 
-                                           value="{{ brewery.breweryFiscalCode or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="breweryREAcode" class="form-label">Codice REA</label>
-                                    <input type="text" class="form-control" id="breweryREAcode" name="breweryREAcode" 
-                                           value="{{ brewery.breweryREAcode or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="breweryacciseCode" class="form-label">Codice Accise</label>
-                                    <input type="text" class="form-control" id="breweryacciseCode" name="breweryacciseCode" 
-                                           value="{{ brewery.breweryacciseCode or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryFund" class="form-label">Fondo</label>
-                                    <input type="text" class="form-control" id="breweryFund" name="breweryFund" 
-                                           value="{{ brewery.breweryFund or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="foundingYear" class="form-label">Anno di Fondazione</label>
-                                    <input type="number" class="form-control" id="foundingYear" name="foundingYear" 
-                                           min="1800" max="2025" value="{{ brewery.foundingYear or '' }}">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Indirizzi e contatti -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Indirizzi e Contatti</h6>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryLegalAddress" class="form-label">Indirizzo Legale</label>
-                                    <textarea class="form-control" id="breweryLegalAddress" name="breweryLegalAddress" rows="2">{{ brewery.breweryLegalAddress or '' }}</textarea>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryProductionAddress" class="form-label">Indirizzo Produzione</label>
-                                    <textarea class="form-control" id="breweryProductionAddress" name="breweryProductionAddress" rows="2">{{ brewery.breweryProductionAddress or '' }}</textarea>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryPhoneNumber" class="form-label">Telefono</label>
-                                    <input type="tel" class="form-control" id="breweryPhoneNumber" name="breweryPhoneNumber" 
-                                           value="{{ brewery.breweryPhoneNumber or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="breweryWebsite" class="form-label">Sito Web</label>
-                                    <input type="url" class="form-control" id="breweryWebsite" name="breweryWebsite" 
-                                           value="{{ brewery.breweryWebsite or '' }}">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Informazioni produttive -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Informazioni Produttive</h6>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="brewerySize" class="form-label">Dimensione Birrificio</label>
-                                    <select class="form-select" id="brewerySize" name="brewerySize">
-                                        <option value="">Seleziona...</option>
-                                        <option value="microbirrificio" {% if brewery.brewerySize == 'microbirrificio' %}selected{% endif %}>Microbirrificio</option>
-                                        <option value="birrificio artigianale" {% if brewery.brewerySize == 'birrificio artigianale' %}selected{% endif %}>Birrificio Artigianale</option>
-                                        <option value="industriale" {% if brewery.brewerySize == 'industriale' %}selected{% endif %}>Industriale</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="employeeCount" class="form-label">Numero Dipendenti</label>
-                                    <input type="text" class="form-control" id="employeeCount" name="employeeCount" 
-                                           value="{{ brewery.employeeCount or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="productionVolume" class="form-label">Volume Produzione</label>
-                                    <input type="text" class="form-control" id="productionVolume" name="productionVolume" 
-                                           placeholder="es. 1000 hl/anno" value="{{ brewery.productionVolume or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="distributionArea" class="form-label">Area Distribuzione</label>
-                                    <input type="text" class="form-control" id="distributionArea" name="distributionArea" 
-                                           placeholder="es. Regionale, Nazionale, Internazionale" value="{{ brewery.distributionArea or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="masterBrewer" class="form-label">Mastro Birraio</label>
-                                    <input type="text" class="form-control" id="masterBrewer" name="masterBrewer" 
-                                           value="{{ brewery.masterBrewer or '' }}">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Prodotti e riconoscimenti -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Prodotti e Riconoscimenti</h6>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="mainProducts" class="form-label">Prodotti Principali</label>
-                                    <textarea class="form-control" id="mainProducts" name="mainProducts" rows="2" 
-                                              placeholder="Separa con virgole (es. IPA, Lager, Stout)">{% if brewery.mainProducts %}{{ brewery.mainProducts | join(', ') }}{% endif %}</textarea>
-                                    <small class="form-text text-muted">Separa i prodotti con virgole</small>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="awards" class="form-label">Premi e Riconoscimenti</label>
-                                    <textarea class="form-control" id="awards" name="awards" rows="2" 
-                                              placeholder="Separa con virgole (es. World Beer Cup 2021, Italian Beer Award 2020)">{% if brewery.awards %}{{ brewery.awards | join(', ') }}{% endif %}</textarea>
-                                    <small class="form-text text-muted">Separa i premi con virgole</small>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="mb-3">
-                                    <label for="breweryHistory" class="form-label">Storia del Birrificio</label>
-                                    <textarea class="form-control" id="breweryHistory" name="breweryHistory" rows="3">{{ brewery.breweryHistory or '' }}</textarea>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Social Media -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">Social Media</h6>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="facebook" class="form-label">Facebook</label>
-                                    <input type="url" class="form-control" id="facebook" name="facebook" 
-                                           placeholder="https://facebook.com/breweryname" value="{{ brewery.brewerySocialMedia.facebook or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="instagram" class="form-label">Instagram</label>
-                                    <input type="url" class="form-control" id="instagram" name="instagram" 
-                                           placeholder="https://instagram.com/breweryname" value="{{ brewery.brewerySocialMedia.instagram or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="twitter" class="form-label">Twitter</label>
-                                    <input type="url" class="form-control" id="twitter" name="twitter" 
-                                           placeholder="https://twitter.com/breweryname" value="{{ brewery.brewerySocialMedia.twitter or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="linkedin" class="form-label">LinkedIn</label>
-                                    <input type="url" class="form-control" id="linkedin" name="linkedin" 
-                                           placeholder="https://linkedin.com/company/breweryname" value="{{ brewery.brewerySocialMedia.linkedin or '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="youtube" class="form-label">YouTube</label>
-                                    <input type="url" class="form-control" id="youtube" name="youtube" 
-                                           placeholder="https://youtube.com/breweryname" value="{{ brewery.brewerySocialMedia.youtube or '' }}">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Pulsanti azione -->
-                        <div class="row">
-                            <div class="col-12">
-                                <hr>
-                                <div class="d-flex justify-content-between">
-                                    <a href="/administrator/breweries" class="btn btn-secondary">
-                                        <i class="fas fa-arrow-left"></i> Torna alla Lista
-                                    </a>
-                                    <div>
-                                        <a href="/administrator/breweries/view/{{ brewery._id }}" class="btn btn-outline-info me-2">
-                                            <i class="fas fa-eye"></i> Visualizza
-                                        </a>
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-save"></i> Salva Modifiche
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
+                <span class="brewery-id">ID: {{ brewery._id }}</span>
             </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Messaggi flash -->
+        {% if message.success %}
+            <div class="flash-message success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle fa-lg"></i>
+                <span>{{ message.success[0] }}</span>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endif %}
+        
+        {% if message.error %}
+            <div class="flash-message error alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle fa-lg"></i>
+                <span>{{ message.error[0] }}</span>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endif %}
+        
+        <div class="form-card">
+            <form method="POST" action="/administrator/breweries/edit/{{ brewery._id }}">
+                
+                <!-- Sezione: Informazioni Base -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon info">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <h2 class="section-title">Informazioni Base</h2>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="breweryName" class="form-label">
+                                <i class="fas fa-signature"></i>
+                                Nome Birrificio <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-control modern-input" id="breweryName" name="breweryName" 
+                                   value="{{ brewery.breweryName or '' }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="breweryEmail" class="form-label">
+                                <i class="fas fa-envelope"></i>
+                                Email
+                            </label>
+                            <input type="email" class="form-control modern-input" id="breweryEmail" name="breweryEmail" 
+                                   value="{{ brewery.breweryEmail or '' }}" placeholder="info@birrificio.it">
+                        </div>
+                        <div class="col-12">
+                            <label for="breweryDescription" class="form-label">
+                                <i class="fas fa-align-left"></i>
+                                Descrizione
+                            </label>
+                            <textarea class="form-control modern-textarea" id="breweryDescription" name="breweryDescription" rows="3" placeholder="Una breve descrizione del birrificio...">{{ brewery.breweryDescription or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sezione: Dati Legali -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon legal">
+                            <i class="fas fa-gavel"></i>
+                        </div>
+                        <h2 class="section-title">Dati Legali</h2>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="breweryFiscalCode" class="form-label">
+                                <i class="fas fa-id-card"></i>
+                                Codice Fiscale / P.IVA
+                            </label>
+                            <input type="text" class="form-control modern-input" id="breweryFiscalCode" name="breweryFiscalCode" 
+                                   value="{{ brewery.breweryFiscalCode or '' }}" placeholder="IT12345678901">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="breweryREAcode" class="form-label">
+                                <i class="fas fa-file-alt"></i>
+                                Codice REA
+                            </label>
+                            <input type="text" class="form-control modern-input" id="breweryREAcode" name="breweryREAcode" 
+                                   value="{{ brewery.breweryREAcode or '' }}" placeholder="MI-1234567">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="breweryacciseCode" class="form-label">
+                                <i class="fas fa-barcode"></i>
+                                Codice Accise
+                            </label>
+                            <input type="text" class="form-control modern-input" id="breweryacciseCode" name="breweryacciseCode" 
+                                   value="{{ brewery.breweryacciseCode or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="breweryFund" class="form-label">
+                                <i class="fas fa-piggy-bank"></i>
+                                Capitale Sociale
+                            </label>
+                            <input type="text" class="form-control modern-input" id="breweryFund" name="breweryFund" 
+                                   value="{{ brewery.breweryFund or '' }}" placeholder="€ 10.000">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="foundingYear" class="form-label">
+                                <i class="fas fa-calendar-alt"></i>
+                                Anno di Fondazione
+                            </label>
+                            <input type="number" class="form-control modern-input" id="foundingYear" name="foundingYear" 
+                                   min="1800" max="2026" value="{{ brewery.foundingYear or '' }}" placeholder="2015">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sezione: Indirizzi e Contatti -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon address">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <h2 class="section-title">Indirizzi e Contatti</h2>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="breweryLegalAddress" class="form-label">
+                                <i class="fas fa-building"></i>
+                                Sede Legale
+                            </label>
+                            <textarea class="form-control modern-textarea" id="breweryLegalAddress" name="breweryLegalAddress" rows="2" placeholder="Via Roma 1, 20100 Milano (MI)">{{ brewery.breweryLegalAddress or '' }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="breweryProductionAddress" class="form-label">
+                                <i class="fas fa-industry"></i>
+                                Stabilimento Produzione
+                            </label>
+                            <textarea class="form-control modern-textarea" id="breweryProductionAddress" name="breweryProductionAddress" rows="2" placeholder="Via dell'Industria 5, 20100 Milano (MI)">{{ brewery.breweryProductionAddress or '' }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="breweryPhoneNumber" class="form-label">
+                                <i class="fas fa-phone"></i>
+                                Telefono
+                            </label>
+                            <input type="tel" class="form-control modern-input" id="breweryPhoneNumber" name="breweryPhoneNumber" 
+                                   value="{{ brewery.breweryPhoneNumber or '' }}" placeholder="+39 02 1234567">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="breweryWebsite" class="form-label">
+                                <i class="fas fa-globe"></i>
+                                Sito Web
+                            </label>
+                            <input type="url" class="form-control modern-input" id="breweryWebsite" name="breweryWebsite" 
+                                   value="{{ brewery.breweryWebsite or '' }}" placeholder="https://www.birrificio.it">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sezione: Informazioni Produttive -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon production">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <h2 class="section-title">Informazioni Produttive</h2>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="brewerySize" class="form-label">
+                                <i class="fas fa-ruler-combined"></i>
+                                Dimensione
+                            </label>
+                            <select class="form-select modern-select" id="brewerySize" name="brewerySize">
+                                <option value="">Seleziona dimensione...</option>
+                                <option value="microbirrificio" {% if brewery.brewerySize == 'microbirrificio' %}selected{% endif %}>🏠 Microbirrificio</option>
+                                <option value="birrificio artigianale" {% if brewery.brewerySize == 'birrificio artigianale' %}selected{% endif %}>🏭 Birrificio Artigianale</option>
+                                <option value="industriale" {% if brewery.brewerySize == 'industriale' %}selected{% endif %}>🏗️ Industriale</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="employeeCount" class="form-label">
+                                <i class="fas fa-users"></i>
+                                Dipendenti
+                            </label>
+                            <input type="text" class="form-control modern-input" id="employeeCount" name="employeeCount" 
+                                   value="{{ brewery.employeeCount or '' }}" placeholder="es. 5-10">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="productionVolume" class="form-label">
+                                <i class="fas fa-fill-drip"></i>
+                                Volume Produzione
+                            </label>
+                            <input type="text" class="form-control modern-input" id="productionVolume" name="productionVolume" 
+                                   placeholder="es. 1.000 hl/anno" value="{{ brewery.productionVolume or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="distributionArea" class="form-label">
+                                <i class="fas fa-truck"></i>
+                                Area di Distribuzione
+                            </label>
+                            <input type="text" class="form-control modern-input" id="distributionArea" name="distributionArea" 
+                                   placeholder="es. Nord Italia, Nazionale, Europa" value="{{ brewery.distributionArea or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="masterBrewer" class="form-label">
+                                <i class="fas fa-user-tie"></i>
+                                Mastro Birraio
+                            </label>
+                            <input type="text" class="form-control modern-input" id="masterBrewer" name="masterBrewer" 
+                                   value="{{ brewery.masterBrewer or '' }}" placeholder="Nome del mastro birraio">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sezione: Prodotti e Riconoscimenti -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon products">
+                            <i class="fas fa-award"></i>
+                        </div>
+                        <h2 class="section-title">Prodotti e Riconoscimenti</h2>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="mainProducts" class="form-label">
+                                <i class="fas fa-beer"></i>
+                                Prodotti Principali
+                            </label>
+                            <textarea class="form-control modern-textarea" id="mainProducts" name="mainProducts" rows="2" 
+                                      placeholder="IPA, Lager, Stout, Weizen...">{% if brewery.mainProducts %}{{ brewery.mainProducts | join(', ') }}{% endif %}</textarea>
+                            <small class="form-text"><i class="fas fa-info-circle me-1"></i>Separa i prodotti con virgole</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="awards" class="form-label">
+                                <i class="fas fa-trophy"></i>
+                                Premi e Riconoscimenti
+                            </label>
+                            <textarea class="form-control modern-textarea" id="awards" name="awards" rows="2" 
+                                      placeholder="World Beer Cup 2023, Italian Beer Award 2022...">{% if brewery.awards %}{{ brewery.awards | join(', ') }}{% endif %}</textarea>
+                            <small class="form-text"><i class="fas fa-info-circle me-1"></i>Separa i premi con virgole</small>
+                        </div>
+                        <div class="col-12">
+                            <label for="breweryHistory" class="form-label">
+                                <i class="fas fa-book-open"></i>
+                                Storia del Birrificio
+                            </label>
+                            <textarea class="form-control modern-textarea" id="breweryHistory" name="breweryHistory" rows="4" placeholder="Racconta la storia e la filosofia del birrificio...">{{ brewery.breweryHistory or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sezione: Social Media -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon social">
+                            <i class="fas fa-share-alt"></i>
+                        </div>
+                        <h2 class="section-title">Social Media</h2>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="facebook" class="form-label">
+                                <i class="fab fa-facebook" style="color: #1877f2;"></i>
+                                Facebook
+                            </label>
+                            <div class="social-input-wrapper">
+                                <i class="fab fa-facebook social-icon facebook"></i>
+                                <input type="url" class="form-control modern-input" id="facebook" name="facebook" 
+                                       placeholder="https://facebook.com/birrificio" value="{{ brewery.brewerySocialMedia.facebook or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="instagram" class="form-label">
+                                <i class="fab fa-instagram" style="color: #e4405f;"></i>
+                                Instagram
+                            </label>
+                            <div class="social-input-wrapper">
+                                <i class="fab fa-instagram social-icon instagram"></i>
+                                <input type="url" class="form-control modern-input" id="instagram" name="instagram" 
+                                       placeholder="https://instagram.com/birrificio" value="{{ brewery.brewerySocialMedia.instagram or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="twitter" class="form-label">
+                                <i class="fab fa-twitter" style="color: #1da1f2;"></i>
+                                Twitter / X
+                            </label>
+                            <div class="social-input-wrapper">
+                                <i class="fab fa-twitter social-icon twitter"></i>
+                                <input type="url" class="form-control modern-input" id="twitter" name="twitter" 
+                                       placeholder="https://twitter.com/birrificio" value="{{ brewery.brewerySocialMedia.twitter or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="linkedin" class="form-label">
+                                <i class="fab fa-linkedin" style="color: #0a66c2;"></i>
+                                LinkedIn
+                            </label>
+                            <div class="social-input-wrapper">
+                                <i class="fab fa-linkedin social-icon linkedin"></i>
+                                <input type="url" class="form-control modern-input" id="linkedin" name="linkedin" 
+                                       placeholder="https://linkedin.com/company/birrificio" value="{{ brewery.brewerySocialMedia.linkedin or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="youtube" class="form-label">
+                                <i class="fab fa-youtube" style="color: #ff0000;"></i>
+                                YouTube
+                            </label>
+                            <div class="social-input-wrapper">
+                                <i class="fab fa-youtube social-icon youtube"></i>
+                                <input type="url" class="form-control modern-input" id="youtube" name="youtube" 
+                                       placeholder="https://youtube.com/@birrificio" value="{{ brewery.brewerySocialMedia.youtube or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Footer con pulsanti azione -->
+                <div class="form-actions">
+                    <a href="/administrator/breweries" class="btn-action btn-back">
+                        <i class="fas fa-arrow-left"></i> Torna alla Lista
+                    </a>
+                    <div class="d-flex gap-2">
+                        <a href="/administrator/breweries/view/{{ brewery._id }}" class="btn-action btn-view">
+                            <i class="fas fa-eye"></i> Visualizza
+                        </a>
+                        <button type="submit" class="btn-action btn-save">
+                            <i class="fas fa-save"></i> Salva Modifiche
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>

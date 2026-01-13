@@ -185,18 +185,14 @@
     <!-- Reviews list -->
     <div class="reviews-list" id="reviews-list">
         {% if reviews and reviews.length > 0 %}
-            {% set gradients = [
-                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-            ] %}
+            {# Gradiente uniforme ambra/dorato per il bordo della thumbnail #}
+            {% set amberGradient = 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)' %}
             {% for review in reviews %}
                 {# Serializza detailedRatings se presente #}
                 {% set detailedRatingsJson = review.detailedRatings | dump | safe if review.detailedRatings else 'null' %}
                 
                 <div class="review-card{{ ' processing' if review.isProcessing else '' }}"
+                     data-review-id="{{ review._id }}"
                      data-review-index="{{ loop.index0 }}"
                      data-review-image="{{ review.imageUrl or '/images/default-beer.svg' }}"
                      data-review-beer="{{ review.beerName or review.bottleLabel or 'Birra' }}"
@@ -222,8 +218,8 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Thumbnail con bordo gradient -->
-                    <div class="review-thumbnail-wrapper" style="background: {{ gradients[loop.index0 % 5] }};">
+                    <!-- Thumbnail con bordo gradient ambra/dorato -->
+                    <div class="review-thumbnail-wrapper" style="background: {{ amberGradient }};">
                         {% if review.imageUrl %}
                             <img 
                                 src="{{ review.imageUrl }}" 

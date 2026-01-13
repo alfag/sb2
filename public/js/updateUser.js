@@ -408,53 +408,61 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== GESTIONE ELIMINA UTENTE =====
+    // ===== GESTIONE ELIMINA UTENTE CON MODAL BOOTSTRAP =====
     const deleteUserBtn = document.getElementById('deleteUserBtn');
-    const deleteUserForm = document.getElementById('deleteUserForm');
+    const deleteUserModal = document.getElementById('deleteUserModal');
     
-    if (deleteUserBtn && deleteUserForm) {
-        deleteUserBtn.addEventListener('click', function(e) {
+    if (deleteUserBtn && deleteUserModal) {
+        // Rimuovi eventuali listener precedenti clonando il pulsante
+        const newDeleteBtn = deleteUserBtn.cloneNode(true);
+        deleteUserBtn.parentNode.replaceChild(newDeleteBtn, deleteUserBtn);
+        
+        newDeleteBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             
-            const username = document.getElementById('username')?.value || 'questo utente';
+            // Verifica Bootstrap
+            if (typeof bootstrap === 'undefined') {
+                console.error('Bootstrap not loaded!');
+                alert('Errore: Bootstrap non caricato. Ricarica la pagina.');
+                return;
+            }
             
-            // Conferma personalizzata con maggiori dettagli
-            const confirmed = confirm(
-                `⚠️ ATTENZIONE - AZIONE IRREVERSIBILE ⚠️\n\n` +
-                `Stai per eliminare l'utente "${username}".\n\n` +
-                `Questa azione comporterà:\n` +
-                `• Eliminazione permanente dell'account\n` +
-                `• Rimozione di tutti i dati associati\n` +
-                `• Perdita di tutte le informazioni sui ruoli\n\n` +
-                `Sei assolutamente sicuro di voler procedere?`
-            );
+            // Rimuovi eventuali backdrop orfani
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
             
-            if (confirmed) {
-                // Secondo livello di conferma per azioni critiche
-                const doubleConfirmed = confirm(
-                    `Conferma finale: digita "ELIMINA" per procedere.\n\n` +
-                    `Stai per eliminare definitivamente l'utente "${username}".`
-                );
-                
-                if (doubleConfirmed) {
-                    // Feedback visivo di caricamento
-                    deleteUserBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
-                    deleteUserBtn.disabled = true;
-                    deleteUserBtn.style.background = '#991b1b';
-                    
-                    // Submit del form
-                    deleteUserForm.submit();
-                } else {
-                    console.log('Eliminazione utente annullata (seconda conferma)');
+            // Apri il modal Bootstrap per conferma eliminazione
+            try {
+                const modal = new bootstrap.Modal(deleteUserModal, {
+                    backdrop: true,
+                    keyboard: true
+                });
+                modal.show();
+            } catch (err) {
+                console.error('Error showing modal:', err);
+                // Fallback a conferma semplice
+                if (confirm('Sei sicuro di voler eliminare questo utente?')) {
+                    document.getElementById('deleteUserForm').submit();
                 }
-            } else {
-                console.log('Eliminazione utente annullata (prima conferma)');
             }
         });
+        
+        // Gestione submit form eliminazione nel modal
+        const deleteFormInModal = deleteUserModal.querySelector('#deleteUserForm');
+        if (deleteFormInModal) {
+            deleteFormInModal.addEventListener('submit', function() {
+                const submitBtn = this.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+                    submitBtn.disabled = true;
+                }
+            });
+        }
     }
 
     // ===== FEEDBACK VISIVO PER FORM SUBMISSIONS =====
-    const allForms = document.querySelectorAll('form');
+    // Escludi form di eliminazione utente (gestito separatamente dal modal)
+    const allForms = document.querySelectorAll('form:not(#deleteUserForm)');
     allForms.forEach(form => {
         form.addEventListener('submit', function() {
             const submitButtons = form.querySelectorAll('button[type="submit"]');

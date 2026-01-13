@@ -39,7 +39,11 @@ const beerSchema = new mongoose.Schema({
   // Metadati AI
   aiExtracted: { type: Boolean, default: false },
   aiConfidence: { type: Number, min: 0, max: 1 },
-  dataSource: { type: String, enum: ['label', 'web', 'label+web', 'manual'], default: 'label' },
+  dataSource: { 
+    type: String, 
+    enum: ['label', 'label_only', 'web', 'label+web', 'manual', 'google_search_retrieval', 'ai_analysis+gsr', 'database_cache'], 
+    default: 'label' 
+  },
   lastAiUpdate: { type: Date },
   
   // 🛡️ Validazione dati AI
@@ -50,7 +54,7 @@ const beerSchema = new mongoose.Schema({
   // Sistema di validazione
   validationStatus: {
     type: String,
-    enum: ['validated', 'pending_validation', 'ai_extracted', 'web_scraped'],
+    enum: ['validated', 'pending_validation', 'ai_extracted', 'web_scraped', 'gsr_verified'],
     default: 'pending_validation'
   },
   validatedBy: {

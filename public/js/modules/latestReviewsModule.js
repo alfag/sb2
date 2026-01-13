@@ -12,8 +12,9 @@ const LatestReviewsModule = (() => {
 
     /**
      * Carica e visualizza le ultime recensioni
+     * @param {boolean} skipPollingCheck - Se true, non avvia il polling (usato per evitare loop infiniti)
      */
-    async function loadLatestReviews() {
+    async function loadLatestReviews(skipPollingCheck = false) {
         const reviewsList = document.getElementById('latest-reviews-list');
         
         if (!reviewsList) {
@@ -52,6 +53,12 @@ const LatestReviewsModule = (() => {
             // Aggiungi event listeners per click
             attachClickHandlers();
 
+            // 🔄 Avvia polling automatico per recensioni in elaborazione
+            // (solo se non siamo in un reload post-polling per evitare loop infiniti)
+            if (!skipPollingCheck) {
+                checkAndStartPollingForProcessingReviews();
+            }
+
             console.log('[LatestReviewsModule] Recensioni renderizzate');
 
         } catch (error) {
@@ -62,16 +69,18 @@ const LatestReviewsModule = (() => {
 
     /**
      * Aggiungi click handlers alle card (welcome page)
+     * IMPORTANTE: Usa fetchAndShowReview per leggere sempre i dati aggiornati
+     * dai data-attributes della card, non dalla cache reviewsData che potrebbe
+     * essere stale dopo il completamento dell'analisi AI asincrona
      */
     function attachClickHandlers() {
         const cards = document.querySelectorAll('.review-card[data-review-index]');
         cards.forEach(card => {
             card.style.cursor = 'pointer';
-            card.addEventListener('click', () => {
+            card.addEventListener('click', async () => {
                 const index = parseInt(card.dataset.reviewIndex);
-                if (reviewsData[index]) {
-                    openReviewPopup(reviewsData[index]);
-                }
+                // Legge dai data-attributes aggiornati invece che da reviewsData[index]
+                await fetchAndShowReview(card, index);
             });
         });
     }
@@ -436,6 +445,19 @@ const LatestReviewsModule = (() => {
     }
 
     /**
+     * Formatta la data nel formato DD/MM/YYYY (come allReviews.njk)
+     */
+    function formatDateCard(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '';
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
+    /**
      * Formatta la data in modo completo (per popup)
      */
     function formatDateFull(dateString) {
@@ -454,10 +476,12 @@ const LatestReviewsModule = (() => {
     function createReviewCard(review, index) {
         const rating = getRating(review);
         const starsHtml = generateStarsHtml(parseFloat(rating));
-        const dateFormatted = formatDate(review.date);
+        const dateFormatted = formatDateCard(review.date);  // DD/MM/YYYY per card
+        const dateOriginal = review.date || '';  // Data originale per popup
         
         const thumbnail = review.imageUrl || '/images/default-beer.svg';
         
+        // Estrai nome birra con fallback
         let beerName = review.beerName || review.bottleLabel || 'Birra';
         if (!beerName || beerName === 'Birra') {
             if (review.ratings && review.ratings.length > 0) {
@@ -465,15 +489,24 @@ const LatestReviewsModule = (() => {
             }
         }
         
-        const gradients = [
-            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-            'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-            'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-        ];
+        // Estrai nome birrificio con fallback - DEVE essere mostrato in simbiosi con la birra
+        let breweryName = review.breweryName || '';
+        if (!breweryName) {
+            // Cerca nei ratings se disponibile
+            if (review.ratings && review.ratings.length > 0) {
+                breweryName = review.ratings[0].breweryName || '';
+            }
+            // Cerca nel brewery popolato se disponibile
+            if (!breweryName && review.brewery) {
+                breweryName = review.brewery.breweryName || review.brewery.name || '';
+            }
+        }
         
-        const gradientBorder = gradients[index % gradients.length];
+        // Estrai nome utente con fallback (allineamento con allReviews.njk)
+        const userName = review.userName || review.user?.username || 'Utente anonimo';
+        
+        // Gradiente uniforme ambra/dorato per il bordo della thumbnail
+        const gradientBorder = 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)';
         
         const notes = review.notes || '';
         
@@ -490,8 +523,31 @@ const LatestReviewsModule = (() => {
                 <span class="ai-badge-pulse"></span>
             </div>` : '';
         
+        // Estrai review ID per targeting aggiornamenti real-time
+        const reviewId = review._id || review.id || '';
+        
+        // 🆕 Estrai bottleIndex per matching corretto durante aggiornamento AI
+        // bottleIndex è 1-based (1 = prima bottiglia, 2 = seconda, etc.)
+        const bottleIndex = review.bottleIndex || 1;
+        
+        // Mostra birrificio se in elaborazione oppure se presente
+        const breweryDisplay = isProcessing 
+            ? '<span class="review-brewery-name processing-placeholder">🏭 In elaborazione...</span>'
+            : (breweryName ? `<span class="review-brewery-name">🏭 ${escapeHtml(breweryName)}</span>` : '');
+        
         return `
-            <div class="review-card${isProcessing ? ' processing' : ''}" data-review-index="${index}" role="button" tabindex="0">
+            <div class="review-card${isProcessing ? ' processing' : ''}" 
+                 data-review-index="${index}" 
+                 data-review-id="${reviewId}" 
+                 data-bottle-index="${bottleIndex}"
+                 data-review-image="${escapeHtmlAttr(thumbnail)}"
+                 data-review-beer="${escapeHtmlAttr(beerName)}"
+                 data-review-brewery="${escapeHtmlAttr(breweryName)}"
+                 data-review-rating="${rating}"
+                 data-review-date="${escapeHtmlAttr(dateOriginal)}"
+                 data-review-notes="${escapeHtmlAttr(notes)}"
+                 data-review-user="${escapeHtmlAttr(userName)}"
+                 role="button" tabindex="0">
                 ${processingBadge}
                 <div class="review-thumbnail-wrapper" style="background: ${gradientBorder};">
                     <img src="${escapeHtml(thumbnail)}" 
@@ -507,9 +563,19 @@ const LatestReviewsModule = (() => {
                         </div>
                     </div>
                     
-                    <div class="review-date">${dateFormatted}</div>
+                    ${breweryDisplay}
                     
-                    ${notes ? `<div class="review-notes">${escapeHtml(notes)}</div>` : ''}
+                    <div class="review-meta">
+                        <span class="review-user" style="display: inline-flex; align-items: center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 4px; opacity: 0.6; flex-shrink: 0;">
+                                <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
+                            </svg>
+                            ${escapeHtml(userName)}
+                        </span>
+                        <span class="review-date">${dateFormatted}</span>
+                    </div>
+                    
+                    ${notes ? `<div class="review-notes"><strong>Giudizio:</strong> ${escapeHtml(notes)}</div>` : ''}
                 </div>
             </div>
         `;
@@ -556,13 +622,319 @@ const LatestReviewsModule = (() => {
     }
 
     /**
-     * Escape HTML per sicurezza
+     * Escape HTML per sicurezza (per contenuto HTML)
      */
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * Escape per attributi HTML (escapa anche doppi apici)
+     * Usato per data-attributes che contengono testo utente
+     */
+    function escapeHtmlAttr(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    /**
+     * Aggiorna una card recensione quando il processing è completato
+     * Chiamata da aiModule.js quando polling rileva status 'completed'
+     * @param {string} reviewId - ID della recensione
+     * @param {object} reviewData - Dati aggiornati della recensione (da API status)
+     */
+    function updateReviewCard(reviewId, reviewData) {
+        if (!reviewId) {
+            console.warn('[LatestReviewsModule] updateReviewCard: reviewId mancante');
+            return false;
+        }
+
+        // Trova tutte le card con questo review ID (possono essere su welcome e/o allReviews)
+        const cards = document.querySelectorAll(`[data-review-id="${reviewId}"]`);
+        
+        if (cards.length === 0) {
+            console.log(`[LatestReviewsModule] updateReviewCard: Nessuna card trovata per reviewId ${reviewId}`);
+            return false;
+        }
+
+        console.log(`[LatestReviewsModule] 🔄 Aggiornamento ${cards.length} card(s) per reviewId ${reviewId}`);
+
+        cards.forEach(card => {
+            // 1. Rimuovi classe processing
+            card.classList.remove('processing');
+
+            // 2. Rimuovi badge AI processing
+            const processingBadge = card.querySelector('.ai-processing-badge');
+            if (processingBadge) {
+                processingBadge.remove();
+                console.log('[LatestReviewsModule] ✅ Rimosso badge AI processing');
+            }
+
+            // 🆕 3. Ottieni il bottleIndex dalla card per selezionare la bottiglia corretta
+            // bottleIndex è 1-based (1 = prima bottiglia), array è 0-based
+            const bottleIndex = parseInt(card.dataset.bottleIndex) || 1;
+            const arrayIndex = bottleIndex - 1; // Converti da 1-based a 0-based
+            
+            // 4. Aggiorna il nome della birra se disponibile nei dati
+            if (reviewData && reviewData.bottles && reviewData.bottles.length > 0) {
+                // 🆕 FIX: Usa la bottiglia corretta basata su bottleIndex invece di sempre bottles[0]
+                const bottle = reviewData.bottles[arrayIndex] || reviewData.bottles[0];
+                const beerName = bottle.beerName || bottle.bottleLabel || '';
+                
+                console.log(`[LatestReviewsModule] 🍺 Card bottleIndex=${bottleIndex}, usando bottle[${arrayIndex}]: ${beerName}`);
+                
+                if (beerName) {
+                    const beerNameElement = card.querySelector('.review-beer-name');
+                    if (beerNameElement) {
+                        beerNameElement.textContent = beerName;
+                        console.log(`[LatestReviewsModule] ✅ Aggiornato nome birra: ${beerName}`);
+                    }
+                }
+
+                // 4.5. Aggiorna il nome del birrificio - SIMBIOSI con birra
+                const breweryName = bottle.breweryName || 
+                                   (bottle.brewery ? bottle.brewery.breweryName || bottle.brewery.name : '') ||
+                                   reviewData.breweryName || '';
+                
+                const breweryElement = card.querySelector('.review-brewery-name');
+                if (breweryName) {
+                    if (breweryElement) {
+                        // Aggiorna elemento esistente
+                        breweryElement.textContent = `🏭 ${breweryName}`;
+                        breweryElement.classList.remove('processing-placeholder');
+                        console.log(`[LatestReviewsModule] ✅ Aggiornato nome birrificio: ${breweryName}`);
+                    } else {
+                        // Crea elemento se non esiste
+                        const headerElement = card.querySelector('.review-header');
+                        if (headerElement) {
+                            const newBrewerySpan = document.createElement('span');
+                            newBrewerySpan.className = 'review-brewery-name';
+                            newBrewerySpan.textContent = `🏭 ${breweryName}`;
+                            headerElement.insertAdjacentElement('afterend', newBrewerySpan);
+                            console.log(`[LatestReviewsModule] ✅ Inserito nuovo elemento birrificio: ${breweryName}`);
+                        }
+                    }
+                } else if (breweryElement && breweryElement.classList.contains('processing-placeholder')) {
+                    // Rimuovi placeholder se nessun birrificio trovato
+                    breweryElement.remove();
+                    console.log('[LatestReviewsModule] ⚠️ Nessun birrificio trovato, rimosso placeholder');
+                }
+
+                // 5. Aggiorna il rating se disponibile
+                const rating = bottle.rating || 
+                              (bottle.detailedRatings ? 
+                                calculateAverageRating(bottle.detailedRatings) : null);
+                
+                if (rating) {
+                    const starsContainer = card.querySelector('.stars');
+                    if (starsContainer) {
+                        starsContainer.innerHTML = generateStarsHtml(parseFloat(rating));
+                        console.log(`[LatestReviewsModule] ✅ Aggiornato rating: ${rating}`);
+                    }
+                }
+            }
+
+            // 5. Aggiungi animazione di completamento
+            card.classList.add('review-updated');
+            setTimeout(() => {
+                card.classList.remove('review-updated');
+            }, 2000);
+        });
+
+        console.log(`[LatestReviewsModule] ✅ Completato aggiornamento card per reviewId ${reviewId}`);
+        return true;
+    }
+
+    /**
+     * Calcola rating medio dai detailedRatings
+     */
+    function calculateAverageRating(detailedRatings) {
+        if (!detailedRatings) return null;
+        
+        const categories = ['appearance', 'aroma', 'taste', 'mouthfeel'];
+        let sum = 0;
+        let count = 0;
+        
+        categories.forEach(cat => {
+            if (detailedRatings[cat] && detailedRatings[cat].rating) {
+                sum += detailedRatings[cat].rating;
+                count++;
+            }
+        });
+        
+        return count > 0 ? (sum / count).toFixed(1) : null;
+    }
+
+    // Storage per polling attivi (evita duplicati)
+    const activePollings = new Set();
+
+    /**
+     * Avvia polling automatico per una recensione in elaborazione
+     * Continua a controllare lo status finché non diventa 'completed'
+     * @param {string} reviewId - ID della recensione da monitorare
+     */
+    async function startProcessingPolling(reviewId) {
+        if (!reviewId) {
+            console.warn('[LatestReviewsModule] startProcessingPolling chiamato senza reviewId');
+            return;
+        }
+
+        // Evita polling duplicati per la stessa recensione
+        if (activePollings.has(reviewId)) {
+            console.log(`[LatestReviewsModule] Polling già attivo per reviewId ${reviewId}`);
+            return;
+        }
+
+        activePollings.add(reviewId);
+        console.log(`[LatestReviewsModule] 🔄 Avvio polling automatico per reviewId ${reviewId}`);
+
+        const maxAttempts = 18; // 3 minuti max (18 * 10s)
+        const pollInterval = 10000; // 10 secondi
+        let attempts = 0;
+
+        const poll = async () => {
+            attempts++;
+            
+            try {
+                const response = await fetch(`/review/${reviewId}/status`);
+                
+                if (!response.ok) {
+                    console.warn(`[LatestReviewsModule] Polling status ${response.status} per reviewId ${reviewId}`);
+                    if (attempts < maxAttempts) {
+                        setTimeout(poll, pollInterval);
+                    } else {
+                        console.log(`[LatestReviewsModule] ⏱️ Timeout polling per reviewId ${reviewId}`);
+                        activePollings.delete(reviewId);
+                    }
+                    return;
+                }
+
+                const result = await response.json();
+                // Il backend manda: { success, data: { status, result }, completed, shouldStopPolling }
+                const status = result.data?.status || result.status;
+                console.log(`[LatestReviewsModule] Polling #${attempts} - Status: ${status} per reviewId ${reviewId}`);
+
+                if (status === 'completed' || result.completed) {
+                    console.log(`[LatestReviewsModule] ✅ Job completato per reviewId ${reviewId}!`);
+                    activePollings.delete(reviewId);
+                    
+                    // Aggiorna la card con i nuovi dati
+                    const resultData = result.data?.result;
+                    if (resultData && resultData.bottles && resultData.bottles.length > 0) {
+                        updateReviewCard(reviewId, resultData);
+                    } else {
+                        // Se non ci sono dati, ricarica le recensioni (con skipPollingCheck=true per evitare loop)
+                        console.log('[LatestReviewsModule] Dati non disponibili, ricarico recensioni...');
+                        await loadLatestReviews(true);
+                    }
+                    
+                    // 🏭 Ricarica anche la griglia dei birrifici - potrebbe esserci un nuovo birrificio
+                    if (window.BreweriesModule && typeof window.BreweriesModule.loadBreweries === 'function') {
+                        console.log('[LatestReviewsModule] 🏭 Aggiorno griglia birrifici dopo completamento job...');
+                        try {
+                            await window.BreweriesModule.loadBreweries();
+                            console.log('[LatestReviewsModule] ✅ Griglia birrifici aggiornata!');
+                        } catch (err) {
+                            console.warn('[LatestReviewsModule] ⚠️ Errore aggiornamento birrifici:', err);
+                        }
+                    }
+                    return;
+                }
+
+                if (status === 'failed') {
+                    console.error(`[LatestReviewsModule] ❌ Job fallito per reviewId ${reviewId}`);
+                    activePollings.delete(reviewId);
+                    // Rimuovi badge processing e mostra errore
+                    const card = document.querySelector(`.review-card[data-review-id="${reviewId}"]`);
+                    if (card) {
+                        card.classList.remove('processing');
+                        const badge = card.querySelector('.ai-processing-badge');
+                        if (badge) badge.remove();
+                    }
+                    return;
+                }
+
+                // Continua polling se pending/processing
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, pollInterval);
+                } else {
+                    console.log(`[LatestReviewsModule] ⏱️ Timeout polling per reviewId ${reviewId} dopo ${attempts} tentativi`);
+                    activePollings.delete(reviewId);
+                }
+            } catch (error) {
+                console.error(`[LatestReviewsModule] Errore polling per reviewId ${reviewId}:`, error);
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, pollInterval * 2); // Retry con delay maggiore in caso di errore
+                } else {
+                    activePollings.delete(reviewId);
+                }
+            }
+        };
+
+        // Avvia primo polling con leggero delay
+        setTimeout(poll, 500);
+    }
+
+    /**
+     * Controlla le recensioni in elaborazione e avvia polling per ciascuna
+     * Chiamato dopo il caricamento delle recensioni
+     */
+    function checkAndStartPollingForProcessingReviews() {
+        // Debug: mostra tutti gli stati delle recensioni caricate
+        console.log('[LatestReviewsModule] 📊 Stati recensioni caricate:', 
+            reviewsData.map(r => ({
+                id: r._id,
+                processingStatus: r.processingStatus,
+                isProcessing: r.isProcessing,
+                beerName: r.beerName
+            }))
+        );
+        
+        const processingReviews = reviewsData.filter(r => 
+            r.isProcessing || 
+            r.processingStatus === 'pending_validation' || 
+            r.processingStatus === 'processing'
+        );
+
+        if (processingReviews.length > 0) {
+            console.log(`[LatestReviewsModule] 🔍 Trovate ${processingReviews.length} recensioni in elaborazione - avvio polling`);
+            processingReviews.forEach(review => {
+                const reviewId = review._id || review.id;
+                if (reviewId) {
+                    startProcessingPolling(reviewId);
+                }
+            });
+        } else {
+            console.log('[LatestReviewsModule] ✅ Nessuna recensione in elaborazione - polling non necessario');
+        }
+    }
+
+    /**
+     * Controlla e avvia polling per le recensioni in elaborazione nella pagina allReviews
+     * Usa i data attributes delle card per trovare quelle in processing
+     */
+    function checkAndStartPollingForAllReviewsPage() {
+        const processingCards = document.querySelectorAll('#reviews-list .review-card.processing');
+        
+        if (processingCards.length > 0) {
+            console.log(`[LatestReviewsModule] 🔍 Trovate ${processingCards.length} recensioni in elaborazione (allReviews) - avvio polling`);
+            processingCards.forEach(card => {
+                const reviewId = card.dataset.reviewId;
+                if (reviewId) {
+                    startProcessingPolling(reviewId);
+                }
+            });
+        } else {
+            console.log('[LatestReviewsModule] ✅ Nessuna recensione in elaborazione (allReviews) - polling non necessario');
+        }
     }
 
     /**
@@ -581,6 +953,8 @@ const LatestReviewsModule = (() => {
         if (allReviewsContainer && !latestContainer) {
             console.log('[LatestReviewsModule] Inizializzazione - Pagina tutte le recensioni');
             attachAllReviewsClickHandlers();
+            // 🔄 Avvia polling automatico per recensioni in elaborazione
+            checkAndStartPollingForAllReviewsPage();
         }
     }
 
@@ -590,7 +964,9 @@ const LatestReviewsModule = (() => {
         loadLatestReviews,
         openReviewPopup,
         closeReviewPopup,
-        attachAllReviewsClickHandlers
+        attachAllReviewsClickHandlers,
+        updateReviewCard,  // Aggiunto per aggiornamento real-time cards
+        startProcessingPolling  // Esposto per uso esterno se necessario
     };
 })();
 

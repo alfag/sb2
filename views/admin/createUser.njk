@@ -1,108 +1,916 @@
-{% extends "../layout.njk" %}
+{% extends "layout.njk" %}
 
-{% block title %}Crea Nuovo Utente{% endblock %}
+{% block title %}Crea Nuovo Utente - Admin Dashboard{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Crea Nuovo Utente</h1>
-    <form id="createUserForm" method="post" action="/administrator/users/new">
-        <div class="form-group">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
-        </div>
-        <div class="form-group">
-            <label for="password">Password:</label>
-            <div class="password-container">
-                <input type="password" id="password" name="password" required>
-                <img src="/images/visibility.svg" alt="Mostra password" id="togglePassword" class="toggle-password">
+<style>
+/* ========================================
+   STILI FORM CREAZIONE UTENTE - ADMIN
+   ======================================== */
+
+.auth-container {
+    min-height: calc(100vh - 100px);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.auth-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 700px;
+    animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.auth-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.auth-header p {
+    color: #6b7280;
+    font-size: 0.95rem;
+}
+
+.brand-icon {
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+}
+
+.brand-icon i {
+    font-size: 2rem;
+    color: white;
+}
+
+/* Form Sections */
+.form-section {
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e5e7eb;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #667eea;
+}
+
+.section-title i {
+    color: #667eea;
+}
+
+/* Form Groups */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.form-group label .required {
+    color: #ef4444;
+    margin-left: 2px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-control.is-invalid {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+}
+
+.form-control.is-valid {
+    border-color: #10b981;
+    background-color: #f0fdf4;
+}
+
+/* Password Input Container */
+.password-input-container {
+    position: relative;
+}
+
+.password-input-container .form-control {
+    padding-right: 3rem;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+    color: #667eea;
+}
+
+/* Password Strength Meter */
+.password-strength {
+    margin-top: 0.5rem;
+}
+
+.strength-bar {
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 0.25rem;
+}
+
+.strength-fill {
+    height: 100%;
+    width: 0%;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+}
+
+.strength-fill.weak { width: 25%; background: #ef4444; }
+.strength-fill.fair { width: 50%; background: #f59e0b; }
+.strength-fill.good { width: 75%; background: #3b82f6; }
+.strength-fill.strong { width: 100%; background: #10b981; }
+
+.strength-text {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* Error Messages */
+.error-message {
+    color: #ef4444;
+    font-size: 0.8rem;
+    margin-top: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.error-message i {
+    font-size: 0.75rem;
+}
+
+/* Role Selector */
+.role-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.role-option {
+    position: relative;
+}
+
+.role-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.role-option label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem 0.5rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+    text-align: center;
+}
+
+.role-option label i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: #6b7280;
+}
+
+.role-option label span {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.role-option input[type="radio"]:checked + label {
+    border-color: #667eea;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+}
+
+.role-option input[type="radio"]:checked + label i {
+    color: #667eea;
+}
+
+/* Role-specific Sections */
+.role-section {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.role-section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Two Column Layout */
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+/* Collapsible Section */
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 0.75rem;
+    background: #f3f4f6;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    transition: background 0.2s ease;
+}
+
+.collapsible-header:hover {
+    background: #e5e7eb;
+}
+
+.collapsible-header h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.collapsible-header i.toggle-icon {
+    transition: transform 0.3s ease;
+}
+
+.collapsible-header.collapsed i.toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.collapsible-content {
+    max-height: 1000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.collapsible-content.collapsed {
+    max-height: 0;
+}
+
+/* Submit Button */
+.btn-submit {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+}
+
+.btn-submit:active {
+    transform: translateY(0);
+}
+
+/* Back Link */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6b7280;
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    transition: color 0.2s ease;
+}
+
+.back-link:hover {
+    color: #667eea;
+}
+
+/* Flash Messages */
+.flash-message {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.flash-message.error {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.flash-message.success {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .auth-container {
+        padding: 1rem;
+    }
+    
+    .auth-card {
+        padding: 1.5rem;
+    }
+    
+    .role-selector {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <a href="/administrator/users" class="back-link">
+            <i class="fas fa-arrow-left"></i>
+            Torna alla lista utenti
+        </a>
+        
+        <div class="auth-header">
+            <div class="brand-icon">
+                <i class="fas fa-user-plus"></i>
             </div>
-        </div>
-        <div class="form-group">
-            <label for="role">Ruolo:</label>
-            <select id="role" name="role" required>
-                <option value="customer">Customer</option>
-                <option value="brewery">Brewery</option>
-                <option value="administrator">Administrator</option>
-            </select>
+            <h1>Crea Nuovo Utente</h1>
+            <p>Compila i campi per creare un nuovo account utente</p>
         </div>
 
-        <div id="customerDetails" class="roleDetails">
-            <h2>Dettagli Customer</h2>
-            <div class="form-group">
-                <label for="customerName">Nome:</label>
-                <input type="text" id="customerName" name="customerName">
-            </div>
-            <div class="form-group">
-                <label for="customerSurname">Cognome:</label>
-                <input type="text" id="customerSurname" name="customerSurname">
-            </div>
-            <div class="form-group">
-                <label for="customerFiscalCode">Codice Fiscale:</label>
-                <input type="text" id="customerFiscalCode" name="customerFiscalCode">
-            </div>
-            <div class="form-group">
-                <label for="customerBillingAddress">Indirizzo di Fatturazione:</label>
-                <input type="text" id="customerBillingAddress" name="customerBillingAddress">
-            </div>
-            <div class="form-group">
-                <label for="customerShippingAddress">Indirizzo di Spedizione:</label>
-                <input type="text" id="customerShippingAddress" name="customerShippingAddress">
-            </div>
-            <div class="form-group">
-                <label for="customerPhoneNumber">Numero di Telefono:</label>
-                <input type="text" id="customerPhoneNumber" name="customerPhoneNumber">
-            </div>
+        {% if message and message.error %}
+        <div class="flash-message error">
+            <i class="fas fa-exclamation-circle"></i>
+            {{ message.error }}
         </div>
+        {% endif %}
 
-        <div id="administratorDetails" class="roleDetails" style="display: none;">
-            <h2>Dettagli Administrator</h2>
-            <div class="form-group">
-                <label for="administratorName">Nome Administrator:</label>
-                <input type="text" id="administratorName" name="administratorName">
-            </div>
-            <div class="form-group">
-                <label for="administratorPermission">Permessi:</label>
-                <input type="text" id="administratorPermission" name="administratorPermission">
-            </div>
+        {% if message and message.success %}
+        <div class="flash-message success">
+            <i class="fas fa-check-circle"></i>
+            {{ message.success }}
         </div>
+        {% endif %}
 
-        <div id="breweryDetails" class="roleDetails" style="display: none;">
-            <h2>Dettagli Brewery</h2>
-            <div class="form-group">
-                <label for="breweryName">Nome Birrificio:</label>
-                <input type="text" id="breweryName" name="breweryName">
+        <form id="createUserForm" action="/administrator/users/new" method="POST" novalidate>
+            <!-- Credenziali -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-key"></i>
+                    Credenziali di Accesso
+                </h3>
+                
+                <div class="form-group">
+                    <label for="username">Username <span class="required">*</span></label>
+                    <input type="text" id="username" name="username" class="form-control" 
+                           placeholder="Inserisci username" required minlength="3">
+                    <div class="error-message" id="username-error" style="display: none;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span></span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email <span class="required">*</span></label>
+                    <input type="email" id="email" name="email" class="form-control" 
+                           placeholder="esempio@email.com" required>
+                    <div class="error-message" id="email-error" style="display: none;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span></span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password <span class="required">*</span></label>
+                    <div class="password-input-container">
+                        <input type="password" id="password" name="password" class="form-control" 
+                               placeholder="Crea una password sicura" required minlength="8">
+                        <button type="button" class="password-toggle" 
+                                onclick="togglePasswordVisibility('password', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="password-strength">
+                        <div class="strength-bar">
+                            <div class="strength-fill" id="strength-fill"></div>
+                        </div>
+                        <div class="strength-text" id="strength-text">Inserisci almeno 8 caratteri</div>
+                    </div>
+                    <div class="error-message" id="password-error" style="display: none;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span></span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmPassword">Conferma Password <span class="required">*</span></label>
+                    <div class="password-input-container">
+                        <input type="password" id="confirmPassword" name="confirmPassword" class="form-control" 
+                               placeholder="Ripeti la password" required>
+                        <button type="button" class="password-toggle" 
+                                onclick="togglePasswordVisibility('confirmPassword', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="error-message" id="confirmPassword-error" style="display: none;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span></span>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="breweryDescription">Descrizione Birrificio:</label>
-                <textarea id="breweryDescription" name="breweryDescription"></textarea>
-            </div>
-            <div class="form-group">
-                <label for="breweryFiscalCode">Codice Fiscale Birrificio:</label>
-                <input type="text" id="breweryFiscalCode" name="breweryFiscalCode">
-            </div>
-            <!-- Aggiungi altri campi Brewery qui -->
-        </div>
 
-        <button type="submit">Crea Utente</button>
-    </form>
+            <!-- Selezione Ruolo -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-user-tag"></i>
+                    Ruolo Utente
+                </h3>
+                
+                <div class="role-selector">
+                    <div class="role-option">
+                        <input type="radio" name="role" id="role-customer" value="customer" checked>
+                        <label for="role-customer">
+                            <i class="fas fa-user"></i>
+                            <span>Customer</span>
+                        </label>
+                    </div>
+                    <div class="role-option">
+                        <input type="radio" name="role" id="role-brewery" value="brewery">
+                        <label for="role-brewery">
+                            <i class="fas fa-beer-mug-empty"></i>
+                            <span>Brewery</span>
+                        </label>
+                    </div>
+                    <div class="role-option">
+                        <input type="radio" name="role" id="role-administrator" value="administrator">
+                        <label for="role-administrator">
+                            <i class="fas fa-shield-halved"></i>
+                            <span>Admin</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sezione Customer -->
+            <div class="form-section role-section" id="customer-section">
+                <h3 class="section-title">
+                    <i class="fas fa-user"></i>
+                    Dati Customer
+                </h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="customerName">Nome <span class="required">*</span></label>
+                        <input type="text" id="customerName" name="customerName" 
+                               class="form-control" placeholder="Nome">
+                    </div>
+                    <div class="form-group">
+                        <label for="customerSurname">Cognome <span class="required">*</span></label>
+                        <input type="text" id="customerSurname" name="customerSurname" 
+                               class="form-control" placeholder="Cognome">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="customerFiscalCode">Codice Fiscale <span class="required">*</span></label>
+                    <input type="text" id="customerFiscalCode" name="customerFiscalCode" 
+                           class="form-control" placeholder="RSSMRA85M01H501Z" maxlength="16">
+                </div>
+                
+                <div class="form-group">
+                    <label for="customerPhoneNumber">Telefono</label>
+                    <input type="tel" id="customerPhoneNumber" name="customerPhoneNumber" 
+                           class="form-control" placeholder="+39 123 456 7890">
+                </div>
+                
+                <!-- Indirizzi collassabili -->
+                <div class="collapsible-header" onclick="toggleSection('customer-address')">
+                    <h4><i class="fas fa-map-marker-alt"></i> Indirizzi (opzionale)</h4>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="collapsible-content collapsed" id="customer-address">
+                    <div class="form-group">
+                        <label for="customerBillingAddress">Indirizzo di Fatturazione</label>
+                        <textarea id="customerBillingAddress" name="customerBillingAddress" 
+                               class="form-control" rows="2" 
+                               placeholder="Via Roma 1, 20100 Milano MI"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="customerShippingAddress">Indirizzo di Spedizione</label>
+                        <textarea id="customerShippingAddress" name="customerShippingAddress" 
+                               class="form-control" rows="2" 
+                               placeholder="Via Roma 1, 20100 Milano MI"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sezione Brewery -->
+            <div class="form-section role-section" id="brewery-section">
+                <h3 class="section-title">
+                    <i class="fas fa-beer-mug-empty"></i>
+                    Dati Birrificio
+                </h3>
+                
+                <div class="form-group">
+                    <label for="breweryName">Nome Birrificio <span class="required">*</span></label>
+                    <input type="text" id="breweryName" name="breweryName" 
+                           class="form-control" placeholder="Nome del birrificio" required>
+                    <span class="field-error" id="breweryName-error"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="breweryDescription">Descrizione Birrificio</label>
+                    <textarea id="breweryDescription" name="breweryDescription" 
+                              class="form-control" rows="4" 
+                              placeholder="Descrizione del birrificio, storia, specialità..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="breweryFiscalCode">Partita IVA / Codice Fiscale <span class="required">*</span></label>
+                    <input type="text" id="breweryFiscalCode" name="breweryFiscalCode" 
+                           class="form-control" placeholder="IT12345678901" required>
+                    <span class="field-error" id="breweryFiscalCode-error"></span>
+                </div>
+            </div>
+
+            <!-- Sezione Administrator -->
+            <div class="form-section role-section" id="administrator-section">
+                <h3 class="section-title">
+                    <i class="fas fa-shield-halved"></i>
+                    Dati Amministratore
+                </h3>
+                
+                <div class="form-group">
+                    <label for="administratorName">Nome Completo <span class="required">*</span></label>
+                    <input type="text" id="administratorName" name="administratorName" 
+                           class="form-control" placeholder="Nome e Cognome" required>
+                    <span class="field-error" id="administratorName-error"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="administratorPermission">Livello Permessi <span class="required">*</span></label>
+                    <select id="administratorPermission" name="administratorPermission" 
+                            class="form-control" required>
+                        <option value="">Seleziona livello permessi</option>
+                        <option value="full">Completo (Full Access)</option>
+                        <option value="limited">Limitato (Limited Access)</option>
+                        <option value="readonly">Solo Lettura (Read Only)</option>
+                    </select>
+                    <span class="field-error" id="administratorPermission-error"></span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                <i class="fas fa-user-plus"></i>
+                Crea Utente
+            </button>
+        </form>
+    </div>
 </div>
 
-<script src="/js/createUser.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const togglePassword = document.getElementById('togglePassword');
-        const passwordInput = document.getElementById('password');
+// Toggle password visibility
+function togglePasswordVisibility(inputId, button) {
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
 
-        // Mostra/nascondi password
-        if (togglePassword && passwordInput) {
-            togglePassword.addEventListener('click', () => {
-                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                passwordInput.setAttribute('type', type);
+// Toggle role sections
+function toggleRoleSections() {
+    const selectedRole = document.querySelector('input[name="role"]:checked').value;
+    const sections = document.querySelectorAll('.role-section');
+    
+    sections.forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    const activeSection = document.getElementById(selectedRole + '-section');
+    if (activeSection) {
+        activeSection.classList.add('active');
+    }
+}
 
-                const iconSrc = type === 'password' ? '/images/visibility.svg' : '/images/visibility_off.svg';
-                togglePassword.setAttribute('src', iconSrc);
+// Toggle collapsible sections
+function toggleSection(sectionId) {
+    const content = document.getElementById(sectionId);
+    const header = content.previousElementSibling;
+    
+    content.classList.toggle('collapsed');
+    header.classList.toggle('collapsed');
+}
+
+// Password strength calculation
+function calculatePasswordStrength(password) {
+    let strength = 0;
+    const fill = document.getElementById('strength-fill');
+    const text = document.getElementById('strength-text');
+    
+    if (password.length >= 8) strength++;
+    if (password.length >= 12) strength++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+    if (/\d/.test(password)) strength++;
+    if (/[^a-zA-Z0-9]/.test(password)) strength++;
+    
+    fill.className = 'strength-fill';
+    
+    if (password.length === 0) {
+        text.textContent = 'Inserisci almeno 8 caratteri';
+    } else if (strength <= 1) {
+        fill.classList.add('weak');
+        text.textContent = 'Password debole';
+    } else if (strength === 2) {
+        fill.classList.add('fair');
+        text.textContent = 'Password sufficiente';
+    } else if (strength === 3) {
+        fill.classList.add('good');
+        text.textContent = 'Password buona';
+    } else {
+        fill.classList.add('strong');
+        text.textContent = 'Password eccellente!';
+    }
+}
+
+// Form validation helpers
+function showError(inputId, message) {
+    const input = document.getElementById(inputId);
+    const errorDiv = document.getElementById(inputId + '-error');
+    
+    input.classList.add('is-invalid');
+    input.classList.remove('is-valid');
+    
+    if (errorDiv) {
+        errorDiv.querySelector('span').textContent = message;
+        errorDiv.style.display = 'flex';
+    }
+}
+
+function removeError(inputId) {
+    const input = document.getElementById(inputId);
+    const errorDiv = document.getElementById(inputId + '-error');
+    
+    input.classList.remove('is-invalid');
+    input.classList.add('is-valid');
+    
+    if (errorDiv) {
+        errorDiv.style.display = 'none';
+    }
+}
+
+// Validate individual input
+function validateInput(inputId) {
+    const input = document.getElementById(inputId);
+    const value = input.value.trim();
+    
+    switch(inputId) {
+        case 'username':
+            if (value.length < 3) {
+                showError(inputId, 'Username deve avere almeno 3 caratteri');
+                return false;
+            }
+            if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+                showError(inputId, 'Username può contenere solo lettere, numeri e underscore');
+                return false;
+            }
+            removeError(inputId);
+            return true;
+            
+        case 'email':
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value)) {
+                showError(inputId, 'Inserisci un indirizzo email valido');
+                return false;
+            }
+            removeError(inputId);
+            return true;
+            
+        case 'password':
+            if (value.length < 8) {
+                showError(inputId, 'La password deve avere almeno 8 caratteri');
+                return false;
+            }
+            if (!/[A-Z]/.test(value)) {
+                showError(inputId, 'La password deve contenere almeno una lettera maiuscola');
+                return false;
+            }
+            if (!/[a-z]/.test(value)) {
+                showError(inputId, 'La password deve contenere almeno una lettera minuscola');
+                return false;
+            }
+            if (!/\d/.test(value)) {
+                showError(inputId, 'La password deve contenere almeno un numero');
+                return false;
+            }
+            removeError(inputId);
+            // Re-validate confirm password if already filled
+            const confirmPwd = document.getElementById('confirmPassword');
+            if (confirmPwd.value) {
+                validateInput('confirmPassword');
+            }
+            return true;
+            
+        case 'confirmPassword':
+            const password = document.getElementById('password').value;
+            if (value !== password) {
+                showError(inputId, 'Le password non corrispondono');
+                return false;
+            }
+            removeError(inputId);
+            return true;
+    }
+    
+    return true;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Set initial role section
+    toggleRoleSections();
+    
+    // Add role change listeners
+    document.querySelectorAll('input[name="role"]').forEach(radio => {
+        radio.addEventListener('change', toggleRoleSections);
+    });
+    
+    // Add password strength listener
+    const passwordInput = document.getElementById('password');
+    if (passwordInput) {
+        passwordInput.addEventListener('input', function() {
+            calculatePasswordStrength(this.value);
+        });
+    }
+    
+    // Add validation listeners
+    ['username', 'email', 'password', 'confirmPassword'].forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    validateInput(fieldId);
+                }
             });
         }
     });
+    
+    // Form submission validation
+    const form = document.getElementById('createUserForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            let isValid = true;
+            
+            // Validate required fields
+            ['username', 'email', 'password', 'confirmPassword'].forEach(fieldId => {
+                if (!validateInput(fieldId)) {
+                    isValid = false;
+                }
+            });
+            
+            // Check brewery fields if brewery role selected
+            const breweryRole = document.getElementById('role-brewery');
+            if (breweryRole && breweryRole.checked) {
+                const breweryName = document.getElementById('breweryName');
+                if (!breweryName.value.trim()) {
+                    showError('breweryName', 'Il nome del birrificio è obbligatorio');
+                    isValid = false;
+                }
+                const breweryFiscalCode = document.getElementById('breweryFiscalCode');
+                if (!breweryFiscalCode.value.trim()) {
+                    showError('breweryFiscalCode', 'La partita IVA è obbligatoria');
+                    isValid = false;
+                }
+            }
+            
+            // Check administrator fields if administrator role selected
+            const adminRole = document.getElementById('role-administrator');
+            if (adminRole && adminRole.checked) {
+                const adminName = document.getElementById('administratorName');
+                if (!adminName.value.trim()) {
+                    showError('administratorName', 'Il nome amministratore è obbligatorio');
+                    isValid = false;
+                }
+                const adminPermission = document.getElementById('administratorPermission');
+                if (!adminPermission.value) {
+                    showError('administratorPermission', 'Seleziona un livello di permessi');
+                    isValid = false;
+                }
+            }
+            
+            if (!isValid) {
+                e.preventDefault();
+                // Scroll to first error
+                const firstError = document.querySelector('.is-invalid');
+                if (firstError) {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstError.focus();
+                }
+            }
+        });
+    }
+});
 </script>
 {% endblock %}

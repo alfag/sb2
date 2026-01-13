@@ -1,65 +1,126 @@
 {% extends "../layout.njk" %}
 {% block title %}{{ title }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="/css/admin-dashboard.css">{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/css/admin-dashboard.css?t=20251229k">
+<style>
+/* Override z-index per modal eliminazione - deve stare sopra navbar (9999) e flash messages (99999) */
+#deleteBreweryModal { z-index: 100000 !important; }
+#deleteBreweryModal ~ .modal-backdrop { z-index: 99999 !important; }
+</style>
+{% endblock %}
 {% block scripts %}<script src="/js/adminBreweryFilters.js"></script>{% endblock %}
 
 {% block content %}
 <div class="admin-page">
+    <!-- Header -->
     <div class="page-head">
-        <div><i class="fas fa-industry"></i> {{ title }} <span class="count">({{ breweries.length }})</span></div>
-        <a href="/administrator/breweries/new" class="btn-add"><i class="fas fa-plus"></i> Nuovo</a>
+        <div class="page-head-left">
+            <a href="/administrator" class="back-link" title="Torna alla Dashboard"><i class="fas fa-arrow-left"></i></a>
+            <h1><i class="fas fa-industry"></i> {{ title }}</h1>
+            <span class="head-count">{{ breweries.length }} birrifici</span>
+        </div>
+        <a href="/administrator/breweries/new" class="sys-btn primary"><i class="fas fa-plus"></i> Nuovo</a>
     </div>
 
     {% if message.success %}<div class="admin-alert success"><i class="fas fa-check-circle"></i> {{ message.success[0] }}</div>{% endif %}
-    {% if message.error %}<div class="admin-alert error"><i class="fas fa-exclamation-triangle"></i> {{ message.error[0] }}</div>{% endif %}
+    {% if message.error %}<div class="admin-alert error"><i class="fas fa-times-circle"></i> {{ message.error[0] }}</div>{% endif %}
 
     {% if breweries.length > 0 %}
+    <!-- Stats Pills -->
     <div class="stats-row">
-        <div class="stat-box brewery-filter-card" data-filter="all"><i class="fas fa-industry blue"></i><div><span>{{ stats.totalBreweries }}</span><small>Totali</small></div></div>
-        <div class="stat-box brewery-filter-card" data-filter="with-email"><i class="fas fa-envelope green"></i><div><span>{{ stats.withEmail }}</span><small>Con Email</small></div></div>
-        <div class="stat-box brewery-filter-card" data-filter="with-website"><i class="fas fa-globe blue"></i><div><span>{{ stats.withWebsite }}</span><small>Con Sito</small></div></div>
-        <div class="stat-box brewery-filter-card" data-filter="incomplete-data"><i class="fas fa-exclamation-triangle yellow"></i><div><span>{{ stats.incompleteData }}</span><small>Incompleti</small></div></div>
+        <div class="stat-box amber brewery-filter-card active" data-filter="all">
+            <i class="fas fa-industry"></i>
+            <span class="val">{{ stats.totalBreweries }}</span><span class="lbl">Totali</span>
+        </div>
+        <div class="stat-box green brewery-filter-card" data-filter="with-email">
+            <i class="fas fa-envelope"></i>
+            <span class="val">{{ stats.withEmail }}</span><span class="lbl">Con Email</span>
+        </div>
+        <div class="stat-box blue brewery-filter-card" data-filter="with-website">
+            <i class="fas fa-globe"></i>
+            <span class="val">{{ stats.withWebsite }}</span><span class="lbl">Con Sito</span>
+        </div>
+        <div class="stat-box red brewery-filter-card" data-filter="incomplete-data">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span class="val">{{ stats.incompleteData }}</span><span class="lbl">Incompleti</span>
+        </div>
     </div>
-    <div id="filter-indicator" class="admin-alert info" style="display:none"><i class="fas fa-filter"></i> <span id="filter-message">Filtro attivo</span> <button onclick="clearBreweryFilter()" class="btn-sm">✕ Rimuovi</button></div>
 
-    <table class="data-table">
-        <thead><tr><th>Birrificio</th><th>Contatti</th><th>Indirizzo</th><th>Sito Web</th><th>Creato</th><th>Azioni</th></tr></thead>
-        <tbody>
-        {% for brewery in breweries %}
-        <tr class="brewery-row" data-has-email="{{ 'true' if brewery.breweryEmail else 'false' }}" data-has-website="{{ 'true' if brewery.breweryWebsite else 'false' }}" data-complete-data="{{ 'true' if (brewery.breweryEmail and brewery.breweryWebsite and brewery.breweryPhoneNumber) else 'false' }}">
-            <td>
-                <div class="user-cell">
-                    <div class="user-avatar {% if brewery.breweryEmail and brewery.breweryWebsite %}green{% elif brewery.breweryEmail or brewery.breweryWebsite %}yellow{% else %}red{% endif %}"><i class="fas fa-industry"></i></div>
-                    <div><strong>{{ brewery.breweryName or 'N/A' }}</strong>{% if brewery.breweryDescription %}<br><small>{{ brewery.breweryDescription | truncate(40) }}</small>{% endif %}</div>
-                </div>
-            </td>
-            <td>
-                {% if brewery.breweryEmail %}<span class="role-badge green"><i class="fas fa-envelope"></i> {{ brewery.breweryEmail | truncate(20) }}</span>{% endif %}
-                {% if brewery.breweryPhoneNumber %}<br><small>{{ brewery.breweryPhoneNumber }}</small>{% endif %}
-                {% if not brewery.breweryEmail and not brewery.breweryPhoneNumber %}<span class="text-muted">N/A</span>{% endif %}
-            </td>
-            <td>{% if brewery.breweryLegalAddress %}<small>{{ brewery.breweryLegalAddress | truncate(30) }}</small>{% else %}<span class="text-muted">N/A</span>{% endif %}</td>
-            <td>{% if brewery.breweryWebsite %}<a href="{{ brewery.breweryWebsite }}" target="_blank" class="role-badge blue"><i class="fas fa-external-link-alt"></i> Sito</a>{% else %}<span class="text-muted">N/A</span>{% endif %}</td>
-            <td><small>{{ brewery.createdAt | date('d/m/Y') }}</small></td>
-            <td>
-                <div class="action-btns">
-                    <a href="/administrator/breweries/view/{{ brewery._id }}" class="view" title="Dettagli"><i class="fas fa-eye"></i></a>
-                    <a href="/administrator/breweries/edit/{{ brewery._id }}" class="edit" title="Modifica"><i class="fas fa-edit"></i></a>
-                    <a href="/administrator/statistics/brewery/{{ brewery._id }}" class="stats" title="Statistiche"><i class="fas fa-chart-bar"></i></a>
-                    <button class="delete" data-bs-toggle="modal" data-bs-target="#delModal{{ brewery._id }}" title="Elimina"><i class="fas fa-trash"></i></button>
-                </div>
-                <div class="modal fade" id="delModal{{ brewery._id }}" tabindex="-1"><div class="modal-dialog"><div class="modal-content" style="background:var(--dash-card);color:#fff;border:1px solid #333">
-                    <div class="modal-header" style="background:var(--dash-red);border:0"><h5 class="modal-title"><i class="fas fa-trash"></i> Elimina Birrificio</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-                    <div class="modal-body"><p>Eliminare <strong>{{ brewery.breweryName }}</strong>?</p><small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Azione irreversibile. Potrebbe influenzare recensioni e birre associate.</small></div>
-                    <div class="modal-footer" style="border:0"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button><form method="POST" action="/administrator/breweries/delete/{{ brewery._id }}" style="display:inline"><button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Elimina</button></form></div>
-                </div></div></div>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <!-- Filter indicator -->
+    <div class="admin-alert info" id="filter-indicator" style="display:none">
+        <i class="fas fa-filter"></i> <span id="filter-message">Filtro attivo</span>
+        <button class="sys-btn small" onclick="clearBreweryFilter()" style="margin-left:auto"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th><i class="fas fa-industry"></i> Birrificio</th>
+                    <th style="width:140px"><i class="fas fa-cogs"></i> Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for brewery in breweries %}
+                <tr class="brewery-row" data-has-email="{{ 'true' if brewery.breweryEmail else 'false' }}" data-has-website="{{ 'true' if brewery.breweryWebsite else 'false' }}" data-complete-data="{{ 'true' if (brewery.breweryEmail and brewery.breweryWebsite and brewery.breweryPhoneNumber) else 'false' }}">
+                    <td>
+                        <div class="user-cell compact">
+                            <div class="user-avatar sm {% if brewery.breweryEmail and brewery.breweryWebsite %}brewery{% elif brewery.breweryEmail or brewery.breweryWebsite %}customer{% else %}admin{% endif %}">
+                                <i class="fas fa-industry"></i>
+                            </div>
+                            <span class="user-name">{{ brewery.breweryName | truncate(25) or 'N/A' }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="action-btns">
+                            {% if brewery.breweryWebsite %}<a href="{{ brewery.breweryWebsite }}" target="_blank" class="act-btn web" title="Sito Web"><i class="fas fa-globe"></i></a>{% endif %}
+                            <a href="/administrator/breweries/view/{{ brewery._id }}" class="act-btn view" title="Dettagli"><i class="fas fa-eye"></i></a>
+                            <a href="/administrator/breweries/edit/{{ brewery._id }}" class="act-btn edit" title="Modifica"><i class="fas fa-edit"></i></a>
+                            <a href="/administrator/statistics/brewery/{{ brewery._id }}" class="act-btn stats" title="Statistiche"><i class="fas fa-chart-bar"></i></a>
+                            <button class="act-btn delete" onclick="confirmDeleteBrewery('{{ brewery._id }}', '{{ brewery.breweryName | replace("'", "\\'") }}')" title="Elimina"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
-    <div class="empty-state"><i class="fas fa-industry"></i><h3>Nessun Birrificio</h3><p>Non ci sono birrifici registrati.</p><a href="/administrator/breweries/new" class="btn-add"><i class="fas fa-plus"></i> Crea Primo Birrificio</a></div>
+    <div class="empty-state">
+        <i class="fas fa-industry"></i>
+        <h3>Nessun Birrificio</h3>
+        <p>Non ci sono birrifici registrati</p>
+        <a href="/administrator/breweries/new" class="sys-btn primary"><i class="fas fa-plus"></i> Crea Primo Birrificio</a>
+    </div>
     {% endif %}
 </div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteBreweryModal" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content" style="background:#1a1a2e;border:1px solid #333">
+        <div class="modal-header" style="background:linear-gradient(135deg,#ef4444,#dc2626);border:0">
+            <h5 class="modal-title" style="color:#fff"><i class="fas fa-exclamation-triangle"></i> Conferma Eliminazione</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" style="color:#ccc">
+            <p>Eliminare il birrificio <strong id="deleteBreweryName" style="color:#fff"></strong>?</p>
+            <div class="admin-alert error" style="margin:0"><i class="fas fa-exclamation-triangle"></i> Azione irreversibile. Verranno influenzate recensioni e birre associate.</div>
+        </div>
+        <div class="modal-footer" style="border-color:#333">
+            <button class="sys-btn" data-bs-dismiss="modal">Annulla</button>
+            <form id="deleteBreweryForm" method="post" style="display:inline">
+                <button type="submit" class="sys-btn danger"><i class="fas fa-trash"></i> Elimina</button>
+            </form>
+        </div>
+    </div></div>
+</div>
+
+<script>
+function confirmDeleteBrewery(breweryId, breweryName) {
+    document.getElementById('deleteBreweryName').textContent = breweryName;
+    document.getElementById('deleteBreweryForm').action = '/administrator/breweries/delete/' + breweryId;
+    new bootstrap.Modal(document.getElementById('deleteBreweryModal')).show();
+}
+</script>
 {% endblock %}

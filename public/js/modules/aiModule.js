@@ -273,6 +273,15 @@ class AIModule {
           console.log('[AIModule] ✅ Job completato con successo');
           this.currentAnalysisData = result.data.result || result.data;
 
+          // 🔄 AGGIORNA CARD RECENSIONE nelle pagine welcome/recensioni se presenti
+          if (window.LatestReviewsModule && typeof window.LatestReviewsModule.updateReviewCard === 'function') {
+            console.log('[AIModule] 🔄 Aggiornamento card recensione in pagina...');
+            const updateResult = window.LatestReviewsModule.updateReviewCard(reviewId, result.data.result);
+            if (updateResult) {
+              console.log('[AIModule] ✅ Card aggiornata con successo');
+            }
+          }
+
           // 🎯 USA IL METODO CENTRALIZZATO per gestire tutte le risposte AI
           const handleResult = AIModule.handleAIResponse(result.data.result, {
             closeModal: () => {
@@ -525,8 +534,8 @@ class AIModule {
         options.closeModal();
       }
       
-      // Mostra warning con messaggio specifico
-      const warningMessage = data.message || 'L\'AI non ha rilevato bottiglie di birra nell\'immagine. Carica un\'immagine contenente chiaramente prodotti birrari.';
+      // Mostra warning con messaggio gentile e amichevole
+      const warningMessage = data.message || '🔍 Non abbiamo trovato bottiglie di birra in questa immagine. Prova a scattare una foto più ravvicinata dell\'etichetta o scegli un\'altra immagine con birre ben visibili.';
       
       if (options.showWarningMessage) {
         setTimeout(() => {

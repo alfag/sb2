@@ -1,0 +1,1657 @@
+{% extends "layout.njk" %}
+
+{% block title %}Gestione Recensioni - Admin{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/css/admin.css">
+<link rel="stylesheet" href="/css/latestReviewsModule.css">
+<style>
+/* ===== LOADING OVERLAY ===== */
+.filter-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(4px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+.filter-loading-overlay.active {
+    display: flex;
+    opacity: 1;
+}
+.filter-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e5e7eb;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+.filter-loading-text {
+    position: absolute;
+    margin-top: 80px;
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+/* ========================================
+   ADMIN REVIEWS - Stile fedele a allReviews.njk
+   ======================================== */
+
+/* Container principale */
+.all-reviews-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.page-title i {
+    color: #667eea;
+}
+
+/* ===== FILTRI ULTRA COOL - Glassmorphism Style ===== */
+.filter-section {
+    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
+    border: 1px solid rgba(255,255,255,0.6);
+}
+
+.filter-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.filter-header-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+}
+
+.filter-header-title {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748b;
+}
+
+.filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+/* Filter Chip - Modern Toggle Style */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    position: relative;
+    overflow: hidden;
+    background: rgba(255,255,255,0.8);
+    color: #475569;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+.filter-chip::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    transition: left 0.5s;
+}
+
+.filter-chip:hover::before {
+    left: 100%;
+}
+
+.filter-chip:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.filter-chip.active {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+.chip-count {
+    background: rgba(0,0,0,0.1);
+    padding: 0.15rem 0.45rem;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    min-width: 1.4rem;
+    text-align: center;
+}
+
+.chip-label {
+    font-size: 0.7rem;
+}
+
+/* Chip Colors - Moderazione */
+.filter-chip[data-filter="all"] { background: linear-gradient(135deg, #f1f5f9, #e2e8f0); }
+.filter-chip[data-filter="all"].active { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+.filter-chip[data-filter="all"].active .chip-count { background: rgba(255,255,255,0.25); }
+
+.filter-chip[data-filter="pending"] { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+.filter-chip[data-filter="pending"].active { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+.filter-chip[data-filter="pending"].active .chip-count { background: rgba(255,255,255,0.3); }
+
+.filter-chip[data-filter="validated"] { background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #065f46; }
+.filter-chip[data-filter="validated"].active { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+.filter-chip[data-filter="validated"].active .chip-count { background: rgba(255,255,255,0.3); }
+
+.filter-chip[data-filter="completed"] { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af; }
+.filter-chip[data-filter="completed"].active { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+.filter-chip[data-filter="completed"].active .chip-count { background: rgba(255,255,255,0.3); }
+
+.filter-chip[data-filter="hidden"] { background: linear-gradient(135deg, #e2e8f0, #cbd5e1); color: #475569; }
+.filter-chip[data-filter="hidden"].active { background: linear-gradient(135deg, #64748b, #475569); color: white; }
+.filter-chip[data-filter="hidden"].active .chip-count { background: rgba(255,255,255,0.3); }
+
+.filter-chip[data-filter="flagged"] { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; }
+.filter-chip[data-filter="flagged"].active { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+.filter-chip[data-filter="flagged"].active .chip-count { background: rgba(255,255,255,0.3); }
+
+.filter-chip[data-filter="needs_admin"] { background: linear-gradient(135deg, #f3e8ff, #e9d5ff); color: #7c3aed; }
+.filter-chip[data-filter="needs_admin"].active { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+.filter-chip[data-filter="needs_admin"].active .chip-count { background: rgba(255,255,255,0.3); }
+
+.filter-chip[data-filter="banned_users"] { background: linear-gradient(135deg, #fecdd3, #fda4af); color: #9f1239; }
+.filter-chip[data-filter="banned_users"].active { background: linear-gradient(135deg, #e11d48, #be123c); color: white; }
+.filter-chip[data-filter="banned_users"].active .chip-count { background: rgba(255,255,255,0.3); }
+
+/* Chip Colors - AI Processing */
+.filter-chip[data-processing-filter="pending_validation"] { background: linear-gradient(135deg, #ffedd5, #fed7aa); color: #9a3412; }
+.filter-chip[data-processing-filter="pending_validation"].active { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
+
+.filter-chip[data-processing-filter="processing"] { background: linear-gradient(135deg, #cffafe, #a5f3fc); color: #0e7490; }
+.filter-chip[data-processing-filter="processing"].active { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+
+.filter-chip[data-processing-filter="ai_completed"] { background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #166534; }
+.filter-chip[data-processing-filter="ai_completed"].active { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+
+.filter-chip[data-processing-filter="failed"] { background: linear-gradient(135deg, #ffe4e6, #fecdd3); color: #be123c; }
+.filter-chip[data-processing-filter="failed"].active { background: linear-gradient(135deg, #f43f5e, #e11d48); color: white; }
+
+/* ========== HIDDEN REVIEW CARD STYLE ========== */
+.review-card.is-hidden {
+    position: relative;
+    background: linear-gradient(135deg, #eceff1 0%, #cfd8dc 100%);
+    border: 2px dashed #90a4ae;
+}
+.review-card.is-hidden::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 8px,
+        rgba(0,0,0,0.06) 8px,
+        rgba(0,0,0,0.06) 16px
+    );
+    border-radius: 12px;
+    pointer-events: none;
+    z-index: 1;
+}
+/* Applica effetti SOLO ai contenuti, NON ai pulsanti */
+.review-card.is-hidden .review-thumbnail-wrapper,
+.review-card.is-hidden .review-content,
+.review-card.is-hidden .review-info {
+    opacity: 0.45;
+    filter: grayscale(60%);
+}
+.review-card.is-hidden:hover .review-thumbnail-wrapper,
+.review-card.is-hidden:hover .review-content,
+.review-card.is-hidden:hover .review-info {
+    opacity: 0.7;
+    filter: grayscale(30%);
+}
+/* Pulsanti sempre visibili e colorati */
+.review-card.is-hidden .review-admin-actions {
+    position: relative;
+    z-index: 5;
+}
+.hidden-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: linear-gradient(135deg, #e53935 0%, #c62828 100%);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.35rem 0.6rem;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 3px 10px rgba(229, 57, 53, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    z-index: 10;
+    animation: pulse-badge 2s ease-in-out infinite;
+}
+.hidden-badge i {
+    font-size: 0.6rem;
+}
+@keyframes pulse-badge {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Search Bar compatta */
+.search-section {
+    background: white;
+    border-radius: 12px;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.search-section input {
+    flex: 1;
+    border: none;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    background: transparent;
+    outline: none;
+}
+
+.search-section input::placeholder {
+    color: #999;
+}
+
+.search-section .btn-search {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.search-section .btn-search:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
+}
+
+.search-section .btn-reset {
+    background: #f0f0f0;
+    border: none;
+    color: #666;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background 0.2s;
+}
+
+.search-section .btn-reset:hover {
+    background: #e0e0e0;
+}
+
+.filter-group select,
+.filter-group input {
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.btn-filter {
+    padding: 0.4rem 0.7rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.btn-filter.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-filter.secondary {
+    background: #f5f5f5;
+    color: #666;
+}
+
+/* Reviews List - STILE IDENTICO A allReviews.njk */
+/* Review Cards - Same as customer reviews */
+.reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+}
+
+.review-card {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.review-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+/* Thumbnail with gradient border */
+.review-thumbnail-wrapper {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    padding: 2px;
+    flex-shrink: 0;
+}
+.review-thumbnail {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    object-fit: cover;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+}
+.review-thumbnail-placeholder {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ccc;
+    font-size: 1.25rem;
+}
+
+/* Review Content */
+.review-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.review-title {
+    font-size: 0.938rem;
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.review-subtitle {
+    font-size: 0.8rem;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.review-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.75rem;
+    color: #666;
+}
+.review-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.review-meta-item i { font-size: 0.7rem; }
+.review-meta-item.user i { color: #667eea; }
+.review-meta-item.date i { color: #43e97b; }
+
+/* Rating Display */
+.review-rating {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.125rem;
+    padding: 0 0.5rem;
+}
+.stars {
+    display: flex;
+    gap: 1px;
+}
+.stars i {
+    font-size: 0.75rem;
+    color: #ffc107;
+}
+.stars i.empty { color: #e0e0e0; }
+.rating-value {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Status Badges Container - Dual Status Display */
+.review-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: flex-start;
+}
+
+/* Status Badge - Moderazione */
+.review-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.status-pending { background: #fff3e0; color: #f57c00; }
+.status-validated { background: #e3f2fd; color: #1976d2; }
+.status-completed { background: #e8f5e9; color: #388e3c; }
+.status-hidden { background: #f5f5f5; color: #757575; }
+.status-flagged { background: #ffebee; color: #d32f2f; }
+.status-needs_admin { background: #fce4ec; color: #c2185b; }
+
+/* Processing Status Badge - AI Elaborazione */
+.processing-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 10px;
+    font-size: 0.6rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.processing-pending_validation {
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    color: #c0392b;
+}
+.processing-processing {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #8e44ad;
+}
+.processing-completed {
+    background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+    color: #27ae60;
+}
+.processing-failed {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+    color: #c0392b;
+}
+.processing-needs_admin_review {
+    background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
+    color: #8e44ad;
+}
+
+/* AI Processing Animation */
+.processing-status.is-processing {
+    animation: pulse-processing 1.5s ease-in-out infinite;
+}
+.processing-status .ai-spinner {
+    width: 10px;
+    height: 10px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes pulse-processing {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.02); }
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Admin Actions - Icon buttons inline */
+.review-admin-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+.btn-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 0.75rem;
+}
+.btn-icon:hover { transform: scale(1.1); }
+.btn-icon.view { background: #e3f2fd; color: #1976d2; }
+.btn-icon.view:hover { background: #1976d2; color: white; }
+.btn-icon.validate { background: #e8f5e9; color: #388e3c; }
+.btn-icon.validate:hover { background: #388e3c; color: white; }
+.btn-icon.hide { background: #fff3e0; color: #f57c00; }
+.btn-icon.hide:hover { background: #f57c00; color: white; }
+.btn-icon.flag { background: #ffebee; color: #d32f2f; }
+.btn-icon.flag:hover { background: #d32f2f; color: white; }
+.btn-icon.ban { background: #fce4ec; color: #c2185b; }
+.btn-icon.ban:hover { background: #c2185b; color: white; }
+.btn-icon.unban { background: #e8f5e9; color: #2e7d32; }
+.btn-icon.unban:hover { background: #2e7d32; color: white; }
+.btn-icon.delete { background: #ffcdd2; color: #b71c1c; }
+.btn-icon.delete:hover { background: #b71c1c; color: white; }
+
+/* User banned indicator */
+.user-banned { color: #d32f2f; font-weight: 600; }
+.user-banned i { margin-right: 0.25rem; }
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #888;
+    background: white;
+    border-radius: 12px;
+}
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+.empty-state h3 {
+    font-size: 1.1rem;
+    color: #555;
+    margin-bottom: 0.5rem;
+}
+.empty-state p {
+    font-size: 0.875rem;
+    color: #888;
+}
+
+/* Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+.modal-overlay.active { display: flex; opacity: 1; }
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    max-width: 600px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+    opacity: 0;
+}
+.modal-overlay.active .modal-content {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: -1rem -1rem 0.75rem -1rem;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px 12px 0 0;
+}
+.modal-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.modal-title i { font-size: 0.9rem; }
+.modal-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: white;
+    padding: 0.2rem 0.4rem;
+    line-height: 1;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+.modal-close:hover { background: rgba(255,255,255,0.3); }
+.modal-body { margin-bottom: 0.5rem; }
+.modal-footer {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+    border-top: 1px solid #f0f0f0;
+}
+.btn-modal {
+    padding: 0.6rem 1.25rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+.btn-modal.cancel { 
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%); 
+    color: #666; 
+}
+.btn-modal.confirm { 
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%); 
+    color: white; 
+}
+.btn-modal:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
+
+/* Detail Modal - Compact Cool Design */
+.detail-section { 
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.5rem;
+    border: 1px solid #eef1f5;
+}
+.detail-section h4 {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: white;
+    margin: -0.5rem -0.5rem 0.4rem -0.5rem;
+    padding: 0.35rem 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.detail-section h4 i { font-size: 0.6rem; }
+.detail-section:nth-child(1) h4 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.detail-section:nth-child(2) h4 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.detail-section:nth-child(3) h4 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.detail-section:nth-child(4) h4 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    border-bottom: 1px dashed #e0e5eb;
+    font-size: 0.8rem;
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-label { color: #666; font-size: 0.75rem; }
+.detail-value { color: #333; font-weight: 600; text-align: right; }
+.detail-notes {
+    background: white;
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    color: #555;
+    line-height: 1.4;
+    border: 1px solid #e0e5eb;
+    max-height: 60px;
+    overflow-y: auto;
+}
+.detailed-ratings-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.3rem !important;
+}
+.detailed-rating-item {
+    background: white;
+    border-radius: 6px;
+    padding: 0.35rem 0.3rem;
+    text-align: center;
+    border: 1px solid #e0e5eb;
+    min-width: 0;
+    overflow: hidden;
+}
+.detailed-rating-item.overall {
+    grid-column: 1 / -1 !important;
+    background: linear-gradient(135deg, #fff8e1 0%, #fff 100%);
+    border-color: #ffc107;
+}
+.detailed-rating-label {
+    font-size: 0.55rem;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 0.15rem;
+    letter-spacing: 0.2px;
+}
+.detailed-rating-item.overall .detailed-rating-label {
+    color: #e6a000;
+    font-weight: 600;
+}
+.rating-stars-display {
+    display: flex;
+    gap: 0.15rem;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+.rating-stars-display .fa-star { color: #ffc107; }
+.rating-stars-display .fa-star.empty { color: #e0e0e0; }
+.not-rated-label {
+    color: #999;
+    font-style: italic;
+    font-size: 0.75rem;
+}
+.mini-stars { font-size: 0.5rem; display: flex; gap: 1px; justify-content: center; margin-top: 2px; }
+.mini-stars .fa-star { color: #ffc107; }
+.mini-stars .fa-star.empty { color: #ddd; }
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+}
+.pagination a, .pagination span {
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.pagination a {
+    background: white;
+    color: #667eea;
+    border: 1px solid #e0e0e0;
+}
+.pagination a:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+.pagination span.current {
+    background: #667eea;
+    color: white;
+}
+.pagination span.disabled {
+    background: #f5f5f5;
+    color: #ccc;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .all-reviews-container { padding: 1rem; }
+    .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+    .stat-card { padding: 0.75rem 0.5rem; }
+    .stat-number { font-size: 1.25rem; }
+    .stat-label { font-size: 0.65rem; }
+    .filters-row { flex-direction: column; gap: 0.75rem; }
+    .filter-actions { justify-content: stretch; }
+    .filter-actions .btn-filter { flex: 1; }
+    .review-card { flex-wrap: wrap; }
+    .review-admin-actions {
+        width: 100%;
+        justify-content: flex-end;
+        padding-top: 0.5rem;
+        border-top: 1px solid #f0f0f0;
+        margin-top: 0.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="page-header" style="margin-bottom: 1.5rem;">
+        <h1 style="font-size: 1.5rem; font-weight: 600; color: #333;">
+            <i class="fas fa-star" style="color: #667eea; margin-right: 0.5rem;"></i>
+            Gestione Recensioni
+        </h1>
+    </div>
+
+    <!-- ===== FILTRI ULTRA COOL ===== -->
+    <div class="filter-section">
+        <div class="filter-header">
+            <div class="filter-header-icon" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">📋</div>
+            <span class="filter-header-title">Moderazione</span>
+        </div>
+        <div class="filter-chips">
+            <button class="filter-chip active" data-filter="all" onclick="filterByStatus('all')">
+                <span class="chip-count">{{ stats.total or 0 }}</span>
+                <span class="chip-label">Tutte</span>
+            </button>
+            <button class="filter-chip" data-filter="pending" onclick="filterByStatus('pending')">
+                <span class="chip-count">{{ stats.pending or 0 }}</span>
+                <span class="chip-label">⏳ Attesa</span>
+            </button>
+            <button class="filter-chip" data-filter="validated" onclick="filterByStatus('validated')">
+                <span class="chip-count">{{ stats.validated or 0 }}</span>
+                <span class="chip-label">✓ Validate</span>
+            </button>
+            <button class="filter-chip" data-filter="completed" onclick="filterByStatus('completed')">
+                <span class="chip-count">{{ stats.completed or 0 }}</span>
+                <span class="chip-label">✔ Complete</span>
+            </button>
+            <button class="filter-chip" data-filter="hidden" onclick="filterByStatus('hidden')">
+                <span class="chip-count">{{ stats.hidden or 0 }}</span>
+                <span class="chip-label">👁‍🗨 Nascoste</span>
+            </button>
+            <button class="filter-chip" data-filter="flagged" onclick="filterByStatus('flagged')">
+                <span class="chip-count">{{ stats.flagged or 0 }}</span>
+                <span class="chip-label">⚠️ Segnalate</span>
+            </button>
+            <button class="filter-chip" data-filter="needs_admin" onclick="filterByStatus('needs_admin')">
+                <span class="chip-count">{{ stats.needsAdmin or 0 }}</span>
+                <span class="chip-label">🔍 Verifica</span>
+            </button>
+            <button class="filter-chip" data-filter="banned_users" onclick="filterByStatus('banned_users')">
+                <span class="chip-count">{{ stats.bannedUsersReviews or 0 }}</span>
+                <span class="chip-label">🚫 Bannati</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <div class="filter-header">
+            <div class="filter-header-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2); color: white;">🤖</div>
+            <span class="filter-header-title">AI Processing</span>
+        </div>
+        <div class="filter-chips">
+            <button class="filter-chip active" data-processing-filter="all" onclick="filterByProcessing('')">
+                <span class="chip-count">{{ stats.total or 0 }}</span>
+                <span class="chip-label">Tutte</span>
+            </button>
+            <button class="filter-chip" data-processing-filter="pending_validation" onclick="filterByProcessing('pending_validation')">
+                <span class="chip-count">{{ stats.aiPending or 0 }}</span>
+                <span class="chip-label">📥 Coda</span>
+            </button>
+            <button class="filter-chip" data-processing-filter="processing" onclick="filterByProcessing('processing')">
+                <span class="chip-count">{{ stats.aiProcessing or 0 }}</span>
+                <span class="chip-label">⚙️ Elabora</span>
+            </button>
+            <button class="filter-chip" data-processing-filter="ai_completed" onclick="filterByProcessing('ai_completed')">
+                <span class="chip-count">{{ stats.aiCompleted or 0 }}</span>
+                <span class="chip-label">✅ Completate</span>
+            </button>
+            <button class="filter-chip" data-processing-filter="failed" onclick="filterByProcessing('failed')">
+                <span class="chip-count">{{ stats.aiFailed or 0 }}</span>
+                <span class="chip-label">❌ Fallite</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <form id="searchForm" method="GET" action="/administrator/reviews" class="search-section" onsubmit="showLoadingOverlay()">
+        <i class="fas fa-search" style="color: #999; margin-left: 0.5rem;"></i>
+        <input type="text" name="search" placeholder="Cerca birra, birrificio o utente..." value="{{ filters.search or '' }}">
+        <input type="hidden" name="status" value="{{ filters.status or '' }}">
+        <button type="submit" class="btn-search">
+            <i class="fas fa-search"></i> Cerca
+        </button>
+        {% if filters.search or filters.status %}
+        <button type="button" class="btn-reset" onclick="resetFilters()">
+            <i class="fas fa-times"></i>
+        </button>
+        {% endif %}
+    </form>
+
+    <!-- Reviews List -->
+    <div class="reviews-list">
+        {% if reviews and reviews.length > 0 %}
+            {% for review in reviews %}
+                {% set firstRating = review.ratings[0] if review.ratings and review.ratings.length > 0 else null %}
+                {% set beerName = firstRating.beer.beerName if firstRating and firstRating.beer else (firstRating.bottleLabel if firstRating else 'Birra sconosciuta') %}
+                {% set breweryName = firstRating.brewery.breweryName if firstRating and firstRating.brewery else 'Birrificio sconosciuto' %}
+                {% set rating = firstRating.rating if firstRating else 0 %}
+                {% set userName = review.user.customerDetails.customerName + ' ' + review.user.customerDetails.customerSurname if review.user and review.user.customerDetails and review.user.customerDetails.customerName else (review.user.username if review.user else 'Utente anonimo') %}
+                {% set userEmail = review.user.email if review.user else '' %}
+                {% set isBanned = review.user.isBanned if review.user else false %}
+                {% set userId = review.user._id if review.user else null %}
+                
+                {% set isHiddenReview = review.moderation and review.moderation.isHidden %}
+                <div class="review-card {{ 'is-hidden' if isHiddenReview }}" 
+                     data-review-id="{{ review._id }}"
+                     data-beer-name="{{ beerName }}"
+                     data-brewery-name="{{ breweryName }}"
+                     data-user-name="{{ userName }}"
+                     data-user-email="{{ userEmail }}"
+                     data-rating="{{ rating }}"
+                     data-status="{{ review.status or 'pending' }}"
+                     data-processing-status="{{ review.processingStatus or 'completed' }}"
+                     data-is-hidden="{{ 'true' if isHiddenReview else 'false' }}"
+                     data-date="{{ review.date | date('YYYY-MM-DD') if review.date else '' }}"
+                     {% if review.processingStatus == 'pending_validation' or review.processingStatus == 'processing' %}style="border-left: 3px solid #fcb69f;"{% endif %}>
+                    
+                    <!-- Hidden Badge -->
+                    {% if isHiddenReview %}
+                    <div class="hidden-badge">
+                        <i class="fas fa-eye-slash"></i> Nascosta
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Thumbnail con bordo gradient ambra/dorato -->
+                    <div class="review-thumbnail-wrapper" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);">
+                        {% if review.imageUrl %}
+                            <img src="{{ review.imageUrl }}" alt="{{ beerName }}" class="review-thumbnail">
+                        {% else %}
+                            <div class="review-thumbnail" style="display: flex; align-items: center; justify-content: center; background: #f5f5f5;">
+                                <i class="fas fa-beer" style="font-size: 1.25rem; color: #ccc;"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Content -->
+                    <div class="review-content">
+                        <div class="review-title">{{ beerName }}</div>
+                        <div class="review-subtitle">{{ breweryName }}</div>
+                        <div class="review-meta">
+                            <span class="review-meta-item {% if isBanned %}user-banned{% endif %}">
+                                {% if isBanned %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-user"></i>{% endif %}
+                                {{ userName }}
+                            </span>
+                            <span class="review-meta-item">
+                                <i class="fas fa-calendar"></i>
+                                {{ review.date | date('DD/MM/YYYY') if review.date else 'N/D' }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Rating -->
+                    <div class="review-rating">
+                        {% if rating > 0 %}
+                        <div class="stars">
+                            {% for i in range(1, 6) %}
+                                <i class="fas fa-star {% if i > rating %}empty{% endif %}"></i>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <span class="rating-value" style="color: #999; font-style: italic;">Non valutata</span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Dual Status Badges -->
+                    <div class="review-badges">
+                        <!-- Status Moderazione -->
+                        <span class="review-status status-{{ review.status or 'pending' }}" title="Stato moderazione">
+                            {% if review.status == 'validated' %}
+                                <i class="fas fa-check"></i> Validata
+                            {% elif review.status == 'completed' %}
+                                <i class="fas fa-check-double"></i> Completata
+                            {% elif review.status == 'hidden' %}
+                                <i class="fas fa-eye-slash"></i> Nascosta
+                            {% elif review.status == 'flagged' %}
+                                <i class="fas fa-flag"></i> Segnalata
+                            {% elif review.status == 'needs_admin' %}
+                                <i class="fas fa-exclamation-triangle"></i> Da verificare
+                            {% else %}
+                                <i class="fas fa-clock"></i> In attesa
+                            {% endif %}
+                        </span>
+                        <!-- Processing Status AI -->
+                        {% set isProcessing = review.processingStatus == 'pending_validation' or review.processingStatus == 'processing' %}
+                        <span class="processing-status processing-{{ review.processingStatus or 'completed' }} {{ 'is-processing' if isProcessing }}" title="Elaborazione AI">
+                            {% if isProcessing %}
+                                <span class="ai-spinner"></span>
+                            {% else %}
+                                <i class="fas fa-robot" style="font-size: 0.55rem;"></i>
+                            {% endif %}
+                            {% if review.processingStatus == 'pending_validation' %}
+                                In coda
+                            {% elif review.processingStatus == 'processing' %}
+                                Elaborando...
+                            {% elif review.processingStatus == 'completed' %}
+                                AI OK
+                            {% elif review.processingStatus == 'failed' %}
+                                AI Fallito
+                            {% elif review.processingStatus == 'needs_admin_review' %}
+                                AI: Verifica
+                            {% else %}
+                                AI OK
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <!-- Admin Actions (Icon Buttons) -->
+                    <div class="review-admin-actions">
+                        <button class="btn-icon view" onclick="showReviewDetail('{{ review._id }}')" title="Dettagli">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        {% if review.status != 'validated' and review.status != 'completed' %}
+                        <button class="btn-icon validate" onclick="updateReviewStatus('{{ review._id }}', 'validated')" title="Valida">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        {% endif %}
+                        <button class="btn-icon hide" onclick="toggleReviewVisibility('{{ review._id }}')" title="{{ 'Mostra' if review.moderation and review.moderation.isHidden else 'Nascondi' }}">
+                            <i class="fas {{ 'fa-eye' if review.moderation and review.moderation.isHidden else 'fa-eye-slash' }}"></i>
+                        </button>
+                        {% if userId and not isBanned %}
+                        <button class="btn-icon ban" onclick="showBanModal('{{ userId }}', '{{ userName | replace("'", "\\'") }}')" title="Banna utente">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                        {% elif userId and isBanned %}
+                        <button class="btn-icon unban" onclick="showUnbanModal('{{ userId }}', '{{ userName | replace("'", "\\'") }}')" title="Rimuovi ban">
+                            <i class="fas fa-user-check"></i>
+                        </button>
+                        {% endif %}
+                        <button class="btn-icon delete" onclick="showDeleteModal('{{ review._id }}')" title="Elimina">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h3>Nessuna recensione trovata</h3>
+                <p>Non ci sono recensioni che corrispondono ai filtri selezionati.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination and pagination.totalPages > 1 %}
+    <div class="pagination">
+        {% if pagination.currentPage > 1 %}
+            <a href="?page={{ pagination.currentPage - 1 }}{{ '&status=' + filters.status if filters.status }}{{ '&sort=' + filters.sort if filters.sort }}{{ '&search=' + filters.search if filters.search }}">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        {% else %}
+            <span class="disabled"><i class="fas fa-chevron-left"></i></span>
+        {% endif %}
+        
+        {% for p in range(1, pagination.totalPages + 1) %}
+            {% if p == pagination.currentPage %}
+                <span class="current">{{ p }}</span>
+            {% elif p == 1 or p == pagination.totalPages or (p >= pagination.currentPage - 2 and p <= pagination.currentPage + 2) %}
+                <a href="?page={{ p }}{{ '&status=' + filters.status if filters.status }}{{ '&sort=' + filters.sort if filters.sort }}{{ '&search=' + filters.search if filters.search }}">{{ p }}</a>
+            {% elif p == pagination.currentPage - 3 or p == pagination.currentPage + 3 %}
+                <span>...</span>
+            {% endif %}
+        {% endfor %}
+        
+        {% if pagination.currentPage < pagination.totalPages %}
+            <a href="?page={{ pagination.currentPage + 1 }}{{ '&status=' + filters.status if filters.status }}{{ '&sort=' + filters.sort if filters.sort }}{{ '&search=' + filters.search if filters.search }}">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        {% else %}
+            <span class="disabled"><i class="fas fa-chevron-right"></i></span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Review Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal-content" style="max-width: 580px;">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-search-plus"></i> Dettaglio Recensione</h3>
+            <button class="modal-close" onclick="closeModal('detailModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="detailModalBody">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Ban User Modal -->
+<div class="modal-overlay" id="banModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-ban" style="color: #c2185b;"></i> Banna Utente</h3>
+            <button class="modal-close" onclick="closeModal('banModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Sei sicuro di voler bannare l'utente <strong id="banUserName"></strong>?</p>
+            <p style="color: #888; font-size: 0.875rem; margin-top: 0.5rem;">
+                L'utente non potrà più accedere alla piattaforma.
+            </p>
+            <input type="hidden" id="banUserId">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal cancel" onclick="closeModal('banModal')">Annulla</button>
+            <button class="btn-modal confirm" onclick="confirmBanUser()">
+                <i class="fas fa-ban"></i> Banna
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Unban User Modal -->
+<div class="modal-overlay" id="unbanModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-user-check" style="color: #2e7d32;"></i> Rimuovi Ban Utente</h3>
+            <button class="modal-close" onclick="closeModal('unbanModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Sei sicuro di voler rimuovere il ban all'utente <strong id="unbanUserName"></strong>?</p>
+            <p style="color: #888; font-size: 0.875rem; margin-top: 0.5rem;">
+                L'utente potrà nuovamente accedere alla piattaforma.
+            </p>
+            <input type="hidden" id="unbanUserId">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal cancel" onclick="closeModal('unbanModal')">Annulla</button>
+            <button class="btn-modal confirm" style="background: linear-gradient(135deg, #43a047, #2e7d32);" onclick="confirmUnbanUser()">
+                <i class="fas fa-user-check"></i> Rimuovi Ban
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Review Modal -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-trash" style="color: #d32f2f;"></i> Elimina Recensione</h3>
+            <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Sei sicuro di voler eliminare questa recensione?</p>
+            <p style="color: #888; font-size: 0.875rem; margin-top: 0.5rem;">
+                Questa azione è irreversibile.
+            </p>
+            <input type="hidden" id="deleteReviewId">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal cancel" onclick="closeModal('deleteModal')">Annulla</button>
+            <button class="btn-modal confirm" onclick="confirmDeleteReview()">
+                <i class="fas fa-trash"></i> Elimina
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay per cambio filtri -->
+<div id="filterLoadingOverlay" class="filter-loading-overlay">
+    <div class="filter-spinner"></div>
+    <span class="filter-loading-text">Caricamento...</span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Highlight active filter chip on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const currentStatus = '{{ filters.status or "" }}';
+    const currentProcessing = '{{ filters.processingStatus or "" }}';
+    
+    // Reset all chips
+    document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.remove('active'));
+    
+    // Set active status filter
+    const statusValue = currentStatus || 'all';
+    const activeStatusChip = document.querySelector(`.filter-chip[data-filter="${statusValue}"]`);
+    if (activeStatusChip) activeStatusChip.classList.add('active');
+    
+    // Set active processing filter
+    const processingValue = currentProcessing || 'all';
+    const activeProcessingChip = document.querySelector(`.filter-chip[data-processing-filter="${processingValue}"]`);
+    if (activeProcessingChip) activeProcessingChip.classList.add('active');
+});
+
+// Store reviews data for detail modal
+const reviewsData = {};
+{% for review in reviews %}
+{% set firstRating = review.ratings[0] if review.ratings and review.ratings.length > 0 else null %}
+{% set beerNameJs = (firstRating.beer.beerName if firstRating and firstRating.beer else (firstRating.bottleLabel if firstRating else 'Birra sconosciuta')) | replace("'", "\\'") | replace("\n", " ") | replace("\r", " ") %}
+{% set breweryNameJs = (firstRating.brewery.breweryName if firstRating and firstRating.brewery else 'Birrificio sconosciuto') | replace("'", "\\'") | replace("\n", " ") | replace("\r", " ") %}
+{% set beerTypeJs = (firstRating.beer.beerType if firstRating and firstRating.beer else 'N/D') | replace("'", "\\'") | replace("\n", " ") | replace("\r", " ") %}
+{% set alcoholJs = (firstRating.beer.alcoholContent if firstRating and firstRating.beer else 'N/D') | replace("'", "\\'") | replace("\n", " ") | replace("\r", " ") %}
+{% set ratingJs = firstRating.rating if firstRating and firstRating.rating else 0 %}
+{% set notesJs = (firstRating.notes if firstRating and firstRating.notes else '') | replace("'", "\\'") | replace("\n", " ") | replace("\r", " ") %}
+{% set userNameJs = (review.user.customerDetails.customerName ~ ' ' ~ review.user.customerDetails.customerSurname if review.user and review.user.customerDetails and review.user.customerDetails.customerName else (review.user.username if review.user else 'Utente anonimo')) | replace("'", "\\'") | replace("\n", " ") | replace("\r", " ") %}
+{% set appearanceRating = firstRating.detailedRatings.appearance.rating if firstRating and firstRating.detailedRatings and firstRating.detailedRatings.appearance and firstRating.detailedRatings.appearance.rating else 0 %}
+{% set aromaRating = firstRating.detailedRatings.aroma.rating if firstRating and firstRating.detailedRatings and firstRating.detailedRatings.aroma and firstRating.detailedRatings.aroma.rating else 0 %}
+{% set tasteRating = firstRating.detailedRatings.taste.rating if firstRating and firstRating.detailedRatings and firstRating.detailedRatings.taste and firstRating.detailedRatings.taste.rating else 0 %}
+{% set mouthfeelRating = firstRating.detailedRatings.mouthfeel.rating if firstRating and firstRating.detailedRatings and firstRating.detailedRatings.mouthfeel and firstRating.detailedRatings.mouthfeel.rating else 0 %}
+reviewsData['{{ review._id }}'] = {
+    id: '{{ review._id }}',
+    beerName: '{{ beerNameJs }}',
+    breweryName: '{{ breweryNameJs }}',
+    beerType: '{{ beerTypeJs }}',
+    alcoholContent: '{{ alcoholJs }}',
+    rating: {{ ratingJs if ratingJs else 0 }},
+    notes: '{{ notesJs }}',
+    userName: '{{ userNameJs }}',
+    userEmail: '{{ review.user.email if review.user and review.user.email else "" }}',
+    date: '{{ review.date | date("DD/MM/YYYY HH:mm") if review.date else "N/D" }}',
+    status: '{{ review.status or "pending" }}',
+    detailedRatings: {
+        appearance: {{ appearanceRating if appearanceRating else 0 }},
+        aroma: {{ aromaRating if aromaRating else 0 }},
+        taste: {{ tasteRating if tasteRating else 0 }},
+        mouthfeel: {{ mouthfeelRating if mouthfeelRating else 0 }}
+    }
+};
+{% endfor %}
+
+function showLoadingOverlay() {
+    const overlay = document.getElementById('filterLoadingOverlay');
+    if (overlay) {
+        overlay.classList.add('active');
+    }
+}
+
+function filterByStatus(status) {
+    showLoadingOverlay();
+    const url = new URL(window.location.href);
+    if (status === 'all') {
+        url.searchParams.delete('status');
+    } else {
+        url.searchParams.set('status', status);
+    }
+    url.searchParams.delete('page');
+    url.searchParams.delete('processingStatus'); // Reset filtro AI quando cambio status
+    window.location.href = url.toString();
+}
+
+function filterByProcessing(processingStatus) {
+    showLoadingOverlay();
+    const url = new URL(window.location.href);
+    if (processingStatus === 'all' || processingStatus === 'ai_completed') {
+        // 'ai_completed' mostra tutti i completati
+        if (processingStatus === 'ai_completed') {
+            url.searchParams.set('processingStatus', 'completed');
+        } else {
+            url.searchParams.delete('processingStatus');
+        }
+    } else {
+        url.searchParams.set('processingStatus', processingStatus);
+    }
+    url.searchParams.delete('page');
+    url.searchParams.delete('status'); // Reset filtro moderazione quando cambio AI
+    window.location.href = url.toString();
+}
+
+function resetFilters() {
+    showLoadingOverlay();
+    window.location.href = '/administrator/reviews';
+}
+
+function showReviewDetail(reviewId) {
+    const review = reviewsData[reviewId];
+    if (!review) return;
+    
+    // Genera stelle o "Non valutata"
+    const starsHtml = review.rating > 0 
+        ? Array.from({length: 5}, (_, i) => 
+            `<i class="fas fa-star ${i >= review.rating ? 'empty' : ''}"></i>`
+          ).join('')
+        : '<span class="not-rated-label">Non valutata</span>';
+    
+    // Genera rating dettagliati con sole stelle e note
+    const renderDetailedRating = (value, label, icon, isOverall = false, noteText = '') => {
+        const itemClass = isOverall ? 'detailed-rating-item overall' : 'detailed-rating-item';
+        const noteHtml = noteText ? `<div style="font-size: 0.55rem; color: #666; margin-top: 3px; line-height: 1.2; max-height: 2.4em; overflow: hidden; text-overflow: ellipsis;">${noteText}</div>` : '';
+        if (!value || value === 0) {
+            return `<div class="${itemClass}">
+                <div class="detailed-rating-label">${icon} ${label}</div>
+                <div style="color: #bbb; font-size: 0.6rem;">—</div>
+                ${noteHtml}
+            </div>`;
+        }
+        const starSize = isOverall ? '0.7rem' : '0.55rem';
+        const miniStars = Array.from({length: 5}, (_, i) => 
+            `<i class="fas fa-star" style="font-size: ${starSize}; color: ${i < value ? '#ffc107' : '#e0e0e0'};"></i>`
+        ).join('');
+        return `<div class="${itemClass}">
+            <div class="detailed-rating-label">${icon} ${label}</div>
+            <div style="margin-top: 2px;">${miniStars}</div>
+            ${noteHtml}
+        </div>`;
+    };
+    
+    document.getElementById('detailModalBody').innerHTML = `
+        <div class="detail-section">
+            <h4><i class="fas fa-beer"></i> Birra</h4>
+            <div class="detail-row">
+                <span class="detail-label">Nome</span>
+                <span class="detail-value">${review.beerName}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Birrificio</span>
+                <span class="detail-value">${review.breweryName}</span>
+            </div>
+            ${review.beerType ? `<div class="detail-row">
+                <span class="detail-label">Stile</span>
+                <span class="detail-value">${review.beerType}</span>
+            </div>` : ''}
+            ${review.alcoholContent ? `<div class="detail-row">
+                <span class="detail-label">Gradazione</span>
+                <span class="detail-value">${review.alcoholContent}%</span>
+            </div>` : ''}
+        </div>
+        
+        <div class="detail-section">
+            <h4><i class="fas fa-star"></i> Valutazione</h4>
+            ${review.rating > 0 ? `
+            <div class="detailed-ratings-grid">
+                ${renderDetailedRating(review.rating, 'Complessiva', '⭐', true, review.notes)}
+                ${renderDetailedRating(review.detailedRatings?.appearance?.rating || review.detailedRatings?.appearance, 'Aspetto', '👁️', false, review.detailedRatings?.appearance?.notes)}
+                ${renderDetailedRating(review.detailedRatings?.aroma?.rating || review.detailedRatings?.aroma, 'Aroma', '👃', false, review.detailedRatings?.aroma?.notes)}
+                ${renderDetailedRating(review.detailedRatings?.taste?.rating || review.detailedRatings?.taste, 'Gusto', '👅', false, review.detailedRatings?.taste?.notes)}
+                ${renderDetailedRating(review.detailedRatings?.mouthfeel?.rating || review.detailedRatings?.mouthfeel, 'Corpo', '💧', false, review.detailedRatings?.mouthfeel?.notes)}
+            </div>` : `<div style="text-align: center; padding: 0.3rem 0; color: #999; font-style: italic; font-size: 0.8rem;">Non valutata</div>`}
+        </div>
+        
+        <div class="detail-section">
+            <h4><i class="fas fa-user"></i> Utente</h4>
+            <div class="detail-row">
+                <span class="detail-label">Nome</span>
+                <span class="detail-value">${review.userName}</span>
+            </div>
+            ${review.userEmail ? `<div class="detail-row">
+                <span class="detail-label">Email</span>
+                <span class="detail-value">${review.userEmail}</span>
+            </div>` : ''}
+            <div class="detail-row">
+                <span class="detail-label">Data</span>
+                <span class="detail-value">${review.date}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Stato moderazione</span>
+                <span class="detail-value"><span class="review-status status-${review.status}">${getStatusLabel(review.status)}</span></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Stato AI</span>
+                <span class="detail-value"><span class="processing-status processing-${review.processingStatus || 'completed'}">${getProcessingLabel(review.processingStatus)}</span></span>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('detailModal').classList.add('active');
+}
+
+function getStatusLabel(status) {
+    const labels = {
+        pending: 'In attesa',
+        validated: 'Validata',
+        completed: 'Completata',
+        hidden: 'Nascosta',
+        flagged: 'Segnalata'
+    };
+    return labels[status] || status;
+}
+
+function getProcessingLabel(processingStatus) {
+    const labels = {
+        pending_validation: 'In elaborazione AI',
+        processing: 'Elaborazione in corso',
+        completed: 'AI completato',
+        failed: 'Elaborazione fallita',
+        ai_completed: 'AI completato'
+    };
+    return labels[processingStatus] || processingStatus || 'Completato';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+function showBanModal(userId, userName) {
+    document.getElementById('banUserId').value = userId;
+    document.getElementById('banUserName').textContent = userName;
+    document.getElementById('banModal').classList.add('active');
+}
+
+function showUnbanModal(userId, userName) {
+    document.getElementById('unbanUserId').value = userId;
+    document.getElementById('unbanUserName').textContent = userName;
+    document.getElementById('unbanModal').classList.add('active');
+}
+
+function showDeleteModal(reviewId) {
+    document.getElementById('deleteReviewId').value = reviewId;
+    document.getElementById('deleteModal').classList.add('active');
+}
+
+async function updateReviewStatus(reviewId, status) {
+    try {
+        const response = await fetch(`/administrator/api/reviews/${reviewId}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Errore durante l\'aggiornamento');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Errore durante l\'aggiornamento dello stato');
+    }
+}
+
+async function toggleReviewVisibility(reviewId) {
+    try {
+        const response = await fetch(`/administrator/api/reviews/${reviewId}/visibility`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const isNowHidden = data.message.includes('nascosta');
+            
+            // Aggiorna la UI della card senza ricaricare
+            const card = document.querySelector(`.review-card[data-review-id="${reviewId}"]`);
+            if (card) {
+                // Toggle classe is-hidden
+                card.classList.toggle('is-hidden', isNowHidden);
+                card.dataset.isHidden = isNowHidden ? 'true' : 'false';
+                
+                // Aggiorna/rimuovi badge "Nascosta"
+                let badge = card.querySelector('.hidden-badge');
+                if (isNowHidden && !badge) {
+                    badge = document.createElement('div');
+                    badge.className = 'hidden-badge';
+                    badge.innerHTML = '<i class="fas fa-eye-slash"></i> Nascosta';
+                    card.insertBefore(badge, card.firstChild);
+                } else if (!isNowHidden && badge) {
+                    badge.remove();
+                }
+                
+                // Aggiorna icona e title del pulsante
+                const btn = card.querySelector('.btn-icon.hide');
+                if (btn) {
+                    const icon = btn.querySelector('i');
+                    if (icon) {
+                        icon.className = isNowHidden ? 'fas fa-eye' : 'fas fa-eye-slash';
+                    }
+                    btn.title = isNowHidden ? 'Mostra' : 'Nascondi';
+                }
+            }
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Errore durante il cambio visibilità');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Errore durante il cambio visibilità');
+    }
+}
+
+async function confirmBanUser() {
+    const userId = document.getElementById('banUserId').value;
+    
+    try {
+        const response = await fetch(`/administrator/api/users/${userId}/ban`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            closeModal('banModal');
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Errore durante il ban dell\'utente');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Errore durante il ban dell\'utente');
+    }
+}
+
+async function confirmUnbanUser() {
+    const userId = document.getElementById('unbanUserId').value;
+    
+    try {
+        const response = await fetch(`/administrator/api/users/${userId}/unban`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            closeModal('unbanModal');
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Errore durante la rimozione del ban');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Errore durante la rimozione del ban');
+    }
+}
+
+async function confirmDeleteReview() {
+    const reviewId = document.getElementById('deleteReviewId').value;
+    
+    try {
+        const response = await fetch(`/administrator/api/reviews/${reviewId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            closeModal('deleteModal');
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Errore durante l\'eliminazione');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Errore durante l\'eliminazione della recensione');
+    }
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
+    });
+});
+
+// Close modals on ESC key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.active').forEach(modal => {
+            modal.classList.remove('active');
+        });
+    }
+});
+
+// Highlight active filter card
+const currentStatus = new URLSearchParams(window.location.search).get('status');
+document.querySelectorAll('.stat-card').forEach(card => {
+    if (card.dataset.filter === (currentStatus || 'all')) {
+        card.classList.add('active');
+    }
+});
+</script>
+{% endblock %}

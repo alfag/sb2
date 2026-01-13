@@ -737,12 +737,6 @@ body {
     padding-bottom: 1.5rem !important;
 }
 
-/* === ICONE FONTAWESOME === */
-.fas {
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-}
-
 /* === AUTOCOMPLETE BREWERY FILTER === */
 .autocomplete-container {
     position: relative;

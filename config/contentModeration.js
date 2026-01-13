@@ -4,9 +4,23 @@
  * 
  * NOTA: Le parole sono cifrate usando AES-256-GCM per motivi di privacy
  * ma possono essere decifrate per controlli più accurati
+ * 
+ * INTEGRAZIONE: Usa anche il pacchetto 'naughty-words' per caricare automaticamente
+ * liste di parole inappropriate in italiano dalla community (CC-BY-4.0 license)
+ * Repository: https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words
  */
 
 const { decryptWordList } = require('./encryption');
+
+// === PAROLE DA COMMUNITY (naughty-words) ===
+let naughtyWordsItalian = [];
+try {
+  naughtyWordsItalian = require('naughty-words/it.json');
+  console.log(`✅ Caricate ${naughtyWordsItalian.length} parole inappropriate italiane da naughty-words`);
+} catch (error) {
+  console.warn('⚠️ Impossibile caricare naughty-words/it.json:', error.message);
+  naughtyWordsItalian = [];
+}
 
 /**
  * Array di parole inappropriate cifrate
@@ -79,16 +93,28 @@ let decryptedWordsCache = null;
 
 /**
  * Ottiene la lista delle parole inappropriate decifrate
- * @returns {Array} - Array di parole decifrate
+ * Combina: parole cifrate locali + parole da naughty-words (community)
+ * @returns {Array} - Array di parole decifrate (deduplicate)
  */
 function getInappropriateWords() {
   if (!decryptedWordsCache) {
     try {
-      decryptedWordsCache = decryptWordList(encryptedInappropriateWords);
+      // Parole locali cifrate
+      const localWords = decryptWordList(encryptedInappropriateWords);
+      
+      // Combina con parole dalla community (naughty-words)
+      const allWords = [...localWords, ...naughtyWordsItalian];
+      
+      // Deduplica e normalizza (lowercase, trim)
+      const uniqueWords = [...new Set(allWords.map(w => w.toLowerCase().trim()))];
+      
+      decryptedWordsCache = uniqueWords;
+      console.log(`📋 Moderazione contenuti: ${localWords.length} locali + ${naughtyWordsItalian.length} community = ${uniqueWords.length} parole totali (deduplicate)`);
     } catch (error) {
       console.error('Errore decifrando le parole inappropriate:', error.message);
       console.error('Assicurati che la variabile CONTENT_MODERATION_KEY sia configurata correttamente nel .bashrc');
-      decryptedWordsCache = []; // Fallback a lista vuota
+      // Fallback: usa almeno le parole dalla community
+      decryptedWordsCache = naughtyWordsItalian.length > 0 ? naughtyWordsItalian : [];
     }
   }
   return decryptedWordsCache;
@@ -165,5 +191,13 @@ module.exports = {
   moderationPatterns,
   severityLevels,
   moderationContexts,
-  addInappropriateWord
+  addInappropriateWord,
+  // Nuove funzioni per gestione community words
+  naughtyWordsItalian,
+  getModerationStats: () => ({
+    localWords: encryptedInappropriateWords.length,
+    communityWords: naughtyWordsItalian.length,
+    totalUnique: getInappropriateWords().length,
+    source: 'naughty-words (LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)'
+  })
 };

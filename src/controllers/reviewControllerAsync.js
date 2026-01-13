@@ -59,7 +59,7 @@ exports.analyzeImageAsync = async (req, res) => {
     if (!aiResult.success || !aiResult.bottles || aiResult.bottles.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Nessuna birra rilevata nell\'immagine',
+        message: '🔍 Non abbiamo trovato bottiglie di birra in questa immagine. Prova a scattare una foto più ravvicinata dell\'etichetta o scegli un\'altra immagine con birre ben visibili.',
         errorType: 'NO_BEER_DETECTED'
       });
     }
@@ -458,13 +458,6 @@ exports.getReviewStatus = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Recensione non trovata' });
     }
 
-    logger.debug('[getReviewStatus] 🔍 Review dal DB:', {
-      reviewId,
-      processingStatus: review.processingStatus,
-      hasMetadata: !!review.metadata,
-      bottlesCount: review.bottlesCount || 0
-    });
-
     const response = {
       success: true,
       data: {
@@ -488,37 +481,9 @@ exports.getReviewStatus = async (req, res) => {
         // Includi i dati delle bottiglie processate
         bottles: review.metadata?.processedBottles || review.metadata?.bottles || []
       };
-      
-      // 🔍 LOGGING DETTAGLIATO per debugging
-      logger.info('[getReviewStatus] ✅ Job completato, ritorno dati bottiglie:', {
-        reviewId,
-        hasMetadata: !!review.metadata,
-        hasProcessedBottles: !!review.metadata?.processedBottles,
-        hasBottles: !!review.metadata?.bottles,
-        bottlesCount: response.data.result.bottles.length,
-        firstBottle: response.data.result.bottles[0] ? {
-          beerName: response.data.result.bottles[0].beerName,
-          hasBreweryName: !!response.data.result.bottles[0].breweryName,
-          dataSource: response.data.result.bottles[0].dataSource
-        } : null
-      });
-      
-      logger.info('[getReviewStatus] 🔍 Response completa che sarà inviata al frontend:', {
-        success: response.success,
-        dataStatus: response.data.status,
-        hasResult: !!response.data.result,
-        hasResultBottles: !!response.data.result?.bottles,
-        resultBottlesLength: response.data.result?.bottles?.length || 0,
-        completed: response.completed,
-        shouldStopPolling: response.shouldStopPolling
-      });
-      
-      logger.info('[getReviewStatus] 🛑 POLLING DEVE FERMARSI - Job completato, completed=true');
     } else if (review.processingStatus === 'failed') {
       response.data.error = review.processingError || 'Errore sconosciuto';
       response.data.failedAt = review.processingFailedAt;
-      
-      logger.info('[getReviewStatus] ❌ POLLING DEVE FERMARSI - Job fallito, completed=true');
     }
 
     return res.status(200).json(response);
@@ -813,7 +778,8 @@ exports.getReviewProcessingStatus = async (req, res) => {
   try {
     const { reviewId } = req.params;
 
-    const review = await Review.findById(reviewId).select(
+    // Query base per stato processing
+    let review = await Review.findById(reviewId).select(
       'processingStatus processingJobId processingError processingAttempts completedAt ratings'
     );
 
@@ -845,6 +811,32 @@ exports.getReviewProcessingStatus = async (req, res) => {
       }
     }
 
+    // Se completato, popola i riferimenti Brewery e Beer per il frontend
+    let enrichedBottles = [];
+    if (review.processingStatus === 'completed' && review.ratings && review.ratings.length > 0) {
+      // Ri-fetch con populate per avere nomi birrificio e birra
+      const populatedReview = await Review.findById(reviewId)
+        .populate('ratings.brewery', 'breweryName breweryLogo')
+        .populate('ratings.beer', 'beerName beerType alcoholContent')
+        .lean();
+      
+      if (populatedReview && populatedReview.ratings) {
+        enrichedBottles = populatedReview.ratings.map(rating => ({
+          ...rating,
+          // Aggiungi nomi espliciti per il frontend
+          breweryName: rating.brewery?.breweryName || 'Birrificio sconosciuto',
+          breweryLogo: rating.brewery?.breweryLogo || null,
+          beerName: rating.beer?.beerName || rating.bottleLabel || 'Birra sconosciuta',
+          beerType: rating.beer?.beerType || null,
+          alcoholContent: rating.beer?.alcoholContent || null
+        }));
+        
+        logger.info(`[getReviewProcessingStatus] 🏭 Popolati ${enrichedBottles.length} ratings con nomi:`, {
+          bottles: enrichedBottles.map(b => ({ beerName: b.beerName, breweryName: b.breweryName }))
+        });
+      }
+    }
+
     // Costruisci risposta con stato completo
     const responseData = {
       success: true,
@@ -858,7 +850,7 @@ exports.getReviewProcessingStatus = async (req, res) => {
         error: review.processingError,
         result: review.processingStatus === 'completed' ? {
           success: true,
-          bottles: review.ratings || [],
+          bottles: enrichedBottles.length > 0 ? enrichedBottles : (review.ratings || []),
           needsDisambiguation: false
         } : null
       }
@@ -1005,7 +997,7 @@ exports.testAnalyzeImageAsync = async (req, res) => {
       return res.status(400).json({
         success: false,
         test: true,
-        message: 'Nessuna birra rilevata nell\'immagine',
+        message: '🔍 Non abbiamo trovato bottiglie di birra in questa immagine. Prova a scattare una foto più ravvicinata dell\'etichetta o scegli un\'altra immagine con birre ben visibili.',
         errorType: 'NO_BEER_DETECTED'
       });
     }

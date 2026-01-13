@@ -1517,6 +1517,904 @@ async function testBreweryMatching(req, res) {
     }
 }
 
+// ============================================
+// SISTEMA DASHBOARD RECENSIONI ADMIN
+// Implementato: 29 Dicembre 2025
+// ============================================
+
+/**
+ * Dashboard principale per la gestione delle recensioni
+ * GET /administrator/reviews
+ */
+async function getReviewsDashboard(req, res) {
+    try {
+        logger.info('[getReviewsDashboard] Caricamento dashboard recensioni');
+        
+        // Parametri di paginazione e filtro
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+        
+        // Parametri di filtro
+        const filter = req.query.filter || 'all';  // Filtro dalla dashboard stat boxes
+        const statusFilter = req.query.status || '';
+        const processingStatusFilter = req.query.processingStatus || '';
+        const visibilityFilter = req.query.visibility || '';
+        const searchQuery = req.query.search || '';
+        const sortField = req.query.sortField || 'createdAt';
+        const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
+        
+        // Costruisci query di filtro
+        let filterQuery = {};
+        
+        // Pre-fetch utenti bannati per filtro (se necessario)
+        let bannedUserIdsForFilter = [];
+        if (filter === 'banned_users') {
+            const bannedUsersForFilter = await User.find({ isBanned: true }).select('_id');
+            bannedUserIdsForFilter = bannedUsersForFilter.map(u => u._id);
+        }
+        
+        // Gestione filtro da stat boxes
+        if (filter && filter !== 'all') {
+            switch(filter) {
+                case 'pending':
+                    filterQuery.status = 'pending';
+                    break;
+                case 'validated':
+                    filterQuery.status = 'validated';
+                    break;
+                case 'completed':
+                    filterQuery.status = 'completed';
+                    break;
+                case 'hidden':
+                    filterQuery['moderation.isHidden'] = true;
+                    break;
+                case 'needs_admin_review':
+                case 'needs_admin':
+                    filterQuery.processingStatus = 'needs_admin_review';
+                    break;
+                case 'flagged':
+                    filterQuery['moderation.flagged'] = true;
+                    break;
+                case 'banned_users':
+                    // Filtra recensioni di utenti bannati
+                    filterQuery.user = { $in: bannedUserIdsForFilter };
+                    break;
+            }
+        }
+        
+        // Filtri aggiuntivi per query string dirette
+        if (statusFilter) {
+            // Gestione speciale per filtri che non sono status diretti
+            switch(statusFilter) {
+                case 'hidden':
+                    filterQuery['moderation.isHidden'] = true;
+                    break;
+                case 'flagged':
+                    filterQuery['moderation.flagged'] = true;
+                    break;
+                case 'needs_admin':
+                case 'needs_admin_review':
+                    filterQuery.processingStatus = 'needs_admin_review';
+                    break;
+                case 'banned_users':
+                    // Pre-fetch utenti bannati se non già fatto
+                    if (bannedUserIdsForFilter.length === 0) {
+                        const bannedUsersForStatus = await User.find({ isBanned: true }).select('_id');
+                        bannedUserIdsForFilter = bannedUsersForStatus.map(u => u._id);
+                    }
+                    filterQuery.user = { $in: bannedUserIdsForFilter };
+                    break;
+                default:
+                    // Status standard: pending, validated, completed
+                    filterQuery.status = statusFilter;
+            }
+        }
+        
+        if (processingStatusFilter) {
+            filterQuery.processingStatus = processingStatusFilter;
+        }
+        
+        if (visibilityFilter === 'hidden') {
+            filterQuery['moderation.isHidden'] = true;
+        } else if (visibilityFilter === 'visible') {
+            filterQuery['moderation.isHidden'] = { $ne: true };
+        }
+        
+        // Trova utenti bannati per conteggio statistiche
+        const bannedUsers = await User.find({ isBanned: true }).select('_id');
+        const bannedUserIds = bannedUsers.map(u => u._id);
+        
+        // Calcola statistiche (moderazione + AI processing)
+        const [
+            totalReviews,
+            pendingReviews,
+            validatedReviews,
+            completedReviews,
+            hiddenReviews,
+            flaggedReviews,
+            needsAdminReviews,
+            bannedUsersReviews, // Recensioni di utenti bannati
+            // Statistiche AI Processing
+            aiPendingReviews,
+            aiProcessingReviews,
+            aiCompletedReviews,
+            aiFailedReviews
+        ] = await Promise.all([
+            Review.countDocuments({}),
+            Review.countDocuments({ status: 'pending' }),
+            Review.countDocuments({ status: 'validated' }),
+            Review.countDocuments({ status: 'completed' }),
+            Review.countDocuments({ 'moderation.isHidden': true }),
+            Review.countDocuments({ 'moderation.flagged': true }),
+            Review.countDocuments({ processingStatus: 'needs_admin_review' }),
+            Review.countDocuments({ user: { $in: bannedUserIds } }), // Recensioni utenti bannati
+            // AI Processing counts
+            Review.countDocuments({ processingStatus: 'pending_validation' }),
+            Review.countDocuments({ processingStatus: 'processing' }),
+            Review.countDocuments({ processingStatus: 'completed' }),
+            Review.countDocuments({ processingStatus: 'failed' })
+        ]);
+        
+        // Query principale con popolazione
+        let reviewsQuery = Review.find(filterQuery)
+            .populate({
+                path: 'user',
+                select: 'username email isBanned customerDetails.customerName customerDetails.customerSurname'
+            })
+            .populate({
+                path: 'ratings.beer',
+                select: 'beerName beerType alcoholContent'
+            })
+            .populate({
+                path: 'ratings.brewery',
+                select: 'breweryName breweryLegalAddress'
+            })
+            .sort({ [sortField]: sortOrder })
+            .skip(skip)
+            .limit(limit);
+        
+        // Applica ricerca testuale se presente
+        if (searchQuery) {
+            // Prima cerca utenti che matchano (username, email, nome, cognome)
+            const matchingUsers = await User.find({
+                $or: [
+                    { username: { $regex: searchQuery, $options: 'i' } },
+                    { email: { $regex: searchQuery, $options: 'i' } },
+                    { 'customerDetails.customerName': { $regex: searchQuery, $options: 'i' } },
+                    { 'customerDetails.customerSurname': { $regex: searchQuery, $options: 'i' } }
+                ]
+            }).select('_id');
+            
+            const userIds = matchingUsers.map(u => u._id);
+            
+            // Cerca anche birre che matchano
+            const matchingBeers = await Beer.find({
+                beerName: { $regex: searchQuery, $options: 'i' }
+            }).select('_id');
+            
+            const beerIds = matchingBeers.map(b => b._id);
+            
+            // Cerca anche birrifici che matchano
+            const matchingBreweries = await Brewery.find({
+                breweryName: { $regex: searchQuery, $options: 'i' }
+            }).select('_id');
+            
+            const breweryIds = matchingBreweries.map(br => br._id);
+            
+            filterQuery.$or = [
+                { user: { $in: userIds } },
+                { 'ratings.beer': { $in: beerIds } },
+                { 'ratings.brewery': { $in: breweryIds } },
+                { 'reviewNotes': { $regex: searchQuery, $options: 'i' } }
+            ];
+            
+            // Riapplica la query con il filtro di ricerca
+            reviewsQuery = Review.find(filterQuery)
+                .populate({
+                    path: 'user',
+                    select: 'username email isBanned customerDetails.customerName customerDetails.customerSurname'
+                })
+                .populate({
+                    path: 'ratings.beer',
+                    select: 'beerName beerType alcoholContent'
+                })
+                .populate({
+                    path: 'ratings.brewery',
+                    select: 'breweryName breweryLegalAddress'
+                })
+                .sort({ [sortField]: sortOrder })
+                .skip(skip)
+                .limit(limit);
+        }
+        
+        const reviews = await reviewsQuery;
+        const totalFiltered = await Review.countDocuments(filterQuery);
+        const totalPages = Math.ceil(totalFiltered / limit);
+        
+        logger.info('[getReviewsDashboard] Dashboard caricata', {
+            totalReviews,
+            filteredReviews: totalFiltered,
+            page,
+            totalPages
+        });
+        
+        res.render('admin/reviews', {
+            title: 'Gestione Recensioni - Admin',
+            reviews,
+            stats: {
+                total: totalReviews,
+                pending: pendingReviews,
+                validated: validatedReviews,
+                completed: completedReviews,
+                hidden: hiddenReviews,
+                flagged: flaggedReviews,
+                needsAdmin: needsAdminReviews,
+                bannedUsers: bannedUsersReviews,
+                // AI Processing stats
+                aiPending: aiPendingReviews,
+                aiProcessing: aiProcessingReviews,
+                aiCompleted: aiCompletedReviews,
+                aiFailed: aiFailedReviews
+            },
+            pagination: {
+                currentPage: page,
+                totalPages,
+                totalItems: totalFiltered,
+                limit,
+                hasNext: page < totalPages,
+                hasPrev: page > 1
+            },
+            filters: {
+                filter: filter,  // Filtro attivo dalla stat box
+                status: statusFilter,
+                processingStatus: processingStatusFilter,
+                visibility: visibilityFilter,
+                search: searchQuery,
+                sortField,
+                sortOrder: sortOrder === 1 ? 'asc' : 'desc'
+            },
+            user: req.user,
+            activeRole: req.session?.activeRole || 'administrator'
+        });
+        
+    } catch (error) {
+        logger.error('[getReviewsDashboard] Errore:', {
+            error: error.message,
+            stack: error.stack
+        });
+        
+        req.flash('error', 'Errore nel caricamento della dashboard recensioni');
+        res.redirect('/administrator');
+    }
+}
+
+/**
+ * Ottieni dettagli completi di una recensione
+ * GET /administrator/api/reviews/:id
+ */
+async function getReviewDetails(req, res) {
+    try {
+        const reviewId = req.params.id;
+        
+        if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID recensione non valido'
+            });
+        }
+        
+        const review = await Review.findById(reviewId)
+            .populate({
+                path: 'user',
+                select: 'username email isBanned banInfo customerDetails createdAt'
+            })
+            .populate({
+                path: 'ratings.beer',
+                select: 'beerName beerType alcoholContent description ingredients'
+            })
+            .populate({
+                path: 'ratings.brewery',
+                select: 'breweryName breweryLegalAddress breweryWebsite breweryEmail'
+            });
+        
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                error: 'Recensione non trovata'
+            });
+        }
+        
+        logger.info('[getReviewDetails] Dettagli recensione recuperati', {
+            reviewId,
+            userId: review.user?._id
+        });
+        
+        res.json({
+            success: true,
+            review: {
+                _id: review._id,
+                user: review.user,
+                ratings: review.ratings,
+                reviewNotes: review.reviewNotes,
+                imageUrl: review.imageUrl,
+                status: review.status,
+                processingStatus: review.processingStatus,
+                adminReviewReason: review.adminReviewReason,
+                moderation: review.moderation,
+                aiAnalysis: review.aiAnalysis,
+                metadata: review.metadata,
+                createdAt: review.createdAt,
+                updatedAt: review.updatedAt
+            }
+        });
+        
+    } catch (error) {
+        logger.error('[getReviewDetails] Errore:', {
+            error: error.message,
+            reviewId: req.params.id
+        });
+        
+        res.status(500).json({
+            success: false,
+            error: 'Errore nel recupero dei dettagli della recensione'
+        });
+    }
+}
+
+/**
+ * Mostra/Nascondi una recensione
+ * POST /administrator/api/reviews/:id/visibility
+ */
+async function toggleReviewVisibility(req, res) {
+    try {
+        const reviewId = req.params.id;
+        const { isHidden, reason } = req.body;
+        
+        if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID recensione non valido'
+            });
+        }
+        
+        const review = await Review.findById(reviewId);
+        
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                error: 'Recensione non trovata'
+            });
+        }
+        
+        // Inizializza moderation se non esiste
+        if (!review.moderation) {
+            review.moderation = {};
+        }
+        
+        // Inizializza moderationHistory se non esiste
+        if (!review.moderation.moderationHistory) {
+            review.moderation.moderationHistory = [];
+        }
+        
+        const previousState = review.moderation.isHidden || false;
+        
+        // Se isHidden non è specificato nel body, fai il toggle automatico
+        const newHiddenState = (isHidden !== undefined) ? isHidden : !previousState;
+        const action = newHiddenState ? 'hidden' : 'unhidden';
+        
+        // Aggiorna stato visibilità (solo moderation.isHidden - unica fonte di verità)
+        review.moderation.isHidden = newHiddenState;
+        review.moderation.moderatedBy = req.user._id;
+        review.moderation.moderatedAt = new Date();
+        review.moderation.moderationReason = reason || '';
+        
+        // Aggiungi alla cronologia
+        review.moderation.moderationHistory.push({
+            action: action,
+            performedBy: req.user._id,
+            performedAt: new Date(),
+            reason: reason || '',
+            previousValue: previousState ? 'hidden' : 'visible',
+            newValue: newHiddenState ? 'hidden' : 'visible'
+        });
+        
+        await review.save();
+        
+        logger.info('[toggleReviewVisibility] Visibilità recensione aggiornata', {
+            reviewId,
+            newHiddenState,
+            action,
+            moderatedBy: req.user._id
+        });
+        
+        res.json({
+            success: true,
+            message: newHiddenState ? 'Recensione nascosta con successo' : 'Recensione resa visibile',
+            review: {
+                _id: review._id,
+                moderation: review.moderation
+            }
+        });
+        
+    } catch (error) {
+        logger.error('[toggleReviewVisibility] Errore:', {
+            error: error.message,
+            reviewId: req.params.id
+        });
+        
+        res.status(500).json({
+            success: false,
+            error: 'Errore nell\'aggiornamento della visibilità'
+        });
+    }
+}
+
+/**
+ * Aggiorna lo stato di una recensione
+ * POST /administrator/api/reviews/:id/status
+ */
+async function updateReviewStatus(req, res) {
+    try {
+        const reviewId = req.params.id;
+        const { status, processingStatus, reason } = req.body;
+        
+        if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID recensione non valido'
+            });
+        }
+        
+        const review = await Review.findById(reviewId);
+        
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                error: 'Recensione non trovata'
+            });
+        }
+        
+        // Valida status se fornito
+        const validStatuses = ['pending', 'validated', 'completed'];
+        if (status && !validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                error: `Status non valido. Valori ammessi: ${validStatuses.join(', ')}`
+            });
+        }
+        
+        // Valida processingStatus se fornito
+        const validProcessingStatuses = ['pending_validation', 'processing', 'completed', 'failed', 'needs_admin_review'];
+        if (processingStatus && !validProcessingStatuses.includes(processingStatus)) {
+            return res.status(400).json({
+                success: false,
+                error: `Processing status non valido. Valori ammessi: ${validProcessingStatuses.join(', ')}`
+            });
+        }
+        
+        // Inizializza moderation se non esiste
+        if (!review.moderation) {
+            review.moderation = {};
+        }
+        
+        if (!review.moderation.moderationHistory) {
+            review.moderation.moderationHistory = [];
+        }
+        
+        const changes = [];
+        
+        // Aggiorna status se fornito
+        if (status && status !== review.status) {
+            const previousStatus = review.status;
+            review.status = status;
+            changes.push(`status: ${previousStatus} → ${status}`);
+            
+            review.moderation.moderationHistory.push({
+                action: 'status_changed',
+                performedBy: req.user._id,
+                performedAt: new Date(),
+                reason: reason || '',
+                previousValue: previousStatus,
+                newValue: status
+            });
+        }
+        
+        // Aggiorna processingStatus se fornito
+        if (processingStatus && processingStatus !== review.processingStatus) {
+            const previousProcessingStatus = review.processingStatus;
+            review.processingStatus = processingStatus;
+            changes.push(`processingStatus: ${previousProcessingStatus} → ${processingStatus}`);
+            
+            // Se risolto da needs_admin_review, pulisci il motivo
+            if (previousProcessingStatus === 'needs_admin_review' && processingStatus !== 'needs_admin_review') {
+                review.adminReviewReason = '';
+            }
+        }
+        
+        if (changes.length === 0) {
+            return res.json({
+                success: true,
+                message: 'Nessuna modifica applicata',
+                review: {
+                    _id: review._id,
+                    status: review.status,
+                    processingStatus: review.processingStatus
+                }
+            });
+        }
+        
+        review.moderation.moderatedBy = req.user._id;
+        review.moderation.moderatedAt = new Date();
+        
+        await review.save();
+        
+        logger.info('[updateReviewStatus] Stato recensione aggiornato', {
+            reviewId,
+            changes,
+            moderatedBy: req.user._id
+        });
+        
+        res.json({
+            success: true,
+            message: `Recensione aggiornata: ${changes.join(', ')}`,
+            review: {
+                _id: review._id,
+                status: review.status,
+                processingStatus: review.processingStatus,
+                moderation: review.moderation
+            }
+        });
+        
+    } catch (error) {
+        logger.error('[updateReviewStatus] Errore:', {
+            error: error.message,
+            reviewId: req.params.id
+        });
+        
+        res.status(500).json({
+            success: false,
+            error: 'Errore nell\'aggiornamento dello stato della recensione'
+        });
+    }
+}
+
+/**
+ * Elimina una recensione
+ * DELETE /administrator/api/reviews/:id
+ */
+async function deleteReview(req, res) {
+    try {
+        const reviewId = req.params.id;
+        
+        if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID recensione non valido'
+            });
+        }
+        
+        const review = await Review.findById(reviewId)
+            .populate('user', 'username')
+            .populate('ratings.beer', 'beerName');
+        
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                error: 'Recensione non trovata'
+            });
+        }
+        
+        // Log dettagliato prima dell'eliminazione
+        logger.warn('[deleteReview] Eliminazione recensione', {
+            reviewId,
+            userId: review.user?._id,
+            username: review.user?.username,
+            beerName: review.ratings?.[0]?.beer?.beerName,
+            deletedBy: req.user._id
+        });
+        
+        await Review.findByIdAndDelete(reviewId);
+        
+        res.json({
+            success: true,
+            message: 'Recensione eliminata con successo',
+            deletedReview: {
+                _id: reviewId,
+                username: review.user?.username,
+                beerName: review.ratings?.[0]?.beer?.beerName
+            }
+        });
+        
+    } catch (error) {
+        logger.error('[deleteReview] Errore:', {
+            error: error.message,
+            reviewId: req.params.id
+        });
+        
+        res.status(500).json({
+            success: false,
+            error: 'Errore nell\'eliminazione della recensione'
+        });
+    }
+}
+
+/**
+ * Banna un utente
+ * POST /administrator/api/users/:id/ban
+ */
+async function banUser(req, res) {
+    try {
+        const userId = req.params.id;
+        const { reason, duration, hideReviews } = req.body;
+        
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID utente non valido'
+            });
+        }
+        
+        // Non permettere di bannare se stessi
+        if (userId === req.user._id.toString()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Non puoi bannare te stesso'
+            });
+        }
+        
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'Utente non trovato'
+            });
+        }
+        
+        // Non permettere di bannare altri admin
+        if (user.role && user.role.includes('administrator')) {
+            return res.status(403).json({
+                success: false,
+                error: 'Non puoi bannare un amministratore'
+            });
+        }
+        
+        // Calcola data di scadenza ban (se specificata durata)
+        let banExpires = null;
+        if (duration && duration !== 'permanent') {
+            const durationMap = {
+                '1d': 1,
+                '3d': 3,
+                '7d': 7,
+                '30d': 30,
+                '90d': 90
+            };
+            const days = durationMap[duration];
+            if (days) {
+                banExpires = new Date();
+                banExpires.setDate(banExpires.getDate() + days);
+            }
+        }
+        
+        // Inizializza banInfo se non esiste
+        if (!user.banInfo) {
+            user.banInfo = { banHistory: [] };
+        }
+        
+        if (!user.banInfo.banHistory) {
+            user.banInfo.banHistory = [];
+        }
+        
+        // Aggiorna stato ban
+        user.isBanned = true;
+        user.banInfo.bannedAt = new Date();
+        user.banInfo.bannedBy = req.user._id;
+        user.banInfo.banReason = reason || 'Violazione regole piattaforma';
+        user.banInfo.banExpires = banExpires;
+        
+        // Aggiungi alla cronologia
+        user.banInfo.banHistory.push({
+            action: 'banned',
+            performedBy: req.user._id,
+            performedAt: new Date(),
+            reason: reason || 'Violazione regole piattaforma',
+            duration: duration || 'permanent',
+            expiresAt: banExpires
+        });
+        
+        await user.save();
+        
+        // Se richiesto, nascondi anche tutte le recensioni dell'utente
+        let hiddenReviewsCount = 0;
+        if (hideReviews) {
+            const result = await Review.updateMany(
+                { user: userId },
+                {
+                    $set: {
+                        'moderation.isHidden': true,
+                        'moderation.moderatedBy': req.user._id,
+                        'moderation.moderatedAt': new Date(),
+                        'moderation.moderationReason': `Utente bannato: ${reason || 'Violazione regole'}`,
+                        // IMPORTANTE: Sincronizza con campo root per filtro rotte pubbliche
+                        'isHidden': true
+                    },
+                    $push: {
+                        'moderation.moderationHistory': {
+                            action: 'hidden',
+                            performedBy: req.user._id,
+                            performedAt: new Date(),
+                            reason: `Auto-nascosto per ban utente: ${reason || 'Violazione regole'}`,
+                            previousValue: 'visible',
+                            newValue: 'hidden'
+                        }
+                    }
+                }
+            );
+            hiddenReviewsCount = result.modifiedCount;
+        }
+        
+        logger.warn('[banUser] Utente bannato', {
+            userId,
+            username: user.username,
+            reason,
+            duration: duration || 'permanent',
+            banExpires,
+            hiddenReviews: hiddenReviewsCount,
+            bannedBy: req.user._id
+        });
+        
+        res.json({
+            success: true,
+            message: `Utente ${user.username} bannato con successo`,
+            user: {
+                _id: user._id,
+                username: user.username,
+                isBanned: user.isBanned,
+                banInfo: user.banInfo
+            },
+            hiddenReviewsCount
+        });
+        
+    } catch (error) {
+        logger.error('[banUser] Errore:', {
+            error: error.message,
+            userId: req.params.id
+        });
+        
+        res.status(500).json({
+            success: false,
+            error: 'Errore nel ban dell\'utente'
+        });
+    }
+}
+
+/**
+ * Rimuovi ban da un utente
+ * POST /administrator/api/users/:id/unban
+ */
+async function unbanUser(req, res) {
+    try {
+        const userId = req.params.id;
+        const { reason, unhideReviews } = req.body;
+        
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID utente non valido'
+            });
+        }
+        
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'Utente non trovato'
+            });
+        }
+        
+        if (!user.isBanned) {
+            return res.status(400).json({
+                success: false,
+                error: 'L\'utente non è attualmente bannato'
+            });
+        }
+        
+        // Inizializza banInfo se non esiste
+        if (!user.banInfo) {
+            user.banInfo = { banHistory: [] };
+        }
+        
+        if (!user.banInfo.banHistory) {
+            user.banInfo.banHistory = [];
+        }
+        
+        // Aggiungi alla cronologia prima di resettare
+        user.banInfo.banHistory.push({
+            action: 'unbanned',
+            performedBy: req.user._id,
+            performedAt: new Date(),
+            reason: reason || 'Ban rimosso',
+            previousBanReason: user.banInfo.banReason,
+            previousBannedAt: user.banInfo.bannedAt
+        });
+        
+        // Rimuovi ban
+        user.isBanned = false;
+        user.banInfo.bannedAt = null;
+        user.banInfo.bannedBy = null;
+        user.banInfo.banReason = null;
+        user.banInfo.banExpires = null;
+        
+        await user.save();
+        
+        // Se richiesto, rendi visibili le recensioni dell'utente
+        let unhiddenReviewsCount = 0;
+        if (unhideReviews) {
+            const result = await Review.updateMany(
+                { 
+                    user: userId,
+                    'moderation.isHidden': true,
+                    'moderation.moderationReason': { $regex: /bannato|ban utente/i }
+                },
+                {
+                    $set: {
+                        'moderation.isHidden': false,
+                        'moderation.moderatedBy': req.user._id,
+                        'moderation.moderatedAt': new Date(),
+                        'moderation.moderationReason': '',
+                        // IMPORTANTE: Sincronizza con campo root per filtro rotte pubbliche
+                        'isHidden': false
+                    },
+                    $push: {
+                        'moderation.moderationHistory': {
+                            action: 'unhidden',
+                            performedBy: req.user._id,
+                            performedAt: new Date(),
+                            reason: `Auto-ripristinato per rimozione ban: ${reason || 'Ban rimosso'}`,
+                            previousValue: 'hidden',
+                            newValue: 'visible'
+                        }
+                    }
+                }
+            );
+            unhiddenReviewsCount = result.modifiedCount;
+        }
+        
+        logger.info('[unbanUser] Ban utente rimosso', {
+            userId,
+            username: user.username,
+            reason,
+            unhiddenReviews: unhiddenReviewsCount,
+            unbannedBy: req.user._id
+        });
+        
+        res.json({
+            success: true,
+            message: `Ban rimosso per utente ${user.username}`,
+            user: {
+                _id: user._id,
+                username: user.username,
+                isBanned: user.isBanned,
+                banInfo: user.banInfo
+            },
+            unhiddenReviewsCount
+        });
+        
+    } catch (error) {
+        logger.error('[unbanUser] Errore:', {
+            error: error.message,
+            userId: req.params.id
+        });
+        
+        res.status(500).json({
+            success: false,
+            error: 'Errore nella rimozione del ban'
+        });
+    }
+}
+
 module.exports = {
     getAllUsers,
     getUserById,
@@ -1542,5 +2440,13 @@ module.exports = {
     getBreweryDashboard,
     // Sistema Test Matching Birrifici
     getBreweryMatchingTest,
-    testBreweryMatching
+    testBreweryMatching,
+    // Sistema Dashboard Recensioni Admin
+    getReviewsDashboard,
+    getReviewDetails,
+    toggleReviewVisibility,
+    updateReviewStatus,
+    deleteReview,
+    banUser,
+    unbanUser
 };

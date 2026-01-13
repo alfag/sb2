@@ -24,7 +24,7 @@
     <!-- Design System -->
     <link rel="stylesheet" href="/css/variables.css">
     <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/layout.css";
+    <link rel="stylesheet" href="/css/layout.css?v=5">
     
     <!-- Legacy CSS (da migrare) -->
     <link rel="stylesheet" href="/css/styles.css">
@@ -325,6 +325,13 @@
         </div>
     </div>
 
+    <!-- 🔄 Navigation Loading Spinner - Mostra durante la navigazione tra pagine -->
+    <div id="nav-loading-overlay" class="nav-loading-overlay" role="status" aria-live="polite" aria-hidden="true">
+        <div class="nav-spinner-container">
+            <div class="nav-spinner"></div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="/js/libs/bootstrap.bundle.min.js"></script>
     
@@ -339,7 +346,8 @@
     <script src="/js/modules/reviewModule.js"></script>
     <script src="/js/modules/breweriesModule.js"></script>
     <script src="/js/modules/latestReviewsModule.js"></script>
-    <script src="/js/modules/geolocationModule.js"></script> <!-- 📍 NEW: Geolocation with consent -->
+    <script src="/js/modules/geolocationModule.js"></script> <!-- 📍 Geolocation with consent -->
+    <script src="/js/modules/navigationSpinner.js"></script> <!-- 🔄 Navigation loading spinner -->
     <script src="/js/roleSelector.js"></script>
     <script src="/js/modularApp.js"></script>
     <script src="/js/scripts.js"></script>

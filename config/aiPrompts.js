@@ -11,7 +11,31 @@
  */
 const IMAGE_ANALYSIS_PROMPT = `Analizza questa immagine e rispondi in lingua italiana.
 
-OBIETTIVO CRITICO: Identifica TUTTE le birre visibili (bottiglie, lattine, bicchieri con etichetta) ed estrai:
+🚨🚨🚨 REGOLA #1 - ASSOLUTAMENTE PRIORITARIA - LEGGERE PRIMA DI TUTTO 🚨🚨🚨
+
+CONTA SOLO I CONTENITORI FISICI, MAI I TESTI SULL'ETICHETTA!
+
+Una fotografia con UNA bottiglia = UNA SOLA birra nel JSON, SEMPRE.
+Una fotografia con DUE bottiglie = DUE birre nel JSON.
+Una fotografia con TRE bottiglie = TRE birre nel JSON.
+
+⛔ ERRORE FATALE DA EVITARE: Se su UNA SINGOLA etichetta leggi più nomi/testi 
+(es: "Dr. Barbanera" e "Sudigiri"), NON sono 2 birre diverse!
+Uno è il BIRRIFICIO e l'altro è il NOME della BIRRA → restituisci 1 SOLO oggetto!
+
+ESEMPIO CONCRETO:
+- Vedi 1 bottiglia fisica con etichetta che mostra "Dr. Barbanera" + "Sudigiri"
+- "Dr. Barbanera" (o "Barbanera") = nome del BIRRIFICIO
+- "Sudigiri" = nome della BIRRA
+- RISULTATO CORRETTO: 1 oggetto con breweryName="Barbanera", beerName="Sudigiri"
+- RISULTATO SBAGLIATO: 2 oggetti separati ❌❌❌
+
+PRIMA DI GENERARE IL JSON: Conta quanti CONTENITORI FISICI (bottiglie/lattine/bicchieri) 
+vedi nell'immagine. Quel numero DEVE corrispondere al numero di oggetti nell'array "bottles".
+
+🚨🚨🚨 FINE REGOLA #1 🚨🚨🚨
+
+OBIETTIVO: Identifica TUTTE le birre visibili (bottiglie, lattine, bicchieri con etichetta) ed estrai:
 1. Il NOME DELLA BIRRA (prodotto)
 2. Il NOME DEL BIRRIFICIO produttore (SE VISIBILE sull'etichetta)
 
@@ -57,8 +81,9 @@ COME IDENTIFICARE IL NOME DELLA BIRRA:
 ❌ NON usare ragioni sociali (S.p.A., S.r.l., S.A.S.)
 
 ISTRUZIONI:
-1. Conta quante birre sono visibili (bottiglie, lattine, fusti, bicchieri con etichetta)
-2. Per OGNI birra trovata, identifica SEPARATAMENTE:
+1. Conta quante CONTENITORI FISICI sono visibili (bottiglie, lattine, fusti, bicchieri)
+   - Ogni contenitore fisico = 1 birra nel JSON (VEDI REGOLA #1 SOPRA!)
+2. Per OGNI CONTENITORE FISICO trovato, identifica SEPARATAMENTE:
    a) Il BIRRIFICIO produttore (se visibile)
    b) Il NOME della BIRRA (prodotto)
 3. **ATTENZIONE LETTERE STILIZZATE**: Font artistici con lettere rovesciate o stilizzate
@@ -207,6 +232,25 @@ function fillPromptTemplate(prompt, data) {
 }
 
 /**
+ * Configurazione modello Gemini AI centralizzata
+ * Usato da: geminiAi.js, googleSearchRetrievalService.js, webSearchService.js
+ */
+const GEMINI_MODEL_CONFIG = {
+  // Modello principale per analisi immagini e ricerche
+  defaultModel: 'gemini-2.5-flash-lite',
+  // Modello con supporto Google Search (grounding via googleSearch tool)
+  // Usando stesso modello del default per consistenza
+  searchRetrievalModel: 'gemini-2.0-flash',
+  // Safety settings standard
+  safetySettings: [
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }
+  ]
+};
+
+/**
  * Configurazioni specifiche per tipo di analisi
  */
 const ANALYSIS_CONFIG = {
@@ -223,6 +267,13 @@ const ANALYSIS_CONFIG = {
     temperature: 0.1,
     topK: 1,
     topP: 0.8
+  },
+  googleSearchRetrieval: {
+    timeout: 20000, // 20 secondi
+    maxRetries: 2,
+    temperature: 0.1,
+    dynamicThreshold: 0.3, // Soglia per attivare grounding
+    minConfidence: 0.5 // Soglia minima per accettare risultati
   }
 };
 
@@ -232,5 +283,6 @@ module.exports = {
   BEER_WEB_SEARCH_PROMPT,
   PROMPT_PLACEHOLDERS,
   ANALYSIS_CONFIG,
+  GEMINI_MODEL_CONFIG,
   fillPromptTemplate
 };

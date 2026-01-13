@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['customer', 'brewery'],
         default: 'customer',
-        required: true,
+        // required: false - Gli administrator non necessitano di defaultRole
     },
     customerDetails: {
         type: Object,
@@ -39,6 +39,18 @@ const userSchema = new mongoose.Schema({
             enabled: { type: Boolean, default: null }, // null = chiedi ogni volta, true/false = ricorda preferenza
             lastUpdated: { type: Date },
             updatedBy: { type: String } // 'user' o 'system'
+        },
+        // Accettazione termini e privacy (obbligatorio per registrazione)
+        termsAccepted: {
+            accepted: { type: Boolean, default: false },
+            acceptedAt: { type: Date },
+            version: { type: String, default: '1.0' } // versione dei termini accettati
+        },
+        // Consenso newsletter e comunicazioni marketing (opzionale)
+        newsletterSubscription: {
+            subscribed: { type: Boolean, default: false },
+            subscribedAt: { type: Date },
+            unsubscribedAt: { type: Date }
         },
         customerPurchases: [{
             type: Object,
@@ -74,6 +86,24 @@ const userSchema = new mongoose.Schema({
     administratorDetails: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Administrator',
+    },
+    // Campi moderazione utente
+    isBanned: {
+        type: Boolean,
+        default: false
+    },
+    banInfo: {
+        bannedAt: { type: Date },
+        bannedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        banReason: { type: String },
+        banExpires: { type: Date }, // null = permanente
+        banHistory: [{
+            bannedAt: { type: Date },
+            bannedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            reason: { type: String },
+            unbannedAt: { type: Date },
+            unbannedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+        }]
     }
 }, { timestamps: true });
 

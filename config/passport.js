@@ -15,24 +15,33 @@ const logger = logWithFileName(__filename); // Crea un logger con il nome del fi
 passport.use(
     new LocalStrategy({ usernameField: 'username' }, async (username, password, done) => {
         try {
-            logger.debug(`Tentativo di login con username: ${username}`); // Logga l'username
+            // Task 20: Cerca username in lowercase per consistenza con la registrazione
+            const normalizedUsername = username ? username.toLowerCase().trim() : '';
+            logger.debug(`Tentativo di login con username: ${normalizedUsername}`); // Logga l'username
 
-            const user = await User.findOne({ username: username });
+            const user = await User.findOne({ username: normalizedUsername });
             if (!user) {
-                logger.debug(`Utente non trovato per username: ${username}`); // Logga se l'utente non è trovato
+                logger.debug(`Utente non trovato per username: ${normalizedUsername}`); // Logga se l'utente non è trovato
                 return done(null, false, { message: 'Utente non riconosciuto' });
             }
 
             logger.debug(`Utente trovato: ${user.username}`);
+            
+            // 🛡️ SECURITY: Blocca login per utenti bannati
+            if (user.isBanned) {
+                logger.warn(`Tentativo di login da utente bannato: ${normalizedUsername}`);
+                return done(null, false, { message: 'Il tuo account è stato sospeso. Per informazioni contatta il supporto.' });
+            }
+            
             logger.debug(`Password hashata nel DB: ${user.password}`);
             const isMatch = await bcrypt.compare(password, user.password);
             
             if (!isMatch) {
-                logger.debug(`Password errata per username: ${username}`); // Logga se la password è errata
+                logger.debug(`Password errata per username: ${normalizedUsername}`); // Logga se la password è errata
                 return done(null, false, { message: 'Password errata' });
             }
 
-            logger.debug(`Login riuscito per username: ${username}`); // Logga il successo del login
+            logger.debug(`Login riuscito per username: ${normalizedUsername}`); // Logga il successo del login
             return done(null, user);
         } catch (error) {
             logger.error(`Errore durante il login per username: ${username}`, error); // Logga l'errore

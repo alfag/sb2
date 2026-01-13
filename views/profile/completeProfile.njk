@@ -203,18 +203,7 @@
                         </div>
                         
                         <div class="form-grid">
-                            <div class="form-group">
-                                <label for="customerFiscalCode" class="form-label">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" fill="currentColor"/>
-                                    </svg>
-                                    Codice Fiscale
-                                </label>
-                                <input type="text" id="customerFiscalCode" name="customerFiscalCode" 
-                                       value="{{ user.customerDetails.customerFiscalCode if user.customerDetails }}" 
-                                       class="form-input" placeholder="RSSMRA80A01H501X" maxlength="16" style="text-transform: uppercase;">
-                                <small class="form-hint">16 caratteri alfanumerici del codice fiscale italiano</small>
-                            </div>
+                            {# Task 21: Rimosso campo Codice Fiscale - Non più richiesto per utenti customer #}
                             <div class="form-group">
                                 <label for="customerPhoneNumber" class="form-label">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1265,10 +1254,11 @@ function validateInput(input) {
         return false;
     }
     
-    // Fiscal code validation (Italian)
-    if (input.name === 'customerFiscalCode' && value && !isValidFiscalCode(value)) {
-        markAsInvalid(input, 'Codice fiscale non valido');
-        return false;
+    // Task 21: Rimossa validazione customerFiscalCode - campo non più presente nel form customer
+    // La validazione breweryFiscalCode (P.IVA) rimane per i birrifici
+    
+    markAsValid(input);
+    return true;
     }
     
     markAsValid(input);
