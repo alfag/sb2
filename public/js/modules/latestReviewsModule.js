@@ -69,16 +69,18 @@ const LatestReviewsModule = (() => {
 
     /**
      * Aggiungi click handlers alle card (welcome page)
+     * IMPORTANTE: Usa fetchAndShowReview per leggere sempre i dati aggiornati
+     * dai data-attributes della card, non dalla cache reviewsData che potrebbe
+     * essere stale dopo il completamento dell'analisi AI asincrona
      */
     function attachClickHandlers() {
         const cards = document.querySelectorAll('.review-card[data-review-index]');
         cards.forEach(card => {
             card.style.cursor = 'pointer';
-            card.addEventListener('click', () => {
+            card.addEventListener('click', async () => {
                 const index = parseInt(card.dataset.reviewIndex);
-                if (reviewsData[index]) {
-                    openReviewPopup(reviewsData[index]);
-                }
+                // Legge dai data-attributes aggiornati invece che da reviewsData[index]
+                await fetchAndShowReview(card, index);
             });
         });
     }
@@ -443,6 +445,19 @@ const LatestReviewsModule = (() => {
     }
 
     /**
+     * Formatta la data nel formato DD/MM/YYYY (come allReviews.njk)
+     */
+    function formatDateCard(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '';
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
+    /**
      * Formatta la data in modo completo (per popup)
      */
     function formatDateFull(dateString) {
@@ -461,16 +476,34 @@ const LatestReviewsModule = (() => {
     function createReviewCard(review, index) {
         const rating = getRating(review);
         const starsHtml = generateStarsHtml(parseFloat(rating));
-        const dateFormatted = formatDate(review.date);
+        const dateFormatted = formatDateCard(review.date);  // DD/MM/YYYY per card
+        const dateOriginal = review.date || '';  // Data originale per popup
         
         const thumbnail = review.imageUrl || '/images/default-beer.svg';
         
+        // Estrai nome birra con fallback
         let beerName = review.beerName || review.bottleLabel || 'Birra';
         if (!beerName || beerName === 'Birra') {
             if (review.ratings && review.ratings.length > 0) {
                 beerName = review.ratings[0].beerName || review.ratings[0].bottleLabel || 'Birra';
             }
         }
+        
+        // Estrai nome birrificio con fallback - DEVE essere mostrato in simbiosi con la birra
+        let breweryName = review.breweryName || '';
+        if (!breweryName) {
+            // Cerca nei ratings se disponibile
+            if (review.ratings && review.ratings.length > 0) {
+                breweryName = review.ratings[0].breweryName || '';
+            }
+            // Cerca nel brewery popolato se disponibile
+            if (!breweryName && review.brewery) {
+                breweryName = review.brewery.breweryName || review.brewery.name || '';
+            }
+        }
+        
+        // Estrai nome utente con fallback (allineamento con allReviews.njk)
+        const userName = review.userName || review.user?.username || 'Utente anonimo';
         
         // Gradiente uniforme ambra/dorato per il bordo della thumbnail
         const gradientBorder = 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)';
@@ -493,8 +526,28 @@ const LatestReviewsModule = (() => {
         // Estrai review ID per targeting aggiornamenti real-time
         const reviewId = review._id || review.id || '';
         
+        // 🆕 Estrai bottleIndex per matching corretto durante aggiornamento AI
+        // bottleIndex è 1-based (1 = prima bottiglia, 2 = seconda, etc.)
+        const bottleIndex = review.bottleIndex || 1;
+        
+        // Mostra birrificio se in elaborazione oppure se presente
+        const breweryDisplay = isProcessing 
+            ? '<span class="review-brewery-name processing-placeholder">🏭 In elaborazione...</span>'
+            : (breweryName ? `<span class="review-brewery-name">🏭 ${escapeHtml(breweryName)}</span>` : '');
+        
         return `
-            <div class="review-card${isProcessing ? ' processing' : ''}" data-review-index="${index}" data-review-id="${reviewId}" role="button" tabindex="0">
+            <div class="review-card${isProcessing ? ' processing' : ''}" 
+                 data-review-index="${index}" 
+                 data-review-id="${reviewId}" 
+                 data-bottle-index="${bottleIndex}"
+                 data-review-image="${escapeHtmlAttr(thumbnail)}"
+                 data-review-beer="${escapeHtmlAttr(beerName)}"
+                 data-review-brewery="${escapeHtmlAttr(breweryName)}"
+                 data-review-rating="${rating}"
+                 data-review-date="${escapeHtmlAttr(dateOriginal)}"
+                 data-review-notes="${escapeHtmlAttr(notes)}"
+                 data-review-user="${escapeHtmlAttr(userName)}"
+                 role="button" tabindex="0">
                 ${processingBadge}
                 <div class="review-thumbnail-wrapper" style="background: ${gradientBorder};">
                     <img src="${escapeHtml(thumbnail)}" 
@@ -510,9 +563,19 @@ const LatestReviewsModule = (() => {
                         </div>
                     </div>
                     
-                    <div class="review-date">${dateFormatted}</div>
+                    ${breweryDisplay}
                     
-                    ${notes ? `<div class="review-notes">${escapeHtml(notes)}</div>` : ''}
+                    <div class="review-meta">
+                        <span class="review-user" style="display: inline-flex; align-items: center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 4px; opacity: 0.6; flex-shrink: 0;">
+                                <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
+                            </svg>
+                            ${escapeHtml(userName)}
+                        </span>
+                        <span class="review-date">${dateFormatted}</span>
+                    </div>
+                    
+                    ${notes ? `<div class="review-notes"><strong>Giudizio:</strong> ${escapeHtml(notes)}</div>` : ''}
                 </div>
             </div>
         `;
@@ -559,13 +622,27 @@ const LatestReviewsModule = (() => {
     }
 
     /**
-     * Escape HTML per sicurezza
+     * Escape HTML per sicurezza (per contenuto HTML)
      */
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * Escape per attributi HTML (escapa anche doppi apici)
+     * Usato per data-attributes che contengono testo utente
+     */
+    function escapeHtmlAttr(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     /**
@@ -601,10 +678,18 @@ const LatestReviewsModule = (() => {
                 console.log('[LatestReviewsModule] ✅ Rimosso badge AI processing');
             }
 
-            // 3. Aggiorna il nome della birra se disponibile nei dati
+            // 🆕 3. Ottieni il bottleIndex dalla card per selezionare la bottiglia corretta
+            // bottleIndex è 1-based (1 = prima bottiglia), array è 0-based
+            const bottleIndex = parseInt(card.dataset.bottleIndex) || 1;
+            const arrayIndex = bottleIndex - 1; // Converti da 1-based a 0-based
+            
+            // 4. Aggiorna il nome della birra se disponibile nei dati
             if (reviewData && reviewData.bottles && reviewData.bottles.length > 0) {
-                const firstBottle = reviewData.bottles[0];
-                const beerName = firstBottle.beerName || firstBottle.bottleLabel || '';
+                // 🆕 FIX: Usa la bottiglia corretta basata su bottleIndex invece di sempre bottles[0]
+                const bottle = reviewData.bottles[arrayIndex] || reviewData.bottles[0];
+                const beerName = bottle.beerName || bottle.bottleLabel || '';
+                
+                console.log(`[LatestReviewsModule] 🍺 Card bottleIndex=${bottleIndex}, usando bottle[${arrayIndex}]: ${beerName}`);
                 
                 if (beerName) {
                     const beerNameElement = card.querySelector('.review-beer-name');
@@ -614,10 +699,39 @@ const LatestReviewsModule = (() => {
                     }
                 }
 
-                // 4. Aggiorna il rating se disponibile
-                const rating = firstBottle.rating || 
-                              (firstBottle.detailedRatings ? 
-                                calculateAverageRating(firstBottle.detailedRatings) : null);
+                // 4.5. Aggiorna il nome del birrificio - SIMBIOSI con birra
+                const breweryName = bottle.breweryName || 
+                                   (bottle.brewery ? bottle.brewery.breweryName || bottle.brewery.name : '') ||
+                                   reviewData.breweryName || '';
+                
+                const breweryElement = card.querySelector('.review-brewery-name');
+                if (breweryName) {
+                    if (breweryElement) {
+                        // Aggiorna elemento esistente
+                        breweryElement.textContent = `🏭 ${breweryName}`;
+                        breweryElement.classList.remove('processing-placeholder');
+                        console.log(`[LatestReviewsModule] ✅ Aggiornato nome birrificio: ${breweryName}`);
+                    } else {
+                        // Crea elemento se non esiste
+                        const headerElement = card.querySelector('.review-header');
+                        if (headerElement) {
+                            const newBrewerySpan = document.createElement('span');
+                            newBrewerySpan.className = 'review-brewery-name';
+                            newBrewerySpan.textContent = `🏭 ${breweryName}`;
+                            headerElement.insertAdjacentElement('afterend', newBrewerySpan);
+                            console.log(`[LatestReviewsModule] ✅ Inserito nuovo elemento birrificio: ${breweryName}`);
+                        }
+                    }
+                } else if (breweryElement && breweryElement.classList.contains('processing-placeholder')) {
+                    // Rimuovi placeholder se nessun birrificio trovato
+                    breweryElement.remove();
+                    console.log('[LatestReviewsModule] ⚠️ Nessun birrificio trovato, rimosso placeholder');
+                }
+
+                // 5. Aggiorna il rating se disponibile
+                const rating = bottle.rating || 
+                              (bottle.detailedRatings ? 
+                                calculateAverageRating(bottle.detailedRatings) : null);
                 
                 if (rating) {
                     const starsContainer = card.querySelector('.stars');
@@ -720,6 +834,17 @@ const LatestReviewsModule = (() => {
                         // Se non ci sono dati, ricarica le recensioni (con skipPollingCheck=true per evitare loop)
                         console.log('[LatestReviewsModule] Dati non disponibili, ricarico recensioni...');
                         await loadLatestReviews(true);
+                    }
+                    
+                    // 🏭 Ricarica anche la griglia dei birrifici - potrebbe esserci un nuovo birrificio
+                    if (window.BreweriesModule && typeof window.BreweriesModule.loadBreweries === 'function') {
+                        console.log('[LatestReviewsModule] 🏭 Aggiorno griglia birrifici dopo completamento job...');
+                        try {
+                            await window.BreweriesModule.loadBreweries();
+                            console.log('[LatestReviewsModule] ✅ Griglia birrifici aggiornata!');
+                        } catch (err) {
+                            console.warn('[LatestReviewsModule] ⚠️ Errore aggiornamento birrifici:', err);
+                        }
                     }
                     return;
                 }

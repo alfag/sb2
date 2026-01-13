@@ -1740,8 +1740,9 @@ IMPORTANTE: Se non sei sicuro che una birra appartenga al birrificio, NON includ
       if (!websiteUrl) {
         logger.info('[WebSearch] 🔍 STEP 1 - Ricerca sito birrificio');
         
+        // 🌍 FIX 11 GEN 2026: Termini BILINGUE italiano+inglese per birrifici internazionali (es: Duvel)
         // Usa DuckDuckGo per trovare il sito ufficiale
-        const breweryQuery = `${breweryName} birrificio sito ufficiale`;
+        const breweryQuery = `${breweryName} birrificio brewery sito ufficiale official website`;
         const duckResults = await this.scrapeDuckDuckGo(breweryQuery);
         
         if (duckResults.length > 0) {

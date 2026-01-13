@@ -490,7 +490,8 @@ router.get('/api/breweries/all', async (req, res) => {
     try {
         logger.info('Richiesta lista completa birrifici per disambiguation');
         
-        const breweries = await Brewery.find({}, 'breweryName _id')
+        // Includo breweryLogo per visualizzazione thumbnail nella welcome page
+        const breweries = await Brewery.find({}, 'breweryName _id breweryLogo')
             .sort({ breweryName: 1 })
             .lean();
         

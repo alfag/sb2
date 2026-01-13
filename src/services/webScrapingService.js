@@ -1,7 +1,13 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const https = require('https');
 const logWithFileName = require('../utils/logger');
 const logger = logWithFileName(__filename);
+
+// Agent HTTPS che ignora errori certificati SSL (necessario per alcuni siti birrifici)
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false
+});
 
 /**
  * 🌐 WEB SCRAPING SERVICE - Estrazione Dati da Siti Ufficiali Birrifici
@@ -23,10 +29,12 @@ class WebScrapingService {
   
   /**
    * Configurazione axios per richieste HTTP
+   * Include httpsAgent per bypassare errori certificati SSL
    */
   static getAxiosConfig() {
     return {
       timeout: 10000, // 10 secondi max
+      httpsAgent, // Bypass errori certificati SSL (necessario per birraperoni.it e altri)
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -76,6 +84,76 @@ class WebScrapingService {
         error: error.message
       });
       return false;
+    }
+  }
+
+  /**
+   * 🖼️ NUOVO: Scraping DEDICATO per recupero solo logo birrificio
+   * Funzione standalone che NON dipende da scrapeBreweryWebsite()
+   * Eseguita DOPO GSR se logo non trovato, PRIMA di web scraping completo
+   * 
+   * @param {string} websiteUrl - URL del sito ufficiale del birrificio
+   * @returns {Promise<string|null>} URL del logo trovato o null
+   */
+  static async scrapeLogoOnly(websiteUrl) {
+    const startTime = Date.now();
+    try {
+      // Validazione URL
+      if (!websiteUrl || typeof websiteUrl !== 'string') {
+        logger.debug('[WebScraping] 🖼️ scrapeLogoOnly: URL mancante o invalido');
+        return null;
+      }
+
+      // Normalizza URL
+      let normalizedUrl = websiteUrl.trim();
+      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = 'https://' + normalizedUrl;
+      }
+
+      logger.info(`[WebScraping] 🖼️ LOGO SCRAPING DEDICATO per: ${normalizedUrl}`);
+
+      // Fetch HTML con axios (più leggero di Puppeteer per questa operazione)
+      const response = await axios.get(normalizedUrl, {
+        ...this.getAxiosConfig(),
+        timeout: 8000 // Timeout ridotto per operazione veloce
+      });
+
+      if (!response.data || typeof response.data !== 'string') {
+        logger.debug('[WebScraping] 🖼️ scrapeLogoOnly: HTML vuoto o invalido');
+        return null;
+      }
+
+      // Parse HTML con cheerio
+      const $ = cheerio.load(response.data);
+
+      // Usa la funzione extractLogo esistente
+      const logoUrl = this.extractLogo($, normalizedUrl);
+
+      const duration = Date.now() - startTime;
+
+      if (logoUrl && logoUrl.length > 5) {
+        logger.info(`[WebScraping] 🖼️ ✅ LOGO TROVATO via scraping dedicato!`, {
+          url: normalizedUrl,
+          logoUrl: logoUrl.substring(0, 100),
+          durationMs: duration
+        });
+        return logoUrl;
+      }
+
+      logger.info(`[WebScraping] 🖼️ ⚠️ Logo non trovato via scraping dedicato`, {
+        url: normalizedUrl,
+        durationMs: duration
+      });
+      return null;
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.warn(`[WebScraping] 🖼️ ❌ Errore scraping logo dedicato`, {
+        url: websiteUrl,
+        error: error.message,
+        durationMs: duration
+      });
+      return null;
     }
   }
 
@@ -388,33 +466,189 @@ class WebScrapingService {
   }
 
   /**
-   * Estrae URL logo del birrificio
+   * Estrae URL logo del birrificio con ricerca avanzata
    * @private
    */
   static extractLogo($, baseUrl) {
     try {
-      // Cerca logo in posizioni comuni
+      // 🎯 SELETTORI PRIORITARI - Ordine di priorità per trovare il logo
       const logoSelectors = [
+        // 1. Selettori espliciti per logo (alta probabilità)
         'img.logo',
         '#logo img',
         '.logo img',
+        'img#logo',
+        '.site-logo img',
+        '.brand-logo img',
+        '.company-logo img',
+        
+        // 2. Selettori header/navbar comuni
+        'header .logo img',
+        'header img.logo',
+        '.header-logo img',
+        '.navbar-brand img',
+        '.navbar-logo img',
+        'nav .logo img',
+        '.masthead img',
+        
+        // 3. Selettori con attributi comuni
         '[class*="logo"] img',
+        '[id*="logo"] img',
+        '[class*="brand"] img',
+        '[class*="header"] img:first',
+        
+        // 4. Link logo homepage (comune in molti siti)
+        'a.logo img',
+        'a[href="/"] img:first',
+        'a[href*="home"] img:first',
+        
+        // 5. SVG logos
+        'header svg.logo',
+        '.logo svg',
+        '[class*="logo"] svg',
+        
+        // 6. Fallback su primo immagine header
         'header img:first',
-        '.navbar-brand img'
+        '#header img:first',
+        '.site-header img:first'
       ];
 
+      // Prima prova selettori specifici
       for (const selector of logoSelectors) {
-        const src = $(selector).attr('src');
-        if (src) {
-          return this.resolveUrl(src, baseUrl);
+        try {
+          const element = $(selector).first();
+          if (element.length > 0) {
+            // Per immagini <img>
+            let src = element.attr('src');
+            
+            // Per SVG inline, prova data-src o xlink:href
+            if (!src) {
+              src = element.attr('data-src') || element.attr('data-lazy-src');
+            }
+            
+            // Per elementi con background-image
+            if (!src) {
+              const style = element.attr('style');
+              if (style) {
+                const bgMatch = style.match(/background-image:\s*url\(['"]?([^'")\s]+)['"]?\)/i);
+                if (bgMatch) {
+                  src = bgMatch[1];
+                }
+              }
+            }
+            
+            if (src && this.isValidLogoUrl(src)) {
+              // 🖼️ FIX: Salta loghi negativi/invertiti (bianchi, invisibili su UI bianca)
+              if (/negativo|negative|mono_negativo|inverted|_white|_bianco|-white|-bianco/i.test(src)) {
+                logger.debug('[WebScraping] ⚠️ Logo negativo/invertito ignorato: ' + src.substring(0, 80));
+                continue; // Prova il prossimo selettore
+              }
+              
+              let resolvedUrl = this.resolveUrl(src, baseUrl);
+              // Normalizza HTTP → HTTPS per evitare problemi di redirect/mixed content
+              if (resolvedUrl && resolvedUrl.startsWith('http://')) {
+                resolvedUrl = resolvedUrl.replace(/^http:\/\//i, 'https://');
+                logger.debug('[WebScraping] 🔒 Logo URL normalizzato HTTP → HTTPS');
+              }
+              logger.debug('[WebScraping] 🖼️ Logo trovato con selettore: ' + selector, { 
+                src: src.substring(0, 100),
+                resolved: resolvedUrl.substring(0, 100)
+              });
+              return resolvedUrl;
+            }
+          }
+        } catch (selectorError) {
+          // Continua con il prossimo selettore
+          continue;
         }
       }
 
+      // 🔍 FALLBACK: Cerca immagini con attributi/nomi che suggeriscono logo
+      const possibleLogos = [];
+      $('img').each((i, el) => {
+        const src = $(el).attr('src') || '';
+        const alt = $(el).attr('alt') || '';
+        const className = $(el).attr('class') || '';
+        const id = $(el).attr('id') || '';
+        
+        // Punteggio per determinare se è un logo
+        let score = 0;
+        
+        // Check keywords nel src
+        if (/logo/i.test(src)) score += 5;
+        if (/brand/i.test(src)) score += 3;
+        
+        // Check keywords nell'alt
+        if (/logo/i.test(alt)) score += 4;
+        if (/brand/i.test(alt)) score += 2;
+        
+        // Check keywords nella classe
+        if (/logo/i.test(className)) score += 4;
+        if (/brand/i.test(className)) score += 2;
+        
+        // Check keywords nell'id
+        if (/logo/i.test(id)) score += 5;
+        if (/brand/i.test(id)) score += 3;
+        
+        // Penalizza se sembra un'icona social o banner
+        if (/facebook|instagram|twitter|linkedin|youtube|social|icon|banner|ad/i.test(src)) score -= 10;
+        if (/facebook|instagram|twitter|linkedin|youtube|social|icon|banner|ad/i.test(alt)) score -= 10;
+        
+        // 🖼️ FIX: Penalizza loghi negativi/invertiti (bianchi su sfondo scuro - invisibili su UI bianca)
+        // Esempio: "Mono_Negativo" nel filename = versione bianca del logo
+        if (/negativo|negative|mono_negativo|inverted|_white|_bianco|-white|-bianco/i.test(src)) score -= 15;
+        if (/negativo|negative|inverted/i.test(alt)) score -= 10;
+        
+        if (score > 0 && src && this.isValidLogoUrl(src)) {
+          possibleLogos.push({ src, score });
+        }
+      });
+
+      // Ordina per score e prendi il migliore
+      if (possibleLogos.length > 0) {
+        possibleLogos.sort((a, b) => b.score - a.score);
+        const bestLogo = possibleLogos[0];
+        let resolvedUrl = this.resolveUrl(bestLogo.src, baseUrl);
+        // Normalizza HTTP → HTTPS per evitare problemi di redirect/mixed content
+        if (resolvedUrl && resolvedUrl.startsWith('http://')) {
+          resolvedUrl = resolvedUrl.replace(/^http:\/\//i, 'https://');
+          logger.debug('[WebScraping] 🔒 Logo URL normalizzato HTTP → HTTPS');
+        }
+        logger.debug('[WebScraping] 🖼️ Logo trovato con scoring system', { 
+          score: bestLogo.score,
+          src: bestLogo.src.substring(0, 100)
+        });
+        return resolvedUrl;
+      }
+
+      logger.debug('[WebScraping] ⚠️ Logo non trovato su ' + baseUrl);
       return '';
     } catch (error) {
       logger.debug('[WebScraping] Errore estrazione logo', { error: error.message });
       return '';
     }
+  }
+
+  /**
+   * Verifica se un URL è valido per un logo (non base64, non troppo piccolo/grande)
+   * @private
+   */
+  static isValidLogoUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    
+    // Escludi data URLs base64 (spesso sono placeholder o icone)
+    if (url.startsWith('data:')) return false;
+    
+    // Escludi URL troppo corti (probabilmente invalidi)
+    if (url.length < 5) return false;
+    
+    // Escludi URL che sembrano essere icone piccole o tracker
+    if (/1x1|pixel|tracking|beacon|analytics/i.test(url)) return false;
+    
+    // Escludi favicon (troppo piccole per essere logo principali)
+    if (/favicon/i.test(url)) return false;
+    
+    return true;
   }
 
   /**

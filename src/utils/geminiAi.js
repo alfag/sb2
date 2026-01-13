@@ -2,7 +2,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { GoogleAuth } = require('google-auth-library');
 const { GEMINI_API_KEY } = require('../../config/config');
-const { IMAGE_ANALYSIS_PROMPT } = require('../../config/aiPrompts');
+const { IMAGE_ANALYSIS_PROMPT, GEMINI_MODEL_CONFIG } = require('../../config/aiPrompts');
 const Review = require('../models/Review');
 const Brewery = require('../models/Brewery');
 const Beer = require('../models/Beer');
@@ -282,13 +282,13 @@ async function validateImage(image, reviewId = null, userId = null, sessionId = 
       },
     ];
 
-    // Usa il modello gemini-2.5-flash per analisi immagini con le nuove configurazioni
+    // Usa il modello dalla configurazione centralizzata per analisi immagini
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash-lite",
+      model: GEMINI_MODEL_CONFIG.defaultModel,
       safetySettings,
     });
     
-    logger.info('[GeminiAI] 📤 Invio analisi ad AI...');
+    logger.info(`[GeminiAI] 📤 Invio analisi ad AI con modello: ${GEMINI_MODEL_CONFIG.defaultModel}...`);
 
     // Usa retry con backoff per gestire sovraccarichi API
     const { result, response, text } = await retryWithBackoff(async () => {

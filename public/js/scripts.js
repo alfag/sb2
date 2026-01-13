@@ -352,194 +352,135 @@ function initializeReviewButtonFallback() {
     return false;
 }
 
-async function handleReviewButtonClick(e) {
+function handleReviewButtonClick(e) {
     console.log('=== CLICK INTERCETTATO ===');
     console.log('Timestamp:', new Date().toISOString());
     console.log('Event type:', e.type);
     console.log('Event target:', e.target.id, e.target.className);
-    console.log('Event currentTarget:', e.currentTarget.id, e.currentTarget.className);
     
     e.preventDefault();
     console.log('preventDefault() chiamato');
     
     console.log('=== BOTTONE PRINCIPALE CLICCATO ===');
-    console.log('Event object:', e);
-    console.log('Target element:', e.target);
-    console.log('Current target:', e.currentTarget);
-    
-    logDebug('=== BOTTONE PRINCIPALE CLICCATO ===');
     logDebug('Bottone principale "Pubblica una recensione" cliccato');
     
-    // 🔒 CONTROLLO AUTENTICAZIONE E RUOLO CUSTOMER
-    console.log('Verifica autenticazione e ruolo customer...');
-    try {
-        const authResponse = await fetch('/api/user/roles', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!authResponse.ok) {
-            console.log('Utente non autenticato - redirect al login');
-            
-            // Salva l'intenzione di creare una recensione per riprenderla dopo il login
-            sessionStorage.setItem('pendingAction', 'createReview');
-            
-            // Mostra notifica temporizzata invece di alert bloccante
-            if (window.utils && window.utils.showNotification) {
-                window.utils.showNotification(
-                    'Accesso richiesto. Reindirizzamento al login in corso...',
-                    'info',
-                    3000
-                );
-            }
-            
-            // Auto-redirect dopo 3 secondi (migliore UX)
-            setTimeout(() => {
-                window.location.href = '/login';
-            }, 3000);
-            
-            return;
-        }
-        
-        const userData = await authResponse.json();
-        console.log('Dati utente ricevuti:', userData);
-        
-        // Verifica ruolo customer
-        const hasCustomerRole = userData.roles && userData.roles.includes('customer');
-        const isCustomerActive = userData.activeRole === 'customer';
-        
-        if (!hasCustomerRole) {
-            console.log('Utente non ha ruolo customer');
-            if (window.utils && window.utils.showNotification) {
-                window.utils.showNotification(
-                    'Per creare recensioni è necessario il ruolo customer. Contatta l\'amministratore per maggiori informazioni.',
-                    'warning',
-                    5000
-                );
-            } else {
-                alert('Per creare recensioni è necessario il ruolo customer.\n\nPer maggiori informazioni contatta l\'amministratore.');
-            }
-            return;
-        }
-        
-        if (!isCustomerActive) {
-            console.log('Ruolo customer non attivo - deve essere selezionato');
-            if (window.utils && window.utils.showNotification) {
-                window.utils.showNotification(
-                    'Per creare recensioni devi selezionare il ruolo "Customer" dal menu in alto. Clicca sul tuo nome utente.',
-                    'warning',
-                    5000
-                );
-            } else {
-                alert('Per creare recensioni devi selezionare il ruolo "Customer" dal menu in alto.\n\nClicca sul tuo nome utente e seleziona "Customer" dal menu a tendina.');
-            }
-            return;
-        }
-        
-        console.log('✅ Autenticazione e ruolo customer verificati - procedo con il processo');
-        logDebug('Utente autenticato con ruolo customer - avvio processo recensione');
-        
-    } catch (error) {
-        console.error('Errore nella verifica autenticazione:', error);
-        logError('Errore verifica autenticazione', error);
-        alert('Errore nella verifica dell\'autenticazione. Ricarica la pagina e riprova.');
-        return;
-    }
-
-    // 📍 CATTURA GEOLOCALIZZAZIONE CON MODAL CONSENT
-    // Modal appare PRIMA, browser viene chiamato SOLO se utente clicca "Consenti"
-    // Questo previene la doppia richiesta di permesso
-    console.log('📍 Richiesta consenso geolocalizzazione...');
+    // 🔧 FIX 8 Gennaio 2026:
+    // Auth check DEVE avvenire PRIMA di aprire il file picker.
+    // Uso XMLHttpRequest SINCRONO per mantenere la user gesture attiva.
+    // Flusso: 1) Auth check sincrono  2) Se OK → file picker  3) GPS nel change handler
     
-    try {
-        // Mostra modal e aspetta decisione utente
-        // Il modal gestisce internamente la chiamata al browser solo se necessario
-        const locationData = await window.GeolocationModule.getLocation(true);
-        window.currentReviewLocation = locationData;
-        
-        if (locationData.consentGiven && locationData.coordinates) {
-            console.log('📍 ✅ GPS acquisito con consenso:', {
-                lat: locationData.coordinates.latitude,
-                lng: locationData.coordinates.longitude,
-                accuracy: locationData.coordinates.accuracy,
-                source: locationData.source
-            });
-        } else {
-            console.log('📍 ℹ️ GPS non condiviso dall\'utente');
-        }
-    } catch (error) {
-        // Errore o consenso negato
-        console.log('📍 ℹ️ GPS non disponibile:', error.message);
-        window.currentReviewLocation = null;
-    }
-    
-    // 🔧 Issue 3: File picker si apre DOPO che l'utente ha deciso sul GPS
-    console.log('📸 Procedo con apertura file picker');
-    
-    // Debug elementi DOM
     const reviewPhotoInput = document.getElementById('reviewPhoto');
-    const photoModal = document.getElementById('photo-modal');
     
-    console.log('reviewPhotoInput trovato:', !!reviewPhotoInput);
-    console.log('photoModal trovato:', !!photoModal);
-    
-    if (reviewPhotoInput) {
-        console.log('reviewPhotoInput details:', {
-            id: reviewPhotoInput.id,
-            type: reviewPhotoInput.type,
-            accept: reviewPhotoInput.accept,
-            style: reviewPhotoInput.style.cssText,
-            disabled: reviewPhotoInput.disabled,
-            visible: reviewPhotoInput.offsetParent !== null
-        });
-    }
-    
-    // Pulisci eventuali dati AI precedenti dalla sessione
-    console.log('Chiamata clearPreviousSessionData...');
-    clearPreviousSessionData();
-    
-    // Avvia direttamente il file picker
-    if (reviewPhotoInput) {
-        console.log('Preparazione file input...');
-        // Prepara il file input
-        reviewPhotoInput.value = "";
-        reviewPhotoInput.setAttribute('accept', 'image/*');
-        
-        // Rileva se siamo su mobile
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-            // Su mobile, mostra il dialog per scegliere la sorgente
-            showPhotoSourceDialog(reviewPhotoInput);
-        } else {
-            // Su desktop, apri direttamente il file picker senza capture
-            reviewPhotoInput.removeAttribute('capture');
-            console.log('Tentativo di aprire file picker (desktop)...');
-            
-            try {
-                reviewPhotoInput.click();
-                console.log('File picker cliccato con successo');
-                logDebug('File picker avviato direttamente dal bottone principale');
-            } catch (error) {
-                console.error('Errore nell\'aprire file picker:', error);
-                logError('Errore nell\'aprire file picker', error);
-            }
-        }
-    } else {
+    if (!reviewPhotoInput) {
         console.error('reviewPhotoInput non trovato nel DOM');
-        console.log('Tutti gli input nel DOM:');
-        document.querySelectorAll('input').forEach(input => {
-            console.log('- Input:', {
-                id: input.id,
-                type: input.type,
-                className: input.className
-            });
-        });
         logError('Input reviewPhoto non trovato');
         alert('Errore: sistema di caricamento foto non disponibile');
+        return;
     }
+    
+    // Reset flags auth
+    window._authFailed = false;
+    window._authFailedMessage = null;
+    window._authCheckComplete = false;
+    window._authUserData = null;
+    
+    // 🔒 STEP 1: VERIFICA AUTH CON XMLHttpRequest SINCRONO
+    // Questo mantiene la user gesture attiva (no async/await/Promise)
+    console.log('🔒 Verifica autenticazione (sincrona)...');
+    
+    let authPassed = false;
+    let authErrorMessage = null;
+    
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/user/roles', false); // false = SINCRONO
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send();
+        
+        if (xhr.status === 200) {
+            const userData = JSON.parse(xhr.responseText);
+            console.log('✅ Dati utente ricevuti:', userData);
+            
+            const hasCustomerRole = userData.roles && userData.roles.includes('customer');
+            const isCustomerActive = userData.activeRole === 'customer';
+            
+            if (!hasCustomerRole) {
+                console.log('❌ Utente non ha ruolo customer');
+                authErrorMessage = 'Per creare recensioni è necessario il ruolo customer.';
+            } else if (!isCustomerActive) {
+                console.log('❌ Ruolo customer non attivo');
+                authErrorMessage = 'Per creare recensioni devi selezionare il ruolo "Customer" dal menu in alto.';
+            } else {
+                console.log('✅ Auth check passato - ruolo customer attivo');
+                authPassed = true;
+                window._authUserData = userData;
+            }
+        } else if (xhr.status === 401 || xhr.status === 403) {
+            console.log('❌ Utente non autenticato (status:', xhr.status, ')');
+            sessionStorage.setItem('pendingAction', 'createReview');
+            authErrorMessage = 'Per pubblicare una recensione devi prima effettuare il login.';
+        } else {
+            console.log('❌ Errore auth check (status:', xhr.status, ')');
+            authErrorMessage = 'Errore nella verifica. Ricarica la pagina e riprova.';
+        }
+    } catch (error) {
+        console.error('Errore verifica autenticazione:', error);
+        authErrorMessage = 'Errore di connessione. Verifica la tua connessione e riprova.';
+    }
+    
+    // Se auth fallita, mostra errore e NON aprire file picker
+    if (!authPassed) {
+        console.log('🚫 Auth fallita - file picker NON aperto');
+        window._authFailed = true;
+        window._authFailedMessage = authErrorMessage;
+        window._authCheckComplete = true;
+        
+        // Mostra notifica errore
+        if (window.utils && window.utils.showNotification) {
+            window.utils.showNotification(authErrorMessage, 'warning', 5000);
+        } else {
+            alert(authErrorMessage);
+        }
+        
+        // Se non autenticato, redirect al login dopo breve delay
+        if (authErrorMessage.includes('login')) {
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 1500);
+        }
+        
+        return; // STOP - non aprire file picker
+    }
+    
+    // ✅ Auth passata - procedi con apertura file picker
+    window._authFailed = false;
+    window._authCheckComplete = true;
+    
+    // Pulisci dati sessione precedente
+    clearPreviousSessionData();
+    
+    // 📸 STEP 2: APRI IL FILE PICKER (user gesture ancora attiva!)
+    console.log('📸 Apertura file picker (auth OK, user gesture attiva)...');
+    reviewPhotoInput.value = "";
+    reviewPhotoInput.setAttribute('accept', 'image/*');
+    
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        showPhotoSourceDialog(reviewPhotoInput);
+    } else {
+        reviewPhotoInput.removeAttribute('capture');
+        try {
+            reviewPhotoInput.click();
+            console.log('✅ File picker aperto con successo (desktop)');
+        } catch (error) {
+            console.error('❌ Errore apertura file picker:', error);
+            logError('Errore apertura file picker', error);
+        }
+    }
+    
+    // NOTE: GPS viene richiesto nel change handler DOPO che l'utente ha selezionato il file
+    // Questo evita di mostrare popup GPS prima che l'utente abbia deciso se fare una foto
 }
 
 // --- Gestione caricamento, anteprima e selezione area foto per AI ---
@@ -870,7 +811,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     return {
                         ...bottle,
                         thumbnail: bottle.imageDataUrl || thumbnailImage, // Usa imageDataUrl dal backend o l'immagine locale
-                        beerName: bottle.bottleLabel || `Birra #${index + 1}`
+                        beerName: bottle.beerName || bottle.bottleLabel || `Birra #${index + 1}`
                     };
                 });
                 
@@ -2124,7 +2065,69 @@ document.addEventListener('DOMContentLoaded', function () {
         let lastDist = null;
         let lastMid = null;
 
-        reviewPhotoInput.addEventListener('change', function () {
+        reviewPhotoInput.addEventListener('change', async function () {
+            // 🎯 Mostra spinner durante caricamento immagine
+            if (window.NavigationSpinner && this.files && this.files[0]) {
+                window.NavigationSpinner.show();
+            }
+            
+            // 🔒 CHECK AUTH: Se auth check fallito durante apertura file picker, blocca ora
+            if (window._authFailed) {
+                console.log('❌ Auth fallita - blocco processo recensione');
+                const errorMessage = window._authFailedMessage || 'Autenticazione richiesta.';
+                
+                if (window.utils && window.utils.showNotification) {
+                    window.utils.showNotification(errorMessage, 'warning', 5000);
+                } else {
+                    alert(errorMessage);
+                }
+                
+                // Se non autenticato, redirect al login
+                if (errorMessage.includes('login') || errorMessage.includes('Accesso richiesto')) {
+                    window.location.href = '/login';
+                }
+                
+                reviewPhotoInput.value = '';
+                return;
+            }
+            
+            // Aspetta che auth check sia completo (dovrebbe già esserlo, ma per sicurezza)
+            let waitCount = 0;
+            while (!window._authCheckComplete && waitCount < 50) {
+                await new Promise(r => setTimeout(r, 100));
+                waitCount++;
+            }
+            
+            if (window._authFailed) {
+                console.log('❌ Auth fallita dopo attesa - blocco');
+                reviewPhotoInput.value = '';
+                return;
+            }
+            
+            // 📍 CATTURA GPS dopo che utente ha selezionato il file
+            // (non prima, così non mostriamo popup GPS se poi l'utente annulla)
+            const file = reviewPhotoInput.files[0];
+            if (file) {
+                console.log('📍 Richiesta consenso geolocalizzazione...');
+                try {
+                    const locationData = await window.GeolocationModule.getLocation(true);
+                    window.currentReviewLocation = locationData;
+                    
+                    if (locationData && locationData.consentGiven && locationData.coordinates) {
+                        console.log('📍 ✅ GPS acquisito:', {
+                            lat: locationData.coordinates.latitude,
+                            lng: locationData.coordinates.longitude,
+                            accuracy: locationData.coordinates.accuracy
+                        });
+                    } else {
+                        console.log('📍 ℹ️ GPS non condiviso');
+                    }
+                } catch (error) {
+                    console.log('📍 ℹ️ GPS non disponibile:', error.message);
+                    window.currentReviewLocation = null;
+                }
+            }
+            
             // Reset COMPLETO stato crop e preview per evitare invio immagini precedenti
             cropRect = null;
             isDragging = false;
@@ -2140,6 +2143,9 @@ document.addEventListener('DOMContentLoaded', function () {
             endY = undefined;
             croppedImageForAI = null; // Reset immagine croppata
             originalImageSrc = null; // Reset immagine originale
+            // IMPORTANTE: Rimuovere handler onerror PRIMA di resettare src a vuoto
+            // Altrimenti settare src='' può triggerare un falso errore
+            photoPreview.onerror = null;
             photoPreview.src = ''; // Reset preview per evitare invio immagine precedente
             photoPreview.className = 'photo-preview-image';
             photoPreview.style.width = '';
@@ -2157,7 +2163,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 sendToAIBtn.disabled = false;
             }
 
-            const file = reviewPhotoInput.files[0];
+            // file già dichiarato sopra per GPS check
             modalReadyForShow = false;
             
             if (file) {
@@ -2189,6 +2195,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 if (!isSizeValid) {
                     logError('File troppo grande', { size: file.size, maxSize });
+                    if (window.NavigationSpinner) window.NavigationSpinner.hide();
                     alert(`Il file è troppo grande. Dimensione massima consentita: ${Math.round(maxSize / 1024 / 1024)}MB`);
                     reviewPhotoInput.value = '';
                     return;
@@ -2210,6 +2217,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         originalImageSrc = e.target.result;
                         logDebug('Immagine originale salvata dal FileReader');
                         
+                        // IMPORTANTE: Definire onerror PRIMA di onload e PRIMA di assegnare src
+                        // Altrimenti se l'immagine fallisce velocemente, l'handler potrebbe non essere pronto
+                        photoPreview.onerror = function() {
+                            logError('Errore nel caricamento dell\'immagine');
+                            if (window.NavigationSpinner) window.NavigationSpinner.hide();
+                            alert('Errore nel caricamento dell\'immagine. Prova con un altro file.');
+                            reviewPhotoInput.value = '';
+                            closeModal();
+                        };
+                        
                         photoPreview.onload = function () {
                             logDebug('Caricamento immagine completato', {
                                 naturalWidth: photoPreview.naturalWidth,
@@ -2218,6 +2235,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             
                             if (erroreTipo && (photoPreview.naturalWidth === 0 || photoPreview.naturalHeight === 0)) {
                                 logError('File non è un\'immagine valida');
+                                if (window.NavigationSpinner) window.NavigationSpinner.hide();
                                 alert('La tipologia del file selezionato non è ammessa');
                                 reviewPhotoInput.value = '';
                                 photoPreviewContainer.style.display = 'none';
@@ -2231,6 +2249,11 @@ document.addEventListener('DOMContentLoaded', function () {
                             modalReadyForShow = true;
                             logDebug('Apertura modal per anteprima immagine');
                             openPhotoModal();
+                            
+                            // 🎯 Nascondi spinner - modal pronto
+                            if (window.NavigationSpinner) {
+                                window.NavigationSpinner.hide();
+                            }
                         
                             // Attiva il canvas interattivo con dimensioni fisse
                             setTimeout(() => {
@@ -2243,16 +2266,11 @@ document.addEventListener('DOMContentLoaded', function () {
                                 }
                             }, 200); // Timeout leggermente aumentato per la nuova struttura
                         };
-                    photoPreview.onerror = function() {
-                        logError('Errore nel caricamento dell\'immagine');
-                        alert('Errore nel caricamento dell\'immagine. Prova con un altro file.');
-                        reviewPhotoInput.value = '';
-                        closeModal();
-                    };
                     
                     photoPreview.src = e.target.result;
                     } catch (error) {
                         logError('Errore nel processamento dell\'immagine', error);
+                        if (window.NavigationSpinner) window.NavigationSpinner.hide();
                         alert('Errore nel processamento dell\'immagine. Prova con un altro file.');
                         reviewPhotoInput.value = '';
                         closeModal();
@@ -2261,13 +2279,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 reader.onerror = function() {
                     logError('Errore nella lettura del file');
+                    if (window.NavigationSpinner) window.NavigationSpinner.hide();
                     alert('Errore nella lettura del file. Prova con un altro file.');
                     reviewPhotoInput.value = '';
                 };
                 
                 reader.readAsDataURL(file);
             } else {
-                //console.log('Nessun file selezionato');
+                // Nessun file selezionato (utente ha annullato)
+                if (window.NavigationSpinner) window.NavigationSpinner.hide();
                 photoPreviewContainer.style.display = 'none';
                 photoCanvas.style.display = 'none';
                 photoPreview.style.display = 'none';
@@ -3132,20 +3152,46 @@ document.addEventListener('DOMContentLoaded', function () {
                     // MODIFICA: Non lanciare errore per status 200, anche se response.ok è false in certi casi
                     if (response.status !== 200) {
                         return response.text().then(text => {
-                            // Prova a parsare come JSON per messaggi di errore strutturati
+                            // 🍺 PRIMA prova a intercettare NO_BEER_DETECTED
+                            // Questo DEVE essere fatto PRIMA di qualsiasi throw per evitare che venga catturato dal catch
+                            let errorData = null;
+                            let isValidJson = false;
+                            
                             try {
-                                const errorData = JSON.parse(text);
+                                errorData = JSON.parse(text);
+                                isValidJson = true;
+                            } catch (e) {
+                                // JSON non valido - verrà gestito sotto
+                                isValidJson = false;
+                            }
+                            
+                            // 🍺 GESTIONE SPECIALE: Nessuna birra rilevata - NON è un errore tecnico!
+                            // Mostra messaggio gentile invece di lanciare errore
+                            if (isValidJson && errorData && errorData.errorType === 'NO_BEER_DETECTED') {
+                                logDebug('Nessuna birra rilevata - mostra messaggio gentile');
+                                // Nascondi overlay caricamento
+                                const loadingOverlay = document.getElementById('ai-loading-overlay');
+                                if (loadingOverlay) {
+                                    loadingOverlay.classList.remove('show');
+                                }
+                                // Chiudi modal e mostra messaggio gentile
+                                closeModal();
+                                const friendlyMessage = errorData.message || '🔍 Non abbiamo trovato bottiglie di birra in questa immagine. Prova a scattare una foto più ravvicinata dell\'etichetta o scegli un\'altra immagine con birre ben visibili.';
+                                showWarningMessage(friendlyMessage);
+                                return null; // Termina il flusso SENZA errore
+                            }
+                            
+                            // Per tutti gli altri errori, lancia l'eccezione appropriata
+                            if (isValidJson && errorData) {
                                 if (errorData.message) {
                                     throw new Error(errorData.message);
                                 } else if (errorData.error) {
                                     throw new Error(errorData.error);
-                                } else {
-                                    throw new Error(`Errore server: ${text.substring(0, 100)}`);
                                 }
-                            } catch (parseError) {
-                                // Se non è JSON valido, usa il testo grezzo
-                                throw new Error(`Errore server: ${text.substring(0, 100)}`);
                             }
+                            
+                            // Fallback: testo grezzo o JSON senza messaggio
+                            throw new Error(`Errore server: ${text.substring(0, 100)}`);
                         });
                     }
 
@@ -3173,6 +3219,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 })
                 .then(data => {
+                    // 🍺 Se data è null, significa che è stato gestito NO_BEER_DETECTED - termina qui
+                    if (data === null) {
+                        logDebug('Flusso terminato (NO_BEER_DETECTED gestito)');
+                        return;
+                    }
+                    
                     logDebug('Risposta ASYNC endpoint ricevuta', data);
                     
                     if (data.error) {
@@ -3285,6 +3337,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     clearTimeout(timeoutId);
                     logError('Errore nella gestione dell\'upload', error);
                     
+                    // 🍺 GESTIONE SPECIALE: Nessuna birra rilevata - messaggio gentile, non è un errore!
+                    if (error.message.includes('NO_BEER_DETECTED') || error.message.includes('Nessuna birra rilevata')) {
+                        logDebug('Nessuna birra rilevata nell\'immagine - mostra messaggio gentile');
+                        
+                        // Chiudi eventuali modal aperti
+                        closeModal();
+                        
+                        // Mostra messaggio gentile con showWarningMessage invece di alert
+                        showWarningMessage('🔍 Non abbiamo trovato bottiglie di birra in questa immagine. Prova a scattare una foto più ravvicinata dell\'etichetta o scegli un\'altra immagine con birre ben visibili.');
+                        return; // Esce senza mostrare alert
+                    }
+                    
                     // Messaggio generico user-friendly senza riferimenti tecnici
                     let errorMessage = 'Siamo spiacenti, si è verificato un problema durante l\'elaborazione. Riprova tra qualche istante.';
                     
@@ -3311,7 +3375,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         errorMessage = 'Problema di comunicazione. Riprova tra qualche istante.';
                     }
                     
-                    alert(errorMessage);
+                    // Usa showWarningMessage invece di alert per un messaggio più gentile
+                    showWarningMessage(errorMessage);
                 })
                 .finally(() => {
                     // Nasconde overlay spinner
@@ -3347,15 +3412,18 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /**
- * Apre il modal review con form vuoti per il numero specificato di bottiglie
- * @param {number} bottlesCount - Numero di bottiglie rilevate
- * @param {string} reviewId - ID della review asincrona
+ * Apre il modal review con form per le birre analizzate dall'AI
+ * @param {Array|number} bottlesDataOrCount - Array di bottiglie con dati AI OPPURE numero di bottiglie (legacy)
  * @param {string} thumbnailImage - Data URL dell'immagine thumbnail reale
  */
-function openReviewModalWithEmptyForms(bottlesCount, reviewId, thumbnailImage) {
-    logDebug('Apertura modal review con form vuoti', { 
+function openReviewModalWithEmptyForms(bottlesDataOrCount, thumbnailImage) {
+    // Gestisce sia array di bottiglie (con dati AI) che numero (legacy)
+    const isArrayData = Array.isArray(bottlesDataOrCount);
+    const bottlesCount = isArrayData ? bottlesDataOrCount.length : bottlesDataOrCount;
+    
+    logDebug('Apertura modal review con form', { 
+        isArrayData,
         bottlesCount, 
-        reviewId, 
         thumbnailImage: thumbnailImage ? 'presente (' + thumbnailImage.substring(0, 50) + '...)' : 'mancante'
     });
     
@@ -3364,24 +3432,41 @@ function openReviewModalWithEmptyForms(bottlesCount, reviewId, thumbnailImage) {
         return;
     }
     
-    // Crea array di bottiglie vuote con struttura minima
+    // Crea array di bottiglie con dati AI se disponibili, altrimenti generici
     const emptyBottles = [];
     for (let i = 0; i < bottlesCount; i++) {
-        emptyBottles.push({
-            beerName: `Birra ${i + 1}`,
-            thumbnail: thumbnailImage || '/images/default-beer.svg',
-            // Altri campi verranno popolati dal polling
-        });
+        if (isArrayData && bottlesDataOrCount[i]) {
+            // USA I DATI AI REALI
+            const aiData = bottlesDataOrCount[i];
+            emptyBottles.push({
+                beerName: aiData.beerName || `Birra ${i + 1}`,
+                breweryName: aiData.breweryName || '',
+                alcoholContent: aiData.alcoholContent || '',
+                volume: aiData.volume || '',
+                beerStyle: aiData.beerStyle || aiData.beerType || '',
+                thumbnail: aiData.thumbnail || thumbnailImage || '/images/default-beer.svg',
+                dataSource: aiData.dataSource || 'ai_analysis',
+                confidence: aiData.confidence || 0
+            });
+        } else {
+            // Fallback generico (legacy)
+            emptyBottles.push({
+                beerName: `Birra ${i + 1}`,
+                thumbnail: thumbnailImage || '/images/default-beer.svg',
+            });
+        }
     }
     
-    // Apre il modal con le bottiglie vuote
+    logDebug('Bottiglie preparate per il modal', emptyBottles.map(b => b.beerName));
+    
+    // Apre il modal con le bottiglie
     if (typeof window.openReviewModal === 'function') {
         window.openReviewModal(emptyBottles);
         
         // Mostra messaggio di progresso nel modal
         showReviewProgressMessage('Analisi dell\'immagine in corso... I dettagli delle birre verranno popolati automaticamente.');
         
-        logDebug('Modal review aperto con form vuoti per async processing');
+        logDebug('Modal review aperto con dati AI per async processing');
     } else {
         logError('Funzione window.openReviewModal non disponibile');
         alert('Errore tecnico: sistema di recensioni non disponibile. Ricarica la pagina.');

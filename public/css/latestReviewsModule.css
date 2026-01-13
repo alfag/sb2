@@ -79,6 +79,29 @@ section #latest-reviews-list,
     line-height: 1.3 !important;
 }
 
+/* Nome birrificio - Mostrato in simbiosi con la birra */
+.review-brewery-name {
+    display: block !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    color: #6b7280 !important;
+    line-height: 1.2 !important;
+    margin-top: 0.125rem !important;
+    margin-bottom: 0.25rem !important;
+}
+
+/* Placeholder durante elaborazione AI */
+.review-brewery-name.processing-placeholder {
+    color: #9ca3af !important;
+    font-style: italic !important;
+    animation: pulse 1.5s ease-in-out infinite !important;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
 /* Rating con stelle */
 .review-rating {
     display: flex !important;

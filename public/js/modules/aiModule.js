@@ -534,8 +534,8 @@ class AIModule {
         options.closeModal();
       }
       
-      // Mostra warning con messaggio specifico
-      const warningMessage = data.message || 'L\'AI non ha rilevato bottiglie di birra nell\'immagine. Carica un\'immagine contenente chiaramente prodotti birrari.';
+      // Mostra warning con messaggio gentile e amichevole
+      const warningMessage = data.message || '🔍 Non abbiamo trovato bottiglie di birra in questa immagine. Prova a scattare una foto più ravvicinata dell\'etichetta o scegli un\'altra immagine con birre ben visibili.';
       
       if (options.showWarningMessage) {
         setTimeout(() => {

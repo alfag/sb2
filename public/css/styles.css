@@ -1101,3 +1101,88 @@ html, body {
     page-break-inside: avoid;
   }
 }
+
+/* ========================================
+   NAVIGATION LOADING SPINNER
+   Spinner globale durante la navigazione tra pagine
+   ======================================== */
+
+.nav-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+  pointer-events: none;
+}
+
+.nav-loading-overlay.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: all;
+}
+
+.nav-spinner-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(45, 74, 43, 0.15);
+  border-top-color: #2d4a2b;
+  border-radius: 50%;
+  animation: navSpin 0.8s linear infinite;
+}
+
+@keyframes navSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Variante scura per pagine chiare */
+@media (prefers-color-scheme: dark) {
+  .nav-loading-overlay {
+    background: rgba(0, 0, 0, 0.75);
+  }
+  .nav-spinner {
+    border-color: rgba(255, 255, 255, 0.15);
+    border-top-color: #FFD600;
+  }
+}
+
+.nav-loading-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive mobile */
+@media (max-width: 480px) {
+  .nav-spinner-container {
+    padding: 20px 30px;
+    gap: 12px;
+  }
+  
+  .nav-spinner {
+    font-size: 2rem;
+  }
+  
+  .nav-loading-text {
+    font-size: 0.9rem;
+  }
+}

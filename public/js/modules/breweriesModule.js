@@ -41,10 +41,13 @@ const BreweriesModule = (() => {
                 return;
             }
 
-            // Limita a massimo 6 birrifici per la home page (2 colonne x 3 righe)
-            const breweriesDisplay = data.breweries.slice(0, 6);
+            // Mescola l'array per ordine casuale
+            const shuffledBreweries = shuffleArray([...data.breweries]);
             
-            console.log(`[BreweriesModule] Visualizzo ${breweriesDisplay.length} birrifici su ${data.breweries.length} totali`);
+            // Limita a massimo 27 birrifici per la home page (3 colonne x 9 righe)
+            const breweriesDisplay = shuffledBreweries.slice(0, 27);
+            
+            console.log(`[BreweriesModule] Visualizzo ${breweriesDisplay.length} birrifici (ordine casuale) su ${data.breweries.length} totali`);
             
             // Renderizza i birrifici con indice per i gradienti
             breweryList.innerHTML = breweriesDisplay
@@ -64,7 +67,7 @@ const BreweriesModule = (() => {
             }, 200);
 
             // Mostra testo "Altri N birrifici" se ci sono più birrifici
-            if (data.breweries.length > 6) {
+            if (data.breweries.length > 27) {
                 addViewAllLink(breweryList.parentElement, data.breweries.length);
             }
 
@@ -101,15 +104,15 @@ const BreweriesModule = (() => {
     }
 
     /**
-     * Crea card con iniziale stilizzata colorata - Card NON cliccabile (solo visualizzazione)
+     * Crea card con logo o iniziale stilizzata - Card NON cliccabile (solo visualizzazione)
+     * Se il birrificio ha un logo, lo mostra come thumbnail
+     * Altrimenti mostra l'iniziale colorata come fallback
      */
     function createBreweryCard(brewery, index) {
-        // Estrai l'iniziale intelligentemente
+        // Estrai l'iniziale intelligentemente (usata come fallback)
         const initial = extractInitial(brewery.breweryName);
         
-        console.log(`[BreweriesModule] Birrificio ${index + 1}: "${brewery.breweryName}" → Iniziale finale: "${initial}"`);
-        
-        // Gradienti colorati ciclici
+        // Gradienti colorati ciclici (usati come fallback se no logo)
         const gradients = [
             'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // Viola-Magenta
             'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', // Rosa-Rosso
@@ -121,23 +124,60 @@ const BreweriesModule = (() => {
         
         const gradient = gradients[index % gradients.length];
         
-        return `
-            <div class="brewery-card-link">
-                <div class="brewery-card">
-                    <div class="brewery-initial" style="background: ${gradient};">${initial}</div>
-                    <div class="brewery-info">
-                        <h3 class="brewery-name"><span>${escapeHtml(brewery.breweryName)}</span></h3>
+        // Verifica se il birrificio ha un logo
+        const hasLogo = brewery.breweryLogo && brewery.breweryLogo.trim() !== '';
+        
+        console.log(`[BreweriesModule] Birrificio ${index + 1}: "${brewery.breweryName}" → Logo: ${hasLogo ? brewery.breweryLogo.substring(0, 50) + '...' : 'NO'}`);
+        
+        // Due layout diversi: full-image se logo presente, standard se no logo
+        if (hasLogo) {
+            // CARD CON LOGO: immagine a tutto schermo, nome nascosto (mostrato solo su hover)
+            return `
+                <div class="brewery-card-link">
+                    <div class="brewery-card brewery-card-full-image">
+                        <img 
+                            src="${escapeHtml(brewery.breweryLogo)}" 
+                            alt="${escapeHtml(brewery.breweryName)}" 
+                            class="brewery-full-logo"
+                            onerror="this.parentElement.classList.remove('brewery-card-full-image'); this.parentElement.innerHTML='<div class=\\'brewery-initial\\' style=\\'background: ${gradient};\\'>${initial}</div><div class=\\'brewery-info\\'><h3 class=\\'brewery-name\\'><span>${escapeHtml(brewery.breweryName)}</span></h3></div>'"
+                        />
+                        <div class="brewery-name-overlay">
+                            <span>${escapeHtml(brewery.breweryName)}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            // CARD SENZA LOGO: iniziale colorata + nome testuale (layout standard)
+            return `
+                <div class="brewery-card-link">
+                    <div class="brewery-card">
+                        <div class="brewery-initial" style="background: ${gradient};">${initial}</div>
+                        <div class="brewery-info">
+                            <h3 class="brewery-name"><span>${escapeHtml(brewery.breweryName)}</span></h3>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Mescola un array in ordine casuale (Fisher-Yates shuffle)
+     */
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
     }
 
     /**
      * Crea placeholder di caricamento con iniziale skeleton
      */
     function createLoadingPlaceholder() {
-        return Array(6).fill(0).map(() => `
+        return Array(27).fill(0).map(() => `
             <div class="brewery-card-link">
                 <div class="brewery-card skeleton">
                     <div class="brewery-initial skeleton-initial"></div>
@@ -212,7 +252,7 @@ const BreweriesModule = (() => {
         const existingText = container.querySelector('.more-breweries-text');
         if (existingText) return;
 
-        const remaining = totalCount - 6;
+        const remaining = totalCount - 27;
         const text = document.createElement('p');
         text.className = 'more-breweries-text';
         text.textContent = `+ altri ${remaining} birrifici`;

@@ -52,7 +52,7 @@ exports.testAnalyzeAsync = async (req, res) => {
     if (!aiResult.success || !aiResult.bottles || aiResult.bottles.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Nessuna birra rilevata nell\'immagine',
+        message: '🔍 Non abbiamo trovato bottiglie di birra in questa immagine. Prova a scattare una foto più ravvicinata dell\'etichetta o scegli un\'altra immagine con birre ben visibili.',
         errorType: 'NO_BEER_DETECTED'
       });
     }

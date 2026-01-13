@@ -1268,10 +1268,12 @@ class AIValidationService {
     ];
     
     // 🆕 FIX 23 Dicembre 2025: Parole corte anche per cider
-    const ciderKeywordsShort = ['mele', 'pera']; // Evita match dentro altre parole
+    // 🆕 FIX 08 Gennaio 2026: Spostato 'cider', 'sidro', 'apple', 'pear' in Short per evitare
+    // false positive come "coincidere" che contiene "cider" o "rispondere" che contiene "pera"
+    const ciderKeywordsShort = ['mele', 'pera', 'cider', 'sidro', 'apple', 'pear']; // Word boundary richiesto
     const ciderKeywordsLong = [
-      'cidre', 'cider', 'sidro', 'apple', 'pear'
-    ];
+      'cidre', 'apple cider', 'apple juice', 'pear cider', 'sidro di mele', 'sidro di pere'
+    ]; // Parole composte sicure per includes()
     
     // 🆕 FIX 23 Dicembre 2025: Helper per verificare liquor keywords
     const checkLiquorKeywords = (text) => {

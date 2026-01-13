@@ -1321,16 +1321,18 @@ class HTMLParser {
     const links = $('a[href]');
     links.each((i, link) => {
       const href = $(link).attr('href') || '';
+      const hrefLower = href.toLowerCase();
       
-      if (href.includes('facebook.com/')) {
+      // Pattern case-insensitive senza slash obbligatorio
+      if (hrefLower.includes('facebook.com') && !socialMedia.facebook) {
         socialMedia.facebook = href;
-      } else if (href.includes('instagram.com/')) {
+      } else if (hrefLower.includes('instagram.com') && !socialMedia.instagram) {
         socialMedia.instagram = href;
-      } else if (href.includes('twitter.com/') || href.includes('x.com/')) {
+      } else if ((hrefLower.includes('twitter.com') || hrefLower.includes('x.com')) && !socialMedia.twitter) {
         socialMedia.twitter = href;
-      } else if (href.includes('linkedin.com/')) {
+      } else if (hrefLower.includes('linkedin.com') && !socialMedia.linkedin) {
         socialMedia.linkedin = href;
-      } else if (href.includes('youtube.com/')) {
+      } else if (hrefLower.includes('youtube.com') && !socialMedia.youtube) {
         socialMedia.youtube = href;
       }
     });
