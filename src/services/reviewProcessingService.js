@@ -177,7 +177,107 @@ function extractAndCorrectBeerName(aiBeerName, description, tastingNotes) {
 }
 
 /**
- * �🔥 P2.7 FIX: Estrae il nome del birrificio dal nome della birra (7 dic 2025)
+ * 📊 SCORING SYSTEM GSR: Calcola punteggio qualità dati da GSR (Gennaio 2026)
+ * 
+ * PROBLEMA RISOLTO: Prima il sistema faceva fallback se mancava il website,
+ * anche quando GSR aveva trovato dati di qualità (P.IVA, REA, PEC, indirizzo).
+ * Es: Birrificio Viana aveva confidence 0.8, P.IVA, REA, PEC, indirizzo ma NO website
+ *     → Sistema faceva fallback errato a WebSearchService che trovava sito SBAGLIATO
+ * 
+ * SOLUZIONE: Scoring basato su completezza dati + confidence threshold
+ * 
+ * @param {Object} breweryData - Dati birrificio da GSR
+ * @returns {Object} { score, maxScore, percentage, details, isAcceptable }
+ */
+function calculateGSRDataScore(breweryData) {
+  if (!breweryData) {
+    return { score: 0, maxScore: 105, percentage: 0, details: {}, isAcceptable: false };
+  }
+  
+  const weights = {
+    breweryName: 20,        // Nome birrificio - fondamentale
+    website: 25,            // Sito web - molto importante ma NON bloccante
+    breweryLegalAddress: 20, // Indirizzo - molto importante per identificazione
+    breweryFiscalCode: 15,  // P.IVA - dato ufficiale molto affidabile
+    reaCode: 10,            // Codice REA - dato ufficiale
+    pecEmail: 5,            // PEC - dato ufficiale
+    email: 5,               // Email generica
+    phone: 5,               // Telefono
+    description: 5          // Descrizione
+  };
+  
+  const details = {};
+  let score = 0;
+  
+  // Calcola score per ogni campo
+  if (breweryData.breweryName && breweryData.breweryName.trim()) {
+    score += weights.breweryName;
+    details.breweryName = weights.breweryName;
+  }
+  
+  if (breweryData.website && breweryData.website.trim()) {
+    score += weights.website;
+    details.website = weights.website;
+  }
+  
+  if (breweryData.breweryLegalAddress && breweryData.breweryLegalAddress.trim()) {
+    score += weights.breweryLegalAddress;
+    details.breweryLegalAddress = weights.breweryLegalAddress;
+  }
+  
+  if (breweryData.breweryFiscalCode && breweryData.breweryFiscalCode.trim()) {
+    score += weights.breweryFiscalCode;
+    details.breweryFiscalCode = weights.breweryFiscalCode;
+  }
+  
+  if (breweryData.reaCode && breweryData.reaCode.trim()) {
+    score += weights.reaCode;
+    details.reaCode = weights.reaCode;
+  }
+  
+  if (breweryData.pecEmail && breweryData.pecEmail.trim()) {
+    score += weights.pecEmail;
+    details.pecEmail = weights.pecEmail;
+  }
+  
+  if (breweryData.email && breweryData.email.trim()) {
+    score += weights.email;
+    details.email = weights.email;
+  }
+  
+  if (breweryData.phone && breweryData.phone.trim()) {
+    score += weights.phone;
+    details.phone = weights.phone;
+  }
+  
+  if (breweryData.description && breweryData.description.length > 50) {
+    score += weights.description;
+    details.description = weights.description;
+  }
+  
+  const maxScore = Object.values(weights).reduce((a, b) => a + b, 0); // 105
+  const percentage = Math.round((score / maxScore) * 100);
+  
+  // Criteri accettazione: Score >= 60 (57%) oppure ha website
+  // Questo permette di accettare risultati con dati fiscali anche senza website
+  const hasWebsite = !!(breweryData.website && breweryData.website.trim());
+  const isAcceptable = score >= 60 || hasWebsite;
+  
+  return {
+    score,
+    maxScore,
+    percentage,
+    details,
+    hasWebsite,
+    isAcceptable,
+    reason: isAcceptable 
+      ? (hasWebsite ? 'Ha website' : `Score ${score}/${maxScore} (${percentage}%) >= 60`)
+      : `Score ${score}/${maxScore} (${percentage}%) < 60 e no website`
+  };
+}
+
+/**
+ * 🔥 P2.7 FIX: Estrae il nome del birrificio dal nome della birra (7 dic 2025)
  * SCOPO: Identificare il birrificio, NON modificare il nome della birra
  * 
  * PROBLEMA: L'AI spesso concatena il nome del birrificio nel beerName
@@ -389,11 +489,13 @@ async function processReviewBackground(job) {
             };
           } else {
             // 2b. Birrificio non esiste in DB → cerca via web search
-            // 🔥 FIX: Usa il nome del birrificio da AI se disponibile per una ricerca più precisa
-            // 🌍 FIX 11 GEN 2026: Termini BILINGUE italiano+inglese per birrifici internazionali (es: Duvel)
-            const searchTerm = aiBreweryName 
-              ? `${aiBreweryName} birrificio brewery sito ufficiale official website`
-              : `${bottle.beerName} birrificio brewery produttore producer`;
+            // 🌍 FIX 15 GEN 2026: Query di ricerca basata su ciò che VEDIAMO dall'etichetta
+            // - SEMPRE: nome BIRRA (dato certo, letto dall'etichetta)
+            // - SE DISPONIBILE: anche nome birrificio (se letto dall'etichetta)
+            // Esempio con entrambi: "BIRRA Roby's Blonde Birrificio Viana birrificio brewery..."
+            // Esempio solo birra: "BIRRA Roby's Blonde birrificio brewery..."
+            const breweryPart = aiBreweryName ? ` ${aiBreweryName}` : '';
+            const searchTerm = `BIRRA ${bottle.beerName}${breweryPart} birrificio brewery sito ufficiale official website produttore producer`;
             
             logger.info(`🔍 Birrificio non trovato in DB, ricerca web: "${searchTerm}"`, {
               beerName: bottle.beerName,
@@ -1286,24 +1388,23 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
     let beerDataFromGSR = null;
     
     if (needsWebSearch) {
-      // Usa breweryName se disponibile, altrimenti beerName
-      const searchBreweryName = breweryName || bottle.breweryName || null;
-      // 🌍 FIX 11 GEN 2026: Termini BILINGUE italiano+inglese per birrifici internazionali (es: Duvel)
-      const searchTerm = searchBreweryName 
-        ? `${searchBreweryName} birrificio brewery sito ufficiale official website`  // Cerca sito ufficiale del birrificio
-        : `${beerName} birrificio brewery produttore producer`; // Fallback a solo nome birra
+      // 🌍 FIX 15 GEN 2026: Query di ricerca basata su ciò che VEDIAMO dall'etichetta
+      // - SEMPRE: nome BIRRA (dato certo, letto dall'etichetta)
+      // - SE DISPONIBILE: anche nome birrificio (se letto dall'etichetta)
+      const breweryPart = breweryName ? ` ${breweryName}` : '';
+      const searchTerm = `BIRRA ${beerName}${breweryPart} birrificio brewery sito ufficiale official website produttore producer`;
       
       logger.info(`🔍 Web search necessario - mancano dati web`, {
         searchTerm,
-        hasBreweryName: !!searchBreweryName,
+        hasBreweryName: !!breweryName,
         beerName
       });
       
       try {
         // 🆕 STEP 1: Google Search Retrieval COMBINATO via Gemini AI (PRIMARIO)
         // Una sola chiamata per ottenere sia birrificio che birra - RISPARMIO CHIAMATE!
-        logger.info(`🔎 Google Search Retrieval COMBINATO (Gemini AI) per birra: "${beerName}", birrificio: "${searchBreweryName || 'da cercare'}"`);
-        const gsrResult = await GoogleSearchRetrievalService.search(beerName, searchBreweryName);
+        logger.info(`🔎 Google Search Retrieval COMBINATO (Gemini AI) per birra: "${beerName}", birrificio: "${breweryName || 'da cercare'}"`);
+        const gsrResult = await GoogleSearchRetrievalService.search(beerName, breweryName);
         
         if (gsrResult && gsrResult.success && gsrResult.confidence >= 0.5) {
           // ✅ Google Search Retrieval ha trovato dati verificati
@@ -1435,9 +1536,40 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
           }
         }
         
-        // �🔄 STEP 2: Fallback a WebSearchService SE necessario (SECONDARIO)
-        if (!breweryData || !breweryData.website) {
-          logger.info(`🔍 Google Search Retrieval non sufficiente (confidence: ${gsrResult?.confidence || 0}), fallback a WebSearchService`);
+        // 🔄 STEP 2: Fallback a WebSearchService SE necessario (SECONDARIO)
+        // 🆕 FIX 11 Gen 2026: Usa sistema di scoring per decidere se accettare dati GSR
+        // Prima: fallback se mancava website (troppo restrittivo - perdeva dati validi)
+        // Dopo: fallback solo se score < 57% E no website (bilanciato)
+        let shouldFallback = false;
+        let fallbackReason = '';
+        
+        if (!breweryData) {
+          shouldFallback = true;
+          fallbackReason = 'Nessun dato da GSR';
+        } else {
+          // Calcola punteggio qualità dati GSR
+          const gsrScore = calculateGSRDataScore(breweryData);
+          
+          logger.info(`📊 GSR Data Score per "${breweryName}":`, {
+            score: gsrScore.score,
+            maxScore: gsrScore.maxScore,
+            percentage: gsrScore.percentage,
+            isAcceptable: gsrScore.isAcceptable,
+            reason: gsrScore.reason,
+            hasWebsite: gsrScore.hasWebsite,
+            details: gsrScore.details
+          });
+          
+          if (!gsrScore.isAcceptable) {
+            shouldFallback = true;
+            fallbackReason = `Score insufficiente (${gsrScore.percentage}% < 57%), ${gsrScore.reason}`;
+          } else {
+            logger.info(`✅ Dati GSR ACCETTATI per "${breweryName}" (${gsrScore.percentage}%) - ${gsrScore.reason}`);
+          }
+        }
+        
+        if (shouldFallback) {
+          logger.info(`🔍 Google Search Retrieval non sufficiente: ${fallbackReason}`);
           logger.info(`🔍 WebSearchService FALLBACK per: "${searchTerm}"`);
           const searchResult = await WebSearchService.searchBreweryOnWeb(searchTerm);
         

@@ -10,6 +10,7 @@ const AIService = require('../services/aiService');
 const CleanupService = require('../services/cleanupService');
 const WebSearchService = require('../services/webSearchService');
 const validationController = require('./validationController');
+const { extractImageFromReview } = require('../utils/imageProcessor');
 const logWithFileName = require('../utils/logger');
 const logger = logWithFileName(__filename);
 
@@ -1381,7 +1382,7 @@ exports.batchValidateReviews = async (req, res) => {
     let updated = 0;
     for (const review of pendingReviews) {
       // Chiamata AI: estrazione dettagli birra/birrificio
-      const details = await GeminiAI.extractBeerDetails(review.imageUrl);
+      const details = await GeminiAI.extractBeerDetails(extractImageFromReview(review));
       // Aggiorna Review e Brewery con i dettagli recuperati
       if (details) {
         // Aggiorna brewery se necessario

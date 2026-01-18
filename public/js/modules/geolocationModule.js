@@ -257,27 +257,40 @@ class GeolocationModule {
 
     /**
      * Chiude il modal di consent
+     * @returns {Promise<void>} Promise che si risolve dopo l'animazione fade-out
      */
     closeConsentModal(consented = false) {
-        const modal = document.getElementById('geolocation-consent-modal');
-        
-        if (!modal) return;
-
-        // Fade-out
-        modal.classList.remove('active');
-        
-        setTimeout(() => {
-            modal.style.display = 'none';
-            this.consentModalActive = false;
-
-            // Risolvi la promise se esiste
-            if (this.consentResolve) {
-                this.consentResolve(consented);
-                this.consentResolve = null;
+        return new Promise((resolve) => {
+            const modal = document.getElementById('geolocation-consent-modal');
+            
+            if (!modal) {
+                // Se modal non esiste, risolvi comunque la consent promise
+                if (this.consentResolve) {
+                    this.consentResolve(consented);
+                    this.consentResolve = null;
+                }
+                resolve();
+                return;
             }
-        }, 300);
 
-        this.logger.info(`Modal consent chiuso - Consented: ${consented}`);
+            // Fade-out
+            modal.classList.remove('active');
+            
+            setTimeout(() => {
+                modal.style.display = 'none';
+                this.consentModalActive = false;
+
+                // Risolvi la promise di consent se esiste
+                if (this.consentResolve) {
+                    this.consentResolve(consented);
+                    this.consentResolve = null;
+                }
+                // Risolvi la promise di chiusura
+                resolve();
+            }, 300);
+
+            this.logger.info(`Modal consent chiuso - Consented: ${consented}`);
+        });
     }
 
     /**
@@ -304,7 +317,10 @@ class GeolocationModule {
         }
 
         this.userConsent = allowed;
-        this.closeConsentModal(allowed);
+        
+        // IMPORTANTE: await per garantire che la Promise si risolva dopo l'animazione
+        // Fix per race condition su Samsung browser
+        await this.closeConsentModal(allowed);
 
         // Se l'utente ha negato, risolvi con errore
         if (!allowed) {

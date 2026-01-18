@@ -106,7 +106,7 @@ section #brewery-list,
     height: auto !important;
     object-fit: contain !important;
     border-radius: 8px !important;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1)) !important;
+    /* Nessuna ombra per loghi normali */
     transition: transform 0.3s ease !important;
 }
 
@@ -147,7 +147,18 @@ section #brewery-list,
     max-height: 54px !important;
     object-fit: contain !important;
     padding: 0 !important;
+    /* Nessuna ombra per loghi normali */
     transition: transform 0.3s ease, filter 0.3s ease !important;
+}
+
+/* ============================================
+   CLASSE SPECIALE - Drop-shadow SOLO per loghi bianchi
+   (aggiunti automaticamente dal JS quando URL contiene "_white")
+   ============================================ */
+.brewery-full-logo.white-logo,
+.brewery-logo.white-logo {
+    filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.7)) 
+            drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)) !important;
 }
 
 .brewery-card-link:hover .brewery-card-full-image .brewery-full-logo {

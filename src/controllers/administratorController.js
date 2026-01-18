@@ -8,6 +8,7 @@ const AIService = require('../services/aiService');
 const mongoose = require('mongoose');
 const logWithFileName = require('../utils/logger'); // Importa logWithFileName
 const bcrypt = require('bcrypt');
+const { extractImageFromReview } = require('../utils/imageProcessor');
 
 const logger = logWithFileName(__filename); // Crea logger per questo file
 
@@ -1837,7 +1838,7 @@ async function getReviewDetails(req, res) {
                 user: review.user,
                 ratings: review.ratings,
                 reviewNotes: review.reviewNotes,
-                imageUrl: review.imageUrl,
+                imageUrl: extractImageFromReview(review),
                 status: review.status,
                 processingStatus: review.processingStatus,
                 adminReviewReason: review.adminReviewReason,

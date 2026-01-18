@@ -354,6 +354,8 @@ async function searchBreweryInfo(breweryName, beerName = null) {
   const prompt = `
 Sei un esperto di birrifici italiani e internazionali. Devi trovare informazioni REALI e VERIFICATE sul birrificio/brewery "${breweryName}"${beerName ? ` che produce la birra "${beerName}"` : ''}.
 
+🇮🇹 LINGUA: Rispondi SEMPRE in lingua italiana. Tutte le descrizioni, note e testi devono essere in italiano.
+
 REGOLE CRITICHE ANTI-ALLUCINAZIONI:
 1. CERCA SOLO informazioni che puoi VERIFICARE tramite fonti web reali
 2. NON inventare MAI dati che non trovi online
@@ -526,6 +528,8 @@ async function searchBeerInfo(beerName, breweryName = null) {
   const prompt = `
 Sei un esperto di birre artigianali. Devi trovare informazioni REALI e VERIFICATE sulla ${searchContext}.
 
+🇮🇹 LINGUA: Rispondi SEMPRE in lingua italiana. Tutte le descrizioni, note di degustazione e testi devono essere in italiano.
+
 REGOLE CRITICHE ANTI-ALLUCINAZIONI:
 1. CERCA SOLO informazioni che puoi VERIFICARE tramite fonti web reali
 2. NON inventare MAI dati che non trovi online (ABV, IBU, ingredienti, ecc.)
@@ -660,6 +664,8 @@ async function searchBeerAndBreweryInfo(beerName, breweryName = null) {
 
   const prompt = `
 Sei un esperto di birre artigianali italiane e internazionali. Devi trovare informazioni REALI e VERIFICATE sulla ${searchContext}.
+
+🇮🇹 LINGUA: Rispondi SEMPRE in lingua italiana. Tutte le descrizioni, note di degustazione e testi devono essere in italiano.
 
 REGOLE CRITICHE ANTI-ALLUCINAZIONI:
 1. CERCA SOLO informazioni che puoi VERIFICARE tramite fonti web reali

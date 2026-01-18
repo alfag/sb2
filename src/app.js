@@ -258,11 +258,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware centralizzato per la gestione degli errori
-app.use(ErrorHandler.handle);
-
-
-
 // Routes
 app.use('/', baseRoutes); // Gestisce le rotte di base dell'applicazione
 app.use('/administrator', administratorRoutes); // Gestisce le rotte amministrative
@@ -274,5 +269,8 @@ app.use('/review', require('./routes/reviewAsyncRoutes')); // Sistema Async Rece
 app.use('/review', require('./routes/reviewTestRoutes')); // 🧪 ROTTE TEST - ZERO SALVATAGGI DATABASE
 app.use('/api/web-search', require('./routes/webSearchRoutes')); // Sistema Ricerca Web Automatica
 app.use('/content-moderation', contentModerationRoutes); // Gestisce le rotte di test moderazione contenuti (admin)
+
+// Middleware centralizzato per la gestione degli errori (DEVE essere DOPO tutte le routes)
+app.use(ErrorHandler.handle);
 
 module.exports = app;

@@ -13,6 +13,7 @@ const Review = require('../models/Review'); // 🆕 Import per ultime recensioni
 const profileController = require('../controllers/profileController'); // 🆕 Profile controller
 
 const logger = logWithFileName(__filename);
+const { extractImageFromReview } = require('../utils/imageProcessor');
 
 // Home page accessibile senza login - Autenticazione opzionale
 router.get('/', isAuthenticatedOptional, (req, res) => {
@@ -122,7 +123,7 @@ router.get('/reviews', isAuthenticatedOptional, async (req, res) => {
                     flattenedReviews.push({
                         _id: review._id,
                         date: review.date,
-                        imageUrl: review.imageUrl,
+                        imageUrl: extractImageFromReview(review),
                         user: review.user,
                         userEmail: review.user?.email || 'Utente anonimo',
                         // Nome utente formattato per display
@@ -591,7 +592,7 @@ router.get('/api/reviews/latest', async (req, res) => {
                     flattenedRatings.push({
                         _id: review._id,
                         ratingId: rating._id,
-                        imageUrl: review.imageUrl,
+                        imageUrl: extractImageFromReview(review),
                         date: review.date,
                         userEmail: review.user?.email || review.user?.username || 'Utente anonimo',
                         // Nome utente formattato per display

@@ -138,7 +138,7 @@ const BreweriesModule = (() => {
                         <img 
                             src="${escapeHtml(brewery.breweryLogo)}" 
                             alt="${escapeHtml(brewery.breweryName)}" 
-                            class="brewery-full-logo"
+                            class="brewery-full-logo${brewery.breweryLogo.includes('_white') ? ' white-logo' : ''}"
                             onerror="this.parentElement.classList.remove('brewery-card-full-image'); this.parentElement.innerHTML='<div class=\\'brewery-initial\\' style=\\'background: ${gradient};\\'>${initial}</div><div class=\\'brewery-info\\'><h3 class=\\'brewery-name\\'><span>${escapeHtml(brewery.breweryName)}</span></h3></div>'"
                         />
                         <div class="brewery-name-overlay">

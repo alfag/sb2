@@ -16,6 +16,9 @@ const { addReviewProcessingJob, getJobStatus, getQueueStats } = require('../serv
 const logWithFileName = require('../utils/logger');
 const GeminiAI = require('../utils/geminiAi');
 
+// 🖼️ FIX 18 GEN 2026: Image processor per ottimizzazione dimensioni
+const { optimizeBase64Image, getBase64SizeKB } = require('../utils/imageProcessor');
+
 // 🔧 CONFIGURAZIONE LIMITI SISTEMA
 const MAX_BOTTLES_PER_IMAGE = 5; // Limite massimo bottiglie per foto per evitare sovraccarico
 
@@ -201,8 +204,38 @@ exports.analyzeImageAsync = async (req, res) => {
       });
     }
 
-    // 5. Prepara imageDataUrl per il frontend
-    const imageDataUrl = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
+    // 5. Prepara imageDataUrl per il frontend (con OTTIMIZZAZIONE)
+    // 🖼️ FIX 18 GEN 2026: Downscale immagine a max 1080px e qualità 82% per ridurre dimensione DB
+    const originalBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
+    const originalSizeKB = getBase64SizeKB(originalBase64);
+    
+    let imageDataUrl = originalBase64;
+    
+    // Ottimizza solo se l'immagine è più grande di 200KB
+    if (originalSizeKB > 200) {
+      try {
+        const optimizationResult = await optimizeBase64Image(originalBase64, {
+          maxWidth: 1080,   // Perfetto per mobile/tablet senza sgranatura
+          maxHeight: 1920,  // Per immagini portrait
+          quality: 82       // Ottimo compromesso qualità/dimensione
+        });
+        imageDataUrl = optimizationResult.dataUrl;
+        
+        logger.info('🖼️ [analyzeImageAsync] Immagine OTTIMIZZATA per salvataggio', {
+          originalSizeKB: optimizationResult.originalSizeKB,
+          optimizedSizeKB: optimizationResult.optimizedSizeKB,
+          reductionPercent: optimizationResult.reductionPercent + '%',
+          savedKB: optimizationResult.originalSizeKB - optimizationResult.optimizedSizeKB
+        });
+      } catch (optError) {
+        logger.warn('⚠️ [analyzeImageAsync] Errore ottimizzazione immagine, uso originale', {
+          error: optError.message
+        });
+        // In caso di errore, usa l'immagine originale
+      }
+    } else {
+      logger.info('🖼️ [analyzeImageAsync] Immagine già piccola, skip ottimizzazione', { sizeKB: originalSizeKB });
+    }
     
     // 6. Memorizza dati temporanei in sessione per creazione Review successiva
     req.session.pendingReviewData = {
@@ -361,11 +394,15 @@ exports.confirmAndCreateReview = async (req, res) => {
     }
 
     // 4. Crea Review con TUTTI i dati AI estratti + location
+    // 🖼️ FIX 18 GEN 2026: Immagine salvata SOLO in rawAiData.imageDataUrl (rimosso duplicato imageUrl)
+    const imageSizeKB = getBase64SizeKB(pendingData.imageDataUrl);
+    logger.info('💾 [confirmAndCreateReview] Salvataggio immagine UNICA in rawAiData', { imageSizeKB });
+    
     const review = new Review({
       userId: pendingData.userId ? new mongoose.Types.ObjectId(pendingData.userId) : undefined,
       sessionId: pendingData.sessionId,
-      imageUrl: pendingData.imageDataUrl,
-      imageDataUrl: pendingData.imageDataUrl,
+      // 🖼️ FIX 18 GEN 2026: imageUrl ora contiene un placeholder, l'immagine reale è in rawAiData
+      imageUrl: 'stored_in_rawAiData',
       processingStatus: 'pending_validation',
       bottlesCount: pendingData.bottles.length,
       aiExtracted: true,
@@ -373,9 +410,16 @@ exports.confirmAndCreateReview = async (req, res) => {
       // 📍 Aggiungi location se disponibile
       ...(reviewLocation && { location: reviewLocation }),
       
+      // 🖼️ FIX 18 GEN 2026: Immagine salvata QUI come UNICA copia
+      rawAiData: {
+        bottles: pendingData.bottles,
+        imageDataUrl: pendingData.imageDataUrl // 👈 UNICA copia dell'immagine
+      },
+      
       metadata: {
         uploadedAt: new Date(),
         imageSize: pendingData.imageSize,
+        imageSizeKB: imageSizeKB, // 🆕 Dimensione in KB per monitoraggio
         imageName: pendingData.imageName,
         
         // Dati bottiglie dall'AI
@@ -394,8 +438,12 @@ exports.confirmAndCreateReview = async (req, res) => {
           extractionConfidence: bottle.extractionConfidence
         })),
         
-        // Dati tecnici AI
-        aiAnalysisData: pendingData.aiAnalysisData
+        // Dati tecnici AI (SENZA imageDataUrl duplicato)
+        aiAnalysisData: {
+          ...pendingData.aiAnalysisData,
+          // Rimuovi imageDataUrl se presente in aiAnalysisData
+          imageDataUrl: undefined
+        }
       }
     });
 
@@ -673,8 +721,9 @@ exports.createMultipleReviewsAsync = async (req, res) => {
 
     // 3. SALVATAGGIO IMMEDIATO RECENSIONE (stato: pending_validation)
     // Questo è il cuore del Punto 15: salviamo PRIMA di processare
+    // 🖼️ FIX 18 GEN 2026: Immagine salvata SOLO in rawAiData.imageDataUrl (rimosso duplicato imageUrl)
     const newReview = new Review({
-      imageUrl: aiAnalysisData?.imageDataUrl || req.body.imageUrl || 'placeholder',
+      imageUrl: 'stored_in_rawAiData', // Placeholder - l'immagine vera è in rawAiData.imageDataUrl
       sessionId: req.sessionID,
       user: req.user?._id,
       deviceId: req.body.deviceId || req.sessionID,

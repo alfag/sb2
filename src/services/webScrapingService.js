@@ -513,6 +513,9 @@ class WebScrapingService {
         '.site-header img:first'
       ];
 
+      // Fallback per loghi "white" - usati solo se non troviamo alternative migliori
+      let fallbackWhiteLogo = null;
+      
       // Prima prova selettori specifici
       for (const selector of logoSelectors) {
         try {
@@ -538,10 +541,19 @@ class WebScrapingService {
             }
             
             if (src && this.isValidLogoUrl(src)) {
-              // 🖼️ FIX: Salta loghi negativi/invertiti (bianchi, invisibili su UI bianca)
-              if (/negativo|negative|mono_negativo|inverted|_white|_bianco|-white|-bianco/i.test(src)) {
+              // 🖼️ FIX: Blocco HARD per loghi negativi/invertiti (pattern specifici)
+              if (/negativo|negative|mono_negativo|inverted/i.test(src)) {
                 logger.debug('[WebScraping] ⚠️ Logo negativo/invertito ignorato: ' + src.substring(0, 80));
                 continue; // Prova il prossimo selettore
+              }
+              
+              // 🖼️ FIX: Loghi "white/bianco" - salva come fallback (potrebbero essere l'unica opzione)
+              if (/_white|_bianco|-white|-bianco/i.test(src)) {
+                if (!fallbackWhiteLogo) {
+                  fallbackWhiteLogo = this.resolveUrl(src, baseUrl);
+                  logger.debug('[WebScraping] 📝 Logo "white" salvato come fallback: ' + src.substring(0, 80));
+                }
+                continue; // Continua a cercare alternative migliori
               }
               
               let resolvedUrl = this.resolveUrl(src, baseUrl);
@@ -561,6 +573,18 @@ class WebScrapingService {
           // Continua con il prossimo selettore
           continue;
         }
+      }
+      
+      // Se non abbiamo trovato nulla di meglio, usa il logo "white" come fallback
+      if (fallbackWhiteLogo) {
+        // Normalizza HTTP → HTTPS
+        if (fallbackWhiteLogo.startsWith('http://')) {
+          fallbackWhiteLogo = fallbackWhiteLogo.replace(/^http:\/\//i, 'https://');
+        }
+        logger.debug('[WebScraping] 🖼️ Usando logo "white" come fallback (nessuna alternativa trovata)', {
+          url: fallbackWhiteLogo.substring(0, 100)
+        });
+        return fallbackWhiteLogo;
       }
 
       // 🔍 FALLBACK: Cerca immagini con attributi/nomi che suggeriscono logo

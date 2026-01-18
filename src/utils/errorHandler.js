@@ -42,7 +42,10 @@ class ErrorHandler {
     }
 
     // Per richieste web normali
-    req.flash('error', errorResponse.userMessage);
+    // Verifica se req.flash è disponibile (potrebbe non esserlo per alcune richieste)
+    if (typeof req.flash === 'function') {
+      req.flash('error', errorResponse.userMessage);
+    }
     
     if (process.env.NODE_ENV === 'development') {
       // In sviluppo, mostra errore dettagliato
