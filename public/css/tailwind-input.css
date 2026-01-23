@@ -360,6 +360,30 @@
 
 /* ===== RESPONSIVE MOBILE FIRST ===== */
 
+/* Tip crop: Dispositivi con mouse (PC) mostrano #crop-note, dispositivi touch mostrano #crop-note-mobile */
+#crop-note,
+#crop-note-mobile {
+  display: none;
+}
+
+@media (pointer: fine) {
+  #crop-note {
+    display: block !important;
+  }
+  #crop-note-mobile {
+    display: none !important;
+  }
+}
+
+@media (pointer: coarse) {
+  #crop-note {
+    display: none !important;
+  }
+  #crop-note-mobile {
+    display: block !important;
+  }
+}
+
 /* Tablet and up (768px+) */
 @media (min-width: 768px) {
   .rating-row-sb {
@@ -395,13 +419,5 @@
   .star-rating-sb {
     width: 100%;
     justify-content: center;
-  }
-  
-  #crop-note {
-    display: none;
-  }
-  
-  #crop-note-mobile {
-    display: block !important;
   }
 }

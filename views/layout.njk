@@ -377,6 +377,20 @@
                 const isExpanded = this.getAttribute('aria-expanded') === 'true';
                 this.setAttribute('aria-expanded', !isExpanded);
                 profileMenu.classList.toggle('show');
+                
+                // 🔧 FIX TASK #35: Chiudi i messaggi dinamici (toast/info/warning) quando si apre il menu utente
+                // per evitare che rimangano visibili in trasparenza sopra il menu
+                if (!isExpanded) { // Il menu si sta aprendo
+                    const dynamicAlerts = document.querySelectorAll('.dynamic-alert, .info-message');
+                    dynamicAlerts.forEach(alert => {
+                        alert.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => {
+                            if (alert && alert.parentNode) {
+                                alert.remove();
+                            }
+                        }, 200);
+                    });
+                }
             });
             
             // Close on click outside

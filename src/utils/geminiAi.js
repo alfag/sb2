@@ -58,15 +58,18 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 2000, descriptio
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       } else {
+        const errorCategory = categorizeError(errorMessage);
         if (isLastAttempt && isRetryableError) {
           logger.error(`[GeminiAI] ❌ ${description} - tutti i ${maxRetries} tentativi falliti:`, {
             errorMessage: errorMessage,
             errorType: error.constructor?.name || 'Unknown',
             totalAttempts: maxRetries,
-            finalErrorCategory: categorizeError(errorMessage),
+            finalErrorCategory: errorCategory,
             suggestedAction: getSuggestedAction(errorMessage)
           });
         }
+        // Arricchisce l'errore con la categoria per gestione frontend friendly
+        error.errorCategory = errorCategory;
         throw error;
       }
     }

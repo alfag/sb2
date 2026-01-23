@@ -113,7 +113,10 @@ async function optimizeBase64Image(base64Input, options = {}) {
         });
         
         // Processa immagine con sharp
+        // IMPORTANTE: .rotate() senza argomenti applica l'auto-rotazione basata sui metadati EXIF
+        // Questo risolve il problema delle immagini ruotate di 90° quando provengono da smartphone
         const optimizedBuffer = await sharp(inputBuffer)
+            .rotate()                       // Auto-rotazione EXIF (risolve orientamento smartphone)
             .resize({
                 width: config.maxWidth,
                 height: config.maxHeight,

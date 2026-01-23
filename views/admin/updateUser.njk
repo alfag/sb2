@@ -758,6 +758,56 @@ body {
                         </button>
                     </div>
                 </form>
+                
+                <!-- Sezione Preferenze Geolocalizzazione -->
+                <div class="geolocation-admin-section" style="margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <h3 style="margin-bottom: 1rem; color: #374151; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-map-marker-alt" style="color: #3b82f6;"></i> Preferenze Geolocalizzazione
+                    </h3>
+                    {% set locationConsent = userToEdit.customerDetails.locationConsent if userToEdit.customerDetails and userToEdit.customerDetails.locationConsent else {} %}
+                    {% set consentEnabled = locationConsent.enabled %}
+                    
+                    <div class="geolocation-status" style="margin-bottom: 1rem; padding: 0.75rem; background: white; border-radius: 6px; border: 1px solid #e5e7eb;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 500;">Stato attuale:</span>
+                            {% if consentEnabled == true %}
+                                <span class="location-badge enabled" style="background: #dcfce7; color: #166534; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500;">
+                                    <i class="fas fa-check-circle"></i> Abilitata
+                                </span>
+                            {% elif consentEnabled == false %}
+                                <span class="location-badge disabled" style="background: #fee2e2; color: #991b1b; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500;">
+                                    <i class="fas fa-times-circle"></i> Disabilitata
+                                </span>
+                            {% else %}
+                                <span class="location-badge ask" style="background: #fef3c7; color: #92400e; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500;">
+                                    <i class="fas fa-question-circle"></i> Chiedi ogni volta
+                                </span>
+                            {% endif %}
+                        </div>
+                        {% if locationConsent.lastUpdated %}
+                        <small style="color: #6b7280;">Ultimo aggiornamento: {{ locationConsent.lastUpdated }}</small>
+                        {% else %}
+                        <small style="color: #6b7280;">Preferenza non ancora impostata</small>
+                        {% endif %}
+                    </div>
+                    
+                    <form method="post" action="/administrator/users/update-location-consent/{{ userToEdit._id }}">
+                        <div class="form-group" style="margin-bottom: 0.75rem;">
+                            <label for="locationConsentAdmin" style="display: block; margin-bottom: 0.4rem; font-weight: 500;">
+                                <i class="fas fa-cog" style="color: #6b7280; margin-right: 0.3rem;"></i> Modifica preferenza
+                            </label>
+                            <select id="locationConsentAdmin" name="locationConsent" class="form-control">
+                                <option value="null" {% if consentEnabled == null or consentEnabled == undefined %}selected{% endif %}>Chiedi ogni volta</option>
+                                <option value="true" {% if consentEnabled == true %}selected{% endif %}>Sempre abilitata</option>
+                                <option value="false" {% if consentEnabled == false %}selected{% endif %}>Sempre disabilitata</option>
+                            </select>
+                            <div class="help-text" style="margin-top: 0.25rem;">Questa impostazione controlla se l'utente condivide la posizione GPS durante le recensioni</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-save"></i> Aggiorna Preferenza
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
         {% endif %}

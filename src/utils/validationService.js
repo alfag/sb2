@@ -88,24 +88,29 @@ class ValidationService {
     
     for (let i = 0; i < value.reviews.length; i++) {
       const review = value.reviews[i];
-      const fieldsToCheck = {};
+      const fieldsToCheckStrict = {};  // Campi con controllo strict (notes)
+      const fieldsToCheckRelaxed = {}; // Campi con controllo rilassato (nomi birra/birrificio)
       
-      // Aggiungi campi da controllare
-      if (review.notes) fieldsToCheck.notes = review.notes;
-      if (review.beerName) fieldsToCheck.beerName = review.beerName;
-      if (review.breweryName) fieldsToCheck.breweryName = review.breweryName;
+      // 🔧 FIX FALSI POSITIVI: beerName e breweryName controllati SOLO per parole esplicite
+      // (non per pattern come consonant_clustering o excessive_caps che causano falsi positivi)
+      if (review.beerName) fieldsToCheckRelaxed.beerName = review.beerName;
+      if (review.breweryName) fieldsToCheckRelaxed.breweryName = review.breweryName;
       
-      // Controlla le note dettagliate
+      // Notes controllate con strict mode (pattern sospetti inclusi)
+      if (review.notes) fieldsToCheckStrict.notes = review.notes;
+      
+      // Controlla le note dettagliate con strict mode
       if (review.detailedRatings) {
         ['appearance', 'aroma', 'taste', 'mouthfeel'].forEach(category => {
           if (review.detailedRatings[category]?.notes) {
-            fieldsToCheck[`detailedRatings.${category}.notes`] = review.detailedRatings[category].notes;
+            fieldsToCheckStrict[`detailedRatings.${category}.notes`] = review.detailedRatings[category].notes;
           }
         });
       }
       
-      if (Object.keys(fieldsToCheck).length > 0) {
-        const contentCheck = this.checkMultipleFieldsForInappropriateContent(fieldsToCheck, {
+      // Controllo campi strict (notes)
+      if (Object.keys(fieldsToCheckStrict).length > 0) {
+        const contentCheck = this.checkMultipleFieldsForInappropriateContent(fieldsToCheckStrict, {
           strict: true,
           context: `review_${i}`
         });
@@ -132,6 +137,27 @@ class ValidationService {
               target[finalField] = fieldResult.sanitizedText;
             }
           }
+        }
+      }
+      
+      // 🔧 Controllo campi relaxed (beerName/breweryName) - SOLO parole esplicite inappropriate
+      if (Object.keys(fieldsToCheckRelaxed).length > 0) {
+        const contentCheckRelaxed = this.checkMultipleFieldsForInappropriateContent(fieldsToCheckRelaxed, {
+          strict: false,  // NO pattern matching, solo parole esplicite
+          context: `review_${i}_names`
+        });
+        
+        // Per i nomi, blocca SOLO se ci sono violazioni HIGH severity (parole esplicite)
+        const highSeverityViolations = contentCheckRelaxed.violations.filter(v => 
+          v.violations && v.violations.some(viol => viol.severity === 'high')
+        );
+        
+        if (highSeverityViolations.length > 0) {
+          inappropriateContentResults.push({
+            reviewIndex: i,
+            violations: highSeverityViolations,
+            violatingFields: highSeverityViolations.length
+          });
         }
       }
     }
@@ -696,6 +722,9 @@ class ValidationService {
           hasViolations = true;
           allViolations.push({
             field: fieldName,
+            originalValue: fieldValue,  // 🔍 Aggiunto per debug: valore originale che ha causato la violazione
+            sanitizedValue: result.sanitizedText,  // 🔍 Aggiunto: valore dopo sanificazione
+            detectedWords: result.violations.map(v => v.word).join(', '),  // 🔍 Aggiunto: parole rilevate
             violations: result.violations
           });
         }

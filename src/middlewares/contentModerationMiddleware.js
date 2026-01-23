@@ -29,24 +29,29 @@ exports.moderateReviewContent = (req, res, next) => {
     // Controlla ogni recensione
     for (let i = 0; i < reviews.length; i++) {
       const review = reviews[i];
-      const fieldsToCheck = {};
+      const fieldsToCheckStrict = {};   // Notes - controllo strict
+      const fieldsToCheckRelaxed = {};  // Nomi birra/birrificio - solo parole esplicite
       
-      // Raccogli tutti i campi di testo da controllare
-      if (review.notes) fieldsToCheck.notes = review.notes;
-      if (review.beerName) fieldsToCheck.beerName = review.beerName;
-      if (review.breweryName) fieldsToCheck.breweryName = review.breweryName;
+      // 🔧 FIX FALSI POSITIVI: beerName e breweryName controllati SOLO per parole esplicite
+      // (non per pattern come consonant_clustering o excessive_caps)
+      if (review.beerName) fieldsToCheckRelaxed.beerName = review.beerName;
+      if (review.breweryName) fieldsToCheckRelaxed.breweryName = review.breweryName;
       
-      // Controlla le note dettagliate
+      // Notes controllate con strict mode
+      if (review.notes) fieldsToCheckStrict.notes = review.notes;
+      
+      // Controlla le note dettagliate con strict mode
       if (review.detailedRatings) {
         ['appearance', 'aroma', 'taste', 'mouthfeel', 'overall'].forEach(category => {
           if (review.detailedRatings[category]?.notes) {
-            fieldsToCheck[`detailedRatings.${category}.notes`] = review.detailedRatings[category].notes;
+            fieldsToCheckStrict[`detailedRatings.${category}.notes`] = review.detailedRatings[category].notes;
           }
         });
       }
       
-      if (Object.keys(fieldsToCheck).length > 0) {
-        const contentCheck = ValidationService.checkMultipleFieldsForInappropriateContent(fieldsToCheck, {
+      // Controllo campi strict (notes)
+      if (Object.keys(fieldsToCheckStrict).length > 0) {
+        const contentCheck = ValidationService.checkMultipleFieldsForInappropriateContent(fieldsToCheckStrict, {
           strict: true,
           context: `review_${i}`
         });
@@ -60,6 +65,28 @@ exports.moderateReviewContent = (req, res, next) => {
           });
         }
       }
+      
+      // 🔧 Controllo campi relaxed (beerName/breweryName) - SOLO parole esplicite inappropriate
+      if (Object.keys(fieldsToCheckRelaxed).length > 0) {
+        const contentCheckRelaxed = ValidationService.checkMultipleFieldsForInappropriateContent(fieldsToCheckRelaxed, {
+          strict: false,  // NO pattern matching, solo parole esplicite
+          context: `review_${i}_names`
+        });
+        
+        // Per i nomi, blocca SOLO se ci sono violazioni HIGH severity (parole esplicite)
+        const highSeverityViolations = contentCheckRelaxed.violations.filter(v => 
+          v.violations && v.violations.some(viol => viol.severity === 'high')
+        );
+        
+        if (highSeverityViolations.length > 0) {
+          inappropriateContentFound.push({
+            reviewIndex: i,
+            violations: highSeverityViolations,
+            violatingFields: highSeverityViolations.length,
+            totalViolations: highSeverityViolations.reduce((sum, v) => sum + v.violations.length, 0)
+          });
+        }
+      }
     }
 
     if (inappropriateContentFound.length > 0) {
@@ -68,6 +95,16 @@ exports.moderateReviewContent = (req, res, next) => {
         sessionId: req.sessionID,
         violatingReviews: inappropriateContentFound.length,
         totalViolations: inappropriateContentFound.reduce((sum, item) => sum + item.totalViolations, 0)
+      });
+
+      // 🔍 LOG DETTAGLIATO: Mostra campo e valore che hanno causato il blocco
+      inappropriateContentFound.forEach((item, idx) => {
+        logger.warn(`[ContentModeration] 🚫 DETTAGLIO VIOLAZIONE Recensione #${item.reviewIndex + 1}:`);
+        if (item.violations && item.violations.length > 0) {
+          item.violations.forEach((violation) => {
+            logger.warn(`[ContentModeration] 📍 Campo: "${violation.field}" | Valore: "${violation.originalValue}" | Parole rilevate: "${violation.detectedWords}"`);
+          });
+        }
       });
 
       return res.status(400).json({

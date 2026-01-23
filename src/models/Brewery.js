@@ -12,6 +12,7 @@ const brewerySchema = new mongoose.Schema({
     breweryPhoneNumber: { type: String },
     breweryWebsite: { type: String },
     breweryLogo: { type: String },
+    logoIsLight: { type: Boolean, default: null }, // 🎨 True se logo prevalentemente bianco/chiaro (22 gen 2026)
     breweryImages: { type: [String] },
     breweryVideos: { type: [String] },
     brewerySocialMedia: {

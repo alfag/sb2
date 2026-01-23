@@ -327,6 +327,63 @@ router.post('/users/removeRole/:id', authMiddleware.isAdmin, async (req, res) =>
     }
 });
 
+// 📍 Aggiornamento preferenze geolocalizzazione utente da admin
+router.post('/users/update-location-consent/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { locationConsent } = req.body;
+        
+        // Converti il valore stringa dal form al tipo corretto
+        let consentValue;
+        if (locationConsent === 'true') {
+            consentValue = true;
+        } else if (locationConsent === 'false') {
+            consentValue = false;
+        } else {
+            consentValue = null; // 'null' o altro = chiedi ogni volta
+        }
+        
+        const User = require('../models/User');
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            req.flash('error', 'Utente non trovato');
+            return res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+        }
+        
+        // Inizializza customerDetails se non esiste
+        if (!user.customerDetails) {
+            user.customerDetails = {};
+        }
+        
+        // Aggiorna la preferenza
+        user.customerDetails.locationConsent = {
+            enabled: consentValue,
+            lastUpdated: new Date(),
+            updatedBy: 'admin'
+        };
+        
+        // Marca customerDetails come modificato per Mongoose
+        user.markModified('customerDetails');
+        
+        await user.save();
+        
+        logger.info(`📍 Admin ha aggiornato preferenze geolocalizzazione per utente ${user.username}`, {
+            userId: userId,
+            adminId: req.user._id,
+            newValue: consentValue
+        });
+        
+        req.flash('success', 'Preferenza geolocalizzazione aggiornata con successo');
+        res.redirect(`/administrator/users/update?userUpdateId=${userId}`);
+        
+    } catch (error) {
+        logger.error(`Errore durante l'aggiornamento preferenza geolocalizzazione: ${error.message}`);
+        req.flash('error', 'Errore durante l\'aggiornamento della preferenza');
+        res.redirect(`/administrator/users/update?userUpdateId=${req.params.id}`);
+    }
+});
+
 // Visualizza collegamenti recensioni-birre (debug/admin)
 // router.get('/review-beer-connections', authMiddleware.isAdmin, reviewController.viewReviewBeerConnections);
 

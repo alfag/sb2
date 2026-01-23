@@ -282,6 +282,18 @@ exports.analyzeImageAsync = async (req, res) => {
 
   } catch (error) {
     logger.error('[analyzeImageAsync] ❌ Errore:', error);
+    
+    // Gestione specifica per servizio AI sovraccarico (503)
+    if (error.errorCategory === 'service_overloaded') {
+      logger.warn('[analyzeImageAsync] ⏳ Servizio AI temporaneamente sovraccarico');
+      return res.status(503).json({
+        success: false,
+        errorType: 'AI_SERVICE_OVERLOADED',
+        userMessage: 'Il servizio di riconoscimento è temporaneamente sovraccarico. Riprova tra qualche secondo.',
+        message: 'Servizio AI sovraccarico'
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       message: 'Errore durante l\'analisi dell\'immagine',
@@ -335,11 +347,34 @@ exports.confirmAndCreateReview = async (req, res) => {
       });
       
       if (!validationResult.isValid && validationResult.inappropriateContent) {
+        // 🔍 LOG DETTAGLIATO: Mostra ESATTAMENTE quale campo e valore hanno causato il blocco
         logger.warn('[confirmAndCreateReview] 🛡️ Moderazione FALLITA - contenuto inappropriato rilevato', {
           userId: pendingData.userId,
-          violations: validationResult.details,
           sessionMaintained: true
         });
+        
+        // Log dettagliato per ogni violazione
+        if (validationResult.details && validationResult.details.length > 0) {
+          validationResult.details.forEach((detail, idx) => {
+            logger.warn(`[confirmAndCreateReview] 🚫 VIOLAZIONE #${idx + 1}:`, {
+              reviewIndex: detail.reviewIndex,
+              violatingFields: detail.violatingFields,
+              fieldNames: detail.fieldNames
+            });
+            
+            // Log di ogni singola violazione con campo e valore
+            if (detail.violations && detail.violations.length > 0) {
+              detail.violations.forEach((violation, vIdx) => {
+                logger.warn(`[confirmAndCreateReview] 🚫 Campo #${vIdx + 1}:`, {
+                  field: violation.field,
+                  originalValue: violation.originalValue || violation.original || 'N/A',
+                  detectedWords: violation.detectedWords || violation.words || 'N/A',
+                  sanitizedValue: violation.sanitizedValue || violation.sanitized || 'N/A'
+                });
+              });
+            }
+          });
+        }
         
         // ⚠️ MANTIENI sessione per permettere correzione e retry
         return res.status(400).json({

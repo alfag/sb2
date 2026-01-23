@@ -1,58 +1,72 @@
-# SharingBeer2_0
+# 🍺 SharingBeer 2.0
 
-SharingBeer2_0 (SB2) è una piattaforma online innovativa progettata per connettere clienti e birrifici, facilitando la vendita e distribuzione di birre artigianali. La piattaforma mira a creare una community nazionale attraverso un sistema di inviti, pagamenti online sicuri e una gestione logistica efficiente.
+> **La community italiana della birra artigianale**
+
+SharingBeer è la piattaforma che connette gli amanti della birra con i birrifici artigianali italiani. Scatta una foto alla tua birra preferita e condividi la tua esperienza con la community.
+
+---
+
+## Come Funziona
+
+### 📸 Scatta e Recensisci
+Fotografa l'etichetta della birra che stai bevendo. Il nostro sistema riconosce automaticamente la birra e il birrificio, permettendoti di lasciare una recensione in pochi secondi.
+
+### 🔍 Scopri Nuove Birre
+Esplora le recensioni della community, scopri birrifici vicino a te e trova la tua prossima birra preferita.
+
+### 🏭 Per i Birrifici
+Dashboard dedicata per monitorare le recensioni, gestire il catalogo birre e connettersi con i clienti.
+
+---
 
 ## Caratteristiche Principali
 
-- **Architettura a Microservizi**: SB2 è costruita su un'architettura a microservizi per garantire scalabilità e manutenibilità.
-- **Tecnologie Open Source**: Utilizza tecnologie come Node.js, MongoDB per un'infrastruttura robusta e sicura.
-- **Interfaccia Utente Responsive**: Sviluppata con Nunjucks per un'esperienza utente fluida su dispositivi diversi.
-- **Sicurezza Avanzata**: Implementa Passport e OAuth2 per la gestione sicura degli accessi, oltre a misure di protezione contro attacchi DDoS.
-- **Geolocalizzazione**: Utilizza Leaflet.js e OpenStreetMap per visualizzare birrifici su una mappa interattiva.
-- **Gestione QRCode**: Integra QRCode per il tracciamento delle BeerBox e facilitare gli inviti.
+| Per gli Utenti | Per i Birrifici |
+|----------------|-----------------|
+| ✨ Riconoscimento automatico birra da foto | 📊 Dashboard con statistiche dettagliate |
+| ⭐ Sistema di valutazione intuitivo | 🍻 Gestione catalogo birre |
+| 📍 Geolocalizzazione recensioni | 👥 Connessione diretta con clienti |
+| 🔒 Privacy e sicurezza dati | 📈 Analytics e trend |
 
-## Struttura del Progetto
+---
 
-- **src**: Contiene il codice sorgente dell'applicazione, inclusi controller, modelli, rotte e middleware.
-- **config**: Configurazioni per il database e l'autenticazione.
-- **public**: Risorse statiche come CSS, JavaScript e immagini.
-- **views**: Template per le pagine dell'applicazione.
-- **package.json**: Gestione delle dipendenze e degli script npm.
+## Tecnologie
 
-## Installazione
+Costruito con tecnologie moderne e affidabili:
 
-1. Clona il repository:
-   ```
-   git clone <repository-url>
-   ```
-2. Naviga nella cartella del progetto:
-   ```
-   cd SharingBeer2_0
-   ```
-3. Installa le dipendenze:
-   ```
-   npm install
-   ```
-4. Configura le variabili d'ambiente nel file `.env`.
-5. Avvia l'applicazione:
-   ```
-   npm start
-   ```
+- **Backend**: Node.js, Express, MongoDB
+- **AI**: Google Gemini per riconoscimento immagini
+- **Frontend**: Nunjucks, TailwindCSS
+- **Mappe**: Leaflet.js + OpenStreetMap
 
-## Test automatici
+---
 
-Per eseguire i test automatici:
+## Quick Start
 
 ```bash
-npm test
+# Installa e avvia
+npm install
+npm run dev
 ```
 
-I test si trovano nella cartella `/test` e utilizzano Mocha, Chai e Supertest.
+Consulta la [documentazione completa](sb2_docs/documents/) per dettagli su configurazione e deployment.
 
-## Contribuire
+---
 
-Le contribuzioni sono benvenute! Per favore, apri un issue o invia una pull request per suggerire miglioramenti o segnalare bug.
+## Stato del Progetto
+
+🟢 **In sviluppo attivo** - Versione 1.0.0
+
+Ultimo aggiornamento: Gennaio 2026
+
+---
 
 ## Licenza
 
-Questo progetto è concesso in licenza sotto la Licenza MIT. Vedi il file LICENSE per ulteriori dettagli.# sb2
+MIT License - Vedi [LICENSE](LICENSE) per dettagli.
+
+---
+
+<p align="center">
+  <strong>SharingBeer 2.0</strong> - Condividi la passione per la birra artigianale 🍺
+</p>

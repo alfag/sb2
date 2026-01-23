@@ -682,6 +682,55 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
+    // Funzione per mostrare messaggi informativi (blu) - es. per servizio temporaneamente non disponibile
+    function showInfoMessage(message) {
+        logDebug('Tentativo di mostrare messaggio info', { message });
+        
+        // Rimuovi eventuali messaggi esistenti
+        const existingAlerts = document.querySelectorAll('.dynamic-alert');
+        existingAlerts.forEach(alert => {
+            alert.remove();
+        });
+        
+        // Crea il nuovo messaggio informativo
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-info dynamic-alert';
+        alertDiv.style.margin = '20px';
+        alertDiv.style.zIndex = '9999';
+        alertDiv.style.position = 'relative';
+        alertDiv.style.animation = 'fadeIn 0.3s ease-in';
+        alertDiv.style.cursor = 'pointer';
+        alertDiv.style.userSelect = 'none';
+        alertDiv.style.backgroundColor = '#d1ecf1';
+        alertDiv.style.borderColor = '#bee5eb';
+        alertDiv.style.color = '#0c5460';
+        alertDiv.style.padding = '1rem';
+        alertDiv.style.borderRadius = '0.5rem';
+        alertDiv.style.border = '1px solid';
+        alertDiv.textContent = message;
+        
+        // Aggiungi evento click per chiudere il messaggio
+        alertDiv.addEventListener('click', function() {
+            logDebug('Messaggio info chiuso dall\'utente');
+            alertDiv.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => {
+                if (alertDiv && alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 300);
+        });
+        
+        // Inserisci dopo l'header o all'inizio del body
+        const header = document.querySelector('header');
+        if (header) {
+            header.parentNode.insertBefore(alertDiv, header.nextSibling);
+        } else {
+            document.body.insertBefore(alertDiv, document.body.firstChild);
+        }
+        
+        logDebug('Messaggio info inserito con successo', { message });
+    }
+
     // Funzione semplice per mostrare alert (compatibilità)
     function showAlert(type, message) {
         if (type === 'success') {
@@ -2143,6 +2192,7 @@ document.addEventListener('DOMContentLoaded', function () {
             endY = undefined;
             croppedImageForAI = null; // Reset immagine croppata
             originalImageSrc = null; // Reset immagine originale
+            currentImageOrientation = 1; // Reset orientamento EXIF
             // IMPORTANTE: Rimuovere handler onerror PRIMA di resettare src a vuoto
             // Altrimenti settare src='' può triggerare un falso errore
             photoPreview.onerror = null;
@@ -3179,6 +3229,22 @@ document.addEventListener('DOMContentLoaded', function () {
                                 const friendlyMessage = errorData.message || '🔍 Non abbiamo trovato bottiglie di birra in questa immagine. Prova a scattare una foto più ravvicinata dell\'etichetta o scegli un\'altra immagine con birre ben visibili.';
                                 showWarningMessage(friendlyMessage);
                                 return null; // Termina il flusso SENZA errore
+                            }
+                            
+                            // ⏳ GESTIONE SPECIALE: Servizio AI temporaneamente sovraccarico (503)
+                            // Mostra messaggio informativo blu (non errore rosso) - utente può riprovare manualmente
+                            if (isValidJson && errorData && errorData.errorType === 'AI_SERVICE_OVERLOADED') {
+                                logDebug('Servizio AI sovraccarico - mostra messaggio informativo');
+                                // Nascondi overlay caricamento
+                                const loadingOverlay = document.getElementById('ai-loading-overlay');
+                                if (loadingOverlay) {
+                                    loadingOverlay.classList.remove('show');
+                                }
+                                // Chiudi modal e mostra messaggio informativo
+                                closeModal();
+                                const infoMessage = errorData.userMessage || '⏳ Il servizio di riconoscimento è temporaneamente sovraccarico. Riprova tra qualche secondo.';
+                                showInfoMessage(infoMessage);
+                                return null; // Termina il flusso SENZA errore tecnico
                             }
                             
                             // Per tutti gli altri errori, lancia l'eccezione appropriata

@@ -127,18 +127,22 @@ const BreweriesModule = (() => {
         // Verifica se il birrificio ha un logo
         const hasLogo = brewery.breweryLogo && brewery.breweryLogo.trim() !== '';
         
-        console.log(`[BreweriesModule] Birrificio ${index + 1}: "${brewery.breweryName}" → Logo: ${hasLogo ? brewery.breweryLogo.substring(0, 50) + '...' : 'NO'}`);
+        // Classe extra per loghi chiari (drop-shadow per visibilità)
+        const lightLogoClass = brewery.logoIsLight === true ? ' light-logo' : '';
+        
+        console.log(`[BreweriesModule] Birrificio ${index + 1}: "${brewery.breweryName}" → Logo: ${hasLogo ? 'SI' : 'NO'}${brewery.logoIsLight === true ? ' (chiaro)' : ''}`);
         
         // Due layout diversi: full-image se logo presente, standard se no logo
         if (hasLogo) {
             // CARD CON LOGO: immagine a tutto schermo, nome nascosto (mostrato solo su hover)
+            // Se logoIsLight=true dal backend, aggiungi classe light-logo per drop-shadow
             return `
                 <div class="brewery-card-link">
                     <div class="brewery-card brewery-card-full-image">
                         <img 
                             src="${escapeHtml(brewery.breweryLogo)}" 
                             alt="${escapeHtml(brewery.breweryName)}" 
-                            class="brewery-full-logo${brewery.breweryLogo.includes('_white') ? ' white-logo' : ''}"
+                            class="brewery-full-logo${lightLogoClass}"
                             onerror="this.parentElement.classList.remove('brewery-card-full-image'); this.parentElement.innerHTML='<div class=\\'brewery-initial\\' style=\\'background: ${gradient};\\'>${initial}</div><div class=\\'brewery-info\\'><h3 class=\\'brewery-name\\'><span>${escapeHtml(brewery.breweryName)}</span></h3></div>'"
                         />
                         <div class="brewery-name-overlay">
@@ -306,4 +310,3 @@ if (document.readyState === 'loading') {
 } else {
     BreweriesModule.init();
 }
-

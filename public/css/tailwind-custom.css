@@ -365,6 +365,33 @@
   }
 }
 
+/* Tip crop: Dispositivi con mouse (PC) mostrano #crop-note, dispositivi touch mostrano #crop-note-mobile */
+/* Default: nascondi entrambi, poi mostra quello corretto in base al tipo di dispositivo */
+#crop-note,
+#crop-note-mobile {
+  display: none;
+}
+
+/* PC/Desktop: dispositivi con mouse (pointer: fine) */
+@media (pointer: fine) {
+  #crop-note {
+    display: block !important;
+  }
+  #crop-note-mobile {
+    display: none !important;
+  }
+}
+
+/* Mobile/Tablet: dispositivi touch (pointer: coarse) */
+@media (pointer: coarse) {
+  #crop-note {
+    display: none !important;
+  }
+  #crop-note-mobile {
+    display: block !important;
+  }
+}
+
 /* Mobile (< 640px) */
 @media (max-width: 639px) {
   .rating-row-sb {
@@ -381,13 +408,5 @@
   .star-rating-sb {
     width: 100%;
     justify-content: center;
-  }
-  
-  #crop-note {
-    display: none;
-  }
-  
-  #crop-note-mobile {
-    display: block !important;
   }
 }
