@@ -23,6 +23,13 @@ section #brewery-list,
     color: inherit !important;
     display: block !important;
     margin-bottom: 0 !important;
+    cursor: pointer !important;
+}
+
+/* Indicatore visivo che le card sono cliccabili */
+#brewery-list .brewery-card-link:active .brewery-card,
+.brewery-card-link:active .brewery-card {
+    transform: scale(0.98) !important;
 }
 
 /* Brewery Card - Versione compatta con altezza fissa 70px */
@@ -163,6 +170,41 @@ section #brewery-list,
 
 .brewery-card-link:hover .brewery-card-full-image .brewery-full-logo {
     transform: scale(1.05) !important;
+}
+
+/* ============================================
+   PLACEHOLDER - Iniziale stilizzata per card senza logo
+   Mantiene le stesse dimensioni delle card con logo
+   ============================================ */
+.brewery-card-full-image .brewery-logo-placeholder {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 54px !important;
+    /* display gestito inline: none di default, flex quando visibile */
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    transition: transform 0.3s ease !important;
+}
+
+.brewery-card-full-image .brewery-placeholder-initial {
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    color: white !important;
+    text-transform: uppercase !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    line-height: 1 !important;
+}
+
+.brewery-card-link:hover .brewery-logo-placeholder {
+    transform: scale(1.05) !important;
+}
+
+/* Card senza logo - nome sempre visibile */
+.brewery-card-full-image.brewery-card-no-logo .brewery-name-overlay.brewery-name-always-visible {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.4) 50%, rgba(0, 0, 0, 0) 100%) !important;
 }
 
 /* Overlay nome - appare su hover */

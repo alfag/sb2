@@ -294,63 +294,248 @@
     50% { transform: scale(1.05); }
 }
 
-/* Search Bar compatta */
-.search-section {
-    background: white;
-    border-radius: 12px;
-    padding: 0.5rem;
+/* ===== SEARCH FILTERS - Ricerca avanzata ===== */
+.search-filters-section {
+    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 1rem;
     margin-bottom: 1rem;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
+    border: 1px solid rgba(255,255,255,0.6);
+}
+
+.search-filters-header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
 }
 
-.search-section input {
-    flex: 1;
-    border: none;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.85rem;
-    background: transparent;
-    outline: none;
-}
-
-.search-section input::placeholder {
-    color: #999;
-}
-
-.search-section .btn-search {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
+.search-filters-header-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    background: linear-gradient(135deg, #10b981, #059669);
     color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.8rem;
+}
+
+.search-filters-title {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748b;
+}
+
+.search-filters-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .search-filters-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.search-filter-group {
+    position: relative;
+}
+
+.search-filter-label {
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    transition: transform 0.2s, box-shadow 0.2s;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.search-section .btn-search:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
+.search-filter-label i {
+    font-size: 0.65rem;
 }
 
-.search-section .btn-reset {
-    background: #f0f0f0;
+.search-filter-input {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    padding-right: 2rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    background: white;
+    transition: all 0.25s ease;
+    outline: none;
+}
+
+.search-filter-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.search-filter-input:not(:placeholder-shown) {
+    border-color: #10b981;
+    background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+}
+
+.search-filter-input.has-value {
+    border-color: #10b981;
+    background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+}
+
+.search-filter-clear {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(25%);
+    background: none;
     border: none;
-    color: #666;
-    padding: 0.5rem 0.75rem;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.25rem;
+    border-radius: 50%;
+    transition: all 0.2s;
+    opacity: 0;
+    visibility: hidden;
+}
+
+.search-filter-input:not(:placeholder-shown) + .search-filter-clear,
+.search-filter-input.has-value + .search-filter-clear {
+    opacity: 1;
+    visibility: visible;
+}
+
+.search-filter-clear:hover {
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+.search-filter-hint {
+    font-size: 0.6rem;
+    color: #94a3b8;
+    margin-top: 0.25rem;
+    padding-left: 0.25rem;
+}
+
+.search-filter-counter {
+    position: absolute;
+    right: 2rem;
+    top: 50%;
+    transform: translateY(25%);
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 0.15rem 0.4rem;
+    border-radius: 10px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s;
+}
+
+.search-filter-counter.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.search-filters-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(0,0,0,0.05);
+}
+
+.btn-reset-all {
+    background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+    border: none;
+    color: #64748b;
+    padding: 0.5rem 1rem;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.8rem;
-    transition: background 0.2s;
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: all 0.2s;
 }
 
-.search-section .btn-reset:hover {
-    background: #e0e0e0;
+.btn-reset-all:hover {
+    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+    transform: translateY(-1px);
+}
+
+.search-active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+}
+
+.active-filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.5rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 500;
+    border-radius: 20px;
+    animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.active-filter-tag .remove-tag {
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.active-filter-tag .remove-tag:hover {
+    opacity: 1;
+}
+
+/* No results message */
+.no-filter-results {
+    text-align: center;
+    padding: 2rem;
+    color: #64748b;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    display: none;
+}
+
+.no-filter-results.visible {
+    display: block;
+}
+
+.no-filter-results i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: #f59e0b;
+}
+
+.no-filter-results p {
+    font-size: 0.85rem;
+    margin: 0;
 }
 
 .filter-group select,
@@ -965,20 +1150,74 @@
         </div>
     </div>
 
-    <!-- Search Bar -->
-    <form id="searchForm" method="GET" action="/administrator/reviews" class="search-section" onsubmit="showLoadingOverlay()">
-        <i class="fas fa-search" style="color: #999; margin-left: 0.5rem;"></i>
-        <input type="text" name="search" placeholder="Cerca birra, birrificio o utente..." value="{{ filters.search or '' }}">
-        <input type="hidden" name="status" value="{{ filters.status or '' }}">
-        <button type="submit" class="btn-search">
-            <i class="fas fa-search"></i> Cerca
-        </button>
-        {% if filters.search or filters.status %}
-        <button type="button" class="btn-reset" onclick="resetFilters()">
-            <i class="fas fa-times"></i>
-        </button>
-        {% endif %}
-    </form>
+    <!-- ===== FILTRI RICERCA AVANZATA ===== -->
+    <div class="search-filters-section">
+        <div class="search-filters-header">
+            <div class="search-filters-header-icon">🔍</div>
+            <span class="search-filters-title">Ricerca Avanzata</span>
+            <span style="margin-left: auto; font-size: 0.65rem; color: #94a3b8;">Digita almeno 3 caratteri per filtrare</span>
+        </div>
+        <div class="search-filters-grid">
+            <div class="search-filter-group">
+                <label class="search-filter-label">
+                    <i class="fas fa-industry" style="color: #f59e0b;"></i> Birrificio
+                </label>
+                <input type="text" 
+                       id="filterBrewery" 
+                       class="search-filter-input" 
+                       placeholder="Es: Peroni, Baladin..."
+                       oninput="applyFilters()">
+                <span class="search-filter-counter" id="counterBrewery"></span>
+                <button type="button" class="search-filter-clear" onclick="clearFilter('filterBrewery')">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="search-filter-hint">Filtra per nome birrificio</div>
+            </div>
+            <div class="search-filter-group">
+                <label class="search-filter-label">
+                    <i class="fas fa-beer" style="color: #3b82f6;"></i> Birra
+                </label>
+                <input type="text" 
+                       id="filterBeer" 
+                       class="search-filter-input" 
+                       placeholder="Es: Lager, IPA..."
+                       oninput="applyFilters()">
+                <span class="search-filter-counter" id="counterBeer"></span>
+                <button type="button" class="search-filter-clear" onclick="clearFilter('filterBeer')">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="search-filter-hint">Filtra per nome birra</div>
+            </div>
+            <div class="search-filter-group">
+                <label class="search-filter-label">
+                    <i class="fas fa-user" style="color: #8b5cf6;"></i> Utente
+                </label>
+                <input type="text" 
+                       id="filterUser" 
+                       class="search-filter-input" 
+                       placeholder="Es: Mario, Rossi..."
+                       oninput="applyFilters()">
+                <span class="search-filter-counter" id="counterUser"></span>
+                <button type="button" class="search-filter-clear" onclick="clearFilter('filterUser')">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="search-filter-hint">Filtra per nome/email utente</div>
+            </div>
+        </div>
+        <div class="search-filters-actions">
+            <button type="button" class="btn-reset-all" onclick="resetAllFilters()" id="btnResetFilters" style="display: none;">
+                <i class="fas fa-times-circle"></i> Resetta tutti i filtri
+            </button>
+            <div class="search-active-filters" id="activeFiltersContainer"></div>
+        </div>
+    </div>
+    
+    <!-- No results message -->
+    <div class="no-filter-results" id="noFilterResults">
+        <i class="fas fa-search"></i>
+        <p><strong>Nessun risultato trovato</strong></p>
+        <p>Prova a modificare i criteri di ricerca</p>
+    </div>
 
     <!-- Reviews List -->
     <div class="reviews-list">
@@ -1651,6 +1890,180 @@ const currentStatus = new URLSearchParams(window.location.search).get('status');
 document.querySelectorAll('.stat-card').forEach(card => {
     if (card.dataset.filter === (currentStatus || 'all')) {
         card.classList.add('active');
+    }
+});
+
+// ===== SISTEMA FILTRI RICERCA CLIENT-SIDE =====
+const MIN_CHARS = 3;
+let filterTimeout = null;
+
+function applyFilters() {
+    // Debounce per evitare troppe operazioni
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(() => {
+        doApplyFilters();
+    }, 150);
+}
+
+function doApplyFilters() {
+    const breweryFilter = document.getElementById('filterBrewery').value.toLowerCase().trim();
+    const beerFilter = document.getElementById('filterBeer').value.toLowerCase().trim();
+    const userFilter = document.getElementById('filterUser').value.toLowerCase().trim();
+    
+    const cards = document.querySelectorAll('.review-card');
+    let visibleCount = 0;
+    let breweryMatches = 0;
+    let beerMatches = 0;
+    let userMatches = 0;
+    
+    cards.forEach(card => {
+        const breweryName = (card.dataset.breweryName || '').toLowerCase();
+        const beerName = (card.dataset.beerName || '').toLowerCase();
+        const userName = (card.dataset.userName || '').toLowerCase();
+        const userEmail = (card.dataset.userEmail || '').toLowerCase();
+        
+        // Verifica match per ogni filtro (solo se >= MIN_CHARS)
+        const breweryMatch = breweryFilter.length < MIN_CHARS || breweryName.includes(breweryFilter);
+        const beerMatch = beerFilter.length < MIN_CHARS || beerName.includes(beerFilter);
+        const userMatch = userFilter.length < MIN_CHARS || userName.includes(userFilter) || userEmail.includes(userFilter);
+        
+        // La card è visibile solo se passa TUTTI i filtri attivi
+        const isVisible = breweryMatch && beerMatch && userMatch;
+        
+        card.style.display = isVisible ? '' : 'none';
+        
+        if (isVisible) {
+            visibleCount++;
+            // Conta i match per ogni filtro per i contatori
+            if (breweryFilter.length >= MIN_CHARS && breweryName.includes(breweryFilter)) breweryMatches++;
+            if (beerFilter.length >= MIN_CHARS && beerName.includes(beerFilter)) beerMatches++;
+            if (userFilter.length >= MIN_CHARS && (userName.includes(userFilter) || userEmail.includes(userFilter))) userMatches++;
+        }
+    });
+    
+    // Aggiorna contatori
+    updateCounter('counterBrewery', breweryFilter.length >= MIN_CHARS ? breweryMatches : 0, breweryFilter.length >= MIN_CHARS);
+    updateCounter('counterBeer', beerFilter.length >= MIN_CHARS ? beerMatches : 0, beerFilter.length >= MIN_CHARS);
+    updateCounter('counterUser', userFilter.length >= MIN_CHARS ? userMatches : 0, userFilter.length >= MIN_CHARS);
+    
+    // Aggiorna stato input (has-value class)
+    updateInputState('filterBrewery', breweryFilter);
+    updateInputState('filterBeer', beerFilter);
+    updateInputState('filterUser', userFilter);
+    
+    // Mostra/nascondi pulsante reset
+    const hasActiveFilters = breweryFilter.length >= MIN_CHARS || beerFilter.length >= MIN_CHARS || userFilter.length >= MIN_CHARS;
+    document.getElementById('btnResetFilters').style.display = hasActiveFilters ? '' : 'none';
+    
+    // Aggiorna tag filtri attivi
+    updateActiveFilterTags(breweryFilter, beerFilter, userFilter);
+    
+    // Mostra messaggio "nessun risultato" se necessario
+    const noResults = document.getElementById('noFilterResults');
+    if (hasActiveFilters && visibleCount === 0) {
+        noResults.classList.add('visible');
+    } else {
+        noResults.classList.remove('visible');
+    }
+}
+
+function updateCounter(counterId, count, isActive) {
+    const counter = document.getElementById(counterId);
+    if (counter) {
+        counter.textContent = count;
+        counter.classList.toggle('visible', isActive && count > 0);
+    }
+}
+
+function updateInputState(inputId, value) {
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.classList.toggle('has-value', value.length >= MIN_CHARS);
+    }
+}
+
+function updateActiveFilterTags(brewery, beer, user) {
+    const container = document.getElementById('activeFiltersContainer');
+    if (!container) return;
+    
+    let html = '';
+    
+    if (brewery.length >= MIN_CHARS) {
+        html += `<span class="active-filter-tag">
+            <i class="fas fa-industry"></i> Birrificio: "${escapeHtml(brewery)}"
+            <i class="fas fa-times remove-tag" onclick="clearFilter('filterBrewery')"></i>
+        </span>`;
+    }
+    if (beer.length >= MIN_CHARS) {
+        html += `<span class="active-filter-tag">
+            <i class="fas fa-beer"></i> Birra: "${escapeHtml(beer)}"
+            <i class="fas fa-times remove-tag" onclick="clearFilter('filterBeer')"></i>
+        </span>`;
+    }
+    if (user.length >= MIN_CHARS) {
+        html += `<span class="active-filter-tag">
+            <i class="fas fa-user"></i> Utente: "${escapeHtml(user)}"
+            <i class="fas fa-times remove-tag" onclick="clearFilter('filterUser')"></i>
+        </span>`;
+    }
+    
+    container.innerHTML = html;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function clearFilter(inputId) {
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.value = '';
+        input.classList.remove('has-value');
+        applyFilters();
+    }
+}
+
+function resetAllFilters() {
+    document.getElementById('filterBrewery').value = '';
+    document.getElementById('filterBeer').value = '';
+    document.getElementById('filterUser').value = '';
+    
+    // Rimuovi classi has-value
+    document.querySelectorAll('.search-filter-input').forEach(input => {
+        input.classList.remove('has-value');
+    });
+    
+    // Mostra tutte le card
+    document.querySelectorAll('.review-card').forEach(card => {
+        card.style.display = '';
+    });
+    
+    // Nascondi contatori
+    document.querySelectorAll('.search-filter-counter').forEach(counter => {
+        counter.classList.remove('visible');
+    });
+    
+    // Nascondi pulsante reset
+    document.getElementById('btnResetFilters').style.display = 'none';
+    
+    // Pulisci tag filtri attivi
+    document.getElementById('activeFiltersContainer').innerHTML = '';
+    
+    // Nascondi messaggio "nessun risultato"
+    document.getElementById('noFilterResults').classList.remove('visible');
+}
+
+// Inizializza filtri al caricamento (per gestire back button)
+document.addEventListener('DOMContentLoaded', function() {
+    // Se ci sono valori nei campi, applica filtri
+    const breweryVal = document.getElementById('filterBrewery')?.value || '';
+    const beerVal = document.getElementById('filterBeer')?.value || '';
+    const userVal = document.getElementById('filterUser')?.value || '';
+    
+    if (breweryVal || beerVal || userVal) {
+        applyFilters();
     }
 });
 </script>

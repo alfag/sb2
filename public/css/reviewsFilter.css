@@ -1,0 +1,743 @@
+/**
+ * Reviews Filter Module - Design Moderno Floating
+ * Pannello filtri elegante con effetto glassmorphism
+ */
+
+/* ================================
+   Container Filtri - Posizionamento relativo
+================================ */
+.filters-wrapper {
+    position: relative;
+    margin-bottom: 1rem;
+    z-index: 100;
+}
+
+/* ================================
+   Pannello Filtri - Floating Glassmorphism
+================================ */
+.filters-panel {
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 75%;
+    max-width: 600px;
+    min-width: 320px;
+    background: rgba(255, 251, 235, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    border-radius: 1.25rem;
+    overflow: hidden;
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.15),
+        0 12px 24px -8px rgba(251, 191, 36, 0.2),
+        0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+    transform-origin: top right;
+    z-index: 1000;
+}
+
+.filters-panel.open {
+    display: block;
+    animation: filterPanelOpen 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.filters-panel.closing {
+    animation: filterPanelClose 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes filterPanelOpen {
+    0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(-10px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes filterPanelClose {
+    0% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.95) translateY(-5px);
+    }
+}
+
+/* Decorazione luminosa top */
+.filters-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, 
+        transparent 0%,
+        #fbbf24 20%,
+        #f59e0b 50%,
+        #fbbf24 80%,
+        transparent 100%
+    );
+    opacity: 0.8;
+}
+
+/* Header del pannello - elegante */
+.filters-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.filters-title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #92400e;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    letter-spacing: -0.01em;
+}
+
+.filters-title svg {
+    width: 18px;
+    height: 18px;
+    color: #f59e0b;
+    filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.3));
+}
+
+/* Pulsante reset filtri - pill style */
+.filters-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.875rem;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    border-radius: 2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #b45309;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.filters-reset:hover {
+    background: white;
+    border-color: #fbbf24;
+    color: #b45309;
+}
+
+.filters-reset:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ================================
+   Contenuto Filtri - Layout Compatto
+================================ */
+.filters-content {
+    padding: 1rem 1.25rem;
+}
+
+/* Riga filtri - Ricerca + Stelle affiancati */
+.filter-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+}
+
+/* Singolo gruppo filtro */
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+/* Campo ricerca - occupa lo spazio disponibile */
+.filter-group-search {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Gruppo rating - larghezza fissa */
+.filter-group-rating {
+    flex-shrink: 0;
+}
+
+.filter-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #92400e;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Input e Select comuni - più leggeri */
+.filter-input,
+.filter-select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    color: #78350f;
+    transition: all 0.2s ease;
+    appearance: none;
+}
+
+.filter-input:focus,
+.filter-select:focus {
+    outline: none;
+    background: white;
+    border-color: #fbbf24;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15);
+}
+
+.filter-input::placeholder {
+    color: #d97706;
+    opacity: 0.5;
+}
+
+/* Select con freccia personalizzata */
+.filter-select-wrapper {
+    position: relative;
+}
+
+.filter-select-wrapper::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #94a3b8;
+    pointer-events: none;
+}
+
+.filter-select-wrapper .filter-select {
+    padding-right: 2.5rem;
+}
+
+/* ================================
+   Filtro Stelle (Rating) - Compatto
+================================ */
+.filter-stars {
+    display: flex;
+    gap: 0.125rem;
+}
+
+.star-filter-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    color: #fcd34d;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.star-filter-btn:hover {
+    background: rgba(254, 243, 199, 0.8);
+    border-color: #fbbf24;
+    color: #f59e0b;
+    transform: scale(1.1);
+}
+
+.star-filter-btn.active {
+    background: rgba(254, 243, 199, 0.9);
+    border-color: #fbbf24;
+    color: #f59e0b;
+}
+
+.star-filter-btn.selected {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    border-color: #d97706;
+    color: white;
+    box-shadow: 0 2px 6px rgba(251, 191, 36, 0.4);
+}
+
+/* ================================
+   Autocomplete Dropdown
+================================ */
+.filter-autocomplete-wrapper {
+    position: relative;
+}
+
+.filter-autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    border-top: none;
+    border-radius: 0 0 0.5rem 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.filter-autocomplete-dropdown.show {
+    display: block;
+}
+
+.filter-autocomplete-item {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    color: #78350f;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid rgba(251, 191, 36, 0.1);
+    transition: background 0.15s ease;
+}
+
+.filter-autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.filter-autocomplete-item:hover,
+.filter-autocomplete-item.highlighted {
+    background: rgba(254, 243, 199, 0.6);
+}
+
+.filter-autocomplete-item .item-type {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    flex-shrink: 0;
+}
+
+.filter-autocomplete-item .item-type.beer {
+    background: rgba(59, 130, 246, 0.15);
+    color: #2563eb;
+}
+
+.filter-autocomplete-item .item-type.brewery {
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+}
+
+.filter-autocomplete-item .item-type.user {
+    background: rgba(168, 85, 247, 0.15);
+    color: #9333ea;
+}
+
+.filter-autocomplete-item .item-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.filter-autocomplete-item .item-name mark {
+    background: rgba(251, 191, 36, 0.4);
+    color: inherit;
+    padding: 0 0.125rem;
+    border-radius: 0.125rem;
+}
+
+.filter-autocomplete-empty {
+    padding: 0.75rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    text-align: center;
+    font-style: italic;
+}
+
+/* Hint sotto l'input */
+.filter-hint {
+    font-size: 0.625rem;
+    color: #9ca3af;
+    margin-top: 0.125rem;
+}
+
+/* Filtro full width */
+.filter-group-full {
+    grid-column: 1 / -1;
+}
+
+/* ================================
+   Footer Filtri - Design Moderno
+================================ */
+.filters-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(0deg, rgba(255,255,255,0.5) 0%, transparent 100%);
+    border-top: 1px solid rgba(251, 191, 36, 0.15);
+}
+
+.filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 0.625rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-btn-apply {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border: none;
+    color: white;
+    box-shadow: 
+        0 4px 14px rgba(251, 191, 36, 0.35),
+        0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 0.625rem 1.5rem;
+    font-size: 0.875rem;
+    border-radius: 2rem;
+    letter-spacing: 0.01em;
+}
+
+.filter-btn-apply:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    transform: translateY(-2px);
+    box-shadow: 
+        0 8px 20px rgba(251, 191, 36, 0.4),
+        0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filter-btn-apply:active {
+    transform: translateY(0);
+}
+
+/* Pulsante chiudi elegante */
+.filter-btn-close {
+    background: transparent;
+    border: 1.5px solid rgba(107, 114, 128, 0.3);
+    color: #6b7280;
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    font-weight: 500;
+}
+
+.filter-btn-close:hover {
+    background: rgba(107, 114, 128, 0.08);
+    border-color: rgba(107, 114, 128, 0.5);
+    color: #374151;
+}
+
+.filter-btn-cancel {
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+}
+
+.filter-btn-cancel:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+/* ================================
+   Chip dei Filtri Attivi - Inline compatti
+================================ */
+.active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.375rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: #92400e;
+    animation: chipFadeIn 0.2s ease;
+    white-space: nowrap;
+}
+
+@keyframes chipFadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.filter-chip-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    background: rgba(180, 83, 9, 0.15);
+    border: none;
+    border-radius: 50%;
+    color: #92400e;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 0;
+    margin-left: 0.125rem;
+}
+
+.filter-chip-remove:hover {
+    background: #b45309;
+    color: white;
+    transform: scale(1.1);
+}
+
+.filter-chip-remove svg {
+    width: 8px;
+    height: 8px;
+}
+
+/* ================================
+   Stato di caricamento
+================================ */
+.filters-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: #64748b;
+}
+
+.filters-loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #fbbf24;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 0.75rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ================================
+   Risultati e Conteggio
+================================ */
+.reviews-results-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    color: #64748b;
+}
+
+.results-count {
+    font-weight: 600;
+    color: #334155;
+}
+
+.results-sort {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ================================
+   Mobile Responsive - Floating Panel
+================================ */
+@media (max-width: 768px) {
+    .filters-panel {
+        width: 90%;
+        min-width: 280px;
+    }
+    
+    .filters-content {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+    
+    .filters-header {
+        flex-direction: row;
+        gap: 0.5rem;
+        align-items: center;
+        padding: 0.875rem 1rem;
+    }
+    
+    .filters-footer {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 0.875rem 1rem;
+    }
+    
+    .filter-row {
+        flex-direction: column;
+        gap: 0.875rem;
+    }
+    
+    .filter-group-search,
+    .filter-group-rating {
+        width: 100%;
+    }
+    
+    .filter-date-range {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-date-separator {
+        text-align: center;
+        padding: 0.125rem 0;
+        font-size: 0.625rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .filters-panel {
+        width: calc(100% + 2rem);
+        right: -1rem;
+        min-width: unset;
+        border-radius: 0 0 1rem 1rem;
+        border-top: none;
+    }
+    
+    .filters-panel::before {
+        border-radius: 0;
+    }
+    
+    .filters-content {
+        padding: 0.875rem;
+    }
+    
+    .filter-stars {
+        justify-content: flex-start;
+    }
+    
+    .star-filter-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 1.25rem;
+    }
+    
+    .filter-btn-apply {
+        padding: 0.5rem 1.25rem;
+        font-size: 0.8125rem;
+    }
+}
+
+/* ================================
+   Dark Mode - Manteniamo toni ambra/crema
+================================ */
+@media (prefers-color-scheme: dark) {
+    .filters-panel {
+        background: rgba(255, 251, 235, 0.95);
+        border-color: #fed7aa;
+    }
+    
+    .filters-header {
+        border-color: rgba(251, 191, 36, 0.35);
+    }
+    
+    .filters-title {
+        color: #b45309;
+    }
+    
+    .filter-input,
+    .filter-select {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(251, 191, 36, 0.35);
+        color: #78350f;
+    }
+    
+    .filter-input:focus,
+    .filter-select:focus {
+        background: white;
+        border-color: #fbbf24;
+    }
+    
+    .filter-label {
+        color: #92400e;
+    }
+    
+    .star-filter-btn {
+        background: rgba(255, 255, 255, 0.7);
+        border-color: rgba(251, 191, 36, 0.35);
+    }
+    
+    .filters-reset {
+        background: rgba(255, 255, 255, 0.8);
+        border-color: rgba(251, 191, 36, 0.45);
+        color: #92400e;
+    }
+}
+
+/* ================================
+   Stato Vuoto / No Results
+================================ */
+.reviews-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    background: linear-gradient(180deg, #fefce8 0%, #fef9c3 100%);
+    border: 2px dashed #fde68a;
+    border-radius: 1rem;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.8;
+}
+
+.empty-state-text {
+    font-size: 1rem;
+    color: #92400e;
+    margin-bottom: 1rem;
+    max-width: 300px;
+}
+
+.reviews-empty-state .filter-btn-cancel {
+    margin-top: 0.5rem;
+}
+
+/* ================================
+   MOBILE ZOOM PREVENTION
+   Previene zoom automatico iOS su focus input
+================================ */
+@media screen and (max-width: 767px) {
+    .filter-input,
+    .filter-select {
+        font-size: 16px !important; /* Previene zoom iOS */
+    }
+}

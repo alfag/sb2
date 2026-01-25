@@ -206,7 +206,12 @@
             <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
                 <span class="text-amber-600">🍺</span> Birrifici
             </h2>
-            <!-- Link "Esplora tutti" temporaneamente rimosso - da riattivare quando sarà pronta la pagina di dettaglio birrifici -->
+            <a href="/breweries" class="view-all-breweries-link text-sm font-medium text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
+                Vedi tutti
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 5l7 7-7 7"/>
+                </svg>
+            </a>
         </div>
         <div id="brewery-list" style="max-width: 100%; overflow: visible;">
             <!-- Dynamic brewery content will be inserted here -->
@@ -274,6 +279,9 @@
     {% endif %}
 
 </div>
+
+{# Modal info birrificio - per visualizzare dettagli al click sul logo #}
+{% include "partials/breweryInfoModal.njk" %}
 
 {% endblock %}
 

@@ -750,3 +750,16 @@
     min-width: unset;
   }
 }
+
+/* ====================================
+   MOBILE ZOOM PREVENTION
+   Previene zoom automatico iOS su focus input
+   ==================================== */
+@media screen and (max-width: 767px) {
+  .review-notes-textarea,
+  .review-modal-container input,
+  .review-modal-container select,
+  .review-modal-container textarea {
+    font-size: 16px !important; /* Previene zoom iOS */
+  }
+}

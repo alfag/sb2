@@ -3,9 +3,190 @@
 {% block head %}
 <link rel="stylesheet" href="/css/admin-dashboard.css?t=20251229k">
 <style>
-/* Override z-index per modal eliminazione - deve stare sopra navbar (9999) e flash messages (99999) */
+/* Override z-index per modal eliminazione */
 #deleteBreweryModal { z-index: 100000 !important; }
 #deleteBreweryModal ~ .modal-backdrop { z-index: 99999 !important; }
+
+/* Search box per autocomplete */
+.brewery-search-box {
+    position: relative;
+    margin-bottom: 16px;
+}
+.brewery-search-box input {
+    width: 100%;
+    padding: 12px 16px 12px 44px;
+    font-size: 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    color: #1f2937;
+    transition: all 0.2s ease;
+}
+.brewery-search-box input:focus {
+    outline: none;
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.15);
+}
+.brewery-search-box input::placeholder {
+    color: #9ca3af;
+}
+.brewery-search-box .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 14px;
+}
+.brewery-search-box .clear-search {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+    display: none;
+}
+.brewery-search-box .clear-search:hover {
+    color: #ef4444;
+}
+.brewery-search-box.has-value .clear-search {
+    display: block;
+}
+
+/* Lista birrifici - stile card cliccabile */
+.brewery-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.brewery-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.brewery-item:hover {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.15);
+}
+.brewery-item.active {
+    background: #fef3c7;
+    border-color: #f59e0b;
+}
+
+/* Logo birrificio */
+.brewery-logo {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.brewery-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #f3f4f6;
+}
+/* Drop-shadow per loghi chiari/bianchi - identico a welcome page */
+.brewery-logo img.light-logo {
+    background: transparent !important;
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8)) 
+            drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6)) !important;
+}
+.brewery-logo .no-logo {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    background: #f3f4f6;
+    border: 2px dashed #d1d5db;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    font-size: 18px;
+}
+
+/* Nome birrificio */
+.brewery-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+/* Overlay azioni */
+.brewery-actions {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(31,41,55,0.4);
+    backdrop-filter: blur(2px);
+    border-radius: 10px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    animation: fadeIn 0.15s ease;
+}
+.brewery-item.active .brewery-actions {
+    display: flex;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.brewery-actions .act-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+.brewery-actions .act-btn:hover {
+    transform: scale(1.1);
+}
+.brewery-actions .act-btn.view { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.brewery-actions .act-btn.edit { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.brewery-actions .act-btn.stats { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.brewery-actions .act-btn.web { background: linear-gradient(135deg, #10b981, #059669); }
+.brewery-actions .act-btn.delete { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+/* Responsive */
+@media (max-width: 640px) {
+    .brewery-item { padding: 12px; gap: 12px; }
+    .brewery-logo { width: 40px; height: 40px; }
+    .brewery-name { font-size: 14px; }
+    .brewery-actions .act-btn { width: 38px; height: 38px; font-size: 14px; }
+    .brewery-actions { gap: 8px; }
+}
 </style>
 {% endblock %}
 {% block scripts %}<script src="/js/adminBreweryFilters.js"></script>{% endblock %}
@@ -44,6 +225,17 @@
             <i class="fas fa-exclamation-triangle"></i>
             <span class="val">{{ stats.incompleteData }}</span><span class="lbl">Incompleti</span>
         </div>
+        <div class="stat-box purple brewery-filter-card" data-filter="without-logo">
+            <i class="far fa-image"></i>
+            <span class="val">{{ stats.withoutLogo }}</span><span class="lbl">Senza Logo</span>
+        </div>
+    </div>
+
+    <!-- Search Box -->
+    <div class="brewery-search-box" id="brewerySearchBox">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" id="brewerySearchInput" placeholder="Cerca birrificio..." autocomplete="off">
+        <button class="clear-search" onclick="clearBrewerySearch()" title="Cancella"><i class="fas fa-times"></i></button>
     </div>
 
     <!-- Filter indicator -->
@@ -52,39 +244,41 @@
         <button class="sys-btn small" onclick="clearBreweryFilter()" style="margin-left:auto"><i class="fas fa-times"></i></button>
     </div>
 
-    <!-- Table -->
-    <div class="table-wrap">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th><i class="fas fa-industry"></i> Birrificio</th>
-                    <th style="width:140px"><i class="fas fa-cogs"></i> Azioni</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for brewery in breweries %}
-                <tr class="brewery-row" data-has-email="{{ 'true' if brewery.breweryEmail else 'false' }}" data-has-website="{{ 'true' if brewery.breweryWebsite else 'false' }}" data-complete-data="{{ 'true' if (brewery.breweryEmail and brewery.breweryWebsite and brewery.breweryPhoneNumber) else 'false' }}">
-                    <td>
-                        <div class="user-cell compact">
-                            <div class="user-avatar sm {% if brewery.breweryEmail and brewery.breweryWebsite %}brewery{% elif brewery.breweryEmail or brewery.breweryWebsite %}customer{% else %}admin{% endif %}">
-                                <i class="fas fa-industry"></i>
-                            </div>
-                            <span class="user-name">{{ brewery.breweryName | truncate(25) or 'N/A' }}</span>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="action-btns">
-                            {% if brewery.breweryWebsite %}<a href="{{ brewery.breweryWebsite }}" target="_blank" class="act-btn web" title="Sito Web"><i class="fas fa-globe"></i></a>{% endif %}
-                            <a href="/administrator/breweries/view/{{ brewery._id }}" class="act-btn view" title="Dettagli"><i class="fas fa-eye"></i></a>
-                            <a href="/administrator/breweries/edit/{{ brewery._id }}" class="act-btn edit" title="Modifica"><i class="fas fa-edit"></i></a>
-                            <a href="/administrator/statistics/brewery/{{ brewery._id }}" class="act-btn stats" title="Statistiche"><i class="fas fa-chart-bar"></i></a>
-                            <button class="act-btn delete" onclick="confirmDeleteBrewery('{{ brewery._id }}', '{{ brewery.breweryName | replace("'", "\\'") }}')" title="Elimina"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Lista Birrifici -->
+    <div class="brewery-list">
+        {% for brewery in breweries %}
+        {# Determina se il logo è valido #}
+        {% set hasValidLogo = brewery.breweryLogo and not ('placeholder' in brewery.breweryLogo | lower or 'default' in brewery.breweryLogo | lower or 'no-logo' in brewery.breweryLogo | lower or 'nologo' in brewery.breweryLogo | lower or 'missing' in brewery.breweryLogo | lower) %}
+        <div class="brewery-item brewery-row" 
+             data-has-email="{{ 'true' if brewery.breweryEmail else 'false' }}" 
+             data-has-website="{{ 'true' if brewery.breweryWebsite else 'false' }}" 
+             data-complete-data="{{ 'true' if (brewery.breweryEmail and brewery.breweryWebsite and brewery.breweryPhoneNumber) else 'false' }}" 
+             data-has-logo="{{ 'true' if hasValidLogo else 'false' }}"
+             data-brewery-id="{{ brewery._id }}"
+             onclick="toggleBreweryActions(this, event)">
+            
+            <div class="brewery-logo">
+                {% if hasValidLogo %}
+                <img src="{{ brewery.breweryLogo }}" alt="{{ brewery.breweryName }}" class="{% if brewery.logoIsLight %}light-logo{% endif %}" onerror="this.onerror=null; this.outerHTML='<div class=\'no-logo\'><i class=\'fas fa-image\'></i></div>';">
+                {% else %}
+                <div class="no-logo"><i class="fas fa-image"></i></div>
+                {% endif %}
+            </div>
+            
+            <span class="brewery-name">{{ brewery.breweryName | default('Nome non disponibile') }}</span>
+            
+            <!-- Overlay azioni -->
+            <div class="brewery-actions" onclick="closeBreweryActions(event)">
+                {% if brewery.breweryWebsite %}
+                <a href="{{ brewery.breweryWebsite }}" target="_blank" class="act-btn web" title="Sito Web" onclick="event.stopPropagation()"><i class="fas fa-globe"></i></a>
+                {% endif %}
+                <a href="/administrator/breweries/view/{{ brewery._id }}" class="act-btn view" title="Dettagli" onclick="event.stopPropagation()"><i class="fas fa-eye"></i></a>
+                <a href="/administrator/breweries/edit/{{ brewery._id }}" class="act-btn edit" title="Modifica" onclick="event.stopPropagation()"><i class="fas fa-edit"></i></a>
+                <a href="/administrator/statistics/brewery/{{ brewery._id }}" class="act-btn stats" title="Statistiche" onclick="event.stopPropagation()"><i class="fas fa-chart-bar"></i></a>
+                <button class="act-btn delete" onclick="event.stopPropagation(); confirmDeleteBrewery('{{ brewery._id }}', '{{ brewery.breweryName | replace("'", "\\'") }}')" title="Elimina"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+        {% endfor %}
     </div>
     {% else %}
     <div class="empty-state">
@@ -117,6 +311,40 @@
 </div>
 
 <script>
+// Toggle azioni birrificio
+function toggleBreweryActions(element, event) {
+    // Se già attivo, chiudi
+    if (element.classList.contains('active')) {
+        element.classList.remove('active');
+        return;
+    }
+    // Chiudi tutti gli altri
+    document.querySelectorAll('.brewery-item.active').forEach(item => {
+        item.classList.remove('active');
+    });
+    // Apri questo
+    element.classList.add('active');
+}
+
+// Chiude overlay quando si clicca su di esso (non sui pulsanti)
+function closeBreweryActions(event) {
+    event.stopPropagation();
+    const item = event.currentTarget.closest('.brewery-item');
+    if (item) {
+        item.classList.remove('active');
+    }
+}
+
+// Click fuori chiude le azioni
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.brewery-item')) {
+        document.querySelectorAll('.brewery-item.active').forEach(item => {
+            item.classList.remove('active');
+        });
+    }
+});
+
+// Conferma eliminazione
 function confirmDeleteBrewery(breweryId, breweryName) {
     document.getElementById('deleteBreweryName').textContent = breweryName;
     document.getElementById('deleteBreweryForm').action = '/administrator/breweries/delete/' + breweryId;

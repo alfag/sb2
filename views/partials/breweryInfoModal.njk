@@ -1,0 +1,604 @@
+{# 
+  Brewery Info Modal - Popup leggero per visualizzare info birrificio
+  Utilizzato nella welcome page quando si clicca su un logo birrificio
+  Stile minimale e coerente con il design dell'app
+#}
+
+<!-- Modal Overlay -->
+<div id="brewery-info-modal" class="brewery-modal-overlay" style="display: none;">
+    <div class="brewery-modal-backdrop" onclick="BreweryInfoModal.close()"></div>
+    
+    <!-- Modal Content -->
+    <div class="brewery-modal-content">
+        <!-- Close Button -->
+        <button class="brewery-modal-close" onclick="BreweryInfoModal.close()" aria-label="Chiudi">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
+        
+        <!-- Header con Logo e Nome -->
+        <div class="brewery-modal-header">
+            <div class="brewery-modal-logo" id="brewery-modal-logo">
+                <span class="brewery-modal-placeholder"><i class="fas fa-industry"></i></span>
+            </div>
+            <div class="brewery-modal-title">
+                <h2 id="brewery-modal-name">Nome Birrificio</h2>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="brewery-modal-actions" id="brewery-modal-actions">
+            <!-- Populated by JS -->
+        </div>
+        
+        <!-- Description -->
+        <div class="brewery-modal-section" id="brewery-modal-description-section" style="display: none;">
+            <p class="brewery-modal-description" id="brewery-modal-description"></p>
+        </div>
+        
+        <!-- Info Grid -->
+        <div class="brewery-modal-info" id="brewery-modal-info">
+            <!-- Populated by JS -->
+        </div>
+        
+        <!-- Social Links -->
+        <div class="brewery-modal-social" id="brewery-modal-social" style="display: none;">
+            <!-- Populated by JS -->
+        </div>
+        
+        <!-- Footer -->
+        <div class="brewery-modal-footer">
+            <span class="brewery-modal-powered">
+                <i class="fas fa-beer"></i> SharingBeer
+            </span>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ===== BREWERY INFO MODAL - MINIMAL DESIGN ===== */
+.brewery-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.brewery-modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.brewery-modal-content {
+    position: relative;
+    background: white;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Close Button */
+.brewery-modal-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: #f5f5f4;
+    color: #78716c;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.brewery-modal-close:hover {
+    background: #e7e5e4;
+    color: #1c1917;
+}
+
+/* Header */
+.brewery-modal-header {
+    display: flex;
+    gap: 1rem;
+    padding: 1.25rem 1.25rem 1rem;
+    align-items: flex-start;
+}
+
+.brewery-modal-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    background: #f5f5f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid #e7e5e4;
+}
+
+.brewery-modal-logo img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+}
+
+.brewery-modal-placeholder {
+    color: #d4d4d4;
+    font-size: 1.5rem;
+}
+
+.brewery-modal-title {
+    flex: 1;
+    min-width: 0;
+    padding-right: 2rem;
+}
+
+.brewery-modal-title h2 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1c1917;
+    margin: 0;
+    line-height: 1.3;
+}
+
+/* Badge rimosso - non mostriamo stato all'utente */
+.brewery-modal-badge {
+    display: none;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.brewery-modal-badge.verified {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.brewery-modal-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.brewery-modal-badge.ai {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+/* Location rimosso - non mostriamo indirizzo all'utente */
+.brewery-modal-location {
+    display: none;
+}
+
+/* Quick Actions */
+.brewery-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0 1.25rem 1rem;
+}
+
+.brewery-modal-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.75rem;
+    background: #f5f5f4;
+    color: #57534e;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.brewery-modal-action:hover {
+    background: white;
+    border-color: #e7e5e4;
+    color: #1c1917;
+    transform: translateY(-1px);
+}
+
+.brewery-modal-action.primary {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.brewery-modal-action.primary:hover {
+    background: #d1fae5;
+}
+
+.brewery-modal-action i {
+    font-size: 0.85rem;
+}
+
+/* Sections */
+.brewery-modal-section {
+    padding: 0 1.25rem 1rem;
+}
+
+.brewery-modal-description {
+    color: #57534e;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* Info Grid */
+.brewery-modal-info {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    padding: 0 1.25rem 1rem;
+}
+
+.brewery-modal-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.brewery-modal-info-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #a8a29e;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.brewery-modal-info-value {
+    font-size: 0.85rem;
+    color: #1c1917;
+}
+
+.brewery-modal-info-value.empty {
+    color: #d4d4d4;
+    font-style: italic;
+}
+
+/* Social */
+.brewery-modal-social {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0 1.25rem 1rem;
+    flex-wrap: wrap;
+}
+
+.brewery-modal-social-link {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #f5f5f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #57534e;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.brewery-modal-social-link:hover {
+    background: #e7e5e4;
+    transform: scale(1.1);
+}
+
+.brewery-modal-social-link i {
+    font-size: 1rem;
+}
+
+.brewery-modal-social-link .fa-facebook { color: #1877f2; }
+.brewery-modal-social-link .fa-instagram { color: #e4405f; }
+.brewery-modal-social-link .fa-twitter { color: #1da1f2; }
+.brewery-modal-social-link .fa-linkedin { color: #0077b5; }
+.brewery-modal-social-link .fa-youtube { color: #ff0000; }
+
+/* Footer */
+.brewery-modal-footer {
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid #f5f5f4;
+    text-align: center;
+}
+
+.brewery-modal-powered {
+    font-size: 0.7rem;
+    color: #a8a29e;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.brewery-modal-powered i {
+    color: #f59e0b;
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .brewery-modal-content {
+        max-height: 90vh;
+        border-radius: 16px 16px 0 0;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        max-width: 100%;
+        animation: slideUpMobile 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    @keyframes slideUpMobile {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+    
+    .brewery-modal-info {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+/**
+ * Brewery Info Modal - Controller per popup info birrificio
+ * Utilizzato nella welcome page per mostrare dettagli birrificio
+ */
+const BreweryInfoModal = (() => {
+    const modal = document.getElementById('brewery-info-modal');
+    
+    /**
+     * Apre il modal con i dati del birrificio
+     * @param {Object} brewery - Dati birrificio dal server
+     */
+    function open(brewery) {
+        if (!modal || !brewery) return;
+        
+        console.log('[BreweryInfoModal] Apertura modal per:', brewery.breweryName);
+        
+        // Popola header
+        populateHeader(brewery);
+        
+        // Popola azioni
+        populateActions(brewery);
+        
+        // Popola descrizione
+        populateDescription(brewery);
+        
+        // Popola info grid
+        populateInfo(brewery);
+        
+        // Popola social
+        populateSocial(brewery);
+        
+        // Mostra modal
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        
+        // Focus trap per accessibilità
+        modal.querySelector('.brewery-modal-close').focus();
+    }
+    
+    /**
+     * Chiude il modal
+     */
+    function close() {
+        if (!modal) return;
+        
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    
+    /**
+     * Popola header con logo e nome
+     */
+    function populateHeader(brewery) {
+        // Logo
+        const logoContainer = document.getElementById('brewery-modal-logo');
+        if (brewery.breweryLogo) {
+            logoContainer.innerHTML = `
+                <img src="${escapeHtml(brewery.breweryLogo)}" 
+                     alt="${escapeHtml(brewery.breweryName)}"
+                     onerror="this.parentElement.innerHTML='<span class=\\'brewery-modal-placeholder\\'><i class=\\'fas fa-industry\\'></i></span>'">
+            `;
+        } else {
+            logoContainer.innerHTML = `<span class="brewery-modal-placeholder"><i class="fas fa-industry"></i></span>`;
+        }
+        
+        // Nome
+        document.getElementById('brewery-modal-name').textContent = brewery.breweryName || 'Birrificio';
+    }
+    
+    /**
+     * Popola quick actions - Solo sito web
+     */
+    function populateActions(brewery) {
+        const actionsContainer = document.getElementById('brewery-modal-actions');
+        let html = '';
+        
+        if (brewery.breweryWebsite) {
+            html += `
+                <a href="${escapeHtml(brewery.breweryWebsite)}" target="_blank" rel="noopener" class="brewery-modal-action primary">
+                    <i class="fas fa-globe"></i> Visita il sito
+                </a>
+            `;
+        }
+        
+        actionsContainer.innerHTML = html;
+        actionsContainer.style.display = html ? 'flex' : 'none';
+    }
+    
+    /**
+     * Popola descrizione
+     */
+    function populateDescription(brewery) {
+        const section = document.getElementById('brewery-modal-description-section');
+        const descEl = document.getElementById('brewery-modal-description');
+        
+        const description = brewery.breweryDescription || brewery.breweryHistory;
+        if (description) {
+            descEl.textContent = truncateText(description, 200);
+            section.style.display = 'block';
+        } else {
+            section.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Popola info grid
+     */
+    function populateInfo(brewery) {
+        const infoContainer = document.getElementById('brewery-modal-info');
+        
+        const infoItems = [];
+        
+        if (brewery.brewerySize) {
+            infoItems.push({
+                label: 'Dimensione',
+                value: capitalizeFirst(brewery.brewerySize)
+            });
+        }
+        
+        if (brewery.foundingYear) {
+            infoItems.push({
+                label: 'Fondazione',
+                value: brewery.foundingYear
+            });
+        }
+        
+        if (brewery.masterBrewer) {
+            infoItems.push({
+                label: 'Mastro Birraio',
+                value: brewery.masterBrewer
+            });
+        }
+        
+        if (brewery.productionVolume) {
+            infoItems.push({
+                label: 'Produzione',
+                value: brewery.productionVolume
+            });
+        }
+        
+        if (infoItems.length > 0) {
+            infoContainer.innerHTML = infoItems.map(item => `
+                <div class="brewery-modal-info-item">
+                    <span class="brewery-modal-info-label">${escapeHtml(item.label)}</span>
+                    <span class="brewery-modal-info-value">${escapeHtml(item.value)}</span>
+                </div>
+            `).join('');
+            infoContainer.style.display = 'grid';
+        } else {
+            infoContainer.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Popola social links
+     */
+    function populateSocial(brewery) {
+        const socialContainer = document.getElementById('brewery-modal-social');
+        const social = brewery.brewerySocialMedia;
+        
+        if (!social) {
+            socialContainer.style.display = 'none';
+            return;
+        }
+        
+        let html = '';
+        
+        if (social.facebook) {
+            html += `<a href="${escapeHtml(social.facebook)}" target="_blank" rel="noopener" class="brewery-modal-social-link"><i class="fab fa-facebook"></i></a>`;
+        }
+        if (social.instagram) {
+            html += `<a href="${escapeHtml(social.instagram)}" target="_blank" rel="noopener" class="brewery-modal-social-link"><i class="fab fa-instagram"></i></a>`;
+        }
+        if (social.twitter) {
+            html += `<a href="${escapeHtml(social.twitter)}" target="_blank" rel="noopener" class="brewery-modal-social-link"><i class="fab fa-twitter"></i></a>`;
+        }
+        if (social.linkedin) {
+            html += `<a href="${escapeHtml(social.linkedin)}" target="_blank" rel="noopener" class="brewery-modal-social-link"><i class="fab fa-linkedin"></i></a>`;
+        }
+        if (social.youtube) {
+            html += `<a href="${escapeHtml(social.youtube)}" target="_blank" rel="noopener" class="brewery-modal-social-link"><i class="fab fa-youtube"></i></a>`;
+        }
+        
+        if (html) {
+            socialContainer.innerHTML = html;
+            socialContainer.style.display = 'flex';
+        } else {
+            socialContainer.style.display = 'none';
+        }
+    }
+    
+    // Utility functions
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+    
+    function truncateText(text, maxLength) {
+        if (!text || text.length <= maxLength) return text;
+        return text.substring(0, maxLength).trim() + '...';
+    }
+    
+    function capitalizeFirst(str) {
+        if (!str) return '';
+        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    }
+    
+    // Chiudi con ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+            close();
+        }
+    });
+    
+    // Esponi API pubblica
+    return {
+        open,
+        close
+    };
+})();
+</script>

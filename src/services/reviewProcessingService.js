@@ -64,6 +64,35 @@ function normalizeTastingNotes(tastingNotes) {
 }
 
 /**
+ * 🔧 HELPER: Sanifica l'oggetto brewerySocialMedia
+ * Rimuove valori "null" (stringa) restituiti erroneamente da Gemini AI
+ * @param {Object} socialMedia - Oggetto social media { facebook, instagram, ... }
+ * @returns {Object} Oggetto sanificato con solo valori validi
+ */
+function sanitizeSocialMedia(socialMedia) {
+  if (!socialMedia || typeof socialMedia !== 'object') {
+    return {};
+  }
+  
+  const sanitized = {};
+  const validFields = ['facebook', 'instagram', 'twitter', 'linkedin', 'youtube'];
+  
+  for (const field of validFields) {
+    const value = socialMedia[field];
+    // Escludi: null, undefined, stringa "null", stringa vuota
+    if (value && 
+        value !== 'null' && 
+        value !== 'undefined' && 
+        typeof value === 'string' && 
+        value.trim().length > 0) {
+      sanitized[field] = value.trim();
+    }
+  }
+  
+  return sanitized;
+}
+
+/**
  * � FIX #15: Calcola distanza di Levenshtein tra due stringhe (24 dic 2025)
  * Usata per autocorreggere nomi birra quando AI sbaglia di 1-2 caratteri
  * @param {string} str1 - Prima stringa
@@ -525,7 +554,7 @@ async function processReviewBackground(job) {
                   breweryData.foundingYear = scrapedBrewery.foundingYear || breweryData.foundingYear;
                   breweryData.breweryHistory = scrapedBrewery.breweryHistory || breweryData.breweryHistory;
                   breweryData.awards = scrapedBrewery.awards || breweryData.awards || [];
-                  breweryData.brewerySocialMedia = scrapedBrewery.brewerySocialMedia || breweryData.brewerySocialMedia || {};
+                  breweryData.brewerySocialMedia = sanitizeSocialMedia(scrapedBrewery.brewerySocialMedia) || breweryData.brewerySocialMedia || {};
                   breweryData.breweryLogo = scrapedBrewery.breweryLogo || breweryData.breweryLogo;
                   breweryData.breweryImages = scrapedBrewery.breweryImages || breweryData.breweryImages || [];
                   breweryData.beers = scrapedBrewery.beers || breweryData.beers || [];
@@ -571,7 +600,7 @@ async function processReviewBackground(job) {
                   breweryData.brewerySize = breweryFromWeb.brewerySize;
                   breweryData.mainProducts = breweryFromWeb.mainProducts || [];
                   breweryData.awards = breweryFromWeb.awards || [];
-                  breweryData.brewerySocialMedia = breweryFromWeb.brewerySocialMedia || {};
+                  breweryData.brewerySocialMedia = sanitizeSocialMedia(breweryFromWeb.brewerySocialMedia) || {};
                   breweryData.breweryHistory = breweryFromWeb.history;
                   // 🔥 P0.2 FIX: Nuovi campi da HTMLParser (7 dic 2025)
                   breweryData.employeeCount = breweryFromWeb.employeeCount;
@@ -1721,7 +1750,7 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
       // Gestione oggetti/array complessi
       if ((!brewery.brewerySocialMedia || Object.keys(brewery.brewerySocialMedia).length === 0) && 
           breweryData.brewerySocialMedia && Object.keys(breweryData.brewerySocialMedia).length > 0) {
-        updateFields.brewerySocialMedia = breweryData.brewerySocialMedia;
+        updateFields.brewerySocialMedia = sanitizeSocialMedia(breweryData.brewerySocialMedia);
       }
       
       if ((!brewery.mainProducts || brewery.mainProducts.length === 0) && 
@@ -1778,7 +1807,7 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
       breweryEmail: breweryData.email,
       
       // Social media
-      brewerySocialMedia: breweryData.brewerySocialMedia || {},
+      brewerySocialMedia: sanitizeSocialMedia(breweryData.brewerySocialMedia) || {},
       
       // 🔥 FIX: Logo birrificio mancante nella creazione (22 dic 2025)
       breweryLogo: breweryData.breweryLogo,

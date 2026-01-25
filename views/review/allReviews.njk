@@ -4,6 +4,7 @@
 
 {% block head %}
 <link rel="stylesheet" href="/css/latestReviewsModule.css">
+<link rel="stylesheet" href="/css/reviewsFilter.css">
 <style>
     /* Page-specific styles for all reviews page */
     .all-reviews-container {
@@ -16,9 +17,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-        gap: 1rem;
+        margin-bottom: 0.75rem;
     }
     
     .page-title {
@@ -28,12 +27,60 @@
         margin: 0;
     }
     
+    /* Icona lente a destra - ingrandita */
+    .filters-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 50%;
+        color: #d97706;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .filters-toggle:hover {
+        color: #b45309;
+        background: rgba(251, 191, 36, 0.12);
+        transform: scale(1.08);
+    }
+    
+    .filters-toggle.active {
+        color: #f59e0b;
+        background: rgba(251, 191, 36, 0.18);
+    }
+    
+    .filters-toggle-icon {
+        width: 28px;
+        height: 28px;
+    }
+    
+    /* Barra info compatta: conteggio + chip filtri */
+    .reviews-info-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.5rem 0;
+        margin-bottom: 0.75rem;
+        min-height: 2rem;
+    }
+    
     .reviews-count {
-        font-size: 0.875rem;
+        font-size: 0.8125rem;
         color: #6b7280;
-        background: #f3f4f6;
-        padding: 0.375rem 0.75rem;
-        border-radius: 9999px;
+        font-weight: 500;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .reviews-count .count-number {
+        font-weight: 700;
+        color: #d97706;
     }
     
     /* Lista recensioni verticale */
@@ -142,12 +189,31 @@
     /* Responsive */
     @media (max-width: 640px) {
         .page-header {
-            flex-direction: column;
-            align-items: flex-start;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
         }
         
         .page-title {
-            font-size: 1.5rem;
+            font-size: 1.375rem;
+        }
+        
+        .filters-toggle {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .filters-toggle-icon {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .reviews-stats-card {
+            padding: 0.625rem 0.875rem;
+        }
+        
+        .reviews-stats-text {
+            font-size: 0.875rem;
         }
         
         .reviews-list {
@@ -176,12 +242,87 @@
         Torna alla home
     </a>
     
-    <!-- Page header -->
+    <!-- Page header: titolo a sinistra, icona lente a destra -->
     <div class="page-header">
         <h1 class="page-title">Tutte le Recensioni</h1>
-        <span class="reviews-count">{{ totalReviews }} recensioni totali</span>
+        <button type="button" class="filters-toggle" id="filters-toggle" aria-label="Cerca e filtra">
+            <svg class="filters-toggle-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+        </button>
     </div>
     
+    <!-- Barra info compatta: conteggio + chip filtri attivi -->
+    <div class="reviews-info-bar">
+        <span class="reviews-count" id="reviews-count">
+            <span class="count-number">{{ totalReviews }}</span> recensioni
+        </span>
+        <div class="active-filters" id="active-filters"></div>
+    </div>
+
+    <!-- Pannello filtri (espandibile) -->
+    <div class="filters-wrapper">
+        <!-- Pannello filtri -->
+        <div class="filters-panel" id="filters-panel">
+            <!-- Header -->
+            <div class="filters-header">
+                <div class="filters-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+                    </svg>
+                    Filtra le recensioni
+                </div>
+                <button type="button" class="filters-reset" id="filters-reset">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="14" height="14">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    Reset
+                </button>
+            </div>
+
+            <!-- Contenuto filtri -->
+            <div class="filters-content">
+                <!-- Ricerca e Valutazione su stessa riga -->
+                <div class="filter-row">
+                    <!-- Ricerca generale (birra, birrificio, utente) -->
+                    <div class="filter-group filter-group-search">
+                        <label class="filter-label" for="filter-search">🔍 Cerca</label>
+                        <div class="filter-autocomplete-wrapper">
+                            <input type="text" id="filter-search" class="filter-input" placeholder="Birra, birrificio o utente..." autocomplete="off">
+                            <div class="filter-autocomplete-dropdown" id="search-dropdown"></div>
+                        </div>
+                        <span class="filter-hint">Scrivi almeno 3 lettere</span>
+                    </div>
+
+                    <!-- Valutazione -->
+                    <div class="filter-group filter-group-rating">
+                        <label class="filter-label">⭐ Valutazione minima</label>
+                        <div class="filter-stars">
+                            <button type="button" class="star-filter-btn" data-value="1" aria-label="1 stella">★</button>
+                            <button type="button" class="star-filter-btn" data-value="2" aria-label="2 stelle">★</button>
+                            <button type="button" class="star-filter-btn" data-value="3" aria-label="3 stelle">★</button>
+                            <button type="button" class="star-filter-btn" data-value="4" aria-label="4 stelle">★</button>
+                            <button type="button" class="star-filter-btn" data-value="5" aria-label="5 stelle">★</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer con azioni -->
+            <div class="filters-footer">
+                <button type="button" class="filter-btn filter-btn-close" id="filters-close">
+                    Chiudi
+                </button>
+                <button type="button" class="filter-btn filter-btn-apply" id="filters-apply">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    Applica filtri
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Reviews list -->
     <div class="reviews-list" id="reviews-list">
         {% if reviews and reviews.length > 0 %}
@@ -258,7 +399,14 @@
                             </div>
                         </div>
                         
-                        <!-- 2. UTENTE + DATA -->
+                        <!-- 2. BIRRIFICIO -->
+                        {% if review.isProcessing %}
+                            <span class="review-brewery-name processing-placeholder">🏭 In elaborazione...</span>
+                        {% elif review.breweryName %}
+                            <span class="review-brewery-name">🏭 {{ review.breweryName }}</span>
+                        {% endif %}
+                        
+                        <!-- 3. UTENTE + DATA -->
                         <div class="review-meta">
                             <span class="review-user">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 4px; opacity: 0.6;">
@@ -271,7 +419,7 @@
                             </span>
                         </div>
                         
-                        <!-- 3. COMMENTO con giudizio in grassetto -->
+                        <!-- 4. COMMENTO con giudizio in grassetto -->
                         {% if review.notes %}
                             <div class="review-notes">
                                 <strong>Giudizio:</strong> {{ review.notes }}
@@ -322,4 +470,5 @@
 
 {% block scripts %}
 <script src="/js/modules/latestReviewsModule.js"></script>
+<script src="/js/modules/reviewsFilterModule.js"></script>
 {% endblock %}

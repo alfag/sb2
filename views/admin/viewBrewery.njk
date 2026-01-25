@@ -2,929 +2,902 @@
 
 {% block content %}
 <style>
-/* ===== VIEW BREWERY MODERN STYLES ===== */
-.brewery-view-page {
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+/* ===== VIEW BREWERY - MINIMAL CLEAN DESIGN ===== */
+.brewery-page {
     min-height: 100vh;
-    padding: 1.5rem;
+    background: #fafaf9;
+    padding: 0;
+    margin: -1rem;
 }
 
-/* Hero Header */
-.brewery-hero {
-    background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 50%, #3182ce 100%);
-    border-radius: 20px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 20px 40px rgba(30, 58, 95, 0.3);
+/* Top Bar con navigazione */
+.top-bar {
+    background: white;
+    border-bottom: 1px solid #e7e5e4;
+    padding: 0.75rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
-.brewery-hero::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -20%;
-    width: 60%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-    pointer-events: none;
-}
-
-.brewery-hero::after {
-    content: '🍺';
-    position: absolute;
-    top: 50%;
-    right: 2rem;
-    font-size: 6rem;
-    opacity: 0.15;
-    transform: translateY(-50%);
-}
-
-.brewery-hero h1 {
-    color: white;
-    font-size: 2.5rem;
-    font-weight: 800;
-    margin-bottom: 0.5rem;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-}
-
-.brewery-hero .brewery-id {
-    color: rgba(255,255,255,0.6);
-    font-size: 0.85rem;
-    font-family: monospace;
-}
-
-.brewery-hero .brewery-description {
-    color: rgba(255,255,255,0.9);
-    font-size: 1.1rem;
-    margin-top: 1rem;
-    max-width: 70%;
-}
-
-/* Hero Actions */
-.hero-actions {
+.top-bar-content {
     display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.hero-btn {
-    padding: 0.75rem 1.5rem;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    border: none;
-    cursor: pointer;
+.back-link {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    color: #78716c;
     text-decoration: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: color 0.2s;
 }
 
-.hero-btn-primary {
-    background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(237, 137, 54, 0.4);
+.back-link:hover {
+    color: #d97706;
 }
 
-.hero-btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(237, 137, 54, 0.5);
-    color: white;
-}
-
-.hero-btn-secondary {
-    background: rgba(255,255,255,0.2);
-    color: white;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.3);
-}
-
-.hero-btn-secondary:hover {
-    background: rgba(255,255,255,0.3);
-    transform: translateY(-2px);
-    color: white;
-}
-
-/* Stats Cards Row */
-.stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.stat-card {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
+.top-actions {
     display: flex;
+    gap: 0.5rem;
+}
+
+.btn-edit {
+    display: inline-flex;
     align-items: center;
-    gap: 1rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid rgba(0,0,0,0.05);
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    background: #f59e0b;
+    color: white;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
 }
 
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+.btn-edit:hover {
+    background: #d97706;
+    color: white;
 }
 
-.stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
+/* Header Birrificio */
+.brewery-header {
+    background: white;
+    padding: 2rem 0;
+    border-bottom: 1px solid #e7e5e4;
+}
+
+.header-content {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.brewery-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    background: #f5f5f4;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid #e7e5e4;
 }
 
-.stat-icon.beers {
-    background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%);
+.brewery-logo img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+}
+
+.brewery-logo .placeholder {
+    color: #d4d4d4;
+    font-size: 2rem;
+}
+
+.brewery-title {
+    flex: 1;
+}
+
+.brewery-title h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1c1917;
+    margin: 0 0 0.5rem;
+    line-height: 1.2;
+}
+
+.brewery-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.meta-badge.verified {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.meta-badge.pending {
+    background: #fef3c7;
     color: #92400e;
 }
 
-.stat-icon.reviews {
-    background: linear-gradient(135deg, #d1fae5 0%, #34d399 100%);
-    color: #065f46;
-}
-
-.stat-icon.founded {
-    background: linear-gradient(135deg, #dbeafe 0%, #60a5fa 100%);
-    color: #1e40af;
-}
-
-.stat-icon.size {
-    background: linear-gradient(135deg, #ede9fe 0%, #a78bfa 100%);
+.meta-badge.ai {
+    background: #ede9fe;
     color: #5b21b6;
 }
 
-.stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #1e293b;
-    line-height: 1;
-}
-
-.stat-label {
-    font-size: 0.85rem;
-    color: #64748b;
-    margin-top: 0.25rem;
-}
-
-/* Modern Tabs */
-.brewery-tabs-container {
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-    overflow: hidden;
-}
-
-.brewery-tabs-container .nav-tabs {
-    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-    border: none;
-    padding: 1rem 1rem 0;
-    gap: 0.5rem;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-}
-
-.brewery-tabs-container .nav-tabs .nav-link {
-    border: none;
-    border-radius: 12px 12px 0 0;
-    padding: 0.85rem 1.25rem;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #64748b;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-}
-
-.brewery-tabs-container .nav-tabs .nav-link:hover {
-    color: #3b82f6;
-    background: rgba(59, 130, 246, 0.1);
-}
-
-.brewery-tabs-container .nav-tabs .nav-link.active {
-    background: white;
-    color: #3b82f6;
-    box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
-}
-
-.brewery-tabs-container .nav-tabs .nav-link i {
-    font-size: 1rem;
-}
-
-.brewery-tabs-container .tab-content {
-    padding: 2rem;
-}
-
-/* Section Headers */
-.section-header {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #1e293b;
-    padding-bottom: 0.75rem;
-    margin-bottom: 1rem;
-    border-bottom: 2px solid #e2e8f0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.section-header::before {
-    content: '';
-    width: 4px;
-    height: 20px;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    border-radius: 2px;
-}
-
-/* Info Table */
-.info-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-.info-table tr {
-    transition: background 0.2s ease;
-}
-
-.info-table tr:hover {
-    background: #f8fafc;
-}
-
-.info-table td {
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid #f1f5f9;
-    vertical-align: middle;
-}
-
-.info-table td:first-child {
-    width: 40%;
-    font-weight: 600;
-    color: #475569;
-}
-
-.info-table td:last-child {
-    color: #1e293b;
-}
-
-.info-table a {
-    color: #3b82f6;
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s ease;
-}
-
-.info-table a:hover {
-    color: #2563eb;
-    text-decoration: underline;
-}
-
-/* Tags/Badges */
-.tag-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.tag {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.4rem 0.85rem;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-
-.tag-product {
-    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-    color: #4338ca;
-}
-
-.tag-award {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    color: #92400e;
-}
-
-.tag:hover {
-    transform: scale(1.05);
-}
-
-/* Social Links */
-.social-links {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.social-link {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
-    background: #f8fafc;
-    border-radius: 12px;
-    text-decoration: none;
-    color: #1e293b;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    border: 1px solid transparent;
-}
-
-.social-link:hover {
-    background: white;
-    transform: translateX(8px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    border-color: #e2e8f0;
-    color: #1e293b;
-}
-
-.social-link i {
-    font-size: 1.5rem;
-    width: 30px;
-    text-align: center;
-}
-
-.social-link .fa-facebook { color: #1877f2; }
-.social-link .fa-instagram { color: #e4405f; }
-.social-link .fa-twitter { color: #1da1f2; }
-.social-link .fa-linkedin { color: #0077b5; }
-.social-link .fa-youtube { color: #ff0000; }
-
-/* Beer Cards */
-.beers-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.25rem;
-}
-
-.beer-card {
-    background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
-    border-radius: 16px;
-    padding: 1.25rem;
-    border: 1px solid #fde047;
-    transition: all 0.3s ease;
-}
-
-.beer-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 25px rgba(250, 204, 21, 0.2);
-}
-
-.beer-card h5 {
-    font-weight: 700;
-    color: #713f12;
-    margin-bottom: 0.75rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.beer-card h5::before {
-    content: '🍺';
-}
-
-.beer-card .beer-info {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.beer-card .beer-info span {
-    font-size: 0.85rem;
+.meta-location {
     color: #78716c;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
     gap: 0.3rem;
 }
 
-.beer-card .beer-info span strong {
-    color: #44403c;
+.meta-location i {
+    font-size: 0.75rem;
 }
 
-/* No data message */
-.no-data {
-    color: #94a3b8;
-    font-style: italic;
-    padding: 1rem;
-    text-align: center;
-    background: #f8fafc;
-    border-radius: 8px;
+/* Quick Links */
+.quick-links {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
 }
 
-/* Breadcrumb Modern */
-.modern-breadcrumb {
+.quick-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    background: #f5f5f4;
+    color: #57534e;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.quick-link:hover {
+    background: white;
+    border-color: #e7e5e4;
+    color: #1c1917;
+}
+
+.quick-link.website {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.quick-link.website:hover {
+    background: #d1fae5;
+}
+
+/* Main Content */
+.main-content {
+    padding: 1.5rem 0 3rem;
+}
+
+/* Section */
+.section {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e7e5e4;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.section-header {
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid #f5f5f4;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    padding: 0.75rem 1rem;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 
-.modern-breadcrumb a {
-    color: #64748b;
-    text-decoration: none;
-    font-weight: 500;
-    font-size: 0.9rem;
-    transition: color 0.2s ease;
+.section-header h3 {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #78716c;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-.modern-breadcrumb a:hover {
-    color: #3b82f6;
+.section-header i {
+    color: #a8a29e;
+    font-size: 0.85rem;
 }
 
-.modern-breadcrumb .separator {
-    color: #cbd5e1;
+.section-body {
+    padding: 1rem 1.25rem;
 }
 
-.modern-breadcrumb .current {
-    color: #1e293b;
-    font-weight: 600;
+/* Info Grid - 2 colonne */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
 }
 
-/* Mobile Responsive */
 @media (max-width: 768px) {
-    .brewery-hero {
-        padding: 1.5rem;
+    .info-grid {
+        grid-template-columns: 1fr;
     }
-    
-    .brewery-hero h1 {
-        font-size: 1.75rem;
-    }
-    
-    .brewery-hero::after {
-        font-size: 4rem;
-        right: 1rem;
-    }
-    
-    .brewery-hero .brewery-description {
-        max-width: 100%;
-    }
-    
-    .hero-actions {
-        flex-direction: column;
-    }
-    
-    .hero-btn {
-        justify-content: center;
-    }
-    
-    .stats-row {
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-    }
-    
-    .stat-card {
-        flex-direction: column;
-        text-align: center;
-        padding: 1rem;
-    }
-    
-    .brewery-tabs-container .nav-tabs {
-        padding: 0.75rem 0.75rem 0;
-    }
-    
-    .brewery-tabs-container .nav-tabs .nav-link {
-        padding: 0.7rem 1rem;
-        font-size: 0.8rem;
-    }
-    
-    .brewery-tabs-container .tab-content {
-        padding: 1.25rem;
-    }
-    
-    .beers-grid {
+}
+
+/* Info Row */
+.info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.info-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #a8a29e;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.info-value {
+    font-size: 0.9rem;
+    color: #1c1917;
+}
+
+.info-value.empty {
+    color: #d4d4d4;
+    font-style: italic;
+}
+
+.info-value a {
+    color: #d97706;
+    text-decoration: none;
+}
+
+.info-value a:hover {
+    text-decoration: underline;
+}
+
+.info-value code {
+    background: #f5f5f4;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-family: 'SF Mono', Monaco, monospace;
+    color: #57534e;
+}
+
+/* Description */
+.description-text {
+    color: #44403c;
+    font-size: 0.9rem;
+    line-height: 1.7;
+}
+
+/* Tags */
+.tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.tag {
+    display: inline-block;
+    padding: 0.3rem 0.65rem;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.tag.award {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+/* Social Links */
+.social-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.social-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    background: #f5f5f4;
+    border-radius: 6px;
+    color: #57534e;
+    font-size: 0.8rem;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.social-item:hover {
+    background: #e7e5e4;
+    color: #1c1917;
+}
+
+.social-item i {
+    font-size: 1rem;
+}
+
+.social-item .fa-facebook { color: #1877f2; }
+.social-item .fa-instagram { color: #e4405f; }
+.social-item .fa-twitter { color: #1da1f2; }
+.social-item .fa-linkedin { color: #0077b5; }
+.social-item .fa-youtube { color: #ff0000; }
+
+/* Beers List */
+.beers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.beer-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #f5f5f4;
+}
+
+.beer-item:last-child {
+    border-bottom: none;
+}
+
+.beer-name {
+    font-weight: 600;
+    color: #1c1917;
+    font-size: 0.9rem;
+}
+
+.beer-details {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    color: #78716c;
+}
+
+.beer-details span {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Empty State */
+.empty-state {
+    color: #a8a29e;
+    font-size: 0.85rem;
+    font-style: italic;
+    padding: 0.5rem 0;
+}
+
+/* Stats mini bar */
+.stats-bar {
+    display: flex;
+    gap: 1.5rem;
+    padding: 0.75rem 1.25rem;
+    background: #fafaf9;
+    border-top: 1px solid #f5f5f4;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.stat-item i {
+    color: #d97706;
+    font-size: 0.85rem;
+}
+
+.stat-item span {
+    font-size: 0.8rem;
+    color: #57534e;
+}
+
+.stat-item strong {
+    color: #1c1917;
+    font-weight: 700;
+}
+
+/* Metadata footer */
+.metadata-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding: 0.75rem 1.25rem;
+    background: #fafaf9;
+    font-size: 0.7rem;
+    color: #a8a29e;
+}
+
+.metadata-footer span {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Two Column Layout */
+.two-columns {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+    .two-columns {
         grid-template-columns: 1fr;
     }
 }
 
 /* Flash Messages */
-.flash-message {
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1.5rem;
+.flash-toast {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1000;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    font-weight: 500;
+    gap: 0.5rem;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.flash-message.success {
-    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-    color: #065f46;
-    border: 1px solid #34d399;
+.flash-toast.success {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
 }
 
-.flash-message.error {
-    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-    color: #991b1b;
-    border: 1px solid #f87171;
+.flash-toast.error {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
 }
 
-.flash-message i {
-    font-size: 1.25rem;
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+    .header-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .brewery-meta {
+        justify-content: center;
+    }
+    
+    .quick-links {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .stats-bar {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
 }
 </style>
 
-<div class="brewery-view-page">
-    <!-- Messaggi flash -->
+<div class="brewery-page">
+    <!-- Flash Messages -->
     {% if message.success %}
-        <div class="flash-message success">
-            <i class="fas fa-check-circle"></i>
-            {{ message.success[0] }}
+        <div class="flash-toast success">
+            <i class="fas fa-check-circle"></i> {{ message.success[0] }}
         </div>
     {% endif %}
-    
     {% if message.error %}
-        <div class="flash-message error">
-            <i class="fas fa-exclamation-circle"></i>
-            {{ message.error[0] }}
+        <div class="flash-toast error">
+            <i class="fas fa-exclamation-circle"></i> {{ message.error[0] }}
         </div>
     {% endif %}
-    
-    <!-- Breadcrumb Modern -->
-    <div class="modern-breadcrumb">
-        <a href="/administrator"><i class="fas fa-home"></i></a>
-        <span class="separator">›</span>
-        <a href="/administrator/breweries">Birrifici</a>
-        <span class="separator">›</span>
-        <span class="current">{{ brewery.breweryName }}</span>
-    </div>
-    
-    <!-- Hero Header -->
-    <div class="brewery-hero">
-        <h1>{{ brewery.breweryName }}</h1>
-        <div class="brewery-id">ID: {{ brewery._id }}</div>
-        {% if brewery.breweryDescription %}
-            <p class="brewery-description">{{ brewery.breweryDescription }}</p>
-        {% endif %}
-        
-        <div class="hero-actions">
-            <a href="/administrator/breweries/edit/{{ brewery._id }}" class="hero-btn hero-btn-primary">
-                <i class="fas fa-edit"></i> Modifica Birrificio
-            </a>
-            <a href="/administrator/breweries" class="hero-btn hero-btn-secondary">
-                <i class="fas fa-arrow-left"></i> Torna alla Lista
-            </a>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="container">
+            <div class="top-bar-content">
+                <a href="/administrator/breweries" class="back-link">
+                    <i class="fas fa-arrow-left"></i> Birrifici
+                </a>
+                <div class="top-actions">
+                    <a href="/administrator/breweries/edit/{{ brewery._id }}" class="btn-edit">
+                        <i class="fas fa-edit"></i> Modifica
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <!-- Stats Cards -->
-    <div class="stats-row">
-        {% if brewery.stats %}
-        <div class="stat-card">
-            <div class="stat-icon beers">
-                <i class="fas fa-beer"></i>
-            </div>
-            <div>
-                <div class="stat-value">{{ brewery.stats.totalBeers or 0 }}</div>
-                <div class="stat-label">Birre Associate</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon reviews">
-                <i class="fas fa-star"></i>
-            </div>
-            <div>
-                <div class="stat-value">{{ brewery.stats.totalReviews or 0 }}</div>
-                <div class="stat-label">Recensioni Totali</div>
-            </div>
-        </div>
-        {% endif %}
-        {% if brewery.foundingYear %}
-        <div class="stat-card">
-            <div class="stat-icon founded">
-                <i class="fas fa-calendar-alt"></i>
-            </div>
-            <div>
-                <div class="stat-value">{{ brewery.foundingYear }}</div>
-                <div class="stat-label">Anno Fondazione</div>
-            </div>
-        </div>
-        {% endif %}
-        {% if brewery.brewerySize %}
-        <div class="stat-card">
-            <div class="stat-icon size">
-                <i class="fas fa-expand-arrows-alt"></i>
-            </div>
-            <div>
-                <div class="stat-value">{{ brewery.brewerySize }}</div>
-                <div class="stat-label">Dimensione</div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-    
-    <!-- Tabs Container -->
-    <div class="brewery-tabs-container">
-        <!-- Tab navigation -->
-        <ul class="nav nav-tabs" id="breweryTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
-                    <i class="fas fa-info-circle"></i> Generale
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="legal-tab" data-bs-toggle="tab" data-bs-target="#legal" type="button" role="tab">
-                    <i class="fas fa-gavel"></i> Legale
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="production-tab" data-bs-toggle="tab" data-bs-target="#production" type="button" role="tab">
-                    <i class="fas fa-industry"></i> Produzione
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact" type="button" role="tab">
-                    <i class="fas fa-address-book"></i> Contatti
-                </button>
-            </li>
-            {% if brewery.stats and brewery.stats.totalBeers > 0 %}
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="beers-tab" data-bs-toggle="tab" data-bs-target="#beers" type="button" role="tab">
-                    <i class="fas fa-beer"></i> Birre ({{ brewery.stats.totalBeers }})
-                </button>
-            </li>
-            {% endif %}
-        </ul>
-        
-        <!-- Tab content -->
-        <div class="tab-content" id="breweryTabsContent">
-            
-            <!-- Informazioni Generali -->
-            <div class="tab-pane fade show active" id="general" role="tabpanel">
-                <div class="row">
-                    <div class="col-lg-6 mb-4">
-                        <h6 class="section-header">Informazioni Base</h6>
-                        <table class="info-table">
-                            <tr>
-                                <td>Nome</td>
-                                <td>{{ brewery.breweryName or '—' }}</td>
-                            </tr>
-                            <tr>
-                                <td>Email</td>
-                                <td>
-                                    {% if brewery.breweryEmail %}
-                                        <a href="mailto:{{ brewery.breweryEmail }}">{{ brewery.breweryEmail }}</a>
-                                    {% else %}
-                                        <span class="text-muted">—</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Sito Web</td>
-                                <td>
-                                    {% if brewery.breweryWebsite %}
-                                        <a href="{{ brewery.breweryWebsite }}" target="_blank">{{ brewery.breweryWebsite }} <i class="fas fa-external-link-alt" style="font-size:0.7rem"></i></a>
-                                    {% else %}
-                                        <span class="text-muted">—</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Anno Fondazione</td>
-                                <td>{{ brewery.foundingYear or '—' }}</td>
-                            </tr>
-                        </table>
-                    </div>
-                    <div class="col-lg-6 mb-4">
-                        <h6 class="section-header">Storia</h6>
-                        {% if brewery.breweryHistory %}
-                            <p style="color:#475569;line-height:1.7">{{ brewery.breweryHistory }}</p>
-                        {% else %}
-                            <div class="no-data">Nessuna storia disponibile</div>
-                        {% endif %}
-                        
-                        {% if brewery.masterBrewer %}
-                            <h6 class="section-header" style="margin-top:1.5rem">Mastro Birraio</h6>
-                            <p style="color:#1e293b;font-weight:500"><i class="fas fa-user-tie text-primary me-2"></i>{{ brewery.masterBrewer }}</p>
-                        {% endif %}
-                    </div>
+
+    <!-- Header -->
+    <div class="brewery-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="brewery-logo">
+                    {% if brewery.breweryLogo %}
+                        <img src="{{ brewery.breweryLogo }}" alt="{{ brewery.breweryName }}"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span class="placeholder" style="display:none;"><i class="fas fa-industry"></i></span>
+                    {% else %}
+                        <span class="placeholder"><i class="fas fa-industry"></i></span>
+                    {% endif %}
                 </div>
                 
-                <!-- Prodotti e Premi -->
-                <div class="row">
-                    <div class="col-lg-6 mb-4">
-                        <h6 class="section-header">Prodotti Principali</h6>
-                        {% if brewery.mainProducts and brewery.mainProducts.length > 0 %}
-                            <div class="tag-container">
-                                {% for product in brewery.mainProducts %}
-                                    <span class="tag tag-product">{{ product }}</span>
-                                {% endfor %}
-                            </div>
+                <div class="brewery-title">
+                    <h1>{{ brewery.breweryName }}</h1>
+                    <div class="brewery-meta">
+                        {% if brewery.validationStatus == 'validated' %}
+                            <span class="meta-badge verified"><i class="fas fa-check"></i> Verificato</span>
+                        {% elif brewery.validationStatus == 'ai_extracted' %}
+                            <span class="meta-badge ai"><i class="fas fa-robot"></i> AI</span>
                         {% else %}
-                            <div class="no-data">Nessun prodotto specificato</div>
+                            <span class="meta-badge pending"><i class="fas fa-clock"></i> Pending</span>
                         {% endif %}
-                    </div>
-                    <div class="col-lg-6 mb-4">
-                        <h6 class="section-header">Premi e Riconoscimenti</h6>
-                        {% if brewery.awards and brewery.awards.length > 0 %}
-                            <div class="tag-container">
-                                {% for award in brewery.awards %}
-                                    <span class="tag tag-award"><i class="fas fa-trophy me-1"></i>{{ award }}</span>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <div class="no-data">Nessun premio specificato</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Dati Legali -->
-            <div class="tab-pane fade" id="legal" role="tabpanel">
-                <div class="row">
-                    <div class="col-lg-8">
-                        <h6 class="section-header">Informazioni Fiscali e Legali</h6>
-                        <table class="info-table">
-                            <tr>
-                                <td>Codice Fiscale / P.IVA</td>
-                                <td><code>{{ brewery.breweryFiscalCode or '—' }}</code></td>
-                            </tr>
-                            <tr>
-                                <td>Codice REA</td>
-                                <td><code>{{ brewery.breweryREAcode or '—' }}</code></td>
-                            </tr>
-                            <tr>
-                                <td>Codice Accise</td>
-                                <td><code>{{ brewery.breweryacciseCode or '—' }}</code></td>
-                            </tr>
-                            <tr>
-                                <td>Fondo</td>
-                                <td>{{ brewery.breweryFund or '—' }}</td>
-                            </tr>
-                            <tr>
-                                <td>Indirizzo Legale</td>
-                                <td>{{ brewery.breweryLegalAddress or '—' }}</td>
-                            </tr>
-                        </table>
                         
-                        <h6 class="section-header" style="margin-top:2rem">Timestamp</h6>
-                        <table class="info-table">
-                            <tr>
-                                <td>Data Creazione</td>
-                                <td>{{ brewery.createdAt | date('d/m/Y H:i') }}</td>
-                            </tr>
-                            <tr>
-                                <td>Ultimo Aggiornamento</td>
-                                <td>{{ brewery.updatedAt | date('d/m/Y H:i') }}</td>
-                            </tr>
-                        </table>
+                        {% if brewery.breweryLegalAddress or brewery.breweryProductionAddress %}
+                            <span class="meta-location">
+                                <i class="fas fa-map-marker-alt"></i>
+                                {{ brewery.breweryLegalAddress or brewery.breweryProductionAddress | truncate(40) }}
+                            </span>
+                        {% endif %}
                     </div>
-                </div>
-            </div>
-            
-            <!-- Produzione -->
-            <div class="tab-pane fade" id="production" role="tabpanel">
-                <div class="row">
-                    <div class="col-lg-6 mb-4">
-                        <h6 class="section-header">Dettagli Produttivi</h6>
-                        <table class="info-table">
-                            <tr>
-                                <td>Dimensione Birrificio</td>
-                                <td>{{ brewery.brewerySize or '—' }}</td>
-                            </tr>
-                            <tr>
-                                <td>Numero Dipendenti</td>
-                                <td>{{ brewery.employeeCount or '—' }}</td>
-                            </tr>
-                            <tr>
-                                <td>Volume Produzione</td>
-                                <td>{{ brewery.productionVolume or '—' }}</td>
-                            </tr>
-                            <tr>
-                                <td>Area Distribuzione</td>
-                                <td>{{ brewery.distributionArea or '—' }}</td>
-                            </tr>
-                        </table>
-                    </div>
-                    <div class="col-lg-6 mb-4">
-                        <h6 class="section-header">Sede Produttiva</h6>
-                        {% if brewery.breweryProductionAddress %}
-                            <div style="background:#f8fafc;padding:1rem 1.25rem;border-radius:12px;border-left:4px solid #3b82f6">
-                                <i class="fas fa-map-marker-alt text-primary me-2"></i>
-                                {{ brewery.breweryProductionAddress }}
-                            </div>
-                        {% else %}
-                            <div class="no-data">Nessun indirizzo di produzione specificato</div>
+                    
+                    <div class="quick-links">
+                        {% if brewery.breweryWebsite %}
+                            <a href="{{ brewery.breweryWebsite }}" target="_blank" rel="noopener" class="quick-link website">
+                                <i class="fas fa-globe"></i> Sito Web
+                            </a>
+                        {% endif %}
+                        {% if brewery.breweryEmail %}
+                            <a href="mailto:{{ brewery.breweryEmail }}" class="quick-link">
+                                <i class="fas fa-envelope"></i> Email
+                            </a>
+                        {% endif %}
+                        {% if brewery.breweryPhoneNumber %}
+                            <a href="tel:{{ brewery.breweryPhoneNumber }}" class="quick-link">
+                                <i class="fas fa-phone"></i> Chiama
+                            </a>
                         {% endif %}
                     </div>
                 </div>
             </div>
-            
-            <!-- Contatti -->
-            <div class="tab-pane fade" id="contact" role="tabpanel">
-                <div class="row">
-                    <div class="col-lg-6 mb-4">
-                        <h6 class="section-header">Contatti Diretti</h6>
-                        <table class="info-table">
-                            <tr>
-                                <td><i class="fas fa-phone me-2 text-primary"></i>Telefono</td>
-                                <td>
-                                    {% if brewery.breweryPhoneNumber %}
-                                        <a href="tel:{{ brewery.breweryPhoneNumber }}">{{ brewery.breweryPhoneNumber }}</a>
-                                    {% else %}
-                                        <span class="text-muted">—</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><i class="fas fa-envelope me-2 text-primary"></i>Email</td>
-                                <td>
-                                    {% if brewery.breweryEmail %}
-                                        <a href="mailto:{{ brewery.breweryEmail }}">{{ brewery.breweryEmail }}</a>
-                                    {% else %}
-                                        <span class="text-muted">—</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><i class="fas fa-globe me-2 text-primary"></i>Sito Web</td>
-                                <td>
-                                    {% if brewery.breweryWebsite %}
-                                        <a href="{{ brewery.breweryWebsite }}" target="_blank">{{ brewery.breweryWebsite }}</a>
-                                    {% else %}
-                                        <span class="text-muted">—</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        </table>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container">
+            <div class="two-columns">
+                <!-- Colonna Principale -->
+                <div class="main-column">
+                    
+                    <!-- Descrizione -->
+                    {% if brewery.breweryDescription or brewery.breweryHistory %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-align-left"></i>
+                            <h3>Descrizione</h3>
+                        </div>
+                        <div class="section-body">
+                            <p class="description-text">
+                                {{ brewery.breweryDescription or brewery.breweryHistory or 'Nessuna descrizione disponibile.' }}
+                            </p>
+                        </div>
                     </div>
-                    <div class="col-lg-6 mb-4">
-                        <h6 class="section-header">Social Media</h6>
-                        {% set hasSocial = brewery.brewerySocialMedia and (brewery.brewerySocialMedia.facebook or brewery.brewerySocialMedia.instagram or brewery.brewerySocialMedia.twitter or brewery.brewerySocialMedia.linkedin or brewery.brewerySocialMedia.youtube) %}
-                        {% if hasSocial %}
-                            <div class="social-links">
+                    {% endif %}
+                    
+                    <!-- Informazioni -->
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-info-circle"></i>
+                            <h3>Informazioni</h3>
+                        </div>
+                        <div class="section-body">
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <span class="info-label">Sede Legale</span>
+                                    <span class="info-value {% if not brewery.breweryLegalAddress %}empty{% endif %}">
+                                        {{ brewery.breweryLegalAddress or 'Non specificato' }}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Sede Produzione</span>
+                                    <span class="info-value {% if not brewery.breweryProductionAddress %}empty{% endif %}">
+                                        {{ brewery.breweryProductionAddress or 'Non specificato' }}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Email</span>
+                                    <span class="info-value {% if not brewery.breweryEmail %}empty{% endif %}">
+                                        {% if brewery.breweryEmail %}
+                                            <a href="mailto:{{ brewery.breweryEmail }}">{{ brewery.breweryEmail }}</a>
+                                        {% else %}
+                                            Non specificata
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Telefono</span>
+                                    <span class="info-value {% if not brewery.breweryPhoneNumber %}empty{% endif %}">
+                                        {% if brewery.breweryPhoneNumber %}
+                                            <a href="tel:{{ brewery.breweryPhoneNumber }}">{{ brewery.breweryPhoneNumber }}</a>
+                                        {% else %}
+                                            Non specificato
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Sito Web</span>
+                                    <span class="info-value {% if not brewery.breweryWebsite %}empty{% endif %}">
+                                        {% if brewery.breweryWebsite %}
+                                            <a href="{{ brewery.breweryWebsite }}" target="_blank">{{ brewery.breweryWebsite }}</a>
+                                        {% else %}
+                                            Non specificato
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Mastro Birraio</span>
+                                    <span class="info-value {% if not brewery.masterBrewer %}empty{% endif %}">
+                                        {{ brewery.masterBrewer or 'Non specificato' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Dati Legali -->
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-file-alt"></i>
+                            <h3>Dati Legali</h3>
+                        </div>
+                        <div class="section-body">
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <span class="info-label">P.IVA / Codice Fiscale</span>
+                                    <span class="info-value {% if not brewery.breweryFiscalCode %}empty{% endif %}">
+                                        {% if brewery.breweryFiscalCode %}
+                                            <code>{{ brewery.breweryFiscalCode }}</code>
+                                        {% else %}
+                                            Non specificato
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Codice REA</span>
+                                    <span class="info-value {% if not brewery.breweryREAcode %}empty{% endif %}">
+                                        {% if brewery.breweryREAcode %}
+                                            <code>{{ brewery.breweryREAcode }}</code>
+                                        {% else %}
+                                            Non specificato
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Codice Accise</span>
+                                    <span class="info-value {% if not brewery.breweryacciseCode %}empty{% endif %}">
+                                        {% if brewery.breweryacciseCode %}
+                                            <code>{{ brewery.breweryacciseCode }}</code>
+                                        {% else %}
+                                            Non specificato
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Capitale Sociale</span>
+                                    <span class="info-value {% if not brewery.breweryFund %}empty{% endif %}">
+                                        {{ brewery.breweryFund or 'Non specificato' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Birre -->
+                    {% if brewery.stats and brewery.stats.totalBeers > 0 %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-beer"></i>
+                            <h3>Birre ({{ brewery.stats.totalBeers }})</h3>
+                        </div>
+                        <div class="section-body">
+                            <div class="beers-list">
+                                {% for beer in brewery.stats.beers %}
+                                <div class="beer-item">
+                                    <span class="beer-name">{{ beer.beerName }}</span>
+                                    <div class="beer-details">
+                                        {% if beer.beerType %}
+                                            <span>{{ beer.beerType }}</span>
+                                        {% endif %}
+                                        {% if beer.alcoholContent %}
+                                            <span><strong>{{ beer.alcoholContent }}%</strong> ABV</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                </div>
+                
+                <!-- Sidebar -->
+                <div class="sidebar-column">
+                    
+                    <!-- Produzione -->
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-cogs"></i>
+                            <h3>Produzione</h3>
+                        </div>
+                        <div class="section-body">
+                            <div class="info-row" style="margin-bottom:0.75rem;">
+                                <span class="info-label">Dimensione</span>
+                                <span class="info-value {% if not brewery.brewerySize %}empty{% endif %}">
+                                    {{ brewery.brewerySize | capitalize or 'Non specificato' }}
+                                </span>
+                            </div>
+                            <div class="info-row" style="margin-bottom:0.75rem;">
+                                <span class="info-label">Volume Produzione</span>
+                                <span class="info-value {% if not brewery.productionVolume %}empty{% endif %}">
+                                    {{ brewery.productionVolume or 'Non specificato' }}
+                                </span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Area Distribuzione</span>
+                                <span class="info-value {% if not brewery.distributionArea %}empty{% endif %}">
+                                    {{ brewery.distributionArea or 'Non specificato' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Prodotti -->
+                    {% if brewery.mainProducts and brewery.mainProducts.length > 0 %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-box"></i>
+                            <h3>Prodotti</h3>
+                        </div>
+                        <div class="section-body">
+                            <div class="tags-list">
+                                {% for product in brewery.mainProducts %}
+                                    <span class="tag">{{ product }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Premi -->
+                    {% if brewery.awards and brewery.awards.length > 0 %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-trophy"></i>
+                            <h3>Premi</h3>
+                        </div>
+                        <div class="section-body">
+                            <div class="tags-list">
+                                {% for award in brewery.awards %}
+                                    <span class="tag award">{{ award }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Social -->
+                    {% set hasSocial = brewery.brewerySocialMedia and (brewery.brewerySocialMedia.facebook or brewery.brewerySocialMedia.instagram or brewery.brewerySocialMedia.twitter or brewery.brewerySocialMedia.linkedin or brewery.brewerySocialMedia.youtube) %}
+                    {% if hasSocial %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-share-alt"></i>
+                            <h3>Social</h3>
+                        </div>
+                        <div class="section-body">
+                            <div class="social-list">
                                 {% if brewery.brewerySocialMedia.facebook %}
-                                    <a href="{{ brewery.brewerySocialMedia.facebook }}" target="_blank" class="social-link">
-                                        <i class="fab fa-facebook"></i> Facebook
+                                    <a href="{{ brewery.brewerySocialMedia.facebook }}" target="_blank" class="social-item">
+                                        <i class="fab fa-facebook"></i>
                                     </a>
                                 {% endif %}
                                 {% if brewery.brewerySocialMedia.instagram %}
-                                    <a href="{{ brewery.brewerySocialMedia.instagram }}" target="_blank" class="social-link">
-                                        <i class="fab fa-instagram"></i> Instagram
+                                    <a href="{{ brewery.brewerySocialMedia.instagram }}" target="_blank" class="social-item">
+                                        <i class="fab fa-instagram"></i>
                                     </a>
                                 {% endif %}
                                 {% if brewery.brewerySocialMedia.twitter %}
-                                    <a href="{{ brewery.brewerySocialMedia.twitter }}" target="_blank" class="social-link">
-                                        <i class="fab fa-twitter"></i> Twitter
+                                    <a href="{{ brewery.brewerySocialMedia.twitter }}" target="_blank" class="social-item">
+                                        <i class="fab fa-twitter"></i>
                                     </a>
                                 {% endif %}
                                 {% if brewery.brewerySocialMedia.linkedin %}
-                                    <a href="{{ brewery.brewerySocialMedia.linkedin }}" target="_blank" class="social-link">
-                                        <i class="fab fa-linkedin"></i> LinkedIn
+                                    <a href="{{ brewery.brewerySocialMedia.linkedin }}" target="_blank" class="social-item">
+                                        <i class="fab fa-linkedin"></i>
                                     </a>
                                 {% endif %}
                                 {% if brewery.brewerySocialMedia.youtube %}
-                                    <a href="{{ brewery.brewerySocialMedia.youtube }}" target="_blank" class="social-link">
-                                        <i class="fab fa-youtube"></i> YouTube
+                                    <a href="{{ brewery.brewerySocialMedia.youtube }}" target="_blank" class="social-item">
+                                        <i class="fab fa-youtube"></i>
                                     </a>
                                 {% endif %}
                             </div>
-                        {% else %}
-                            <div class="no-data">Nessun social media configurato</div>
-                        {% endif %}
+                        </div>
                     </div>
+                    {% endif %}
+                    
                 </div>
             </div>
             
-            <!-- Birre Associate -->
-            {% if brewery.stats and brewery.stats.totalBeers > 0 %}
-            <div class="tab-pane fade" id="beers" role="tabpanel">
-                <h6 class="section-header">Birre del Birrificio ({{ brewery.stats.totalBeers }})</h6>
-                <div class="beers-grid">
-                    {% for beer in brewery.stats.beers %}
-                    <div class="beer-card">
-                        <h5>{{ beer.beerName }}</h5>
-                        <div class="beer-info">
-                            {% if beer.beerType %}
-                                <span><strong>Tipo:</strong> {{ beer.beerType }}</span>
-                            {% endif %}
-                            {% if beer.alcoholContent %}
-                                <span><strong>ABV:</strong> {{ beer.alcoholContent }}</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
+            <!-- Metadata Footer -->
+            <div class="section" style="margin-top:1rem;">
+                <div class="metadata-footer">
+                    <span><i class="fas fa-fingerprint"></i> {{ brewery._id }}</span>
+                    <span><i class="fas fa-calendar-plus"></i> Creato: {{ brewery.createdAt | date('DD/MM/YYYY') }}</span>
+                    <span><i class="fas fa-sync"></i> Aggiornato: {{ brewery.updatedAt | date('DD/MM/YYYY') }}</span>
+                    <span><i class="fas fa-database"></i> Fonte: {{ brewery.dataSource | capitalize or 'Manuale' }}</span>
                 </div>
             </div>
-            {% endif %}
+            
         </div>
     </div>
 </div>
+
+<script>
+// Auto-hide flash messages
+document.querySelectorAll('.flash-toast').forEach(toast => {
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+});
+</script>
+<style>
+@keyframes slideOut {
+    to { transform: translateX(100%); opacity: 0; }
+}
+</style>
 {% endblock %}

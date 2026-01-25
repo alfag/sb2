@@ -394,12 +394,26 @@ router.get('/breweries', authMiddleware.isAdmin, async (req, res) => {
         logger.info('Accesso alla gestione brewery');
         const breweries = await adminController.getAllBreweries();
         
+        // Funzione helper per verificare se il logo è valido
+        // Un logo è considerato "non valido" se manca, è vuoto, o contiene URL placeholder/errore
+        const hasValidLogo = (brewery) => {
+            if (!brewery.breweryLogo) return false;
+            const logo = brewery.breweryLogo.toLowerCase();
+            // Verifica URL placeholder o non validi
+            const invalidPatterns = [
+                'placeholder', 'default', 'no-logo', 'nologo', 
+                'missing', 'blank', 'empty', 'null', 'undefined'
+            ];
+            return !invalidPatterns.some(pattern => logo.includes(pattern));
+        };
+        
         // Calcola statistiche reali dal database
         const stats = {
             totalBreweries: breweries.length,
             withEmail: breweries.filter(b => b.breweryEmail).length,
             withWebsite: breweries.filter(b => b.breweryWebsite).length,
-            incompleteData: breweries.filter(b => !b.breweryEmail || !b.breweryWebsite || !b.breweryPhoneNumber).length
+            incompleteData: breweries.filter(b => !b.breweryEmail || !b.breweryWebsite || !b.breweryPhoneNumber).length,
+            withoutLogo: breweries.filter(b => !hasValidLogo(b)).length
         };
         
         logger.info(`Statistiche birrifici calcolate: ${JSON.stringify(stats)}`);

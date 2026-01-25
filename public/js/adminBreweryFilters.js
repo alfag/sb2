@@ -4,6 +4,7 @@
  */
 
 let currentFilter = 'all';
+let currentSearchTerm = '';
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Admin Brewery Filters caricato');
@@ -15,6 +16,33 @@ document.addEventListener('DOMContentLoaded', function() {
             filterBreweries(filter);
         });
     });
+    
+    // Setup ricerca birrifici
+    const searchInput = document.getElementById('brewerySearchInput');
+    const searchBox = document.getElementById('brewerySearchBox');
+    
+    if (searchInput) {
+        // Ricerca in tempo reale mentre si digita
+        searchInput.addEventListener('input', function() {
+            currentSearchTerm = this.value.trim().toLowerCase();
+            
+            // Toggle classe per mostrare/nascondere pulsante clear
+            if (currentSearchTerm) {
+                searchBox.classList.add('has-value');
+            } else {
+                searchBox.classList.remove('has-value');
+            }
+            
+            applyFilters();
+        });
+        
+        // Supporto tasto ESC per cancellare
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                clearBrewerySearch();
+            }
+        });
+    }
 });
 
 /**
@@ -23,9 +51,6 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 function filterBreweries(filter) {
     currentFilter = filter;
-    const rows = document.querySelectorAll('.brewery-row');
-    const filterIndicator = document.getElementById('filter-indicator');
-    const filterMessage = document.getElementById('filter-message');
     
     // Rimuovi classe active da tutte le card
     document.querySelectorAll('.brewery-filter-card').forEach(card => {
@@ -38,67 +63,131 @@ function filterBreweries(filter) {
         selectedCard.classList.add('active');
     }
     
-    // Applica il filtro
+    applyFilters();
+}
+
+/**
+ * Applica sia il filtro categoria che la ricerca testuale
+ */
+function applyFilters() {
+    const rows = document.querySelectorAll('.brewery-row');
+    const filterIndicator = document.getElementById('filter-indicator');
+    const filterMessage = document.getElementById('filter-message');
+    
     let visibleCount = 0;
+    
     rows.forEach(row => {
-        let shouldShow = true;
-        
-        switch(filter) {
+        // Verifica filtro categoria
+        let matchesFilter = true;
+        switch(currentFilter) {
             case 'all':
-                shouldShow = true;
+                matchesFilter = true;
                 break;
             case 'with-email':
-                shouldShow = row.getAttribute('data-has-email') === 'true';
+                matchesFilter = row.getAttribute('data-has-email') === 'true';
                 break;
             case 'with-website':
-                shouldShow = row.getAttribute('data-has-website') === 'true';
+                matchesFilter = row.getAttribute('data-has-website') === 'true';
                 break;
             case 'incomplete-data':
-                shouldShow = row.getAttribute('data-complete-data') === 'false';
+                matchesFilter = row.getAttribute('data-complete-data') === 'false';
                 break;
-            default:
-                shouldShow = true;
+            case 'without-logo':
+                matchesFilter = row.getAttribute('data-has-logo') === 'false';
+                break;
         }
         
-        if (shouldShow) {
+        // Verifica ricerca testuale
+        let matchesSearch = true;
+        if (currentSearchTerm) {
+            const breweryName = row.querySelector('.brewery-name');
+            const name = breweryName ? breweryName.textContent.toLowerCase() : '';
+            matchesSearch = name.includes(currentSearchTerm);
+        }
+        
+        // Mostra solo se entrambi i criteri sono soddisfatti
+        if (matchesFilter && matchesSearch) {
             row.classList.remove('filtered-out');
             row.style.display = '';
             visibleCount++;
         } else {
             row.classList.add('filtered-out');
+            row.style.display = 'none';
         }
     });
     
-    // Mostra/nascondi indicatore filtro
-    if (filter === 'all') {
+    // Aggiorna indicatore filtro
+    updateFilterIndicator(visibleCount, filterIndicator, filterMessage);
+    
+    console.log(`Filtri applicati - Categoria: ${currentFilter}, Ricerca: "${currentSearchTerm}", Risultati: ${visibleCount}`);
+}
+
+/**
+ * Aggiorna l'indicatore dei filtri attivi
+ */
+function updateFilterIndicator(visibleCount, filterIndicator, filterMessage) {
+    const hasActiveFilter = currentFilter !== 'all';
+    const hasSearchTerm = currentSearchTerm !== '';
+    
+    if (!hasActiveFilter && !hasSearchTerm) {
         if (filterIndicator) {
             filterIndicator.style.display = 'none';
         }
-    } else {
-        const filterNames = {
-            'with-email': 'Birrifici con email',
-            'with-website': 'Birrifici con sito web', 
-            'incomplete-data': 'Birrifici con dati incompleti'
-        };
-        
-        if (filterMessage) {
-            filterMessage.textContent = `${filterNames[filter]} (${visibleCount} risultati)`;
-        }
-        if (filterIndicator) {
-            filterIndicator.style.display = 'block';
-        }
+        return;
     }
     
-    console.log(`Filtro applicato: ${filter}, risultati visibili: ${visibleCount}`);
+    const filterNames = {
+        'with-email': 'con email',
+        'with-website': 'con sito web', 
+        'incomplete-data': 'con dati incompleti',
+        'without-logo': 'senza logo'
+    };
+    
+    let message = '';
+    if (hasActiveFilter && hasSearchTerm) {
+        message = `Birrifici ${filterNames[currentFilter]} contenenti "${currentSearchTerm}" (${visibleCount})`;
+    } else if (hasActiveFilter) {
+        message = `Birrifici ${filterNames[currentFilter]} (${visibleCount})`;
+    } else if (hasSearchTerm) {
+        message = `Ricerca: "${currentSearchTerm}" (${visibleCount} risultati)`;
+    }
+    
+    if (filterMessage) {
+        filterMessage.textContent = message;
+    }
+    if (filterIndicator) {
+        filterIndicator.style.display = 'block';
+    }
 }
 
 /**
  * Rimuove tutti i filtri e mostra tutti i birrifici
  */
 function clearBreweryFilter() {
+    // Reset anche la ricerca
+    clearBrewerySearch();
     filterBreweries('all');
+}
+
+/**
+ * Cancella la ricerca testuale
+ */
+function clearBrewerySearch() {
+    const searchInput = document.getElementById('brewerySearchInput');
+    const searchBox = document.getElementById('brewerySearchBox');
+    
+    if (searchInput) {
+        searchInput.value = '';
+        currentSearchTerm = '';
+    }
+    if (searchBox) {
+        searchBox.classList.remove('has-value');
+    }
+    
+    applyFilters();
 }
 
 // Esponi le funzioni globalmente per compatibilità con gli onclick
 window.filterBreweries = filterBreweries;
 window.clearBreweryFilter = clearBreweryFilter;
+window.clearBrewerySearch = clearBrewerySearch;

@@ -298,6 +298,45 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+/* ===== MOBILE ZOOM PREVENTION ===== */
+/* iOS Safari fa zoom automatico su input con font < 16px */
+/* Forziamo 16px minimo per prevenire zoom indesiderato */
+
+@media screen and (max-width: 767px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  textarea,
+  select,
+  .form-control,
+  .form-select {
+    font-size: 16px !important; /* Previene zoom su iOS */
+  }
+}
+
+/* Touch device optimization */
+@media (hover: none) and (pointer: coarse) {
+  /* Dispositivi touch - aree touch più grandi */
+  input,
+  select,
+  textarea,
+  button {
+    min-height: 44px; /* Apple HIG raccomanda 44px */
+  }
+  
+  /* Prevenzione zoom touch */
+  html {
+    touch-action: manipulation;
+  }
+}
+
 /* ===== MOBILE FIRST MEDIA QUERIES ===== */
 
 /* Tablet and up */

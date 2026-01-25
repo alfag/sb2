@@ -1,11 +1,15 @@
 /**
  * Breweries Module - Gestione visualizzazione birrifici nella welcome page
  * Sistema leggero per mostrare birrifici registrati con UI minimal
+ * Supporta click su card per aprire modal info birrificio
  */
 
 console.log('🍺 BreweriesModule.js - FILE CARICATO!');
 
 const BreweriesModule = (() => {
+    // Cache birrifici per accesso rapido al click
+    let breweriesCache = [];
+    
     /**
      * Carica e visualizza i birrifici registrati
      */
@@ -43,6 +47,9 @@ const BreweriesModule = (() => {
 
             // Mescola l'array per ordine casuale
             const shuffledBreweries = shuffleArray([...data.breweries]);
+            
+            // Salva in cache per accesso rapido al click
+            breweriesCache = shuffledBreweries;
             
             // Limita a massimo 27 birrifici per la home page (3 colonne x 9 righe)
             const breweriesDisplay = shuffledBreweries.slice(0, 27);
@@ -132,19 +139,27 @@ const BreweriesModule = (() => {
         
         console.log(`[BreweriesModule] Birrificio ${index + 1}: "${brewery.breweryName}" → Logo: ${hasLogo ? 'SI' : 'NO'}${brewery.logoIsLight === true ? ' (chiaro)' : ''}`);
         
-        // Due layout diversi: full-image se logo presente, standard se no logo
+        // Tutte le card hanno lo stesso layout: full-image
+        // Se il logo non è disponibile o fallisce il caricamento, mostriamo un placeholder con l'iniziale
+        // Le card sono cliccabili e aprono il modal info birrificio
+        const breweryId = brewery._id || index;
+        
         if (hasLogo) {
             // CARD CON LOGO: immagine a tutto schermo, nome nascosto (mostrato solo su hover)
             // Se logoIsLight=true dal backend, aggiungi classe light-logo per drop-shadow
+            // onerror: in caso di fallimento caricamento logo, mostra placeholder con iniziale
             return `
-                <div class="brewery-card-link">
+                <div class="brewery-card-link" data-brewery-id="${breweryId}" onclick="BreweriesModule.openBreweryInfo('${breweryId}')">
                     <div class="brewery-card brewery-card-full-image">
                         <img 
                             src="${escapeHtml(brewery.breweryLogo)}" 
                             alt="${escapeHtml(brewery.breweryName)}" 
                             class="brewery-full-logo${lightLogoClass}"
-                            onerror="this.parentElement.classList.remove('brewery-card-full-image'); this.parentElement.innerHTML='<div class=\\'brewery-initial\\' style=\\'background: ${gradient};\\'>${initial}</div><div class=\\'brewery-info\\'><h3 class=\\'brewery-name\\'><span>${escapeHtml(brewery.breweryName)}</span></h3></div>'"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                         />
+                        <div class="brewery-logo-placeholder" style="display:none; background: ${gradient};">
+                            <span class="brewery-placeholder-initial">${initial}</span>
+                        </div>
                         <div class="brewery-name-overlay">
                             <span>${escapeHtml(brewery.breweryName)}</span>
                         </div>
@@ -152,13 +167,15 @@ const BreweriesModule = (() => {
                 </div>
             `;
         } else {
-            // CARD SENZA LOGO: iniziale colorata + nome testuale (layout standard)
+            // CARD SENZA LOGO: placeholder con iniziale stilizzata (stessa struttura della card full-image)
             return `
-                <div class="brewery-card-link">
-                    <div class="brewery-card">
-                        <div class="brewery-initial" style="background: ${gradient};">${initial}</div>
-                        <div class="brewery-info">
-                            <h3 class="brewery-name"><span>${escapeHtml(brewery.breweryName)}</span></h3>
+                <div class="brewery-card-link" data-brewery-id="${breweryId}" onclick="BreweriesModule.openBreweryInfo('${breweryId}')">
+                    <div class="brewery-card brewery-card-full-image brewery-card-no-logo">
+                        <div class="brewery-logo-placeholder" style="display:flex; background: ${gradient};">
+                            <span class="brewery-placeholder-initial">${initial}</span>
+                        </div>
+                        <div class="brewery-name-overlay brewery-name-always-visible">
+                            <span>${escapeHtml(brewery.breweryName)}</span>
                         </div>
                     </div>
                 </div>
@@ -271,6 +288,31 @@ const BreweriesModule = (() => {
         div.textContent = text;
         return div.innerHTML;
     }
+    
+    /**
+     * Apre il modal info birrificio
+     * @param {string} breweryId - ID del birrificio da mostrare
+     */
+    function openBreweryInfo(breweryId) {
+        console.log('[BreweriesModule] Click su birrificio ID:', breweryId);
+        
+        // Cerca il birrificio nella cache
+        const brewery = breweriesCache.find(b => (b._id || '').toString() === breweryId.toString());
+        
+        if (!brewery) {
+            console.warn('[BreweriesModule] Birrificio non trovato in cache:', breweryId);
+            return;
+        }
+        
+        console.log('[BreweriesModule] Birrificio trovato:', brewery.breweryName);
+        
+        // Apri il modal se disponibile
+        if (typeof BreweryInfoModal !== 'undefined' && BreweryInfoModal.open) {
+            BreweryInfoModal.open(brewery);
+        } else {
+            console.warn('[BreweryInfoModal] Modal non disponibile, include il partial breweryInfoModal.njk');
+        }
+    }
 
     /**
      * Inizializzazione modulo
@@ -291,7 +333,8 @@ const BreweriesModule = (() => {
     // API pubblica
     return {
         init,
-        loadBreweries
+        loadBreweries,
+        openBreweryInfo
     };
 })();
 

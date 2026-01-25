@@ -182,6 +182,53 @@ router.get('/reviews', isAuthenticatedOptional, async (req, res) => {
     }
 });
 
+// 🍺 Pagina tutti i birrifici - Accessibile a tutti
+router.get('/breweries', isAuthenticatedOptional, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = 24; // 24 birrifici per pagina (griglia 4x6 o simile)
+        
+        logger.info(`Pagina birrifici - page: ${page}`);
+        
+        // Recupera birrifici ordinati per nome
+        // Esclude birrifici non verificati se necessario
+        const totalBreweries = await Brewery.countDocuments({});
+        const totalPages = Math.ceil(totalBreweries / limit);
+        const skip = (page - 1) * limit;
+        
+        const breweries = await Brewery.find({})
+            .sort({ breweryName: 1 })
+            .skip(skip)
+            .limit(limit)
+            .select('breweryName breweryLogo breweryLegalAddress breweryProductionAddress location validationStatus')
+            .lean();
+        
+        // Conta birre per ogni birrificio (opzionale, se il modello Beer esiste)
+        // Per ora lasciamo beersCount undefined
+        
+        res.render('brewery/allBreweries.njk', { 
+            user: req.user,
+            breweries,
+            currentPage: page,
+            totalPages,
+            totalBreweries,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1
+        });
+        
+    } catch (error) {
+        logger.error('Errore caricamento pagina birrifici:', error);
+        res.render('brewery/allBreweries.njk', { 
+            user: req.user,
+            breweries: [],
+            currentPage: 1,
+            totalPages: 0,
+            totalBreweries: 0,
+            error: 'Errore nel caricamento dei birrifici'
+        });
+    }
+});
+
 // Gestione accettazione disclaimer maggiore età
 router.post('/disclaimer', (req, res) => {
     // Imposta SOLO nella sessione corrente (si cancella quando si chiude il browser)
@@ -491,8 +538,26 @@ router.get('/api/breweries/all', async (req, res) => {
     try {
         logger.info('Richiesta lista completa birrifici per disambiguation');
         
-        // Includo breweryLogo e logoIsLight per visualizzazione nella welcome page
-        const breweries = await Brewery.find({}, 'breweryName _id breweryLogo logoIsLight')
+        // Includo tutti i campi necessari per il modal info birrificio nella welcome page
+        const breweries = await Brewery.find({}, [
+            'breweryName',
+            '_id',
+            'breweryLogo',
+            'logoIsLight',
+            'breweryDescription',
+            'breweryHistory',
+            'breweryWebsite',
+            'breweryEmail',
+            'breweryPhoneNumber',
+            'breweryLegalAddress',
+            'breweryProductionAddress',
+            'brewerySize',
+            'foundingYear',
+            'masterBrewer',
+            'productionVolume',
+            'validationStatus',
+            'brewerySocialMedia'
+        ].join(' '))
             .sort({ breweryName: 1 })
             .lean();
         

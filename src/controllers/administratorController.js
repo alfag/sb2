@@ -5,6 +5,7 @@ const Beer = require('../models/Beer');
 const Review = require('../models/Review');
 const ReviewService = require('../services/reviewService');
 const AIService = require('../services/aiService');
+const LogoAnalyzerService = require('../services/logoAnalyzerService');
 const mongoose = require('mongoose');
 const logWithFileName = require('../utils/logger'); // Importa logWithFileName
 const bcrypt = require('bcrypt');
@@ -330,11 +331,41 @@ async function updateBrewery(breweryId, updateData) {
             updateData.awards = updateData.awards.split(',').map(a => a.trim()).filter(a => a);
         }
         
+        // Gestione del logo: se campo vuoto, imposta a stringa vuota per permettere rimozione
+        // Se logo nuovo o cambiato, analizza se è chiaro per applicare drop-shadow
+        let shouldAnalyzeLogo = false;
+        if (updateData.breweryLogo !== undefined) {
+            updateData.breweryLogo = updateData.breweryLogo.trim() || '';
+            if (updateData.breweryLogo === '') {
+                // Reset logoIsLight se logo viene rimosso
+                updateData.logoIsLight = null;
+            } else {
+                // Forza reset per ri-analisi del nuovo logo
+                updateData.logoIsLight = null;
+                shouldAnalyzeLogo = true;
+            }
+        }
+        
         const brewery = await Brewery.findByIdAndUpdate(breweryId, updateData, { new: true });
         if (!brewery) {
             logger.warn(`Brewery non trovato: ${breweryId}`);
             return null;
         }
+        
+        // Analizza il logo se è stato aggiunto o cambiato
+        if (shouldAnalyzeLogo && brewery.breweryLogo) {
+            try {
+                const isLight = await LogoAnalyzerService.isImageLight(brewery.breweryLogo);
+                if (isLight !== null) {
+                    brewery.logoIsLight = isLight;
+                    await brewery.save();
+                    logger.info(`🎨 Logo analizzato per ${brewery.breweryName}: ${isLight ? '☀️ CHIARO' : '🌙 SCURO'}`);
+                }
+            } catch (logoError) {
+                logger.warn(`⚠️ Errore analisi logo per ${brewery.breweryName}: ${logoError.message}`);
+            }
+        }
+        
         logger.info(`Brewery aggiornato con successo: ${breweryId}`);
         return brewery;
     } catch (error) {
