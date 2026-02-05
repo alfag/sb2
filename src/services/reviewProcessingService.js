@@ -12,6 +12,8 @@ const WebScrapingService = require('./webScrapingService');
 const WebSearchService = require('./webSearchService');
 const HTMLParser = require('../utils/htmlParser'); // 🔥 P0.3: Import per estrazione dati birra da web
 const GoogleSearchRetrievalService = require('./googleSearchRetrievalService'); // 🆕 Google Search Retrieval via Gemini AI
+const SocialMediaValidationService = require('./socialMediaValidationService'); // 🆕 Validazione social media (1 feb 2026)
+const LogoAnalyzerService = require('./logoAnalyzerService'); // 🆕 Analisi luminosità logo (5 feb 2026)
 
 const logger = logWithFileName(__filename);
 
@@ -90,6 +92,114 @@ function sanitizeSocialMedia(socialMedia) {
   }
   
   return sanitized;
+}
+
+/**
+ * 🔧 FIX: Valida social media links verificando che esistano realmente (1 feb 2026)
+ * HTTP 200 non basta - i social restituiscono 200 anche per "pagina non trovata"
+ * Quindi verifichiamo il contenuto HTML per pattern di errore
+ * @param {Object} socialMedia - Oggetto con i link social
+ * @returns {Promise<Object>} Oggetto con solo i link validati
+ */
+async function validateSocialMediaLinks(socialMedia) {
+  if (!socialMedia || typeof socialMedia !== 'object') {
+    return {};
+  }
+  
+  const validated = {};
+  const axios = require('axios');
+  
+  // Pattern che indicano pagina/profilo non esistente
+  const errorPatterns = {
+    youtube: [
+      'questo canale non esiste',
+      'this channel doesn\'t exist',
+      'canale non disponibile',
+      'channel isn\'t available',
+      'pagina non trovata',
+      'page not found',
+      '404'
+    ],
+    facebook: [
+      'pagina non trovata',
+      'page not found',
+      'non è disponibile',
+      'isn\'t available',
+      'contenuto non disponibile',
+      'content isn\'t available',
+      'questo contenuto non è al momento disponibile'
+    ],
+    instagram: [
+      'pagina non trovata',
+      'page not found',
+      'questa pagina non è disponibile',
+      'this page isn\'t available',
+      'spiacenti, questa pagina non è disponibile',
+      'sorry, this page isn\'t available'
+    ],
+    twitter: [
+      'account sospeso',
+      'account suspended',
+      'questa pagina non esiste',
+      'this page doesn\'t exist',
+      'pagina non trovata',
+      'page not found'
+    ],
+    linkedin: [
+      'pagina non trovata',
+      'page not found',
+      'profilo non disponibile'
+    ]
+  };
+  
+  for (const [platform, url] of Object.entries(socialMedia)) {
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+      continue;
+    }
+    
+    try {
+      const response = await axios.get(url.trim(), {
+        timeout: 8000,
+        maxRedirects: 5,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8'
+        },
+        validateStatus: (status) => status < 500 // Accetta anche 4xx per verificare contenuto
+      });
+      
+      // Se 4xx, link non valido
+      if (response.status >= 400) {
+        logger.warn(`[ValidateSocial] ❌ ${platform}: HTTP ${response.status}`, { url });
+        continue;
+      }
+      
+      // Verifica contenuto per errori "soft" (200 ma pagina non esiste)
+      const htmlLower = (response.data || '').toString().toLowerCase();
+      const patterns = errorPatterns[platform] || [];
+      
+      const hasError = patterns.some(pattern => htmlLower.includes(pattern.toLowerCase()));
+      
+      if (hasError) {
+        logger.warn(`[ValidateSocial] ❌ ${platform}: Pagina dice "non esiste"`, { url });
+        continue;
+      }
+      
+      // Link valido!
+      validated[platform] = url.trim();
+      logger.info(`[ValidateSocial] ✅ ${platform}: Link validato`, { url });
+      
+    } catch (error) {
+      // Errore di rete o timeout - non includiamo il link
+      logger.warn(`[ValidateSocial] ⚠️ ${platform}: Errore verifica`, { 
+        url, 
+        error: error.message 
+      });
+    }
+  }
+  
+  return validated;
 }
 
 /**
@@ -554,7 +664,9 @@ async function processReviewBackground(job) {
                   breweryData.foundingYear = scrapedBrewery.foundingYear || breweryData.foundingYear;
                   breweryData.breweryHistory = scrapedBrewery.breweryHistory || breweryData.breweryHistory;
                   breweryData.awards = scrapedBrewery.awards || breweryData.awards || [];
-                  breweryData.brewerySocialMedia = sanitizeSocialMedia(scrapedBrewery.brewerySocialMedia) || breweryData.brewerySocialMedia || {};
+                  // 🔥 FIX 1 FEB 2026: NON estrarre social da web scraping - spesso link errati/inesistenti
+                  // I social verranno popolati SOLO da GSR (Google Search Retrieval) che li verifica
+                  // breweryData.brewerySocialMedia = sanitizeSocialMedia(scrapedBrewery.brewerySocialMedia) || breweryData.brewerySocialMedia || {};
                   breweryData.breweryLogo = scrapedBrewery.breweryLogo || breweryData.breweryLogo;
                   breweryData.breweryImages = scrapedBrewery.breweryImages || breweryData.breweryImages || [];
                   breweryData.beers = scrapedBrewery.beers || breweryData.beers || [];
@@ -600,7 +712,9 @@ async function processReviewBackground(job) {
                   breweryData.brewerySize = breweryFromWeb.brewerySize;
                   breweryData.mainProducts = breweryFromWeb.mainProducts || [];
                   breweryData.awards = breweryFromWeb.awards || [];
-                  breweryData.brewerySocialMedia = sanitizeSocialMedia(breweryFromWeb.brewerySocialMedia) || {};
+                  // 🔥 FIX 1 FEB 2026: NON estrarre social da web search - spesso link errati/inesistenti
+                  // I social verranno popolati SOLO da GSR (Google Search Retrieval) che li verifica
+                  // breweryData.brewerySocialMedia = sanitizeSocialMedia(breweryFromWeb.brewerySocialMedia) || {};
                   breweryData.breweryHistory = breweryFromWeb.history;
                   // 🔥 P0.2 FIX: Nuovi campi da HTMLParser (7 dic 2025)
                   breweryData.employeeCount = breweryFromWeb.employeeCount;
@@ -1451,6 +1565,8 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
               description: breweryFromGSR.breweryDescription || breweryFromGSR.description,
               foundingYear: breweryFromGSR.foundingYear,
               brewerySize: breweryFromGSR.brewerySize,
+              // 🆕 Campo aggiunto 5 feb 2026: productionVolume (come admin GSR)
+              productionVolume: breweryFromGSR.productionVolume,
               mainProducts: breweryFromGSR.mainProducts || [],
               awards: breweryFromGSR.awards || [],
               brewerySocialMedia: breweryFromGSR.brewerySocialMedia || breweryFromGSR.socialMedia || {},
@@ -1460,6 +1576,9 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
               reaCode: breweryFromGSR.reaCode,
               acciseCode: breweryFromGSR.acciseCode,
               pecEmail: breweryFromGSR.pecEmail,
+              // 🆕 Campi aggiunti 5 feb 2026: legalForm e shareCapital (come admin GSR)
+              legalForm: breweryFromGSR.legalForm,
+              shareCapital: breweryFromGSR.shareCapital,
               // 🖼️ Logo birrificio da GSR (8 gen 2026)
               breweryLogo: breweryFromGSR.breweryLogo,
               // Metadati Google Search Retrieval
@@ -1474,6 +1593,11 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
               hasWebsite: !!breweryData.website,
               hasAddress: !!breweryData.breweryLegalAddress,
               hasLogo: !!breweryData.breweryLogo,
+              hasProductionVolume: !!breweryData.productionVolume,
+              hasAwards: breweryData.awards?.length > 0,
+              hasHistory: !!breweryData.breweryHistory,
+              hasLegalForm: !!breweryData.legalForm,
+              hasFiscalCode: !!breweryData.breweryFiscalCode,
               sourcesCount: gsrResult.sources?.length || 0
             });
           }
@@ -1549,6 +1673,22 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
                 logoUrl: logoFromScraping.substring(0, 80),
                 replacedGsrLogo: gsrHadLogo
               });
+              
+              // 🆕 STEP 1.5.1: ANALISI LUMINOSITÀ LOGO (5 feb 2026)
+              // Identico comportamento admin: determina se logo è chiaro/scuro per UI
+              try {
+                const isLight = await LogoAnalyzerService.isImageLight(logoFromScraping);
+                breweryData.logoIsLight = isLight;
+                logger.info(`🎨 Logo analizzato: ${isLight ? '☀️ CHIARO' : '🌙 SCURO'}`, {
+                  breweryName,
+                  logoUrl: logoFromScraping.substring(0, 60)
+                });
+              } catch (analyzeError) {
+                logger.warn(`🎨 Errore analisi luminosità logo: ${analyzeError.message}`, {
+                  breweryName
+                });
+                breweryData.logoIsLight = null;
+              }
             } else if (!gsrLogoValue) {
               // Solo se GSR non aveva un logo E scraping non trova nulla
               logger.debug(`🖼️ ⚠️ Scraping dedicato logo: nessun logo trovato per ${breweryName}`);
@@ -1565,7 +1705,51 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
           }
         }
         
-        // 🔄 STEP 2: Fallback a WebSearchService SE necessario (SECONDARIO)
+        // � STEP 1.6: ESTRAZIONE SOCIAL MEDIA DAL SITO UFFICIALE (1 feb 2026)
+        // IMPORTANTE: I social da GSR sono INAFFIDABILI (URL inventati/allucinati)
+        // Li estraiamo SOLO dal sito ufficiale e validiamo via HTTP
+        if (breweryData && breweryData.website) {
+          logger.info(`📱 Avvio estrazione SOCIAL MEDIA dal sito: ${breweryData.website}`);
+          
+          try {
+            // Passa i social GSR solo per logging (verranno IGNORATI)
+            const gsrSocialForLogging = breweryData.brewerySocialMedia || {};
+            
+            // Estrai e valida social SOLO dal sito ufficiale
+            const validatedSocial = await SocialMediaValidationService.getValidatedSocialMedia(
+              breweryData.website,
+              gsrSocialForLogging
+            );
+            
+            // Sostituisci COMPLETAMENTE i social da GSR con quelli validati
+            breweryData.brewerySocialMedia = validatedSocial;
+            
+            const socialCount = Object.values(validatedSocial).filter(Boolean).length;
+            logger.info(`📱 ✅ Social media estratti e validati: ${socialCount} link`, {
+              breweryName,
+              facebook: validatedSocial.facebook || null,
+              instagram: validatedSocial.instagram || null,
+              youtube: validatedSocial.youtube || null
+            });
+            
+          } catch (socialError) {
+            logger.warn(`📱 ⚠️ Errore estrazione social media`, {
+              breweryName,
+              website: breweryData.website,
+              error: socialError.message
+            });
+            // In caso di errore, imposta social vuoti (meglio vuoto che sbagliato)
+            breweryData.brewerySocialMedia = {};
+          }
+        } else {
+          // Nessun website = nessun social affidabile
+          logger.debug(`📱 Skip estrazione social - nessun website disponibile`);
+          if (breweryData) {
+            breweryData.brewerySocialMedia = {};
+          }
+        }
+        
+        // �🔄 STEP 2: Fallback a WebSearchService SE necessario (SECONDARIO)
         // 🆕 FIX 11 Gen 2026: Usa sistema di scoring per decidere se accettare dati GSR
         // Prima: fallback se mancava website (troppo restrittivo - perdeva dati validi)
         // Dopo: fallback solo se score < 57% E no website (bilanciato)
@@ -1616,7 +1800,7 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
               brewerySize: breweryFromWeb.brewerySize,
               mainProducts: breweryFromWeb.mainProducts || [],
               awards: breweryFromWeb.awards || [],
-              brewerySocialMedia: breweryFromWeb.brewerySocialMedia || {},
+              brewerySocialMedia: {}, // 📱 FIX 1 feb 2026: NON usare social da WebSearch - verranno estratti sotto
               breweryHistory: breweryFromWeb.history,
               // 🔥 P0.2 FIX: Nuovi campi da HTMLParser (7 dic 2025)
               employeeCount: breweryFromWeb.employeeCount,
@@ -1627,6 +1811,18 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
               acciseCode: breweryFromWeb.acciseCode,
               dataSource: 'web_search_service' // 🆕 Indica fonte dati
             };
+            
+            // 📱 FIX 1 feb 2026: Estrai social SOLO dal sito ufficiale (quelli da WebSearch sono inaffidabili)
+            if (breweryData.website) {
+              try {
+                const validatedSocial = await SocialMediaValidationService.getValidatedSocialMedia(breweryData.website);
+                breweryData.brewerySocialMedia = validatedSocial;
+                logger.info(`📱 ✅ Social validati per WebSearch fallback: ${Object.values(validatedSocial).filter(Boolean).length} link`);
+              } catch (socialErr) {
+                logger.warn(`📱 ⚠️ Errore estrazione social in WebSearch fallback: ${socialErr.message}`);
+                breweryData.brewerySocialMedia = {};
+              }
+            }
           
             logger.info(`✅ Birrificio trovato via WebSearchService FALLBACK: ${breweryName}`, {
               confidence: searchResult.confidence,
@@ -1746,6 +1942,10 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
       updateIfEmpty('breweryacciseCode', breweryData.acciseCode);
       updateIfEmpty('pecEmail', breweryData.pecEmail); // 🔥 FIX: Aggiunta PEC (8 gen 2026)
       updateIfEmpty('breweryLogo', breweryData.breweryLogo); // 🖼️ Logo birrificio da GSR (8 gen 2026)
+      // 🆕 Campi aggiunti 5 feb 2026: legalForm, shareCapital, logoIsLight (come admin GSR)
+      updateIfEmpty('legalForm', breweryData.legalForm);
+      updateIfEmpty('shareCapital', breweryData.shareCapital);
+      updateIfEmpty('logoIsLight', breweryData.logoIsLight);
       
       // Gestione oggetti/array complessi
       if ((!brewery.brewerySocialMedia || Object.keys(brewery.brewerySocialMedia).length === 0) && 
@@ -1826,6 +2026,12 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
       breweryFiscalCode: breweryData.breweryFiscalCode,
       breweryREAcode: breweryData.reaCode,
       breweryacciseCode: breweryData.acciseCode,
+      pecEmail: breweryData.pecEmail, // 🆕 PEC (5 feb 2026)
+      
+      // 🆕 Campi aggiunti 5 feb 2026: legalForm, shareCapital, logoIsLight (come admin GSR)
+      legalForm: breweryData.legalForm,
+      shareCapital: breweryData.shareCapital,
+      logoIsLight: breweryData.logoIsLight,
       
       // 🔥 P1.6 FIX: Metadati con supporto confidence 0 (7 dic 2025)
       // 🔥 FIX: usa solo valori enum validi per dataSource (7 dic 2025)
@@ -1851,6 +2057,12 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
       hasPhone: !!brewery.breweryPhoneNumber,
       hasAddress: !!brewery.breweryLegalAddress,
       hasLogo: !!brewery.breweryLogo,
+      logoIsLight: brewery.logoIsLight,
+      hasLegalForm: !!brewery.legalForm,
+      hasShareCapital: !!brewery.shareCapital,
+      hasProductionVolume: !!brewery.productionVolume,
+      hasFiscalCode: !!brewery.breweryFiscalCode,
+      hasHistory: !!brewery.breweryHistory,
       mainProducts: brewery.mainProducts?.length || 0,
       awards: brewery.awards?.length || 0,
       needsManualReview: brewery.needsManualReview

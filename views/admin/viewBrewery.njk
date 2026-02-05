@@ -3,21 +3,35 @@
 {% block content %}
 <style>
 /* ===== VIEW BREWERY - MINIMAL CLEAN DESIGN ===== */
+
+/* Rimuovi padding del main-content per questa pagina */
+.main-content:has(.brewery-page) {
+    padding: 0;
+    padding-top: 0;
+}
+
+/* Container per centrare i contenuti */
+.brewery-page .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
 .brewery-page {
     min-height: 100vh;
     background: #fafaf9;
     padding: 0;
-    margin: -1rem;
+    margin: 0;
 }
 
 /* Top Bar con navigazione */
 .top-bar {
-    background: white;
-    border-bottom: 1px solid #e7e5e4;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border-bottom: 1px solid #b45309;
     padding: 0.75rem 0;
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    position: relative;
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
 }
 
 .top-bar-content {
@@ -26,19 +40,34 @@
     justify-content: space-between;
 }
 
+.back-links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.back-separator {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.875rem;
+}
+
 .back-link {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    color: #78716c;
+    color: white;
     text-decoration: none;
     font-size: 0.875rem;
-    font-weight: 500;
-    transition: color 0.2s;
+    font-weight: 600;
+    transition: all 0.2s;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .back-link:hover {
-    color: #d97706;
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
 }
 
 .top-actions {
@@ -51,18 +80,19 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.5rem 1rem;
-    background: #f59e0b;
-    color: white;
+    background: white;
+    color: #d97706;
     border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 600;
     text-decoration: none;
     transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .btn-edit:hover {
-    background: #d97706;
-    color: white;
+    background: #fffbeb;
+    color: #b45309;
 }
 
 /* Header Birrificio */
@@ -95,6 +125,17 @@
     max-width: 90%;
     max-height: 90%;
     object-fit: contain;
+}
+
+/* Drop-shadow per loghi chiari/bianchi */
+.brewery-logo.has-light-logo {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%) !important;
+    border-color: #4b5563 !important;
+}
+
+.brewery-logo img.light-logo {
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8)) 
+            drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6)) !important;
 }
 
 .brewery-logo .placeholder {
@@ -519,6 +560,77 @@
         gap: 1rem;
     }
 }
+
+/* Alert Dati Incompleti */
+.incomplete-alert {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #f59e0b;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+.incomplete-alert-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.1rem;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.incomplete-alert-content {
+    flex: 1;
+}
+
+.incomplete-alert-title {
+    font-weight: 700;
+    color: #92400e;
+    font-size: 0.95rem;
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.incomplete-alert-description {
+    color: #a16207;
+    font-size: 0.85rem;
+    margin-bottom: 0.6rem;
+}
+
+.incomplete-fields-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.incomplete-field-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    background: white;
+    border: 1px solid #fcd34d;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #92400e;
+}
+
+.incomplete-field-badge i {
+    font-size: 0.7rem;
+    color: #d97706;
+}
 </style>
 
 <div class="brewery-page">
@@ -538,9 +650,15 @@
     <div class="top-bar">
         <div class="container">
             <div class="top-bar-content">
-                <a href="/administrator/breweries" class="back-link">
-                    <i class="fas fa-arrow-left"></i> Birrifici
-                </a>
+                <div class="back-links">
+                    <a href="javascript:history.back()" class="back-link">
+                        <i class="fas fa-arrow-left"></i> Indietro
+                    </a>
+                    <span class="back-separator">|</span>
+                    <a href="/administrator/breweries" class="back-link">
+                        <i class="fas fa-list"></i> Lista Birrifici
+                    </a>
+                </div>
                 <div class="top-actions">
                     <a href="/administrator/breweries/edit/{{ brewery._id }}" class="btn-edit">
                         <i class="fas fa-edit"></i> Modifica
@@ -554,9 +672,10 @@
     <div class="brewery-header">
         <div class="container">
             <div class="header-content">
-                <div class="brewery-logo">
+                <div class="brewery-logo {% if brewery.logoIsLight %}has-light-logo{% endif %}">
                     {% if brewery.breweryLogo %}
                         <img src="{{ brewery.breweryLogo }}" alt="{{ brewery.breweryName }}"
+                             class="{% if brewery.logoIsLight %}light-logo{% endif %}"
                              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                         <span class="placeholder" style="display:none;"><i class="fas fa-industry"></i></span>
                     {% else %}
@@ -570,9 +689,9 @@
                         {% if brewery.validationStatus == 'validated' %}
                             <span class="meta-badge verified"><i class="fas fa-check"></i> Verificato</span>
                         {% elif brewery.validationStatus == 'ai_extracted' %}
-                            <span class="meta-badge ai"><i class="fas fa-robot"></i> AI</span>
+                            <span class="meta-badge ai"><i class="fas fa-robot"></i> Estratto da AI</span>
                         {% else %}
-                            <span class="meta-badge pending"><i class="fas fa-clock"></i> Pending</span>
+                            <span class="meta-badge pending"><i class="fas fa-clock"></i> Da verificare</span>
                         {% endif %}
                         
                         {% if brewery.breweryLegalAddress or brewery.breweryProductionAddress %}
@@ -608,6 +727,31 @@
     <!-- Main Content -->
     <div class="main-content">
         <div class="container">
+            
+            <!-- Alert Dati Incompleti -->
+            {% if missingFields and missingFields.length > 0 %}
+            <div class="incomplete-alert">
+                <div class="incomplete-alert-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="incomplete-alert-content">
+                    <div class="incomplete-alert-title">
+                        <i class="fas fa-info-circle"></i> Dati Incompleti
+                    </div>
+                    <div class="incomplete-alert-description">
+                        Questo birrificio ha alcuni dati mancanti che potrebbero essere completati:
+                    </div>
+                    <div class="incomplete-fields-list">
+                        {% for field in missingFields %}
+                        <span class="incomplete-field-badge">
+                            <i class="fas {{ field.icon }}"></i> {{ field.field }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <div class="two-columns">
                 <!-- Colonna Principale -->
                 <div class="main-column">
@@ -893,6 +1037,19 @@ document.querySelectorAll('.flash-toast').forEach(toast => {
         toast.style.animation = 'slideOut 0.3s ease forwards';
         setTimeout(() => toast.remove(), 300);
     }, 4000);
+});
+
+// Rimuovi padding extra dal main-content per questa pagina full-width
+// Mantieni solo il padding-top per la navbar
+document.addEventListener('DOMContentLoaded', function() {
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        // Mantieni padding-top per la navbar (60px), rimuovi il resto
+        mainContent.style.paddingTop = '60px';
+        mainContent.style.paddingLeft = '0';
+        mainContent.style.paddingRight = '0';
+        mainContent.style.paddingBottom = '0';
+    }
 });
 </script>
 <style>

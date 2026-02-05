@@ -5,8 +5,47 @@ const reviewController = require('../controllers/reviewController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const Brewery = require('../models/Brewery');
 const logWithFileName = require('../utils/logger'); // Importa logWithFileName
+const WebScrapingService = require('../services/webScrapingService'); // 🖼️ Per scraping logo
+const SocialMediaValidationService = require('../services/socialMediaValidationService'); // 📱 Per scraping social (1 feb 2026)
+const LogoAnalyzerService = require('../services/logoAnalyzerService'); // 🎨 Per analisi luminosità logo (1 feb 2026)
 
 const logger = logWithFileName(__filename); // Crea un logger con il nome del file
+
+// ========================================
+// Funzione helper per calcolare i campi mancanti di un birrificio
+// Usata per mostrare alert "Dati Incompleti" nelle pagine view/edit
+// ========================================
+function calculateMissingFields(brewery) {
+    const missingFields = [];
+    
+    // Campi principali obbligatori per completezza
+    if (!brewery.breweryEmail) {
+        missingFields.push({ field: 'Email', icon: 'fa-envelope' });
+    }
+    if (!brewery.breweryWebsite) {
+        missingFields.push({ field: 'Sito Web', icon: 'fa-globe' });
+    }
+    if (!brewery.breweryPhoneNumber) {
+        missingFields.push({ field: 'Telefono', icon: 'fa-phone' });
+    }
+    
+    // Verifica logo valido (stessa logica usata nelle statistiche)
+    const hasValidLogo = (brewery) => {
+        if (!brewery.breweryLogo) return false;
+        const logo = brewery.breweryLogo.toLowerCase();
+        const invalidPatterns = [
+            'placeholder', 'default', 'no-logo', 'nologo', 
+            'missing', 'blank', 'empty', 'null', 'undefined'
+        ];
+        return !invalidPatterns.some(pattern => logo.includes(pattern));
+    };
+    
+    if (!hasValidLogo(brewery)) {
+        missingFields.push({ field: 'Logo', icon: 'fa-image' });
+    }
+    
+    return missingFields;
+}
 
 // Rotta per la dashboard amministrativa
 router.get('/', authMiddleware.isAdmin, (req, res) => {
@@ -471,9 +510,14 @@ router.get('/breweries/edit/:id', authMiddleware.isAdmin, async (req, res) => {
             return res.redirect('/administrator/breweries');
         }
         
+        // Calcola i campi mancanti per mostrare alert incompleto
+        const breweryObj = brewery.toObject ? brewery.toObject() : brewery;
+        const missingFields = calculateMissingFields(breweryObj);
+        
         res.render('admin/editBrewery', { 
             title: 'Modifica Birrificio', 
-            brewery: brewery.toObject ? brewery.toObject() : brewery,
+            brewery: breweryObj,
+            missingFields: missingFields,
             user: req.user,
             message: req.flash() 
         });
@@ -502,6 +546,135 @@ router.post('/breweries/edit/:id', authMiddleware.isAdmin, async (req, res) => {
         logger.error(`Errore durante l'aggiornamento del brewery: ${error.message}`);
         req.flash('error', 'Errore durante l\'aggiornamento del birrificio');
         res.redirect(`/administrator/breweries/edit/${req.params.id}`);
+    }
+});
+
+// ========================================
+// API: Ricerca GSR (Google Search Retrieval) per arricchimento dati birrificio
+// Include anche scraping logo e social media dal sito ufficiale
+// ========================================
+router.post('/breweries/:id/gsr-search', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const breweryId = req.params.id;
+        logger.info(`[GSR Admin] Avvio ricerca GSR per birrificio: ${breweryId}`);
+        
+        // Recupera il birrificio esistente
+        const brewery = await Brewery.findById(breweryId);
+        if (!brewery) {
+            logger.warn(`[GSR Admin] Birrificio non trovato: ${breweryId}`);
+            return res.status(404).json({
+                success: false,
+                error: 'Birrificio non trovato'
+            });
+        }
+        
+        // Import del servizio GSR
+        const googleSearchRetrievalService = require('../services/googleSearchRetrievalService');
+        
+        // Verifica stato rate limiter
+        const rateLimitStats = googleSearchRetrievalService.getRateLimitStats();
+        logger.info(`[GSR Admin] Rate limiter status: ${rateLimitStats.count}/${rateLimitStats.limit} chiamate oggi`);
+        
+        // STEP 1: Esegui la ricerca GSR per dati generali
+        logger.info(`[GSR Admin] Esecuzione ricerca GSR per: "${brewery.breweryName}"`);
+        const gsrResult = await googleSearchRetrievalService.searchBreweryInfo(brewery.breweryName);
+        
+        if (!gsrResult || !gsrResult.success) {
+            logger.warn(`[GSR Admin] Nessun risultato GSR per: ${brewery.breweryName}`);
+            return res.json({
+                success: false,
+                error: gsrResult?.reason || 'Nessun risultato trovato dalla ricerca Google',
+                rateLimitStats: googleSearchRetrievalService.getRateLimitStats()
+            });
+        }
+        
+        logger.info(`[GSR Admin] ✅ Dati GSR recuperati con successo per: ${brewery.breweryName}`, {
+            confidence: gsrResult.confidence,
+            hasLogo: !!gsrResult.brewery?.breweryLogo,
+            hasWebsite: !!gsrResult.brewery?.breweryWebsite,
+            hasAddress: !!gsrResult.brewery?.breweryLegalAddress
+        });
+        
+        // Prepara oggetto dati finale (partendo da GSR)
+        const enrichedData = { ...gsrResult.brewery };
+        
+        // STEP 2: Scraping LOGO dal sito ufficiale (più affidabile di GSR)
+        const websiteUrl = gsrResult.brewery?.breweryWebsite || brewery.breweryWebsite;
+        if (websiteUrl) {
+            logger.info(`[GSR Admin] 🖼️ Avvio scraping logo dal sito: ${websiteUrl}`);
+            try {
+                const logoFromScraping = await WebScrapingService.scrapeLogoOnly(websiteUrl);
+                if (logoFromScraping) {
+                    enrichedData.breweryLogo = logoFromScraping;
+                    logger.info(`[GSR Admin] 🖼️ ✅ Logo recuperato via scraping: ${logoFromScraping.substring(0, 80)}`);
+                    
+                    // STEP 2.1: Analizza luminosità logo per determinare se è chiaro
+                    try {
+                        const isLight = await LogoAnalyzerService.isImageLight(logoFromScraping);
+                        enrichedData.logoIsLight = isLight;
+                        logger.info(`[GSR Admin] 🎨 Logo analizzato: ${isLight ? '☀️ CHIARO' : '🌙 SCURO'}`);
+                    } catch (analyzeError) {
+                        logger.warn(`[GSR Admin] 🎨 Errore analisi luminosità logo: ${analyzeError.message}`);
+                        enrichedData.logoIsLight = null;
+                    }
+                } else if (!enrichedData.breweryLogo) {
+                    logger.debug(`[GSR Admin] 🖼️ Nessun logo trovato via scraping`);
+                }
+            } catch (logoError) {
+                logger.warn(`[GSR Admin] 🖼️ Errore scraping logo: ${logoError.message}`);
+            }
+            
+            // STEP 3: Scraping SOCIAL MEDIA dal sito ufficiale (GSR spesso inventa URL)
+            logger.info(`[GSR Admin] 📱 Avvio estrazione social dal sito: ${websiteUrl}`);
+            try {
+                // I social da GSR vengono passati solo per logging (saranno ignorati)
+                const gsrSocialForLogging = gsrResult.brewery?.brewerySocialMedia || {};
+                
+                const validatedSocial = await SocialMediaValidationService.getValidatedSocialMedia(
+                    websiteUrl,
+                    gsrSocialForLogging
+                );
+                
+                // Sostituisci completamente i social con quelli validati dal sito
+                enrichedData.brewerySocialMedia = validatedSocial;
+                
+                const socialCount = Object.values(validatedSocial).filter(Boolean).length;
+                logger.info(`[GSR Admin] 📱 ✅ Social media validati: ${socialCount} link`, {
+                    facebook: validatedSocial.facebook || null,
+                    instagram: validatedSocial.instagram || null,
+                    youtube: validatedSocial.youtube || null,
+                    twitter: validatedSocial.twitter || null,
+                    linkedin: validatedSocial.linkedin || null
+                });
+            } catch (socialError) {
+                logger.warn(`[GSR Admin] 📱 Errore estrazione social: ${socialError.message}`);
+                // In caso di errore, imposta social vuoti (meglio vuoto che sbagliato)
+                enrichedData.brewerySocialMedia = {};
+            }
+        } else {
+            logger.warn(`[GSR Admin] ⚠️ Nessun website disponibile - skip scraping logo e social`);
+            // Senza website, non possiamo estrarre social affidabili
+            enrichedData.brewerySocialMedia = {};
+        }
+        
+        // Restituisci i dati trovati (non salva automaticamente, lascia all'utente la scelta)
+        return res.json({
+            success: true,
+            data: enrichedData,
+            confidence: gsrResult.confidence,
+            source: 'google_search_retrieval + web_scraping',
+            rateLimitStats: googleSearchRetrievalService.getRateLimitStats()
+        });
+        
+    } catch (error) {
+        logger.error(`[GSR Admin] Errore durante ricerca GSR: ${error.message}`, {
+            breweryId: req.params.id,
+            errorStack: error.stack
+        });
+        return res.status(500).json({
+            success: false,
+            error: `Errore durante la ricerca: ${error.message}`
+        });
     }
 });
 
@@ -538,9 +711,13 @@ router.get('/breweries/view/:id', authMiddleware.isAdmin, async (req, res) => {
             return res.redirect('/administrator/breweries');
         }
         
+        // Calcola i campi mancanti per mostrare alert incompleto
+        const missingFields = calculateMissingFields(brewery);
+        
         res.render('admin/viewBrewery', { 
             title: 'Dettagli Birrificio', 
             brewery: brewery,
+            missingFields: missingFields,
             user: req.user,
             message: req.flash() 
         });

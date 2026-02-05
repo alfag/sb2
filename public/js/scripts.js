@@ -1,3 +1,6 @@
+// 🔥 DEBUG: Verifica caricamento file - TIMESTAMP: 2026-02-05 16:00
+console.log('🔥🔥🔥 SCRIPTS.JS CARICATO - VERSIONE AGGIORNATA 🔥🔥🔥');
+
 // Variabili globali per l'immagine (accessibili da tutte le funzioni)
 let croppedImageForAI = null;
 let originalImageSrc = null;
@@ -12,8 +15,12 @@ let isDisambiguationActive = false;
 // Variabile globale per controllo analisi AI in corso
 let isAIAnalysisActive = false;
 
+// Flag debug - impostare a true solo per sviluppo
+const DEBUG_ENABLED = false;
+
 // Logging per debug e monitoraggio
 function logDebug(message, data = null) {
+    if (!DEBUG_ENABLED) return;
     if (data) {
         console.log(`[Photo Crop Debug] ${message}:`, data);
     } else {
@@ -31,6 +38,9 @@ function logWarn(message, data = null) {
 
 // Funzione per mostrare dialog di scelta sorgente foto su mobile
 function showPhotoSourceDialog(reviewPhotoInput) {
+  console.log('📸 showPhotoSourceDialog chiamata');
+  console.log('📸 NavigationSpinner disponibile:', !!window.NavigationSpinner);
+  
   // Crea un dialog per scegliere la sorgente della foto su mobile
   const dialog = document.createElement('div');
   dialog.className = 'photo-source-dialog-overlay';
@@ -167,13 +177,29 @@ function showPhotoSourceDialog(reviewPhotoInput) {
   
   // Event listeners per i pulsanti
   document.getElementById('use-camera').addEventListener('click', () => {
+    // 🎯 Mostra spinner PRIMA di rimuovere il dialog
+    if (window.NavigationSpinner) {
+      window.NavigationSpinner.show();
+      console.log('🔄 Spinner mostrato per fotocamera');
+    }
     document.body.removeChild(dialog);
-    openFileInputWithMode(reviewPhotoInput, true); // con fotocamera
+    // Piccolo timeout per permettere il rendering dello spinner prima di aprire il file picker
+    setTimeout(() => {
+      openFileInputWithMode(reviewPhotoInput, true); // con fotocamera
+    }, 50);
   });
   
   document.getElementById('use-gallery').addEventListener('click', () => {
+    // 🎯 Mostra spinner PRIMA di rimuovere il dialog
+    if (window.NavigationSpinner) {
+      window.NavigationSpinner.show();
+      console.log('🔄 Spinner mostrato per galleria');
+    }
     document.body.removeChild(dialog);
-    openFileInputWithMode(reviewPhotoInput, false); // senza fotocamera
+    // Piccolo timeout per permettere il rendering dello spinner prima di aprire il file picker
+    setTimeout(() => {
+      openFileInputWithMode(reviewPhotoInput, false); // senza fotocamera
+    }, 50);
   });
   
   document.getElementById('cancel-photo-source').addEventListener('click', () => {
@@ -469,6 +495,11 @@ function handleReviewButtonClick(e) {
     if (isMobile) {
         showPhotoSourceDialog(reviewPhotoInput);
     } else {
+        // 🎯 Mostra spinner anche su desktop mentre si apre il file picker
+        if (window.NavigationSpinner) {
+            window.NavigationSpinner.show();
+            console.log('🔄 Spinner mostrato per file picker desktop');
+        }
         reviewPhotoInput.removeAttribute('capture');
         try {
             reviewPhotoInput.click();
@@ -476,6 +507,8 @@ function handleReviewButtonClick(e) {
         } catch (error) {
             console.error('❌ Errore apertura file picker:', error);
             logError('Errore apertura file picker', error);
+            // Nascondi spinner in caso di errore
+            if (window.NavigationSpinner) window.NavigationSpinner.hide();
         }
     }
     

@@ -7,12 +7,95 @@
 <link rel="stylesheet" href="/css/admin.css">
 <script src="/js/statisticsManager.js"></script>
 <style>
+/* Top Bar con navigazione */
+.top-bar {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border-bottom: 1px solid #b45309;
+    padding: 0.75rem 0;
+    position: relative;
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+}
+
+.top-bar .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.top-bar-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.back-links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.back-separator {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.875rem;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: white;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.back-link:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    text-decoration: none;
+}
+
+.top-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-view-detail {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    background: white;
+    color: #d97706;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-view-detail:hover {
+    background: #fffbeb;
+    color: #b45309;
+    text-decoration: none;
+}
+
 /* Brewery Dashboard - Layout unificato */
 .brewery-dashboard-container {
     max-width: 1400px;
     margin: 0 auto;
     padding: 1rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     min-height: 100vh;
 }
 
@@ -320,6 +403,36 @@
 {% endblock %}
 
 {% block content %}
+<!-- Top Bar con navigazione -->
+<div class="top-bar">
+    <div class="container">
+        <div class="top-bar-content">
+            <div class="back-links">
+                <a href="javascript:history.back()" class="back-link">
+                    <i class="fas fa-arrow-left"></i> Indietro
+                </a>
+                <span class="back-separator">|</span>
+                <a href="/administrator/statistics" class="back-link">
+                    <i class="fas fa-chart-bar"></i> Statistiche
+                </a>
+                <span class="back-separator">|</span>
+                <a href="/administrator/breweries" class="back-link">
+                    <i class="fas fa-list"></i> Birrifici
+                </a>
+            </div>
+            <div class="top-actions">
+                <a href="/administrator/breweries/view/{{ brewery._id }}" class="btn-view-detail">
+                    <i class="fas fa-eye"></i> Dettagli
+                </a>
+                <a href="/administrator/breweries/edit/{{ brewery._id }}" class="btn-view-detail">
+                    <i class="fas fa-edit"></i> Modifica
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="brewery-dashboard-container">
     <!-- Header -->
     <div class="dashboard-header">
         <div class="brewery-logo">
@@ -886,5 +999,16 @@ if (updateForm) {
         }
     });
 }
+
+// Rimuovi padding extra dal main-content per questa pagina
+document.addEventListener('DOMContentLoaded', function() {
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.style.paddingTop = '60px';
+        mainContent.style.paddingLeft = '0';
+        mainContent.style.paddingRight = '0';
+        mainContent.style.paddingBottom = '0';
+    }
+});
 </script>
 {% endblock %}

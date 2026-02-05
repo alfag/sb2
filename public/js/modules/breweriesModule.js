@@ -51,8 +51,8 @@ const BreweriesModule = (() => {
             // Salva in cache per accesso rapido al click
             breweriesCache = shuffledBreweries;
             
-            // Limita a massimo 27 birrifici per la home page (3 colonne x 9 righe)
-            const breweriesDisplay = shuffledBreweries.slice(0, 27);
+            // Limita a massimo 12 birrifici per la home page (griglia compatta)
+            const breweriesDisplay = shuffledBreweries.slice(0, 12);
             
             console.log(`[BreweriesModule] Visualizzo ${breweriesDisplay.length} birrifici (ordine casuale) su ${data.breweries.length} totali`);
             
@@ -73,9 +73,9 @@ const BreweriesModule = (() => {
                 enableScrollForTruncatedNames();
             }, 200);
 
-            // Mostra testo "Altri N birrifici" se ci sono più birrifici
-            if (data.breweries.length > 27) {
-                addViewAllLink(breweryList.parentElement, data.breweries.length);
+            // Mostra testo "...e molti altri ancora!" se ci sono più birrifici
+            if (data.breweries.length > 12) {
+                addViewAllLink(breweryList.parentElement);
             }
 
         } catch (error) {
@@ -267,16 +267,15 @@ const BreweriesModule = (() => {
     }
 
     /**
-     * Aggiunge testo "Altri N birrifici" sotto la griglia
+     * Aggiunge testo "...e molti altri ancora!" sotto la griglia
      */
-    function addViewAllLink(container, totalCount) {
+    function addViewAllLink(container) {
         const existingText = container.querySelector('.more-breweries-text');
         if (existingText) return;
 
-        const remaining = totalCount - 27;
         const text = document.createElement('p');
         text.className = 'more-breweries-text';
-        text.textContent = `+ altri ${remaining} birrifici`;
+        text.textContent = '...e molti altri ancora!';
         container.appendChild(text);
     }
 

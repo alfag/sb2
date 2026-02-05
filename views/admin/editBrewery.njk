@@ -7,18 +7,92 @@
         min-height: 100vh;
         background: linear-gradient(135deg, #1a1510 0%, #2d2319 50%, #3d2f1f 100%);
         padding: 0;
-        margin: -1rem;
+        margin: 0;
         padding-bottom: 3rem;
     }
     
-    /* Header con gradiente ambra */
-    .edit-header {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
-        padding: 1.5rem 0;
-        margin-bottom: 2rem;
+    /* Top Bar con navigazione */
+    .top-bar {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border-bottom: 1px solid #b45309;
+        padding: 0.75rem 0;
         position: relative;
-        overflow: hidden;
-        box-shadow: 0 10px 40px rgba(245, 158, 11, 0.3);
+        z-index: 50;
+        box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+    }
+    
+    .top-bar .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+    }
+    
+    .top-bar-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .back-links {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .back-separator {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.875rem;
+    }
+    
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: white;
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        padding: 0.4rem 0.75rem;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .back-link:hover {
+        background: rgba(255, 255, 255, 0.25);
+        color: white;
+    }
+    
+    .top-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-view-detail {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1rem;
+        background: white;
+        color: #d97706;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .btn-view-detail:hover {
+        background: #fffbeb;
+        color: #b45309;
+    }
+    
+    /* Header compatto */
+    .edit-header {
+        background: rgba(0,0,0,0.3);
+        padding: 1rem 0;
+        margin-bottom: 1.5rem;
     }
     
     .edit-header::before {
@@ -34,64 +108,32 @@
     .edit-header .container {
         position: relative;
         z-index: 2;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
     }
     
     .edit-header h1 {
         color: white;
-        font-size: 1.5rem;
+        font-size: 1.25rem;
         font-weight: 700;
         margin: 0;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
     
     .edit-header .subtitle {
-        color: rgba(255,255,255,0.9);
-        font-size: 1rem;
-        margin-top: 0.25rem;
+        color: rgba(255,255,255,0.7);
+        font-size: 0.9rem;
+        margin-top: 0.15rem;
         font-weight: 500;
     }
     
     .edit-header .brewery-id {
-        background: rgba(0,0,0,0.2);
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-family: monospace;
-    }
-    
-    /* Breadcrumb moderno */
-    .modern-breadcrumb {
-        background: rgba(0,0,0,0.2);
-        backdrop-filter: blur(10px);
-        border-radius: 50px;
-        padding: 0.4rem 1rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.75rem;
-    }
-    
-    .modern-breadcrumb a {
+        background: rgba(255,255,255,0.15);
         color: rgba(255,255,255,0.8);
-        text-decoration: none;
-        font-size: 0.8rem;
-        transition: color 0.2s;
-    }
-    
-    .modern-breadcrumb a:hover {
-        color: white;
-    }
-    
-    .modern-breadcrumb .separator {
-        color: rgba(255,255,255,0.5);
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
         font-size: 0.65rem;
-    }
-    
-    .modern-breadcrumb .current {
-        color: white;
-        font-weight: 600;
-        font-size: 0.8rem;
+        font-family: monospace;
     }
     
     /* Flash messages */
@@ -149,24 +191,29 @@
     
     .logo-section {
         background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-        padding: 1.5rem;
-        text-align: center;
+        padding: 1rem;
         border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    
+    .logo-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
     }
     
     .logo-preview-container {
         position: relative;
-        width: 160px;
-        height: 160px;
-        margin: 0 auto 1rem;
-        border-radius: 20px;
+        width: 80px;
+        height: 80px;
+        flex-shrink: 0;
+        border-radius: 12px;
         overflow: hidden;
         background: white;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 3px solid #f59e0b;
+        border: 2px solid #f59e0b;
     }
     
     .logo-preview-container img {
@@ -175,33 +222,49 @@
         object-fit: contain;
     }
     
+    /* Drop-shadow per loghi chiari/bianchi */
+    .logo-preview-container.has-light-logo {
+        background: linear-gradient(135deg, #1f2937 0%, #374151 100%) !important;
+    }
+    
+    .logo-preview-container img.light-logo {
+        filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8)) 
+                drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6)) !important;
+    }
+    
     .logo-preview-container .no-logo {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         color: #94a3b8;
-        font-size: 0.85rem;
+        font-size: 0.7rem;
     }
     
     .logo-preview-container .no-logo i {
-        font-size: 3rem;
-        margin-bottom: 0.5rem;
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
         color: #cbd5e1;
     }
     
     .logo-actions {
+        flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.5rem;
+    }
+    
+    .logo-input-row {
+        display: flex;
+        gap: 0.5rem;
     }
     
     .logo-url-input {
         border: 2px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 0.6rem 0.75rem;
-        font-size: 0.85rem;
-        width: 100%;
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+        flex: 1;
         transition: all 0.3s;
         background: white;
     }
@@ -216,16 +279,16 @@
         background: linear-gradient(135deg, #f59e0b, #d97706);
         color: white;
         border: none;
-        border-radius: 10px;
-        padding: 0.5rem 1rem;
-        font-size: 0.8rem;
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.4rem;
+        gap: 0.3rem;
     }
     
     .btn-test-logo:hover {
@@ -256,6 +319,388 @@
         gap: 0.4rem;
     }
     
+    /* ========== PULSANTE GSR - Arricchimento dati ========== */
+    .gsr-section {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    
+    .btn-gsr-search {
+        width: 100%;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    .btn-gsr-search:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+    }
+    
+    .btn-gsr-search:active:not(:disabled) {
+        transform: translateY(0);
+    }
+    
+    .btn-gsr-search:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+    
+    .btn-gsr-search.loading {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    }
+    
+    .btn-gsr-search.loading i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .gsr-hint {
+        font-size: 0.7rem;
+        color: #1e40af;
+        margin-top: 0.5rem;
+        margin-bottom: 0;
+        text-align: center;
+    }
+    
+    /* GSR Results Modal */
+    .gsr-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .gsr-modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .gsr-modal {
+        background: white;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 700px;
+        max-height: 85vh;
+        overflow: hidden;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+        transform: scale(0.9) translateY(20px);
+        transition: transform 0.3s ease;
+    }
+    
+    .gsr-modal-overlay.active .gsr-modal {
+        transform: scale(1) translateY(0);
+    }
+    
+    .gsr-modal-header {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .gsr-modal-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .gsr-modal-header .confidence-badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+    
+    .gsr-modal-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+    
+    .gsr-modal-close:hover {
+        opacity: 1;
+    }
+    
+    .gsr-modal-body {
+        padding: 1rem;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    
+    /* ========== LISTA CAMPI GSR ========== */
+    .gsr-field-item {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+    }
+    
+    .gsr-field-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Header del campo */
+    .gsr-field-header {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        background: #f1f5f9;
+        border-bottom: 1px solid #e2e8f0;
+        gap: 0.6rem;
+    }
+    
+    .gsr-field-item.status-new .gsr-field-header {
+        background: linear-gradient(90deg, #dcfce7 0%, #f0fdf4 100%);
+        border-bottom-color: #86efac;
+    }
+    
+    .gsr-field-item.status-different .gsr-field-header {
+        background: linear-gradient(90deg, #fef3c7 0%, #fffbeb 100%);
+        border-bottom-color: #fcd34d;
+    }
+    
+    .gsr-field-checkbox {
+        width: 18px;
+        height: 18px;
+        accent-color: #3b82f6;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    
+    .gsr-field-name {
+        flex: 1;
+        font-weight: 600;
+        font-size: 0.8rem;
+        color: #1e293b;
+    }
+    
+    .gsr-status-badge {
+        font-size: 0.6rem;
+        font-weight: 700;
+        padding: 0.15rem 0.5rem;
+        border-radius: 10px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+    }
+    
+    .gsr-status-badge.new {
+        background: #16a34a;
+        color: white;
+    }
+    
+    .gsr-status-badge.different {
+        background: #d97706;
+        color: white;
+    }
+    
+    .gsr-status-badge.same {
+        background: #94a3b8;
+        color: white;
+    }
+    
+    /* Corpo con i valori - DUE COLONNE */
+    .gsr-field-values {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .gsr-value-col {
+        padding: 0.6rem 0.75rem;
+    }
+    
+    .gsr-value-col:first-child {
+        background: #fafafa;
+        border-right: 1px solid #e2e8f0;
+    }
+    
+    .gsr-value-col:last-child {
+        background: #f0fdf4;
+    }
+    
+    .gsr-field-item.status-different .gsr-value-col:last-child {
+        background: #fefce8;
+    }
+    
+    .gsr-field-item.status-same .gsr-value-col:last-child {
+        background: #fafafa;
+    }
+    
+    .gsr-value-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+        letter-spacing: 0.03em;
+    }
+    
+    .gsr-value-col:last-child .gsr-value-label {
+        color: #16a34a;
+    }
+    
+    .gsr-field-item.status-different .gsr-value-col:last-child .gsr-value-label {
+        color: #d97706;
+    }
+    
+    .gsr-value-text {
+        font-size: 0.85rem;
+        color: #1e293b;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+    
+    .gsr-value-text.empty {
+        color: #94a3b8;
+        font-style: italic;
+    }
+    
+    /* Evidenzia testo modificato */
+    .gsr-value-col:last-child .gsr-value-text {
+        font-weight: 500;
+    }
+    
+    .gsr-field-item.status-different .gsr-value-col:last-child .gsr-value-text,
+    .gsr-field-item.status-new .gsr-value-col:last-child .gsr-value-text {
+        color: #166534;
+        font-weight: 600;
+    }
+    
+    .gsr-field-item.status-different .gsr-value-col:last-child .gsr-value-text {
+        color: #92400e;
+    }
+    
+    /* Messaggio nessun dato */
+    .gsr-no-data {
+        text-align: center;
+        color: #94a3b8;
+        padding: 2rem;
+    }
+    
+    /* Riepilogo selezione */
+    .gsr-selection-summary {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+    
+    .gsr-selection-count {
+        font-weight: 700;
+        color: #3b82f6;
+    }
+    
+    /* Responsive */
+    @media (max-width: 480px) {
+        .gsr-field-values {
+            grid-template-columns: 1fr;
+        }
+        
+        .gsr-value-col:first-child {
+            border-right: none;
+            border-bottom: 1px solid #e2e8f0;
+        }
+    }
+    
+    .gsr-modal-footer {
+        background: #f8fafc;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .gsr-btn-select-all {
+        background: none;
+        border: 1px solid #3b82f6;
+        color: #3b82f6;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .gsr-btn-select-all:hover {
+        background: #eff6ff;
+    }
+    
+    .gsr-btn-apply {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    
+    .gsr-btn-apply:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+    
+    .gsr-btn-cancel {
+        background: #e2e8f0;
+        color: #475569;
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .gsr-btn-cancel:hover {
+        background: #cbd5e1;
+    }
+
     .quick-info-item {
         display: flex;
         align-items: center;
@@ -701,25 +1146,118 @@
         }
         
         .logo-preview-container {
-            width: 140px;
-            height: 140px;
+            width: 70px;
+            height: 70px;
         }
+        
+        .logo-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .logo-preview-container {
+            align-self: center;
+        }
+    }
+    
+    /* Alert Dati Incompleti */
+    .incomplete-alert {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 1px solid #f59e0b;
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+    }
+
+    .incomplete-alert-icon {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.1rem;
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+
+    .incomplete-alert-content {
+        flex: 1;
+    }
+
+    .incomplete-alert-title {
+        font-weight: 700;
+        color: #92400e;
+        font-size: 0.95rem;
+        margin-bottom: 0.4rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .incomplete-alert-description {
+        color: #a16207;
+        font-size: 0.85rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .incomplete-fields-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .incomplete-field-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.3rem 0.6rem;
+        background: white;
+        border: 1px solid #fcd34d;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #92400e;
+    }
+
+    .incomplete-field-badge i {
+        font-size: 0.7rem;
+        color: #d97706;
     }
 </style>
 
 <div class="edit-brewery-page">
-    <!-- Header compatto con gradiente ambra -->
+    <!-- Top Bar con navigazione -->
+    <div class="top-bar">
+        <div class="container">
+            <div class="top-bar-content">
+                <div class="back-links">
+                    <a href="javascript:history.back()" class="back-link">
+                        <i class="fas fa-arrow-left"></i> Indietro
+                    </a>
+                    <span class="back-separator">|</span>
+                    <a href="/administrator/breweries" class="back-link">
+                        <i class="fas fa-list"></i> Lista Birrifici
+                    </a>
+                </div>
+                <div class="top-actions">
+                    <a href="/administrator/breweries/view/{{ brewery._id }}" class="btn-view-detail">
+                        <i class="fas fa-eye"></i> Visualizza
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Header compatto -->
     <div class="edit-header">
         <div class="container">
-            <!-- Breadcrumb -->
-            <nav class="modern-breadcrumb">
-                <a href="/administrator"><i class="fas fa-home"></i></a>
-                <span class="separator"><i class="fas fa-chevron-right"></i></span>
-                <a href="/administrator/breweries">Birrifici</a>
-                <span class="separator"><i class="fas fa-chevron-right"></i></span>
-                <span class="current">Modifica</span>
-            </nav>
-            
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                     <h1><i class="fas fa-edit me-2"></i>Modifica Birrificio</h1>
@@ -730,7 +1268,7 @@
         </div>
     </div>
     
-    <div class="container">
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 1rem;">
         <!-- Messaggi flash -->
         {% if message.success %}
             <div class="flash-message success alert-dismissible fade show" role="alert">
@@ -748,49 +1286,90 @@
             </div>
         {% endif %}
         
-        <form method="POST" action="/administrator/breweries/edit/{{ brewery._id }}" id="editBreweryForm">
+        <!-- Alert Dati Incompleti -->
+        {% if missingFields and missingFields.length > 0 %}
+        <div class="incomplete-alert" id="incompleteAlert">
+            <div class="incomplete-alert-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="incomplete-alert-content">
+                <div class="incomplete-alert-title">
+                    <i class="fas fa-info-circle"></i> Dati Incompleti
+                </div>
+                <div class="incomplete-alert-description">
+                    Completa i seguenti campi per migliorare la scheda del birrificio:
+                </div>
+                <div class="incomplete-fields-list" id="incompleteFieldsList">
+                    {% for field in missingFields %}
+                    <span class="incomplete-field-badge" data-field-type="{{ field.field }}">
+                        <i class="fas {{ field.icon }}"></i> {{ field.field }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Container nascosto per l'alert (verrà mostrato se i campi vengono svuotati) -->
+        <div class="incomplete-alert" id="incompleteAlert" style="display: none;">
+            <div class="incomplete-alert-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="incomplete-alert-content">
+                <div class="incomplete-alert-title">
+                    <i class="fas fa-info-circle"></i> Dati Incompleti
+                </div>
+                <div class="incomplete-alert-description">
+                    Completa i seguenti campi per migliorare la scheda del birrificio:
+                </div>
+                <div class="incomplete-fields-list" id="incompleteFieldsList">
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <form method="POST" action="/administrator/breweries/edit/{{ brewery._id }}" id="editBreweryForm" novalidate>
             <div class="edit-layout">
                 
                 <!-- Sidebar con Logo e Quick Info -->
                 <div class="sidebar-card">
-                    <!-- Sezione Logo -->
+                    <!-- Sezione Logo - Layout compatto in riga -->
                     <div class="logo-section">
-                        <div class="logo-preview-container" id="logoPreviewContainer">
-                            {% if brewery.breweryLogo %}
-                                <img src="{{ brewery.breweryLogo }}" alt="Logo {{ brewery.breweryName }}" id="logoPreview" 
-                                     onerror="this.style.display='none'; document.getElementById('noLogoPlaceholder').style.display='flex';">
-                                <div class="no-logo" id="noLogoPlaceholder" style="display: none;">
-                                    <i class="fas fa-image"></i>
-                                    <span>Nessun logo</span>
-                                </div>
-                            {% else %}
-                                <div class="no-logo" id="noLogoPlaceholder">
-                                    <i class="fas fa-image"></i>
-                                    <span>Nessun logo</span>
-                                </div>
-                                <img src="" alt="Logo Preview" id="logoPreview" style="display: none;">
-                            {% endif %}
-                        </div>
-                        
-                        <div class="logo-actions">
-                            <label class="form-label mb-1" style="font-size: 0.8rem;">
-                                <i class="fas fa-link"></i> URL Logo
-                            </label>
-                            <input type="url" 
-                                   class="logo-url-input" 
-                                   id="breweryLogo" 
-                                   name="breweryLogo" 
-                                   value="{{ brewery.breweryLogo or '' }}"
-                                   placeholder="https://esempio.com/logo.png">
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn-test-logo flex-grow-1" onclick="testLogoUrl()">
-                                    <i class="fas fa-eye"></i> Anteprima
-                                </button>
-                                <button type="button" class="btn-test-logo" onclick="clearLogo()" style="background: #ef4444;">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                        <div class="logo-row">
+                            <div class="logo-preview-container {% if brewery.logoIsLight %}has-light-logo{% endif %}" id="logoPreviewContainer">
+                                {% if brewery.breweryLogo %}
+                                    <img src="{{ brewery.breweryLogo }}" alt="Logo {{ brewery.breweryName }}" id="logoPreview" 
+                                         class="{% if brewery.logoIsLight %}light-logo{% endif %}"
+                                         onerror="this.style.display='none'; document.getElementById('noLogoPlaceholder').style.display='flex';">
+                                    <div class="no-logo" id="noLogoPlaceholder" style="display: none;">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                {% else %}
+                                    <div class="no-logo" id="noLogoPlaceholder">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                    <img src="" alt="Logo Preview" id="logoPreview" style="display: none;">
+                                {% endif %}
                             </div>
-                            <p class="logo-hint"><i class="fas fa-info-circle me-1"></i>Inserisci URL diretto immagine (JPG, PNG, SVG)</p>
+                            
+                            <div class="logo-actions">
+                                <div class="logo-input-row">
+                                    <input type="url" 
+                                           class="logo-url-input" 
+                                           id="breweryLogo" 
+                                           name="breweryLogo" 
+                                           value="{{ brewery.breweryLogo or '' }}"
+                                           placeholder="https://esempio.com/logo.png">
+                                    <button type="button" class="btn-test-logo" onclick="testLogoUrl()" title="Anteprima">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button type="button" class="btn-test-logo" onclick="clearLogo()" style="background: #ef4444;" title="Rimuovi">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                <p class="logo-hint" style="margin: 0; font-size: 0.7rem; color: #78716c;">
+                                    <i class="fas fa-info-circle"></i> URL immagine (JPG, PNG, SVG)
+                                </p>
+                            </div>
                         </div>
                     </div>
                     
@@ -800,17 +1379,28 @@
                             <i class="fas fa-info-circle"></i> Info Rapide
                         </h4>
                         
+                        <!-- PULSANTE GSR - Arricchimento dati automatico -->
+                        <div class="gsr-section">
+                            <button type="button" id="btnGsrSearch" class="btn-gsr-search" onclick="executeGsrSearch()">
+                                <i class="fas fa-search-plus"></i>
+                                <span>Arricchisci con Google</span>
+                            </button>
+                            <p class="gsr-hint">
+                                <i class="fas fa-magic"></i> Cerca dati aggiornati online
+                            </p>
+                        </div>
+                        
                         <div class="quick-info-item">
                             <i class="fas fa-clipboard-check qi-icon-status"></i>
                             <div class="qi-content">
                                 <div class="qi-label">Stato Validazione</div>
                                 <div class="qi-value">
                                     {% if brewery.validationStatus == 'validated' %}
-                                        <span class="validation-badge validated"><i class="fas fa-check"></i> Validato</span>
+                                        <span class="validation-badge validated"><i class="fas fa-check"></i> Verificato</span>
                                     {% elif brewery.validationStatus == 'ai_extracted' %}
-                                        <span class="validation-badge ai"><i class="fas fa-robot"></i> AI Estratto</span>
+                                        <span class="validation-badge ai"><i class="fas fa-robot"></i> Estratto da AI</span>
                                     {% else %}
-                                        <span class="validation-badge pending"><i class="fas fa-clock"></i> In Attesa</span>
+                                        <span class="validation-badge pending"><i class="fas fa-clock"></i> Da verificare</span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -1203,7 +1793,396 @@
     </div>
 </div>
 
+<!-- GSR Results Modal -->
+<div class="gsr-modal-overlay" id="gsrModalOverlay">
+    <div class="gsr-modal">
+        <div class="gsr-modal-header">
+            <h3>
+                <i class="fas fa-search-plus"></i>
+                Dati trovati da Google
+                <span class="confidence-badge" id="gsrConfidence">--</span>
+            </h3>
+            <button class="gsr-modal-close" onclick="closeGsrModal()">&times;</button>
+        </div>
+        <div class="gsr-modal-body" id="gsrModalBody">
+            <!-- I risultati GSR verranno inseriti qui dinamicamente -->
+        </div>
+        <div class="gsr-modal-footer">
+            <div class="gsr-selection-summary">
+                <i class="fas fa-check-square"></i>
+                <span>Selezionati: <span class="gsr-selection-count" id="gsrSelectionCount">0</span></span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="gsr-btn-select-all" onclick="toggleAllGsrFields()">
+                    <i class="fas fa-check-double"></i> Tutti
+                </button>
+                <button class="gsr-btn-cancel" onclick="closeGsrModal()">Annulla</button>
+                <button class="gsr-btn-apply" onclick="applyGsrData()">
+                    <i class="fas fa-magic"></i> Applica
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+// ========================================
+// GSR (Google Search Retrieval) Functions
+// ========================================
+const breweryId = '{{ brewery._id }}';
+let gsrData = null; // Memorizza i dati GSR per applicarli successivamente
+
+// Mappa dei campi GSR ai campi del form
+const gsrFieldMapping = {
+    breweryName: { formId: 'breweryName', label: 'Nome Birrificio' },
+    breweryLogo: { formId: 'breweryLogo', label: 'Logo URL' },
+    breweryWebsite: { formId: 'breweryWebsite', label: 'Sito Web' },
+    breweryLegalAddress: { formId: 'breweryLegalAddress', label: 'Indirizzo Legale' },
+    breweryEmail: { formId: 'breweryEmail', label: 'Email' },
+    breweryPhoneNumber: { formId: 'breweryPhoneNumber', label: 'Telefono' },
+    breweryDescription: { formId: 'breweryDescription', label: 'Descrizione' },
+    foundingYear: { formId: 'foundingYear', label: 'Anno Fondazione' },
+    brewerySize: { formId: 'brewerySize', label: 'Dimensione' },
+    productionVolume: { formId: 'productionVolume', label: 'Volume Produzione' },
+    breweryHistory: { formId: 'breweryHistory', label: 'Storia' },
+    breweryFiscalCode: { formId: 'breweryFiscalCode', label: 'Partita IVA' },
+    reaCode: { formId: 'breweryREAcode', label: 'Codice REA' },
+    acciseCode: { formId: 'breweryacciseCode', label: 'Codice Accise' },
+    pecEmail: { formId: 'pecEmail', label: 'PEC' },
+    shareCapital: { formId: 'breweryFund', label: 'Capitale Sociale' },
+    // Social media (oggetto annidato)
+    'brewerySocialMedia.facebook': { formId: 'facebook', label: 'Facebook' },
+    'brewerySocialMedia.instagram': { formId: 'instagram', label: 'Instagram' },
+    'brewerySocialMedia.twitter': { formId: 'twitter', label: 'Twitter/X' },
+    'brewerySocialMedia.linkedin': { formId: 'linkedin', label: 'LinkedIn' },
+    'brewerySocialMedia.youtube': { formId: 'youtube', label: 'YouTube' }
+};
+
+// Esegue la ricerca GSR
+async function executeGsrSearch() {
+    const btn = document.getElementById('btnGsrSearch');
+    const originalContent = btn.innerHTML;
+    
+    // Stato loading
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.innerHTML = '<i class="fas fa-spinner"></i><span>Ricerca in corso...</span>';
+    
+    try {
+        const response = await fetch(`/administrator/breweries/${breweryId}/gsr-search`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            gsrData = result.data;
+            showGsrModal(result.data, result.confidence);
+            showToast('Dati trovati! Seleziona quali applicare.', 'success');
+        } else {
+            showToast(result.error || 'Nessun dato trovato dalla ricerca Google', 'warning');
+        }
+        
+        // Mostra info rate limit se disponibile
+        if (result.rateLimitStats) {
+            console.log('[GSR] Rate limit:', result.rateLimitStats);
+        }
+        
+    } catch (error) {
+        console.error('[GSR] Errore:', error);
+        showToast('Errore durante la ricerca. Riprova più tardi.', 'error');
+    } finally {
+        // Ripristina pulsante
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.innerHTML = originalContent;
+    }
+}
+
+// Mostra il modal con i risultati GSR
+function showGsrModal(data, confidence) {
+    const modal = document.getElementById('gsrModalOverlay');
+    const body = document.getElementById('gsrModalBody');
+    const confidenceBadge = document.getElementById('gsrConfidence');
+    
+    confidenceBadge.textContent = `${Math.round((confidence || 0) * 100)}%`;
+    
+    const getNestedValue = (obj, path) => {
+        return path.split('.').reduce((o, p) => o && o[p], obj);
+    };
+    
+    const fields = [];
+    
+    for (const [gsrField, mapping] of Object.entries(gsrFieldMapping)) {
+        let newValue = getNestedValue(data, gsrField);
+        
+        if (Array.isArray(newValue)) {
+            newValue = newValue.join(', ');
+        }
+        
+        if (newValue === null || newValue === undefined || newValue === '') {
+            continue;
+        }
+        
+        const formElement = document.getElementById(mapping.formId);
+        const currentValue = formElement ? formElement.value.trim() : '';
+        
+        let status = 'same';
+        let statusLabel = 'Uguale';
+        
+        if (!currentValue) {
+            status = 'new';
+            statusLabel = 'Nuovo';
+        } else if (currentValue !== String(newValue)) {
+            status = 'different';
+            statusLabel = 'Diverso';
+        }
+        
+        fields.push({
+            gsrField,
+            formId: mapping.formId,
+            label: mapping.label,
+            currentValue,
+            newValue: String(newValue),
+            status,
+            statusLabel
+        });
+    }
+    
+    // Aggiungi mainProducts
+    if (data.mainProducts && Array.isArray(data.mainProducts) && data.mainProducts.length > 0) {
+        const newValue = data.mainProducts.join(', ');
+        const formElement = document.getElementById('mainProducts');
+        const currentValue = formElement ? formElement.value.trim() : '';
+        const status = !currentValue ? 'new' : (currentValue !== newValue ? 'different' : 'same');
+        
+        fields.push({
+            gsrField: 'mainProducts',
+            formId: 'mainProducts',
+            label: 'Prodotti Principali',
+            currentValue,
+            newValue,
+            status,
+            statusLabel: status === 'new' ? 'Nuovo' : (status === 'different' ? 'Diverso' : 'Uguale')
+        });
+    }
+    
+    // Aggiungi awards
+    if (data.awards && Array.isArray(data.awards) && data.awards.length > 0) {
+        const newValue = data.awards.join(', ');
+        const formElement = document.getElementById('awards');
+        const currentValue = formElement ? formElement.value.trim() : '';
+        const status = !currentValue ? 'new' : (currentValue !== newValue ? 'different' : 'same');
+        
+        fields.push({
+            gsrField: 'awards',
+            formId: 'awards',
+            label: 'Premi e Riconoscimenti',
+            currentValue,
+            newValue,
+            status,
+            statusLabel: status === 'new' ? 'Nuovo' : (status === 'different' ? 'Diverso' : 'Uguale')
+        });
+    }
+    
+    let html = '';
+    
+    if (fields.length === 0) {
+        html = '<div class="gsr-no-data">Nessun dato disponibile.</div>';
+    } else {
+        for (const f of fields) {
+            const checked = f.status !== 'same' ? 'checked' : '';
+            
+            html += `
+                <div class="gsr-field-item status-${f.status}">
+                    <div class="gsr-field-header">
+                        <input type="checkbox" class="gsr-field-checkbox" 
+                               data-field="${f.gsrField}" data-form-id="${f.formId}" 
+                               ${checked} onchange="updateSelectionCount()">
+                        <span class="gsr-field-name">${f.label}</span>
+                        <span class="gsr-status-badge ${f.status}">${f.statusLabel}</span>
+                    </div>
+                    <div class="gsr-field-values">
+                        <div class="gsr-value-col">
+                            <div class="gsr-value-label">Attuale</div>
+                            <div class="gsr-value-text ${!f.currentValue ? 'empty' : ''}">${f.currentValue ? escapeHtml(f.currentValue) : '(vuoto)'}</div>
+                        </div>
+                        <div class="gsr-value-col">
+                            <div class="gsr-value-label">Recuperato</div>
+                            <div class="gsr-value-text">${escapeHtml(f.newValue)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    body.innerHTML = html;
+    modal.classList.add('active');
+    updateSelectionCount();
+}
+
+// Aggiorna il contatore dei campi selezionati
+function updateSelectionCount() {
+    const checkboxes = document.querySelectorAll('.gsr-field-checkbox:checked');
+    const countEl = document.getElementById('gsrSelectionCount');
+    if (countEl) {
+        countEl.textContent = checkboxes.length;
+    }
+}
+
+// Chiude il modal GSR
+function closeGsrModal() {
+    const modal = document.getElementById('gsrModalOverlay');
+    modal.classList.remove('active');
+}
+
+// Seleziona/deseleziona tutti i campi
+function toggleAllGsrFields() {
+    const checkboxes = document.querySelectorAll('.gsr-field-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+    updateSelectionCount();
+}
+
+// Applica i dati GSR selezionati al form
+function applyGsrData() {
+    if (!gsrData) {
+        showToast('Nessun dato da applicare', 'error');
+        return;
+    }
+    
+    const checkboxes = document.querySelectorAll('.gsr-field-checkbox:checked');
+    let appliedCount = 0;
+    
+    // Helper per ottenere valore annidato
+    const getNestedValue = (obj, path) => {
+        return path.split('.').reduce((o, p) => o && o[p], obj);
+    };
+    
+    checkboxes.forEach(cb => {
+        const gsrField = cb.dataset.field;
+        const formId = cb.dataset.formId;
+        let value = getNestedValue(gsrData, gsrField);
+        
+        // Gestisci array
+        if (Array.isArray(value)) {
+            value = value.join(', ');
+        }
+        
+        const formElement = document.getElementById(formId);
+        if (formElement && value !== null && value !== undefined) {
+            formElement.value = value;
+            appliedCount++;
+            
+            // Evidenzia brevemente il campo aggiornato
+            formElement.style.transition = 'background-color 0.3s';
+            formElement.style.backgroundColor = '#dcfce7';
+            setTimeout(() => {
+                formElement.style.backgroundColor = '';
+            }, 1500);
+        }
+    });
+    
+    // Se è stato aggiornato il logo, aggiorna anche l'anteprima
+    const logoCheckbox = document.querySelector('.gsr-field-checkbox[data-field="breweryLogo"]:checked');
+    if (logoCheckbox && gsrData.breweryLogo) {
+        testLogoUrl();
+        
+        // 🎨 Applica classe per logo chiaro se logoIsLight è true
+        const logoPreviewContainer = document.getElementById('logoPreviewContainer');
+        const logoPreviewImg = document.getElementById('logoPreview');
+        if (gsrData.logoIsLight === true) {
+            logoPreviewContainer.classList.add('has-light-logo');
+            logoPreviewImg.classList.add('light-logo');
+            console.log('[GSR] 🎨 Logo chiaro rilevato - applicato sfondo scuro');
+        } else {
+            logoPreviewContainer.classList.remove('has-light-logo');
+            logoPreviewImg.classList.remove('light-logo');
+        }
+    }
+    
+    closeGsrModal();
+    
+    if (appliedCount > 0) {
+        showToast(`${appliedCount} campi aggiornati! Ricorda di salvare.`, 'success');
+        // 🔄 Aggiorna l'alert di incompletezza dopo aver applicato i dati GSR
+        updateIncompleteAlert();
+    } else {
+        showToast('Nessun campo selezionato da applicare', 'info');
+    }
+}
+
+// ========================================
+// Funzione per aggiornare dinamicamente l'alert "Dati Incompleti"
+// Chiamata dopo l'applicazione dei dati GSR o modifiche ai campi
+// ========================================
+function updateIncompleteAlert() {
+    const missingFields = [];
+    
+    // Verifica i campi obbligatori per completezza
+    const emailField = document.getElementById('breweryEmail');
+    if (!emailField || !emailField.value.trim()) {
+        missingFields.push({ field: 'Email', icon: 'fa-envelope' });
+    }
+    
+    const websiteField = document.getElementById('breweryWebsite');
+    if (!websiteField || !websiteField.value.trim()) {
+        missingFields.push({ field: 'Sito Web', icon: 'fa-globe' });
+    }
+    
+    const phoneField = document.getElementById('breweryPhoneNumber');
+    if (!phoneField || !phoneField.value.trim()) {
+        missingFields.push({ field: 'Telefono', icon: 'fa-phone' });
+    }
+    
+    // Verifica logo valido
+    const logoField = document.getElementById('breweryLogo');
+    const logoValue = logoField ? logoField.value.trim().toLowerCase() : '';
+    const invalidPatterns = ['placeholder', 'default', 'no-logo', 'nologo', 'missing', 'blank', 'empty', 'null', 'undefined'];
+    const hasValidLogo = logoValue && !invalidPatterns.some(pattern => logoValue.includes(pattern));
+    
+    if (!hasValidLogo) {
+        missingFields.push({ field: 'Logo', icon: 'fa-image' });
+    }
+    
+    // Aggiorna l'UI dell'alert
+    const alertElement = document.getElementById('incompleteAlert');
+    const fieldsListElement = document.getElementById('incompleteFieldsList');
+    
+    if (missingFields.length > 0) {
+        // Mostra l'alert con i campi mancanti
+        fieldsListElement.innerHTML = missingFields.map(f => 
+            `<span class="incomplete-field-badge" data-field-type="${f.field}">
+                <i class="fas ${f.icon}"></i> ${f.field}
+            </span>`
+        ).join('');
+        alertElement.style.display = 'flex';
+    } else {
+        // Nascondi l'alert se tutti i campi sono completi
+        alertElement.style.display = 'none';
+        // Mostra toast di successo
+        showToast('🎉 Tutti i dati principali sono completi!', 'success');
+    }
+}
+
+// Helper per escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Chiudi modal cliccando fuori
+document.getElementById('gsrModalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeGsrModal();
+    }
+});
+
 // ========================================
 // Tab Navigation System
 // ========================================
@@ -1344,6 +2323,19 @@ document.getElementById('editBreweryForm').addEventListener('submit', function(e
     const submitBtn = this.querySelector('.btn-save');
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...';
     submitBtn.disabled = true;
+});
+
+// ========================================
+// Rimuovi padding dal main-content
+// ========================================
+document.addEventListener('DOMContentLoaded', function() {
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.style.paddingTop = '60px';
+        mainContent.style.paddingLeft = '0';
+        mainContent.style.paddingRight = '0';
+        mainContent.style.paddingBottom = '0';
+    }
 });
 </script>
 {% endblock %}

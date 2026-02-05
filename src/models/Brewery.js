@@ -7,6 +7,8 @@ const brewerySchema = new mongoose.Schema({
     breweryREAcode: { type: String },
     breweryacciseCode: { type: String },
     pecEmail: { type: String }, // 🔥 FIX: Aggiunta PEC (8 gen 2026)
+    legalForm: { type: String }, // 🆕 Forma giuridica (SRL, SPA, SNC, ecc.) (5 feb 2026)
+    shareCapital: { type: String }, // 🆕 Capitale sociale (5 feb 2026)
     breweryFund: { type: String },
     breweryLegalAddress: { type: String },
     breweryPhoneNumber: { type: String },

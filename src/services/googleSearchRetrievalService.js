@@ -371,10 +371,10 @@ RICERCA DATI FISCALI - DOVE CERCARLI:
 - PEC: pagina contatti, dati societari - formato xxx@pec.it
 - Forma giuridica: ragione sociale completa (SRL, SPA, SNC, SRLS, Ditta Individuale, Cooperativa)
 
-RICERCA SOCIAL MEDIA - DOVE CERCARLI:
-- Cerca icone social nel footer o header del sito ufficiale
-- Verifica che i profili siano UFFICIALI del birrificio (non fan page)
-- Facebook, Instagram, Twitter/X, LinkedIn, YouTube
+⚠️ SOCIAL MEDIA - NON CERCARE!
+I social media verranno estratti automaticamente via web scraping dal sito ufficiale.
+NON includere mai URL social nella risposta - usa sempre null per tutti i campi social.
+L'estrazione AI dei social è inaffidabile e produce URL inventati che non esistono.
 
 RICERCA LOGO BIRRIFICIO - DOVE CERCARLO:
 - Header o navbar del sito ufficiale (spesso in alto a sinistra)
@@ -401,13 +401,7 @@ Restituisci un JSON con questa struttura esatta:
     "productionVolume": "Volume produzione o null",
     "mainProducts": ["Lista birre principali"] o [],
     "awards": ["Premi ricevuti"] o [],
-    "brewerySocialMedia": {
-      "facebook": "URL pagina Facebook ufficiale o null",
-      "instagram": "URL profilo Instagram ufficiale o null",
-      "twitter": "URL profilo Twitter/X ufficiale o null",
-      "linkedin": "URL pagina LinkedIn ufficiale o null",
-      "youtube": "URL canale YouTube ufficiale o null"
-    },
+    "brewerySocialMedia": null,
     "breweryHistory": "Storia breve o null",
     "breweryFiscalCode": "Partita IVA/CF formato IT12345678901 o null",
     "reaCode": "Codice REA formato XX-123456 o null",
@@ -683,10 +677,10 @@ RICERCA DATI FISCALI BIRRIFICIO - DOVE CERCARLI:
 - Forma giuridica: ragione sociale completa (SRL, SPA, SNC, SRLS, Ditta Individuale, Cooperativa)
 - Capitale sociale: dati societari, visura camerale online
 
-RICERCA SOCIAL MEDIA - DOVE CERCARLI:
-- Cerca icone social nel footer o header del sito ufficiale
-- Verifica che i profili siano UFFICIALI del birrificio (non fan page)
-- Facebook, Instagram, Twitter/X, LinkedIn, YouTube
+⚠️ SOCIAL MEDIA - NON CERCARE!
+I social media verranno estratti automaticamente via web scraping dal sito ufficiale.
+NON includere mai URL social nella risposta - usa sempre null per tutti i campi social.
+L'estrazione AI dei social è inaffidabile e produce URL inventati che non esistono.
 
 RICERCA LOGO BIRRIFICIO - DOVE CERCARLO:
 - Header o navbar del sito ufficiale (spesso in alto a sinistra)
@@ -708,14 +702,11 @@ Restituisci un JSON con questa struttura esatta:
     "breweryDescription": "Descrizione o null",
     "foundingYear": numero o null,
     "brewerySize": "micro/small/medium/large o null",
+    "productionVolume": "Volume produzione annuo (es: 5000 hl/anno) o null",
     "mainProducts": ["Lista birre principali"] o [],
-    "brewerySocialMedia": {
-      "facebook": "URL pagina Facebook ufficiale o null",
-      "instagram": "URL profilo Instagram ufficiale o null",
-      "twitter": "URL profilo Twitter/X ufficiale o null",
-      "linkedin": "URL pagina LinkedIn ufficiale o null",
-      "youtube": "URL canale YouTube ufficiale o null"
-    },
+    "awards": ["Premi ricevuti"] o [],
+    "brewerySocialMedia": null,
+    "breweryHistory": "Storia breve del birrificio o null",
     "breweryFiscalCode": "Partita IVA/Codice Fiscale (formato IT12345678901) o null",
     "reaCode": "Codice REA (es. BI-123456) o null",
     "acciseCode": "Codice Accise birrificio o null",

@@ -3,13 +3,17 @@
 {% block title %}Tutti i Birrifici - SharingBeer{% endblock %}
 
 {% block head %}
+{# CSS per card birrifici - stesso stile della welcome page #}
 <link rel="stylesheet" href="/css/breweriesModule.css">
 <style>
-    /* ===== ALL BREWERIES PAGE - MINIMAL DESIGN ===== */
+    /* ===== ALL BREWERIES PAGE - STESSO STILE WELCOME PAGE ===== */
     .all-breweries-container {
         max-width: 1100px;
         margin: 0 auto;
         padding: 1.5rem 1rem;
+        width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
     }
     
     /* Back link */
@@ -200,84 +204,133 @@
         display: flex;
     }
     
-    /* Breweries grid */
-    .breweries-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1rem;
+    /* ===== GRIGLIA BIRRIFICI - IDENTICO A WELCOME PAGE ===== */
+    /* Usa stesse regole di breweriesModule.css ma con selettore #breweries-grid */
+    #breweries-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 0.75rem !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+        width: 100% !important;
     }
     
-    /* Brewery card */
-    .brewery-card {
-        background: white;
-        border: 1px solid #e7e5e4;
-        border-radius: 12px;
-        padding: 1.25rem;
-        text-align: center;
-        transition: all 0.2s ease;
-        cursor: pointer;
+    /* Card wrapper cliccabile */
+    #breweries-grid .brewery-card-link {
+        text-decoration: none !important;
+        color: inherit !important;
+        display: block !important;
+        margin-bottom: 0 !important;
+        cursor: pointer !important;
     }
     
-    .brewery-card:hover {
-        border-color: #d97706;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transform: translateY(-2px);
+    #breweries-grid .brewery-card-link:active .brewery-card {
+        transform: scale(0.98) !important;
     }
     
-    .brewery-card:active {
-        transform: translateY(0);
+    /* Card birrificio - IDENTICO a breweriesModule.css: altezza 70px */
+    #breweries-grid .brewery-card,
+    #breweries-grid .brewery-card.brewery-card-full-image {
+        padding: 0.5rem !important;
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%) !important;
+        border: 2px solid #e5e7eb !important;
+        border-radius: 0.5rem !important;
+        transition: all 0.25s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        /* Altezza fissa come welcome page */
+        height: 70px !important;
+        min-height: 70px !important;
+        max-height: 70px !important;
+        position: relative !important;
+        overflow: hidden !important;
+        box-shadow: none !important;
+        transform: none !important;
     }
     
-    .brewery-logo {
-        width: 80px;
-        height: 80px;
-        margin: 0 auto 0.75rem;
-        border-radius: 10px;
-        background: #f5f5f4;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        border: 1px solid #e7e5e4;
+    #breweries-grid .brewery-card-link:hover .brewery-card {
+        border-color: #f59e0b !important;
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%) !important;
+        box-shadow: 0 8px 16px rgba(245, 158, 11, 0.15) !important;
+        transform: translateY(-2px) !important;
     }
     
-    .brewery-logo img {
-        max-width: 90%;
-        max-height: 90%;
-        object-fit: contain;
+    /* Logo immagine - IDENTICO a breweriesModule.css */
+    #breweries-grid .brewery-full-logo {
+        width: 100% !important;
+        height: 100% !important;
+        max-height: 54px !important;
+        object-fit: contain !important;
+        padding: 0 !important;
+        transition: transform 0.3s ease, filter 0.3s ease !important;
     }
     
-    .brewery-logo-placeholder {
-        color: #d4d4d4;
-        font-size: 2rem;
+    /* Ombreggiatura per loghi chiari - PIÙ SCURA */
+    #breweries-grid .brewery-full-logo.light-logo {
+        filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.9)) 
+                drop-shadow(0 2px 10px rgba(0, 0, 0, 0.8))
+                drop-shadow(0 4px 16px rgba(0, 0, 0, 0.5)) !important;
     }
     
-    .brewery-name {
-        font-size: 0.9375rem;
-        font-weight: 600;
-        color: #1c1917;
-        margin: 0 0 0.35rem;
-        line-height: 1.3;
+    #breweries-grid .brewery-card-link:hover .brewery-full-logo {
+        transform: scale(1.05) !important;
     }
     
-    .brewery-location {
-        font-size: 0.75rem;
-        color: #78716c;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.25rem;
+    /* Placeholder con iniziale - IDENTICO a breweriesModule.css */
+    #breweries-grid .brewery-logo-placeholder {
+        width: 100% !important;
+        height: 100% !important;
+        max-height: 54px !important;
+        /* display gestito inline: none se logo presente, flex se manca */
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+        transition: transform 0.3s ease !important;
     }
     
-    .brewery-location i {
-        font-size: 0.65rem;
-        color: #a8a29e;
+    #breweries-grid .brewery-placeholder-initial {
+        font-size: 2rem !important;
+        font-weight: 800 !important;
+        color: white !important;
+        text-transform: uppercase !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        line-height: 1 !important;
     }
     
-    .brewery-beers-count {
-        font-size: 0.7rem;
-        color: #a8a29e;
-        margin-top: 0.5rem;
+    #breweries-grid .brewery-card-link:hover .brewery-logo-placeholder {
+        transform: scale(1.05) !important;
+    }
+    
+    /* Overlay nome - IDENTICO a breweriesModule.css */
+    #breweries-grid .brewery-name-overlay {
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        padding: 0.75rem !important;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 100%) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        font-size: 0.875rem !important;
+        text-align: center !important;
+        opacity: 0 !important;
+        transform: translateY(100%) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    #breweries-grid .brewery-card-link:hover .brewery-name-overlay {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+    }
+    
+    /* Nome sempre visibile per card senza logo - IDENTICO a breweriesModule.css */
+    #breweries-grid .brewery-card-no-logo .brewery-name-overlay.brewery-name-always-visible {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.4) 50%, rgba(0, 0, 0, 0) 100%) !important;
     }
     
     /* Empty state */
@@ -379,47 +432,87 @@
         padding: 0 1rem;
     }
     
-    /* Responsive */
+    /* Responsive - Mantiene 3 colonne come welcome page */
     @media (max-width: 768px) {
-        .breweries-grid {
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 0.75rem;
+        .all-breweries-container {
+            padding: 1rem 0.5rem !important;
         }
         
-        .brewery-card {
-            padding: 1rem;
-        }
-        
-        .brewery-logo {
-            width: 64px;
-            height: 64px;
-        }
-        
-        .brewery-name {
-            font-size: 0.875rem;
+        #breweries-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 0.5rem !important;
         }
     }
     
     @media (max-width: 480px) {
+        .all-breweries-container {
+            padding: 0.5rem 0.375rem !important;
+        }
+        
         .page-header {
-            flex-direction: row;
+            flex-direction: row !important;
         }
         
         .page-title {
-            font-size: 1.375rem;
+            font-size: 1.25rem !important;
         }
         
-        .breweries-grid {
-            grid-template-columns: repeat(2, 1fr);
+        #breweries-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 0.375rem !important;
         }
         
-        .brewery-card {
-            padding: 0.875rem;
+        #breweries-grid .brewery-card,
+        #breweries-grid .brewery-card.brewery-card-full-image {
+            height: 60px !important;
+            min-height: 60px !important;
+            max-height: 60px !important;
+            padding: 0.35rem !important;
         }
         
-        .brewery-logo {
-            width: 56px;
-            height: 56px;
+        #breweries-grid .brewery-full-logo {
+            max-height: 44px !important;
+        }
+        
+        #breweries-grid .brewery-placeholder-initial {
+            font-size: 1.25rem !important;
+        }
+        
+        #breweries-grid .brewery-name-overlay {
+            font-size: 0.625rem !important;
+            padding: 0.375rem !important;
+        }
+    }
+    
+    /* iPhone SE e schermi molto piccoli */
+    @media (max-width: 375px) {
+        .all-breweries-container {
+            padding: 0.375rem 0.25rem !important;
+        }
+        
+        #breweries-grid {
+            gap: 0.25rem !important;
+        }
+        
+        #breweries-grid .brewery-card,
+        #breweries-grid .brewery-card.brewery-card-full-image {
+            height: 55px !important;
+            min-height: 55px !important;
+            max-height: 55px !important;
+            padding: 0.25rem !important;
+        }
+        
+        #breweries-grid .brewery-full-logo {
+            max-height: 40px !important;
+        }
+        
+        #breweries-grid .brewery-placeholder-initial {
+            font-size: 1rem !important;
+        }
+        
+        #breweries-grid .brewery-name-overlay {
+            font-size: 0.5rem !important;
+            padding: 0.25rem !important;
         }
     }
 </style>
@@ -483,32 +576,59 @@
     
     <!-- Breweries grid -->
     {% if breweries and breweries.length > 0 %}
-    <div class="breweries-grid" id="breweries-grid">
+    <div id="breweries-grid">
         {% for brewery in breweries %}
-        <div class="brewery-card" 
+        {# Gradienti colorati ciclici per placeholder senza logo #}
+        {% set gradients = [
+            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+            'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
+        ] %}
+        {% set gradient = gradients[loop.index0 % 6] %}
+        
+        {# Iniziale: prima lettera del nome birrificio #}
+        {% set initial = brewery.breweryName | trim | first | upper %}
+        
+        {% if brewery.breweryLogo %}
+        {# CARD CON LOGO: immagine a tutto schermo, nome su hover #}
+        <div class="brewery-card-link" 
              data-brewery-id="{{ brewery._id }}"
              data-brewery-name="{{ brewery.breweryName | lower }}"
              onclick="openBreweryModal('{{ brewery._id }}')">
-            <div class="brewery-logo">
-                {% if brewery.breweryLogo %}
-                    <img src="{{ brewery.breweryLogo }}" 
-                         alt="{{ brewery.breweryName }}"
-                         onerror="this.parentElement.innerHTML='<span class=\'brewery-logo-placeholder\'><i class=\'fas fa-industry\'></i></span>'">
-                {% else %}
-                    <span class="brewery-logo-placeholder"><i class="fas fa-industry"></i></span>
-                {% endif %}
-            </div>
-            <h3 class="brewery-name">{{ brewery.breweryName }}</h3>
-            {% if brewery.breweryLegalAddress or brewery.location %}
-                <div class="brewery-location">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <span>{{ brewery.breweryLegalAddress or brewery.location or '' | truncate(30) }}</span>
+            <div class="brewery-card brewery-card-full-image">
+                <img 
+                    src="{{ brewery.breweryLogo }}" 
+                    alt="{{ brewery.breweryName }}" 
+                    class="brewery-full-logo{% if brewery.logoIsLight %} light-logo{% endif %}"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                />
+                <div class="brewery-logo-placeholder" style="display:none; background: {{ gradient }};">
+                    <span class="brewery-placeholder-initial">{{ initial }}</span>
                 </div>
-            {% endif %}
-            {% if brewery.beersCount %}
-                <div class="brewery-beers-count">{{ brewery.beersCount }} birre</div>
-            {% endif %}
+                <div class="brewery-name-overlay">
+                    <span>{{ brewery.breweryName }}</span>
+                </div>
+            </div>
         </div>
+        {% else %}
+        {# CARD SENZA LOGO: placeholder con iniziale stilizzata #}
+        <div class="brewery-card-link" 
+             data-brewery-id="{{ brewery._id }}"
+             data-brewery-name="{{ brewery.breweryName | lower }}"
+             onclick="openBreweryModal('{{ brewery._id }}')">
+            <div class="brewery-card brewery-card-full-image brewery-card-no-logo">
+                <div class="brewery-logo-placeholder" style="display:flex; background: {{ gradient }};">
+                    <span class="brewery-placeholder-initial">{{ initial }}</span>
+                </div>
+                <div class="brewery-name-overlay brewery-name-always-visible">
+                    <span>{{ brewery.breweryName }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         {% endfor %}
     </div>
     
@@ -615,7 +735,7 @@
     function filterBreweries(query) {
         if (!breweriesGrid) return;
         
-        const cards = breweriesGrid.querySelectorAll('.brewery-card');
+        const cards = breweriesGrid.querySelectorAll('.brewery-card-link');
         let visibleCount = 0;
         
         cards.forEach(card => {

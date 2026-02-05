@@ -200,7 +200,7 @@ router.get('/breweries', isAuthenticatedOptional, async (req, res) => {
             .sort({ breweryName: 1 })
             .skip(skip)
             .limit(limit)
-            .select('breweryName breweryLogo breweryLegalAddress breweryProductionAddress location validationStatus')
+            .select('breweryName breweryLogo breweryLegalAddress breweryProductionAddress location validationStatus logoIsLight')
             .lean();
         
         // Conta birre per ogni birrificio (opzionale, se il modello Beer esiste)

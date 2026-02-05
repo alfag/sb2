@@ -1029,7 +1029,10 @@ OUTPUT JSON RICHIESTO:
             employeeCount: verificationResult.employeeCount || null,
             productionVolume: verificationResult.productionVolume || null,
             masterBrewer: verificationResult.masterBrewer || null,
-            brewerySocialMedia: verificationResult.socialMedia || {},
+            // 🔥 FIX 1 FEB 2026: NON passare social da HTMLParser - spesso link errati/inesistenti
+            // I social verranno popolati SOLO da GSR (Google Search Retrieval)
+            // brewerySocialMedia: verificationResult.socialMedia || {},
+            brewerySocialMedia: {},
             mainProducts: verificationResult.mainProducts || [],
             awards: verificationResult.awards || [],
             breweryFiscalCode: verificationResult.fiscalCode || null,
@@ -1080,7 +1083,10 @@ OUTPUT JSON RICHIESTO:
             employeeCount: verificationResult.employeeCount || null,
             productionVolume: verificationResult.productionVolume || null,
             masterBrewer: verificationResult.masterBrewer || null,
-            brewerySocialMedia: verificationResult.socialMedia || {},
+            // 🔥 FIX 1 FEB 2026: NON passare social da HTMLParser - spesso link errati/inesistenti
+            // I social verranno popolati SOLO da GSR (Google Search Retrieval)
+            // brewerySocialMedia: verificationResult.socialMedia || {},
+            brewerySocialMedia: {},
             mainProducts: verificationResult.mainProducts || [],
             awards: verificationResult.awards || [],
             breweryFiscalCode: verificationResult.fiscalCode || null,
