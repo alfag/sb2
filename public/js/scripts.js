@@ -1325,6 +1325,18 @@ document.addEventListener('DOMContentLoaded', function () {
             if (callbacks.onError) {
                 callbacks.onError(errorMessage);
             }
+        })
+        .finally(() => {
+            // 🔧 FIX 10 FEB 2026: Garantisci SEMPRE il ripristino del pulsante pubblica
+            // anche in caso di errori non gestiti in submitUserReviews
+            const publishBtn = document.getElementById('publish-review');
+            if (publishBtn && publishBtn.disabled) {
+                console.log('🔓 [submitReviews.finally] Ripristino pulsante pubblica');
+                publishBtn.disabled = false;
+                publishBtn.innerHTML = publishBtn.dataset.originalText || 'Pubblica recensione';
+                publishBtn.style.opacity = '1';
+                publishBtn.style.cursor = 'pointer';
+            }
         });
     };
 
@@ -2186,28 +2198,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             
-            // 📍 CATTURA GPS dopo che utente ha selezionato il file
-            // (non prima, così non mostriamo popup GPS se poi l'utente annulla)
+            // 📍 CATTURA GPS in PARALLELO (non bloccante) dopo che utente ha selezionato il file
+            // FIX 10 FEB 2026: GPS non deve bloccare il flusso del crop/preview
+            // L'acquisizione avviene in background mentre l'utente vede il crop
             const file = reviewPhotoInput.files[0];
             if (file) {
-                console.log('📍 Richiesta consenso geolocalizzazione...');
-                try {
-                    const locationData = await window.GeolocationModule.getLocation(true);
-                    window.currentReviewLocation = locationData;
-                    
-                    if (locationData && locationData.consentGiven && locationData.coordinates) {
-                        console.log('📍 ✅ GPS acquisito:', {
-                            lat: locationData.coordinates.latitude,
-                            lng: locationData.coordinates.longitude,
-                            accuracy: locationData.coordinates.accuracy
-                        });
-                    } else {
-                        console.log('📍 ℹ️ GPS non condiviso');
-                    }
-                } catch (error) {
-                    console.log('📍 ℹ️ GPS non disponibile:', error.message);
-                    window.currentReviewLocation = null;
-                }
+                console.log('📍 Avvio cattura GPS non-bloccante in background...');
+                window.currentReviewLocation = null; // Reset iniziale
+                
+                // Avvia GPS in background senza await - il risultato sarà disponibile
+                // quando l'utente preme "Pubblica" (tipicamente dopo 10-30 secondi)
+                window.GeolocationModule.getLocation(true)
+                    .then(locationData => {
+                        window.currentReviewLocation = locationData;
+                        
+                        if (locationData && locationData.consentGiven && locationData.coordinates) {
+                            console.log('📍 ✅ GPS acquisito in background:', {
+                                lat: locationData.coordinates.latitude,
+                                lng: locationData.coordinates.longitude,
+                                accuracy: locationData.coordinates.accuracy
+                            });
+                        } else {
+                            console.log('📍 ℹ️ GPS non condiviso');
+                        }
+                    })
+                    .catch(error => {
+                        console.log('📍 ℹ️ GPS non disponibile:', error.message);
+                        window.currentReviewLocation = null;
+                    });
             }
             
             // Reset COMPLETO stato crop e preview per evitare invio immagini precedenti
@@ -3140,7 +3158,40 @@ document.addEventListener('DOMContentLoaded', function () {
                 logDebug('Invio fetch a /review/async (ASYNC ENDPOINT)');
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout 30 secondi
+                const AI_TIMEOUT_MS = 120000; // Timeout 120 secondi (Gemini può impiegare fino a 60s+)
+                const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+                
+                // ⏱️ Timer visuale per feedback utente durante attesa AI
+                let elapsedSeconds = 0;
+                const timerElement = document.getElementById('ai-loading-timer');
+                const taglineElement = document.querySelector('.loading-tagline');
+                const originalTagline = taglineElement ? taglineElement.textContent : '';
+                
+                const elapsedTimerId = setInterval(() => {
+                    elapsedSeconds++;
+                    // Aggiorna timer visuale
+                    if (timerElement) {
+                        timerElement.textContent = `${elapsedSeconds}s`;
+                        timerElement.style.display = 'block';
+                    }
+                    // Messaggi progressivi per tranquillizzare l'utente
+                    if (taglineElement) {
+                        if (elapsedSeconds >= 45) {
+                            taglineElement.textContent = '⏳ Quasi fatto, Google sta ultimando l\'analisi...';
+                        } else if (elapsedSeconds >= 30) {
+                            taglineElement.textContent = '🔍 L\'immagine è complessa, serve ancora un momento...';
+                        } else if (elapsedSeconds >= 15) {
+                            taglineElement.textContent = '🍺 Google sta analizzando l\'etichetta con attenzione...';
+                        }
+                    }
+                }, 1000);
+                
+                // Funzione di cleanup per il timer
+                const cleanupTimer = () => {
+                    clearInterval(elapsedTimerId);
+                    if (timerElement) timerElement.style.display = 'none';
+                    if (taglineElement) taglineElement.textContent = originalTagline;
+                };
                 
                 // Converti base64 a blob per FormData
                 try {
@@ -3202,6 +3253,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     })
                 .then(response => {
                     clearTimeout(timeoutId);
+                    cleanupTimer(); // Ferma timer visuale appena arriva risposta
 
                     logDebug('Ricevuta risposta HTTP', {
                         status: response.status,
@@ -3434,6 +3486,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
                 .catch(error => {
                     clearTimeout(timeoutId);
+                    cleanupTimer(); // Pulisci timer visuale
                     logError('Errore nella gestione dell\'upload', error);
                     
                     // 🍺 GESTIONE SPECIALE: Nessuna birra rilevata - messaggio gentile, non è un errore!
@@ -3453,7 +3506,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     
                     // Personalizza il messaggio in base al tipo di errore (senza dettagli tecnici)
                     if (error.name === 'AbortError') {
-                        errorMessage = 'L\'elaborazione sta richiedendo più tempo del previsto. Riprova tra qualche minuto.';
+                        errorMessage = `⏳ L'analisi ha superato il tempo massimo (${Math.round(AI_TIMEOUT_MS/1000)}s). Google potrebbe essere sovraccarico in questo momento. Riprova — spesso basta un secondo tentativo!`;
                     } else if (error.message.includes('RATE_LIMIT_EXCEEDED')) {
                         // Estrai il messaggio specifico dal server
                         const rateLimitMessage = error.message.replace('RATE_LIMIT_EXCEEDED: ', '');
@@ -3478,6 +3531,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     showWarningMessage(errorMessage);
                 })
                 .finally(() => {
+                    // Pulisci timer visuale e timeout
+                    cleanupTimer();
+                    clearTimeout(timeoutId);
+                    
                     // Nasconde overlay spinner
                     const loadingOverlay = document.getElementById('ai-loading-overlay');
                     if (loadingOverlay) {
@@ -3492,6 +3549,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } catch (conversionError) {
                     // Gestione errori nella conversione dell'immagine
                     clearTimeout(timeoutId);
+                    cleanupTimer(); // Pulisci timer visuale
                     logError('Errore nella conversione dell\'immagine', conversionError);
                     
                     // Nascondi overlay spinner

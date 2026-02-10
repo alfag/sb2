@@ -633,6 +633,7 @@
     // 🔒 Disabilita il pulsante e mostra stato di caricamento
     submitBtn.disabled = true;
     const originalText = submitBtn.innerHTML;
+    submitBtn.dataset.originalText = originalText; // 🔧 FIX: Salva per recovery in .finally()
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Invio in corso...';
     submitBtn.style.opacity = '0.7';
     submitBtn.style.cursor = 'not-allowed';

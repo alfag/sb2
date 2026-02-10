@@ -84,7 +84,6 @@ const brewerySchema = new mongoose.Schema({
     },
     dataSource: {
         type: String,
-        enum: ['manual', 'ai_analysis', 'web_scraping', 'web_search', 'google_search_retrieval'],
         default: 'manual'
     },
     validatedBy: {

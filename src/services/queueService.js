@@ -44,6 +44,11 @@ const REDIS_CONFIG = {
  */
 const reviewQueue = new Bull('review-processing', REDIS_CONFIG);
 
+// Gestione errori di connessione Redis (non blocca l'app se Redis è offline)
+reviewQueue.on('error', (error) => {
+  logger.warn('⚠️ Bull Queue errore connessione Redis', { error: error.message });
+});
+
 // Event Handlers per logging e monitoring
 reviewQueue.on('completed', (job, result) => {
   logger.info(`✅ Job ${job.id} completato con successo`, {
@@ -91,10 +96,19 @@ reviewQueue.on('active', (job) => {
  */
 async function addReviewProcessingJob(reviewData) {
   try {
-    const job = await reviewQueue.add('process-review', reviewData, {
+    // Timeout di 5 secondi per evitare blocco se Redis non è raggiungibile
+    const QUEUE_TIMEOUT_MS = 5000;
+    
+    const jobPromise = reviewQueue.add('process-review', reviewData, {
       priority: reviewData.priority || 5, // Default medium priority
       jobId: `review-${reviewData.reviewId}` // ID unico per evitare duplicati
     });
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Redis/Bull timeout - coda non raggiungibile')), QUEUE_TIMEOUT_MS);
+    });
+    
+    const job = await Promise.race([jobPromise, timeoutPromise]);
 
     logger.info(`📥 Job processing aggiunto alla coda`, {
       jobId: job.id,
@@ -104,11 +118,17 @@ async function addReviewProcessingJob(reviewData) {
 
     return job;
   } catch (error) {
-    logger.error(`❌ Errore aggiunta job alla coda`, {
+    logger.error(`❌ Errore aggiunta job alla coda (Redis potrebbe essere offline)`, {
       reviewId: reviewData.reviewId,
       error: error.message
     });
-    throw error;
+    // Restituisci un job fittizio per non bloccare il flusso utente
+    // La review è già salvata nel DB, il processing potrà essere ritentato
+    return {
+      id: `fallback-${reviewData.reviewId}`,
+      isFallback: true,
+      data: reviewData
+    };
   }
 }
 

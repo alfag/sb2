@@ -56,6 +56,10 @@ class WebSearchService {
         /^(Birra)\s+([A-Z][a-zA-Zàèéìòù\s&'.,-]+)/i,              // "Birra Ichnusa"
         /^([A-Z][a-zA-Zàèéìòù\s&'.,-]+)\s*[-–|]\s*(Birrificio|Brewery|Sito|Home)/i, // "Menabrea - Sito Ufficiale"
         /^([A-Z][a-zA-Zàèéìòù\s&'.,-]+)\s+(Birrificio|Brewery)/i, // "Peroni Birrificio"
+        // 🔤 FIX 10 feb 2026: Pattern per "Birre - Birrificio X" (es: "Birre - Birrificio Moonfra")
+        /(?:Birre|Beers|Home)\s*[-–|]\s*(?:Birrificio|Brewery)\s+([A-Z][a-zA-Zàèéìòù\s&'.,-]+)/i,
+        // Pattern per "... Birrificio X" in qualsiasi posizione
+        /(?:Birrificio|Brewery)\s+([A-Z][a-zA-Zàèéìòù\s&'.,-]+?)(?:\s*[-–|]|$)/i,
       ];
       
       // Parole da rimuovere dal nome finale

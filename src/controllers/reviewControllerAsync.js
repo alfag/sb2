@@ -489,18 +489,25 @@ exports.confirmAndCreateReview = async (req, res) => {
       locationSource: reviewLocation?.source
     });
 
-    // 5. Avvia job asincrono per arricchimento
-    const jobData = {
-      reviewId: review._id.toString(),
-      bottles: pendingData.bottles,
-      imageDataUrl: pendingData.imageDataUrl,
-      userId: pendingData.userId,
-      sessionId: pendingData.sessionId
-    };
-
-    const job = await addReviewProcessingJob(jobData);
-    
-    logger.info(`[confirmAndCreateReview] 🚀 Job asincrono avviato: ${job.id}`);
+    // 5. Avvia job asincrono per arricchimento (non bloccante: se Redis è giù, la review è già salvata)
+    let job = { id: 'skipped', isFallback: true };
+    try {
+      const jobData = {
+        reviewId: review._id.toString(),
+        bottles: pendingData.bottles,
+        imageDataUrl: pendingData.imageDataUrl,
+        userId: pendingData.userId,
+        sessionId: pendingData.sessionId
+      };
+      job = await addReviewProcessingJob(jobData);
+      logger.info(`[confirmAndCreateReview] 🚀 Job asincrono avviato: ${job.id}${job.isFallback ? ' (FALLBACK - Redis offline)' : ''}`);
+    } catch (queueError) {
+      // Non bloccare la risposta al client: la review è già nel DB
+      logger.warn('[confirmAndCreateReview] ⚠️ Impossibile accodare job (Redis offline?) - Review già salvata', {
+        error: queueError.message,
+        reviewId: review._id.toString()
+      });
+    }
 
     // 6. ✅ Pulizia sessione DOPO creazione Review (moderazione già passata)
     delete req.session.pendingReviewData;
@@ -515,7 +522,8 @@ exports.confirmAndCreateReview = async (req, res) => {
         status: review.processingStatus,
         jobId: job.id,
         bottlesCount: pendingData.bottles.length,
-        hasLocation: !!reviewLocation
+        hasLocation: !!reviewLocation,
+        queueFallback: !!job.isFallback
       }
     });
 
@@ -1142,13 +1150,19 @@ exports.testAnalyzeImageAsync = async (req, res) => {
       }
     };
 
-    // 6. Avvia job asincrono con flag TEST
-    const job = await addReviewProcessingJob(jobData);
+    // 6. Avvia job asincrono con flag TEST (non bloccante se Redis è offline)
+    let job = { id: `fallback-${jobData.reviewId}`, isFallback: true };
+    try {
+      job = await addReviewProcessingJob(jobData);
+    } catch (queueError) {
+      logger.warn('[testAnalyzeImageAsync] ⚠️ Redis offline - job non accodato', { error: queueError.message });
+    }
 
     logger.info(`[testAnalyzeImageAsync] 📋 TEST: Job asincrono avviato`, {
       jobId: job.id,
       bottlesCount: mappedBottles.length,
-      isTest: true
+      isTest: true,
+      isFallback: !!job.isFallback
     });
 
     // 7. 🚀 RISPOSTA IMMEDIATA ASINCRONA (come produzione)

@@ -541,10 +541,15 @@ class WebScrapingService {
             }
             
             if (src && this.isValidLogoUrl(src)) {
-              // 🖼️ FIX: Blocco HARD per loghi negativi/invertiti (pattern specifici)
+              // 🖼️ FIX 10 feb 2026: Loghi negativi/invertiti - NON bloccare ma salvare come fallback
+              // Alcuni birrifici hanno SOLO il logo "negativo" (es. logo-negativo.svg)
+              // Meglio avere un logo "negativo" che nessun logo
               if (/negativo|negative|mono_negativo|inverted/i.test(src)) {
-                logger.debug('[WebScraping] ⚠️ Logo negativo/invertito ignorato: ' + src.substring(0, 80));
-                continue; // Prova il prossimo selettore
+                if (!fallbackWhiteLogo) {
+                  fallbackWhiteLogo = this.resolveUrl(src, baseUrl);
+                  logger.debug('[WebScraping] 📝 Logo negativo/invertito salvato come fallback: ' + src.substring(0, 80));
+                }
+                continue; // Continua a cercare alternative migliori
               }
               
               // 🖼️ FIX: Loghi "white/bianco" - salva come fallback (potrebbero essere l'unica opzione)

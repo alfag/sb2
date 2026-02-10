@@ -54,7 +54,6 @@ const beerSchema = new mongoose.Schema({
   // Sistema di validazione
   validationStatus: {
     type: String,
-    enum: ['validated', 'pending_validation', 'ai_extracted', 'web_scraped', 'gsr_verified'],
     default: 'pending_validation'
   },
   validatedBy: {

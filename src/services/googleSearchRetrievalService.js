@@ -125,6 +125,10 @@ function parseGeminiJsonResponse(text) {
   
   // Rimuovi caratteri di controllo non validi in JSON
   cleanedText = cleanedText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+  // FIX: Converti valori stringa "null" in veri null JSON
+  // Gemini a volte restituisce "null" (stringa) invece di null (valore JSON)
+  cleanedText = cleanedText.replace(/:\s*"null"/g, ': null');
   
   // IMPORTANTE: Rimuovi citazioni Gemini [cite: X, Y, Z] che rompono il JSON
   // Pattern: [cite: seguito da numeri separati da virgole e spazi, chiuso da ]

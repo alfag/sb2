@@ -19,8 +19,10 @@ class GeolocationModule {
         this.consentModalActive = false;
         
         // Configuration
+        // FIX 10 FEB 2026: Ridotto timeout da 10s a 5s per evitare blocchi UI
+        // Su desktop/indoor il GPS spesso non è disponibile, meglio fallire velocemente
         this.config = {
-            timeout: 10000,  // 10 secondi timeout
+            timeout: 5000,  // 5 secondi timeout (era 10s)
             maximumAge: 300000,  // Cache position per 5 minuti
             enableHighAccuracy: true  // Richiede GPS invece di network location
         };

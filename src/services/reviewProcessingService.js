@@ -1555,32 +1555,34 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
           // Estrai dati birrificio (se trovato)
           if (gsrResult.brewery) {
             const breweryFromGSR = gsrResult.brewery;
+            // FIX: Sanitizza valori "null" stringa da Gemini (10 feb 2026)
+            const sanitize = (val) => (val === 'null' || val === 'undefined') ? null : val;
             breweryName = breweryFromGSR.breweryName || breweryName;
             
             breweryData = {
-              website: breweryFromGSR.breweryWebsite || breweryFromGSR.website,
-              breweryLegalAddress: breweryFromGSR.breweryLegalAddress || breweryFromGSR.address,
-              email: breweryFromGSR.breweryEmail || breweryFromGSR.email,
-              phone: breweryFromGSR.breweryPhoneNumber || breweryFromGSR.phone,
-              description: breweryFromGSR.breweryDescription || breweryFromGSR.description,
+              website: sanitize(breweryFromGSR.breweryWebsite || breweryFromGSR.website),
+              breweryLegalAddress: sanitize(breweryFromGSR.breweryLegalAddress || breweryFromGSR.address),
+              email: sanitize(breweryFromGSR.breweryEmail || breweryFromGSR.email),
+              phone: sanitize(breweryFromGSR.breweryPhoneNumber || breweryFromGSR.phone),
+              description: sanitize(breweryFromGSR.breweryDescription || breweryFromGSR.description),
               foundingYear: breweryFromGSR.foundingYear,
-              brewerySize: breweryFromGSR.brewerySize,
+              brewerySize: sanitize(breweryFromGSR.brewerySize),
               // 🆕 Campo aggiunto 5 feb 2026: productionVolume (come admin GSR)
-              productionVolume: breweryFromGSR.productionVolume,
+              productionVolume: sanitize(breweryFromGSR.productionVolume),
               mainProducts: breweryFromGSR.mainProducts || [],
               awards: breweryFromGSR.awards || [],
               brewerySocialMedia: breweryFromGSR.brewerySocialMedia || breweryFromGSR.socialMedia || {},
-              breweryHistory: breweryFromGSR.breweryHistory || breweryFromGSR.history,
+              breweryHistory: sanitize(breweryFromGSR.breweryHistory || breweryFromGSR.history),
               // 🔥 FIX: Campi fiscali e PEC da GSR (8 gen 2026)
-              breweryFiscalCode: breweryFromGSR.breweryFiscalCode,
-              reaCode: breweryFromGSR.reaCode,
-              acciseCode: breweryFromGSR.acciseCode,
-              pecEmail: breweryFromGSR.pecEmail,
+              breweryFiscalCode: sanitize(breweryFromGSR.breweryFiscalCode),
+              reaCode: sanitize(breweryFromGSR.reaCode),
+              acciseCode: sanitize(breweryFromGSR.acciseCode),
+              pecEmail: sanitize(breweryFromGSR.pecEmail),
               // 🆕 Campi aggiunti 5 feb 2026: legalForm e shareCapital (come admin GSR)
-              legalForm: breweryFromGSR.legalForm,
-              shareCapital: breweryFromGSR.shareCapital,
+              legalForm: sanitize(breweryFromGSR.legalForm),
+              shareCapital: sanitize(breweryFromGSR.shareCapital),
               // 🖼️ Logo birrificio da GSR (8 gen 2026)
-              breweryLogo: breweryFromGSR.breweryLogo,
+              breweryLogo: sanitize(breweryFromGSR.breweryLogo),
               // Metadati Google Search Retrieval
               dataSource: 'google_search_retrieval',
               confidence: gsrResult.confidence,
@@ -1655,7 +1657,9 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
         // Eseguito PRIMA di WebSearchService fallback, DOPO GSR
         // FIX: Non si fida più del breweryLogo da GSR (può essere allucinazione AI)
         // Lo scraping viene fatto SEMPRE e sovrascrive solo se trova un logo valido
-        if (breweryData && breweryData.website) {
+        // Guard: ignora valori "null" come stringa
+        const validWebsite = breweryData?.website && breweryData.website !== 'null';
+        if (breweryData && validWebsite) {
           const gsrLogoValue = breweryData.breweryLogo;
           const gsrHadLogo = !!gsrLogoValue;
           
@@ -1778,17 +1782,95 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
             fallbackReason = `Score insufficiente (${gsrScore.percentage}% < 57%), ${gsrScore.reason}`;
           } else {
             logger.info(`✅ Dati GSR ACCETTATI per "${breweryName}" (${gsrScore.percentage}%) - ${gsrScore.reason}`);
+            
+            // 🆕 STEP 1.7: ARRICCHIMENTO HTMLParser dal sito ufficiale (10 feb 2026)
+            // Quando GSR è accettato MA mancano dati (email, telefono, indirizzo, dati fiscali, ecc.)
+            // esegui HTMLParser multi-pagina per recuperare tutto ciò che GSR non ha trovato
+            // Questo allinea il flusso review con l'arricchimento admin che trova molte più info
+            if (breweryData.website) {
+              const missingFields = [];
+              if (!breweryData.email) missingFields.push('email');
+              if (!breweryData.phone) missingFields.push('phone');
+              if (!breweryData.breweryLegalAddress) missingFields.push('address');
+              if (!breweryData.breweryFiscalCode) missingFields.push('fiscalCode');
+              if (!breweryData.description) missingFields.push('description');
+              
+              if (missingFields.length > 0) {
+                logger.info(`🌐 ARRICCHIMENTO HTMLParser per "${breweryName}" - campi mancanti da GSR: ${missingFields.join(', ')}`);
+                try {
+                  const htmlData = await HTMLParser.extractBreweryInfoFromWebsite(breweryData.website);
+                  if (htmlData && htmlData.confidence > 0) {
+                    // Merge: HTMLParser riempie SOLO i campi che GSR non ha trovato
+                    if (!breweryData.email && htmlData.email) breweryData.email = htmlData.email;
+                    if (!breweryData.phone && htmlData.phone) breweryData.phone = htmlData.phone;
+                    if (!breweryData.breweryLegalAddress && htmlData.address) breweryData.breweryLegalAddress = htmlData.address;
+                    if (!breweryData.breweryFiscalCode && htmlData.fiscalCode) breweryData.breweryFiscalCode = htmlData.fiscalCode;
+                    if (!breweryData.reaCode && htmlData.reaCode) breweryData.reaCode = htmlData.reaCode;
+                    if (!breweryData.acciseCode && htmlData.acciseCode) breweryData.acciseCode = htmlData.acciseCode;
+                    if (!breweryData.description && htmlData.description) breweryData.description = htmlData.description;
+                    if (!breweryData.breweryHistory && htmlData.history) breweryData.breweryHistory = htmlData.history;
+                    if (!breweryData.foundingYear && htmlData.foundingYear) breweryData.foundingYear = htmlData.foundingYear;
+                    if (!breweryData.brewerySize && htmlData.brewerySize) breweryData.brewerySize = htmlData.brewerySize;
+                    if (!breweryData.productionVolume && htmlData.productionVolume) breweryData.productionVolume = htmlData.productionVolume;
+                    if ((!breweryData.mainProducts || breweryData.mainProducts.length === 0) && htmlData.mainProducts) {
+                      breweryData.mainProducts = htmlData.mainProducts;
+                    }
+                    if ((!breweryData.awards || breweryData.awards.length === 0) && htmlData.awards) {
+                      breweryData.awards = htmlData.awards;
+                    }
+                    
+                    const enrichedFields = [];
+                    if (htmlData.email) enrichedFields.push('email');
+                    if (htmlData.phone) enrichedFields.push('phone');
+                    if (htmlData.address) enrichedFields.push('address');
+                    if (htmlData.fiscalCode) enrichedFields.push('fiscalCode');
+                    if (htmlData.description) enrichedFields.push('description');
+                    if (htmlData.reaCode) enrichedFields.push('reaCode');
+                    if (htmlData.history) enrichedFields.push('history');
+                    if (htmlData.foundingYear) enrichedFields.push('foundingYear');
+                    
+                    logger.info(`🌐 ✅ HTMLParser arricchimento completato per "${breweryName}"`, {
+                      fieldsEnriched: enrichedFields.length,
+                      fields: enrichedFields,
+                      htmlConfidence: htmlData.confidence
+                    });
+                  } else {
+                    logger.debug(`🌐 ⚠️ HTMLParser non ha trovato dati aggiuntivi per "${breweryName}"`);
+                  }
+                } catch (htmlError) {
+                  logger.warn(`🌐 ❌ Errore HTMLParser arricchimento per "${breweryName}": ${htmlError.message}`);
+                }
+              } else {
+                logger.debug(`✅ GSR ha già tutti i campi principali per "${breweryName}" - skip HTMLParser`);
+              }
+            }
           }
         }
         
         if (shouldFallback) {
           logger.info(`🔍 Google Search Retrieval non sufficiente: ${fallbackReason}`);
           logger.info(`🔍 WebSearchService FALLBACK per: "${searchTerm}"`);
+          
+          // 🔤 FIX 10 feb 2026: Preserva il nome birrificio da GSR se disponibile
+          // Il WebSearchService estrae il nome dal dominio URL che perde accenti/caratteri speciali
+          // Es: "Moonfrà" (GSR corretto) → "birrificiomoonfra.com" → "Moonfra" (dominio senza accento)
+          const gsrBreweryNameBeforeFallback = breweryName; // Salva nome GSR prima del fallback
+          
           const searchResult = await WebSearchService.searchBreweryOnWeb(searchTerm);
         
           if (searchResult && searchResult.found && searchResult.brewery) {
             const breweryFromWeb = searchResult.brewery;
-            breweryName = breweryFromWeb.breweryName;
+            
+            // 🔤 FIX 10 feb 2026: Se GSR aveva già trovato un nome birrificio,
+            // NON sovrascriverlo con quello dal dominio (perde accenti/caratteri speciali)
+            // Usa nome da WebSearch SOLO se GSR non aveva trovato nulla
+            if (gsrBreweryNameBeforeFallback && gsrBreweryNameBeforeFallback !== breweryNameFromPhase1) {
+              // GSR aveva trovato un nome migliore (es: "Moonfrà") - preservalo
+              breweryName = gsrBreweryNameBeforeFallback;
+              logger.info(`🔤 Preservo nome birrificio da GSR: "${gsrBreweryNameBeforeFallback}" (WebSearch avrebbe usato: "${breweryFromWeb.breweryName}")`);
+            } else {
+              breweryName = breweryFromWeb.breweryName;
+            }
           
             breweryData = {
               website: breweryFromWeb.breweryWebsite,
@@ -1809,7 +1891,7 @@ async function findOrCreateBrewery(bottle, job, breweryDataFromPhase1 = {}, brew
               breweryFiscalCode: breweryFromWeb.breweryFiscalCode,
               reaCode: breweryFromWeb.reaCode,
               acciseCode: breweryFromWeb.acciseCode,
-              dataSource: 'web_search_service' // 🆕 Indica fonte dati
+              dataSource: 'web_search' // 🆕 Indica fonte dati (valore enum valido nel modello Brewery)
             };
             
             // 📱 FIX 1 feb 2026: Estrai social SOLO dal sito ufficiale (quelli da WebSearch sono inaffidabili)
@@ -2171,7 +2253,7 @@ async function findOrCreateBeer(bottle, breweryId, job) {
     const hasWebData = !!(bottle.ibu || bottle.tastingNotes || bottle.ingredients || 
                           bottle.color || bottle.servingTemperature);
     const dataSource = hasGSRData ? 'ai_analysis+gsr' : (hasWebData ? 'label+web' : 'label');
-    const validationStatus = hasGSRData ? 'gsr_verified' : (hasWebData ? 'web_scraped' : 'pending');
+    const validationStatus = hasGSRData ? 'gsr_verified' : (hasWebData ? 'web_scraped' : 'pending_validation');
     const confidence = hasGSRData ? (bottle.confidence || 0.95) : (hasWebData ? 0.7 : 0.5);
 
     // 3. Crea nuova birra mappando TUTTI i campi dello schema Beer
