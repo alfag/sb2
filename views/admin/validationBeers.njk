@@ -4,9 +4,9 @@
 
 {% block content %}
 <div class="validation-container">
-    <a href="/administrator" class="back-button">
+    <a href="/administrator/beers" class="back-button">
         <i class="fas fa-arrow-left"></i>
-        <span>Dashboard</span>
+        <span>Birre</span>
     </a>
     
     <div class="validation-header">
@@ -36,7 +36,7 @@
                     <h3>{{ beer.beerName or 'Nome non disponibile' }}</h3>
                     <p style="color: #666; margin-top: 0.5rem;">Birrificio: {{ beer.brewery.breweryName if beer.brewery else 'Sconosciuto' }}</p>
                     <span class="brewery-badge {% if beer.dataSource == 'web_scraped' or beer.dataSource == 'web_scraped+ai' %}badge-scraped{% else %}badge-ai{% endif %}">
-                        {% if beer.dataSource == 'web_scraped' or beer.dataSource == 'web_scraped+ai' %}Web Scraping{% else %}AI Extract{% endif %}
+                        {% if beer.dataSource == 'web_scraped' or beer.dataSource == 'web_scraped+ai' %}Web Scraping{% else %}Automatico{% endif %}
                     </span>
                 </div>
             </div>

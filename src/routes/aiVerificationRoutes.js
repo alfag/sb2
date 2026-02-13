@@ -44,7 +44,7 @@ router.get('/verify-ai-analysis', allowGuestAccess, async function(req, res) {
     const imageData = req.session.aiImageData;
 
     if (!validationResult || !sessionData) {
-      req.flash('error', 'Nessun dato di analisi AI disponibile. Riprova l\'upload.');
+      req.flash('error', 'Nessun dato di analisi disponibile. Riprova l\'upload.');
       return res.redirect('/');
     }
 
@@ -62,7 +62,7 @@ router.get('/verify-ai-analysis', allowGuestAccess, async function(req, res) {
 
     // Prepara dati per il template
     const templateData = {
-      title: 'Verifica Analisi AI',
+      title: 'Verifica Analisi',
       validation: validationResult,
       sessionData: enrichedSessionData,
       user: req.user || null,
@@ -333,7 +333,7 @@ router.use((error, req, res, next) => {
   }
 
   // Altrimenti, redirect con messaggio di errore
-  req.flash('error', 'Si è verificato un errore nel sistema di verifica AI. Riprova.');
+  req.flash('error', 'Si è verificato un errore nel sistema di verifica. Riprova.');
   res.redirect('/review/create');
 });
 

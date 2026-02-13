@@ -1,27 +1,78 @@
 <!-- Admin Navigation Menu -->
 <nav class="admin-nav-menu" role="navigation" aria-label="Menu amministrazione">
     <ul class="nav-menu-list">
-        <!-- Dashboard Administrator -->
+        <!-- Utenti -->
         <li class="nav-menu-item">
-            <a href="/administrator" class="nav-menu-link" aria-label="Dashboard Administrator">
+            <a href="/administrator/users" class="nav-menu-link" aria-label="Gestione Utenti">
                 <span class="nav-menu-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="24" height="24" fill="currentColor">
-                        <path d="M520-600v-240h320v240H520ZM120-440v-400h320v400H120Zm400 320v-400h320v400H520Zm-400 0v-240h320v240H120Zm80-400h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z"/>
+                        <path d="M40-160v-112q0-34 17.5-62.5T104-378q62-31 126-46.5T360-440q66 0 130 15.5T616-378q29 15 46.5 43.5T680-272v112H40Zm720 0v-120q0-44-24.5-84.5T666-434q51 6 96 20.5t84 35.5q36 20 55 44.5t19 53.5v120H760ZM360-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm400-160q0 66-47 113t-113 47q-11 0-28-2.5t-28-5.5q27-32 41.5-71t14.5-81q0-42-14.5-81T544-792q14-5 28-6.5t28-1.5q66 0 113 47t47 113Z"/>
                     </svg>
                 </span>
-                <span class="nav-menu-text">Dashboard</span>
+                <span class="nav-menu-text">Utenti</span>
+            </a>
+        </li>
+
+        <!-- Birrifici -->
+        <li class="nav-menu-item">
+            <a href="/administrator/breweries" class="nav-menu-link" aria-label="Gestione Birrifici">
+                <span class="nav-menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="24" height="24" fill="currentColor">
+                        <path d="M80-160v-80h80v-360q0-33 23.5-56.5T240-680h120v-120q0-33 23.5-56.5T440-880h80q33 0 56.5 23.5T600-800v120h120q33 0 56.5 23.5T800-600v360h80v80H80Zm240-80h80v-360H320v360Zm160 0h80v-360H480v360Zm-40-440h80v-120h-80v120Z"/>
+                    </svg>
+                </span>
+                <span class="nav-menu-text">Birrifici</span>
+            </a>
+        </li>
+
+        <!-- Birre -->
+        <li class="nav-menu-item">
+            <a href="/administrator/beers" class="nav-menu-link" aria-label="Gestione Birre">
+                <span class="nav-menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <path d="M4 2h16a1 1 0 0 1 1 1v1H3V3a1 1 0 0 1 1-1zm0 4h16v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6zm4 3v8h2V9H8zm3 0v8h2V9h-2zm3 0v8h2V9h-2z"/>
+                    </svg>
+                </span>
+                <span class="nav-menu-text">Birre</span>
+            </a>
+        </li>
+
+        <!-- Recensioni -->
+        <li class="nav-menu-item">
+            <a href="/administrator/reviews" class="nav-menu-link" aria-label="Moderazione Recensioni">
+                <span class="nav-menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="24" height="24" fill="currentColor">
+                        <path d="m233-120 65-281L80-590l288-25 112-265 112 265 288 25-218 189 65 281-247-149-247 149Z"/>
+                    </svg>
+                </span>
+                <span class="nav-menu-text">Recensioni</span>
             </a>
         </li>
 
         <!-- Statistiche -->
         <li class="nav-menu-item">
-            <a href="/administrator/statistics" class="nav-menu-link" aria-label="Visualizza statistiche">
+            <a href="/administrator/statistics" class="nav-menu-link" aria-label="Statistiche e Analytics">
                 <span class="nav-menu-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="24" height="24" fill="currentColor">
                         <path d="M280-280h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z"/>
                     </svg>
                 </span>
                 <span class="nav-menu-text">Statistiche</span>
+            </a>
+        </li>
+
+        <!-- Separator -->
+        <li class="nav-menu-separator" role="separator"></li>
+
+        <!-- Sistema -->
+        <li class="nav-menu-item">
+            <a href="/administrator/system" class="nav-menu-link" aria-label="Gestione Sistema">
+                <span class="nav-menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="24" height="24" fill="currentColor">
+                        <path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L88-352l104-76q-1-7-1.5-14t-.5-14q0-7 .5-14t1.5-14L88-560l100-167 119 50q11-8 22.5-15t24.5-12l16-128h200l16 128q13 5 24.5 12t22.5 15l119-50 100 167-104 76q1 7 1.5 14t.5 14q0 7-.5 14t-1.5 14l104 76-100 167-119-50q-11 8-22.5 15t-24.5 12L570-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-42-39 68 86 65q-5 14-7 29.5t-2 31.5q0 16 2 31.5t7 29.5l-86 65 39 68 99-41q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t-99-41q-58 0-99 41t-41 99q0 58 41 99t99 41Zm-2-140Z"/>
+                    </svg>
+                </span>
+                <span class="nav-menu-text">Sistema</span>
             </a>
         </li>
 

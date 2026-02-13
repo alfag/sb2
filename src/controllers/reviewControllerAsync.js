@@ -290,7 +290,7 @@ exports.analyzeImageAsync = async (req, res) => {
         success: false,
         errorType: 'AI_SERVICE_OVERLOADED',
         userMessage: 'Il servizio di riconoscimento è temporaneamente sovraccarico. Riprova tra qualche secondo.',
-        message: 'Servizio AI sovraccarico'
+        message: 'Servizio di riconoscimento sovraccarico'
       });
     }
     

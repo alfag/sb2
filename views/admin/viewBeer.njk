@@ -1,0 +1,671 @@
+{% extends "../layout.njk" %}
+
+{% block content %}
+<style>
+/* ===== VIEW BEER - MINIMAL CLEAN DESIGN ===== */
+.main-content:has(.beer-page) {
+    padding: 0;
+    padding-top: 0;
+}
+
+.beer-page .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.beer-page {
+    min-height: 100vh;
+    background: #fafaf9;
+    padding: 0;
+    margin: 0;
+}
+
+/* Top Bar */
+.top-bar {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border-bottom: 1px solid #b45309;
+    padding: 0.75rem 0;
+    position: relative;
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+}
+
+.top-bar-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.back-links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.back-separator {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.875rem;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: white;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.back-link:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+}
+
+.top-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    background: white;
+    color: #d97706;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-edit:hover {
+    background: #fffbeb;
+    color: #b45309;
+}
+
+/* Header Birra */
+.beer-header {
+    background: white;
+    padding: 2rem 0;
+    border-bottom: 1px solid #e7e5e4;
+}
+
+.header-content {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.beer-icon-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid #e7e5e4;
+    color: #d97706;
+    font-size: 2rem;
+}
+
+.beer-title {
+    flex: 1;
+}
+
+.beer-title h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1c1917;
+    margin: 0 0 0.5rem;
+    line-height: 1.2;
+}
+
+.beer-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.meta-badge.style { background: #ede9fe; color: #5b21b6; }
+.meta-badge.abv { background: #fef3c7; color: #92400e; }
+.meta-badge.ai { background: #ede9fe; color: #5b21b6; }
+.meta-badge.pending { background: #fef3c7; color: #92400e; }
+.meta-badge.validated { background: #dcfce7; color: #166534; }
+
+.meta-brewery {
+    color: #78716c;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.meta-brewery i { font-size: 0.75rem; }
+
+.meta-brewery a {
+    color: #d97706;
+    text-decoration: none;
+}
+
+.meta-brewery a:hover {
+    text-decoration: underline;
+}
+
+/* Section */
+.section {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e7e5e4;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.section-header {
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid #f5f5f4;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-header h3 {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #78716c;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.section-header i {
+    color: #a8a29e;
+    font-size: 0.85rem;
+}
+
+.section-body {
+    padding: 1rem 1.25rem;
+}
+
+/* Info Grid */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 768px) {
+    .info-grid { grid-template-columns: 1fr; }
+}
+
+.info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.info-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #a8a29e;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.info-value {
+    font-size: 0.9rem;
+    color: #1c1917;
+}
+
+.info-value.empty {
+    color: #d4d4d4;
+    font-style: italic;
+}
+
+.info-value a {
+    color: #d97706;
+    text-decoration: none;
+}
+
+.info-value a:hover { text-decoration: underline; }
+
+/* Description */
+.description-text {
+    color: #44403c;
+    font-size: 0.9rem;
+    line-height: 1.7;
+}
+
+/* Tags */
+.tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.tag {
+    display: inline-block;
+    padding: 0.3rem 0.65rem;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Two Column Layout */
+.two-columns {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+    .two-columns { grid-template-columns: 1fr; }
+}
+
+/* Metadata footer */
+.metadata-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding: 0.75rem 1.25rem;
+    background: #fafaf9;
+    font-size: 0.7rem;
+    color: #a8a29e;
+}
+
+.metadata-footer span {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Flash Messages */
+.flash-toast {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1000;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.flash-toast.success { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.flash-toast.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Empty State */
+.empty-state {
+    color: #a8a29e;
+    font-size: 0.85rem;
+    font-style: italic;
+    padding: 0.5rem 0;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+    .header-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .beer-meta { justify-content: center; }
+}
+</style>
+
+<div class="beer-page">
+    <!-- Flash Messages -->
+    {% if message.success %}
+        <div class="flash-toast success"><i class="fas fa-check-circle"></i> {{ message.success[0] }}</div>
+    {% endif %}
+    {% if message.error %}
+        <div class="flash-toast error"><i class="fas fa-exclamation-circle"></i> {{ message.error[0] }}</div>
+    {% endif %}
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="container">
+            <div class="top-bar-content">
+                <div class="back-links">
+                    <a href="javascript:history.back()" class="back-link"><i class="fas fa-arrow-left"></i> Indietro</a>
+                    <span class="back-separator">|</span>
+                    <a href="/administrator/beers" class="back-link"><i class="fas fa-list"></i> Lista Birre</a>
+                </div>
+                <div class="top-actions">
+                    <a href="/administrator/beers/edit/{{ beer._id }}" class="btn-edit"><i class="fas fa-edit"></i> Modifica</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="beer-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="beer-icon-large">
+                    <i class="fas fa-beer"></i>
+                </div>
+                
+                <div class="beer-title">
+                    <h1>{{ beer.beerName }}</h1>
+                    <div class="beer-meta">
+                        {% if beer.beerType %}
+                            <span class="meta-badge style"><i class="fas fa-tag"></i> {{ beer.beerType }}</span>
+                        {% endif %}
+                        {% if beer.alcoholContent %}
+                            <span class="meta-badge abv"><i class="fas fa-percentage"></i> {{ beer.alcoholContent }}% ABV</span>
+                        {% endif %}
+                        {% if beer.aiExtracted %}
+                            <span class="meta-badge ai"><i class="fas fa-robot"></i> Estratta automaticamente</span>
+                        {% endif %}
+                        {% if beer.breweryData %}
+                            <span class="meta-brewery">
+                                <i class="fas fa-industry"></i>
+                                <a href="/administrator/breweries/view/{{ beer.breweryData._id }}">{{ beer.breweryData.breweryName }}</a>
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container">
+            <div class="two-columns">
+                <!-- Colonna Principale -->
+                <div class="main-column">
+                    
+                    <!-- Descrizione -->
+                    {% if beer.description %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-align-left"></i>
+                            <h3>Descrizione</h3>
+                        </div>
+                        <div class="section-body">
+                            <p class="description-text">{{ beer.description }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Caratteristiche Tecniche -->
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-flask"></i>
+                            <h3>Caratteristiche Tecniche</h3>
+                        </div>
+                        <div class="section-body">
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <span class="info-label">Stile</span>
+                                    <span class="info-value {% if not beer.beerType %}empty{% endif %}">
+                                        {{ beer.beerType or 'Non specificato' }}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Sotto-stile</span>
+                                    <span class="info-value {% if not beer.beerSubStyle %}empty{% endif %}">
+                                        {{ beer.beerSubStyle or 'Non specificato' }}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Gradazione Alcolica</span>
+                                    <span class="info-value {% if not beer.alcoholContent %}empty{% endif %}">
+                                        {% if beer.alcoholContent %}{{ beer.alcoholContent }}%{% else %}Non specificata{% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">IBU</span>
+                                    <span class="info-value {% if not beer.ibu %}empty{% endif %}">
+                                        {{ beer.ibu or 'Non specificato' }}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Volume</span>
+                                    <span class="info-value {% if not beer.volume %}empty{% endif %}">
+                                        {{ beer.volume or 'Non specificato' }}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Colore</span>
+                                    <span class="info-value {% if not beer.color %}empty{% endif %}">
+                                        {{ beer.color or 'Non specificato' }}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Fermentazione</span>
+                                    <span class="info-value {% if not beer.fermentation %}empty{% endif %}">
+                                        {{ beer.fermentation or 'Non specificata' }}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Temperatura di Servizio</span>
+                                    <span class="info-value {% if not beer.servingTemperature %}empty{% endif %}">
+                                        {{ beer.servingTemperature or 'Non specificata' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Profilo Sensoriale -->
+                    {% if beer.aroma or beer.appearance or beer.mouthfeel or beer.bitterness or beer.carbonation %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-wine-glass-alt"></i>
+                            <h3>Profilo Sensoriale</h3>
+                        </div>
+                        <div class="section-body">
+                            <div class="info-grid">
+                                {% if beer.aroma %}
+                                <div class="info-row">
+                                    <span class="info-label">Aroma</span>
+                                    <span class="info-value">{{ beer.aroma }}</span>
+                                </div>
+                                {% endif %}
+                                {% if beer.appearance %}
+                                <div class="info-row">
+                                    <span class="info-label">Aspetto</span>
+                                    <span class="info-value">{{ beer.appearance }}</span>
+                                </div>
+                                {% endif %}
+                                {% if beer.mouthfeel %}
+                                <div class="info-row">
+                                    <span class="info-label">Sensazione al Palato</span>
+                                    <span class="info-value">{{ beer.mouthfeel }}</span>
+                                </div>
+                                {% endif %}
+                                {% if beer.bitterness %}
+                                <div class="info-row">
+                                    <span class="info-label">Amaro</span>
+                                    <span class="info-value">{{ beer.bitterness }}</span>
+                                </div>
+                                {% endif %}
+                                {% if beer.carbonation %}
+                                <div class="info-row">
+                                    <span class="info-label">Carbonazione</span>
+                                    <span class="info-value">{{ beer.carbonation }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Note di Degustazione -->
+                    {% if beer.tastingNotes %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-clipboard-list"></i>
+                            <h3>Note di Degustazione</h3>
+                        </div>
+                        <div class="section-body">
+                            <p class="description-text">{{ beer.tastingNotes }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Sidebar -->
+                <div class="sidebar-column">
+                    
+                    <!-- Ingredienti -->
+                    {% if beer.ingredients %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-seedling"></i>
+                            <h3>Ingredienti</h3>
+                        </div>
+                        <div class="section-body">
+                            <p class="description-text">{{ beer.ingredients }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Abbinamenti -->
+                    {% if beer.pairing and beer.pairing.length > 0 %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-utensils"></i>
+                            <h3>Abbinamenti</h3>
+                        </div>
+                        <div class="section-body">
+                            <div class="tags-list">
+                                {% for p in beer.pairing %}
+                                    <span class="tag">{{ p }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Tipo di Bicchiere -->
+                    {% if beer.glassType %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-glass-whiskey"></i>
+                            <h3>Bicchiere Consigliato</h3>
+                        </div>
+                        <div class="section-body">
+                            <span class="info-value">{{ beer.glassType }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Info Commerciali -->
+                    {% if beer.price or beer.availability %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-shopping-cart"></i>
+                            <h3>Info Commerciali</h3>
+                        </div>
+                        <div class="section-body">
+                            {% if beer.price %}
+                            <div class="info-row" style="margin-bottom:0.75rem;">
+                                <span class="info-label">Prezzo</span>
+                                <span class="info-value">{{ beer.price }}</span>
+                            </div>
+                            {% endif %}
+                            {% if beer.availability %}
+                            <div class="info-row">
+                                <span class="info-label">Disponibilità</span>
+                                <span class="info-value">{{ beer.availability }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Info Nutrizionali -->
+                    {% if beer.nutritionalInfo %}
+                    <div class="section">
+                        <div class="section-header">
+                            <i class="fas fa-heartbeat"></i>
+                            <h3>Info Nutrizionali</h3>
+                        </div>
+                        <div class="section-body">
+                            <p class="description-text">{{ beer.nutritionalInfo }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Metadata Footer -->
+            <div class="section" style="margin-top:1rem;">
+                <div class="metadata-footer">
+                    <span><i class="fas fa-fingerprint"></i> {{ beer._id }}</span>
+                    <span><i class="fas fa-calendar-plus"></i> Creato: {{ beer.createdAt | date('DD/MM/YYYY') }}</span>
+                    <span><i class="fas fa-sync"></i> Aggiornato: {{ beer.updatedAt | date('DD/MM/YYYY') }}</span>
+                    <span><i class="fas fa-database"></i> Fonte: {{ beer.dataSource | capitalize or 'Manuale' }}</span>
+                    {% if beer.aiConfidence %}
+                    <span><i class="fas fa-robot"></i> Confidence: {{ (beer.aiConfidence * 100) | round }}%</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-hide flash messages
+document.querySelectorAll('.flash-toast').forEach(toast => {
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.style.paddingTop = '60px';
+        mainContent.style.paddingLeft = '0';
+        mainContent.style.paddingRight = '0';
+        mainContent.style.paddingBottom = '0';
+    }
+});
+</script>
+<style>
+@keyframes slideOut {
+    to { transform: translateX(100%); opacity: 0; }
+}
+</style>
+{% endblock %}

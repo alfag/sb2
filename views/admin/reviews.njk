@@ -1,10 +1,9 @@
-{% extends "layout.njk" %}
+{% extends "../layout.njk" %}
 
 {% block title %}Gestione Recensioni - Admin{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="/css/admin.css">
-<link rel="stylesheet" href="/css/latestReviewsModule.css">
+<link rel="stylesheet" href="/css/admin-dashboard.css?t=20251229k">
 <style>
 /* ===== LOADING OVERLAY ===== */
 .filter-loading-overlay {
@@ -30,7 +29,7 @@
     width: 48px;
     height: 48px;
     border: 4px solid #e5e7eb;
-    border-top-color: #667eea;
+    border-top-color: #f59e0b;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -44,656 +43,246 @@
     color: #6b7280;
     font-weight: 500;
 }
-/* ========================================
-   ADMIN REVIEWS - Stile fedele a allReviews.njk
-   ======================================== */
 
-/* Container principale */
-.all-reviews-container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 1.5rem 1rem;
+/* ===== SEZIONE AI PROCESSING STAT BOXES ===== */
+.stats-row-ai {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.4rem;
+    padding: 0.4rem 1rem 0.6rem;
+    background: linear-gradient(180deg, rgba(241,245,249,0.5) 0%, rgba(248,250,252,0.3) 100%);
+}
+.stats-row-ai .stat-box {
+    border-left: 3px solid var(--box-color, var(--dash-blue));
 }
 
-.page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.page-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.page-title i {
-    color: #667eea;
-}
-
-/* ===== FILTRI ULTRA COOL - Glassmorphism Style ===== */
-.filter-section {
-    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
-    border: 1px solid rgba(255,255,255,0.6);
-}
-
-.filter-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.6rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(0,0,0,0.05);
-}
-
-.filter-header-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-}
-
-.filter-header-title {
+/* Label sezione filtri */
+.filter-section-label {
+    padding: 0.4rem 1rem 0;
     font-size: 0.65rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: #64748b;
-}
-
-.filter-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-}
-
-/* Filter Chip - Modern Toggle Style */
-.filter-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.4rem 0.75rem;
-    border-radius: 50px;
-    font-size: 0.72rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    border: none;
-    position: relative;
-    overflow: hidden;
-    background: rgba(255,255,255,0.8);
-    color: #475569;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9);
-}
-
-.filter-chip::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    transition: left 0.5s;
-}
-
-.filter-chip:hover::before {
-    left: 100%;
-}
-
-.filter-chip:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.filter-chip.active {
-    transform: scale(1.05);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-}
-
-.chip-count {
-    background: rgba(0,0,0,0.1);
-    padding: 0.15rem 0.45rem;
-    border-radius: 20px;
-    font-size: 0.65rem;
-    font-weight: 700;
-    min-width: 1.4rem;
-    text-align: center;
-}
-
-.chip-label {
-    font-size: 0.7rem;
-}
-
-/* Chip Colors - Moderazione */
-.filter-chip[data-filter="all"] { background: linear-gradient(135deg, #f1f5f9, #e2e8f0); }
-.filter-chip[data-filter="all"].active { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-.filter-chip[data-filter="all"].active .chip-count { background: rgba(255,255,255,0.25); }
-
-.filter-chip[data-filter="pending"] { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
-.filter-chip[data-filter="pending"].active { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
-.filter-chip[data-filter="pending"].active .chip-count { background: rgba(255,255,255,0.3); }
-
-.filter-chip[data-filter="validated"] { background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #065f46; }
-.filter-chip[data-filter="validated"].active { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-.filter-chip[data-filter="validated"].active .chip-count { background: rgba(255,255,255,0.3); }
-
-.filter-chip[data-filter="completed"] { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af; }
-.filter-chip[data-filter="completed"].active { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
-.filter-chip[data-filter="completed"].active .chip-count { background: rgba(255,255,255,0.3); }
-
-.filter-chip[data-filter="hidden"] { background: linear-gradient(135deg, #e2e8f0, #cbd5e1); color: #475569; }
-.filter-chip[data-filter="hidden"].active { background: linear-gradient(135deg, #64748b, #475569); color: white; }
-.filter-chip[data-filter="hidden"].active .chip-count { background: rgba(255,255,255,0.3); }
-
-.filter-chip[data-filter="flagged"] { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; }
-.filter-chip[data-filter="flagged"].active { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
-.filter-chip[data-filter="flagged"].active .chip-count { background: rgba(255,255,255,0.3); }
-
-.filter-chip[data-filter="needs_admin"] { background: linear-gradient(135deg, #f3e8ff, #e9d5ff); color: #7c3aed; }
-.filter-chip[data-filter="needs_admin"].active { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
-.filter-chip[data-filter="needs_admin"].active .chip-count { background: rgba(255,255,255,0.3); }
-
-.filter-chip[data-filter="banned_users"] { background: linear-gradient(135deg, #fecdd3, #fda4af); color: #9f1239; }
-.filter-chip[data-filter="banned_users"].active { background: linear-gradient(135deg, #e11d48, #be123c); color: white; }
-.filter-chip[data-filter="banned_users"].active .chip-count { background: rgba(255,255,255,0.3); }
-
-/* Chip Colors - AI Processing */
-.filter-chip[data-processing-filter="pending_validation"] { background: linear-gradient(135deg, #ffedd5, #fed7aa); color: #9a3412; }
-.filter-chip[data-processing-filter="pending_validation"].active { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
-
-.filter-chip[data-processing-filter="processing"] { background: linear-gradient(135deg, #cffafe, #a5f3fc); color: #0e7490; }
-.filter-chip[data-processing-filter="processing"].active { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
-
-.filter-chip[data-processing-filter="ai_completed"] { background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #166534; }
-.filter-chip[data-processing-filter="ai_completed"].active { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
-
-.filter-chip[data-processing-filter="failed"] { background: linear-gradient(135deg, #ffe4e6, #fecdd3); color: #be123c; }
-.filter-chip[data-processing-filter="failed"].active { background: linear-gradient(135deg, #f43f5e, #e11d48); color: white; }
-
-/* ========== HIDDEN REVIEW CARD STYLE ========== */
-.review-card.is-hidden {
-    position: relative;
-    background: linear-gradient(135deg, #eceff1 0%, #cfd8dc 100%);
-    border: 2px dashed #90a4ae;
-}
-.review-card.is-hidden::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: repeating-linear-gradient(
-        -45deg,
-        transparent,
-        transparent 8px,
-        rgba(0,0,0,0.06) 8px,
-        rgba(0,0,0,0.06) 16px
-    );
-    border-radius: 12px;
-    pointer-events: none;
-    z-index: 1;
-}
-/* Applica effetti SOLO ai contenuti, NON ai pulsanti */
-.review-card.is-hidden .review-thumbnail-wrapper,
-.review-card.is-hidden .review-content,
-.review-card.is-hidden .review-info {
-    opacity: 0.45;
-    filter: grayscale(60%);
-}
-.review-card.is-hidden:hover .review-thumbnail-wrapper,
-.review-card.is-hidden:hover .review-content,
-.review-card.is-hidden:hover .review-info {
-    opacity: 0.7;
-    filter: grayscale(30%);
-}
-/* Pulsanti sempre visibili e colorati */
-.review-card.is-hidden .review-admin-actions {
-    position: relative;
-    z-index: 5;
-}
-.hidden-badge {
-    position: absolute;
-    top: -10px;
-    right: -10px;
-    background: linear-gradient(135deg, #e53935 0%, #c62828 100%);
-    color: white;
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 0.35rem 0.6rem;
-    border-radius: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 3px 10px rgba(229, 57, 53, 0.4);
     display: flex;
     align-items: center;
-    gap: 0.3rem;
-    z-index: 10;
-    animation: pulse-badge 2s ease-in-out infinite;
+    gap: 0.4rem;
 }
-.hidden-badge i {
+.filter-section-label i {
     font-size: 0.6rem;
 }
-@keyframes pulse-badge {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-}
 
-/* ===== SEARCH FILTERS - Ricerca avanzata ===== */
-.search-filters-section {
-    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
-    border: 1px solid rgba(255,255,255,0.6);
-}
-
-.search-filters-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(0,0,0,0.05);
-}
-
-.search-filters-header-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: white;
-}
-
-.search-filters-title {
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #64748b;
-}
-
-.search-filters-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
-}
-
-@media (max-width: 768px) {
-    .search-filters-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.search-filter-group {
+/* Search box per autocomplete - stile identico a breweries */
+.review-search-box {
     position: relative;
+    margin: 0 1rem 8px;
 }
-
-.search-filter-label {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #475569;
-    margin-bottom: 0.35rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.search-filter-label i {
-    font-size: 0.65rem;
-}
-
-.search-filter-input {
+.review-search-box input {
     width: 100%;
-    padding: 0.6rem 0.75rem;
-    padding-right: 2rem;
-    border: 1.5px solid #e2e8f0;
+    padding: 12px 16px 12px 44px;
+    font-size: 15px;
+    border: 1px solid #e5e7eb;
     border-radius: 10px;
-    font-size: 0.8rem;
-    background: white;
-    transition: all 0.25s ease;
+    background: #fff;
+    color: #1f2937;
+    transition: all 0.2s ease;
+}
+.review-search-box input:focus {
     outline: none;
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.15);
 }
-
-.search-filter-input:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+.review-search-box input::placeholder {
+    color: #9ca3af;
 }
-
-.search-filter-input:not(:placeholder-shown) {
-    border-color: #10b981;
-    background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
-}
-
-.search-filter-input.has-value {
-    border-color: #10b981;
-    background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
-}
-
-.search-filter-clear {
+.review-search-box .search-icon {
     position: absolute;
-    right: 0.5rem;
+    left: 16px;
     top: 50%;
-    transform: translateY(25%);
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 14px;
+}
+.review-search-box .clear-search {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     background: none;
     border: none;
-    color: #94a3b8;
+    color: #9ca3af;
     cursor: pointer;
-    font-size: 0.75rem;
-    padding: 0.25rem;
-    border-radius: 50%;
-    transition: all 0.2s;
-    opacity: 0;
-    visibility: hidden;
-}
-
-.search-filter-input:not(:placeholder-shown) + .search-filter-clear,
-.search-filter-input.has-value + .search-filter-clear {
-    opacity: 1;
-    visibility: visible;
-}
-
-.search-filter-clear:hover {
-    color: #ef4444;
-    background: #fef2f2;
-}
-
-.search-filter-hint {
-    font-size: 0.6rem;
-    color: #94a3b8;
-    margin-top: 0.25rem;
-    padding-left: 0.25rem;
-}
-
-.search-filter-counter {
-    position: absolute;
-    right: 2rem;
-    top: 50%;
-    transform: translateY(25%);
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    font-size: 0.6rem;
-    font-weight: 700;
-    padding: 0.15rem 0.4rem;
-    border-radius: 10px;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.2s;
-}
-
-.search-filter-counter.visible {
-    opacity: 1;
-    visibility: visible;
-}
-
-.search-filters-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid rgba(0,0,0,0.05);
-}
-
-.btn-reset-all {
-    background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-    border: none;
-    color: #64748b;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    transition: all 0.2s;
-}
-
-.btn-reset-all:hover {
-    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
-    transform: translateY(-1px);
-}
-
-.search-active-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    margin-top: 0.5rem;
-}
-
-.active-filter-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.25rem 0.5rem;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    font-size: 0.65rem;
-    font-weight: 500;
-    border-radius: 20px;
-    animation: slideIn 0.2s ease;
-}
-
-@keyframes slideIn {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-.active-filter-tag .remove-tag {
-    cursor: pointer;
-    opacity: 0.8;
-    transition: opacity 0.2s;
-}
-
-.active-filter-tag .remove-tag:hover {
-    opacity: 1;
-}
-
-/* No results message */
-.no-filter-results {
-    text-align: center;
-    padding: 2rem;
-    color: #64748b;
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
-    border-radius: 12px;
-    margin-bottom: 1rem;
+    padding: 4px;
     display: none;
 }
-
-.no-filter-results.visible {
+.review-search-box .clear-search:hover {
+    color: #ef4444;
+}
+.review-search-box.has-value .clear-search {
     display: block;
 }
 
-.no-filter-results i {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    color: #f59e0b;
+/* ========== HIDDEN REVIEW CARD STYLE ========== */
+.review-item.is-hidden {
+    position: relative;
+    opacity: 0.6;
+    border-color: #d1d5db;
+    background: #f9fafb;
 }
-
-.no-filter-results p {
-    font-size: 0.85rem;
-    margin: 0;
+.review-item.is-hidden:hover {
+    opacity: 0.85;
 }
-
-.filter-group select,
-.filter-group input {
-    width: 100%;
-    padding: 0.4rem 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 0.75rem;
-}
-
-.filter-actions {
-    display: flex;
-    gap: 0.35rem;
-}
-
-.btn-filter {
-    padding: 0.4rem 0.7rem;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-size: 0.7rem;
-    display: flex;
+.hidden-badge {
+    display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-}
-
-.btn-filter.primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    gap: 0.2rem;
+    background: linear-gradient(135deg, #e53935 0%, #c62828 100%);
     color: white;
+    font-size: 0.55rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(229, 57, 53, 0.3);
+    flex-shrink: 0;
+}
+.hidden-badge i {
+    font-size: 0.5rem;
 }
 
-.btn-filter.secondary {
-    background: #f5f5f5;
-    color: #666;
-}
-
-/* Reviews List - STILE IDENTICO A allReviews.njk */
-/* Review Cards - Same as customer reviews */
-.reviews-list {
+/* Reviews List - Stile card identico a breweries/beers */
+.review-list {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 8px;
+    padding: 0 1rem;
     margin-bottom: 2rem;
 }
 
-.review-card {
+.review-item {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 0.875rem;
-    padding: 0.75rem;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    gap: 12px;
+    padding: 10px 14px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
     transition: all 0.2s ease;
-    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-.review-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+.review-item:hover {
+    background: #fffbeb;
+    border-color: #f59e0b;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.15);
 }
 
-/* Thumbnail with gradient border */
-.review-thumbnail-wrapper {
-    width: 56px;
-    height: 56px;
-    border-radius: 10px;
-    padding: 2px;
+/* Thumbnail con bordo gradient ambra/dorato */
+.review-thumb {
+    width: 52px;
+    height: 52px;
     flex-shrink: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
+    padding: 2px;
 }
-.review-thumbnail {
+.review-thumb img {
     width: 100%;
     height: 100%;
-    border-radius: 8px;
     object-fit: cover;
-    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+    border-radius: 6px;
+    display: block;
 }
-.review-thumbnail-placeholder {
+.review-thumb .no-photo {
     width: 100%;
     height: 100%;
-    border-radius: 8px;
+    border-radius: 6px;
     background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ccc;
-    font-size: 1.25rem;
+    color: #bbb;
+    font-size: 1.1rem;
 }
 
 /* Review Content */
-.review-content {
+.review-info {
     flex: 1;
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
 }
-.review-title {
-    font-size: 0.938rem;
+.review-beer-name {
+    font-size: 14px;
     font-weight: 600;
-    color: #333;
+    color: #1f2937;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
 }
-.review-subtitle {
-    font-size: 0.8rem;
-    color: #888;
+.review-brewery-name {
+    font-size: 12px;
+    color: #6b7280;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
+    margin-top: 1px;
 }
 .review-meta {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
     align-items: center;
-    font-size: 0.75rem;
-    color: #666;
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 3px;
 }
 .review-meta-item {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 3px;
 }
-.review-meta-item i { font-size: 0.7rem; }
-.review-meta-item.user i { color: #667eea; }
-.review-meta-item.date i { color: #43e97b; }
+.review-meta-item i { font-size: 10px; }
+.review-meta-item.user i { color: #f59e0b; }
+.review-meta-item.date i { color: #10b981; }
+
+/* User banned indicator */
+.user-banned { color: #d32f2f; font-weight: 600; }
+.user-banned i { margin-right: 2px; }
 
 /* Rating Display */
 .review-rating {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.125rem;
-    padding: 0 0.5rem;
+    gap: 2px;
+    padding: 0 0.35rem;
+    flex-shrink: 0;
 }
 .stars {
     display: flex;
     gap: 1px;
 }
 .stars i {
-    font-size: 0.75rem;
+    font-size: 11px;
     color: #ffc107;
 }
 .stars i.empty { color: #e0e0e0; }
-.rating-value {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #333;
+.rating-value-text {
+    font-size: 10px;
+    color: #999;
+    font-style: italic;
 }
 
-/* Status Badges Container - Dual Status Display */
+/* Status Badges Container */
 .review-badges {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 3px;
     align-items: flex-start;
+    flex-shrink: 0;
 }
 
 /* Status Badge - Moderazione */
@@ -771,20 +360,20 @@
 .review-admin-actions {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 4px;
     flex-shrink: 0;
 }
 .btn-icon {
     width: 30px;
     height: 30px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
-    font-size: 0.75rem;
+    transition: all 0.15s ease;
+    font-size: 12px;
 }
 .btn-icon:hover { transform: scale(1.1); }
 .btn-icon.view { background: #e3f2fd; color: #1976d2; }
@@ -801,10 +390,278 @@
 .btn-icon.unban:hover { background: #2e7d32; color: white; }
 .btn-icon.delete { background: #ffcdd2; color: #b71c1c; }
 .btn-icon.delete:hover { background: #b71c1c; color: white; }
+.btn-icon.edit { background: #e8eaf6; color: #3f51b5; }
+.btn-icon.edit:hover { background: #3f51b5; color: white; }
 
-/* User banned indicator */
-.user-banned { color: #d32f2f; font-weight: 600; }
-.user-banned i { margin-right: 0.25rem; }
+/* ===== EDIT REVIEW MODAL STYLES ===== */
+.edit-form-group {
+    margin-bottom: 0.75rem;
+}
+.edit-form-group label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.edit-form-group label i {
+    margin-right: 4px;
+    color: #6b7280;
+    font-size: 0.7rem;
+}
+.edit-form-input,
+.edit-form-select,
+.edit-form-textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    color: #1f2937;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+.edit-form-input:focus,
+.edit-form-select:focus,
+.edit-form-textarea:focus {
+    outline: none;
+    border-color: #3f51b5;
+    box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.15);
+}
+.edit-form-textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+.edit-form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+}
+.edit-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+.edit-rating-display {
+    padding: 0.5rem 0.75rem;
+    background: linear-gradient(135deg, #fff8e1, #fff);
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.edit-rating-display .stars i {
+    font-size: 1rem;
+    color: #ffc107;
+}
+.edit-rating-display .stars i.empty {
+    color: #e0e0e0;
+}
+.edit-rating-lock {
+    font-size: 0.65rem;
+    color: #9ca3af;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.edit-rating-lock i {
+    font-size: 0.55rem;
+}
+.edit-section-divider {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: white;
+    margin: 0.75rem -1rem;
+    padding: 0.3rem 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.edit-section-divider.beer-section {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+.edit-section-divider.brewery-section {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+.edit-section-divider.notes-section {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+}
+/* ===== SEARCHABLE SELECT COMPONENT ===== */
+.searchable-select {
+    position: relative;
+}
+.searchable-select-input {
+    width: 100%;
+    padding: 0.5rem 2.2rem 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    color: #1f2937;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+.searchable-select-input:focus {
+    outline: none;
+    border-color: #3f51b5;
+    box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.15);
+}
+.searchable-select-input::placeholder {
+    color: #9ca3af;
+}
+.searchable-select-chevron {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 0.65rem;
+    pointer-events: none;
+    transition: transform 0.2s;
+}
+.searchable-select.open .searchable-select-chevron {
+    transform: translateY(-50%) rotate(180deg);
+}
+.searchable-select-clear {
+    position: absolute;
+    right: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 2px 4px;
+    display: none;
+    line-height: 1;
+}
+.searchable-select-clear:hover { color: #ef4444; }
+.searchable-select.has-value .searchable-select-clear { display: block; }
+.searchable-select-dropdown {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 50;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+.searchable-select.open .searchable-select-dropdown {
+    display: block;
+}
+.searchable-select-item {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.1s;
+    display: flex;
+    flex-direction: column;
+}
+.searchable-select-item:last-child { border-bottom: none; }
+.searchable-select-item:hover,
+.searchable-select-item.highlighted {
+    background: #fffbeb;
+}
+.searchable-select-item.selected {
+    background: #eef2ff;
+    font-weight: 600;
+}
+.searchable-select-item .item-main {
+    font-weight: 500;
+    color: #1f2937;
+}
+.searchable-select-item .item-sub {
+    font-size: 0.65rem;
+    color: #6b7280;
+    margin-top: 1px;
+}
+.searchable-select-item .item-main mark {
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+.searchable-select-empty {
+    padding: 0.75rem;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+.searchable-select-count {
+    padding: 0.3rem 0.75rem;
+    font-size: 0.6rem;
+    color: #9ca3af;
+    text-align: right;
+    border-top: 1px solid #f3f4f6;
+    background: #fafafa;
+    border-radius: 0 0 8px 8px;
+}
+.edit-modal-footer {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f0f0f0;
+    margin-top: 0.75rem;
+}
+.btn-edit-save {
+    padding: 0.6rem 1.5rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: linear-gradient(135deg, #3f51b5, #1a237e);
+    color: white;
+    transition: all 0.2s;
+}
+.btn-edit-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(63, 81, 181, 0.3);
+}
+.btn-edit-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+.btn-edit-cancel {
+    padding: 0.6rem 1.25rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background: linear-gradient(135deg, #f5f7fa, #e4e8eb);
+    color: #666;
+    transition: all 0.2s;
+}
+.btn-edit-cancel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+@media (max-width: 640px) {
+    .edit-form-row {
+        grid-template-columns: 1fr;
+    }
+}
 
 /* Empty State */
 .empty-state {
@@ -1021,6 +878,7 @@
     justify-content: center;
     gap: 0.5rem;
     margin-top: 1.5rem;
+    padding: 0 1rem;
 }
 .pagination a, .pagination span {
     padding: 0.5rem 0.75rem;
@@ -1031,16 +889,16 @@
 }
 .pagination a {
     background: white;
-    color: #667eea;
+    color: #f59e0b;
     border: 1px solid #e0e0e0;
 }
 .pagination a:hover {
-    background: #667eea;
+    background: #f59e0b;
     color: white;
-    border-color: #667eea;
+    border-color: #f59e0b;
 }
 .pagination span.current {
-    background: #667eea;
+    background: #f59e0b;
     color: white;
 }
 .pagination span.disabled {
@@ -1048,170 +906,125 @@
     color: #ccc;
 }
 
+/* No results message */
+.no-filter-results {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #64748b;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 10px;
+    margin: 0 1rem 1rem;
+    display: none;
+}
+.no-filter-results.visible { display: block; }
+.no-filter-results i { font-size: 2rem; margin-bottom: 0.5rem; color: #f59e0b; }
+.no-filter-results p { font-size: 0.85rem; margin: 0; }
+
 /* Responsive */
-@media (max-width: 768px) {
-    .all-reviews-container { padding: 1rem; }
-    .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
-    .stat-card { padding: 0.75rem 0.5rem; }
-    .stat-number { font-size: 1.25rem; }
-    .stat-label { font-size: 0.65rem; }
-    .filters-row { flex-direction: column; gap: 0.75rem; }
-    .filter-actions { justify-content: stretch; }
-    .filter-actions .btn-filter { flex: 1; }
-    .review-card { flex-wrap: wrap; }
+@media (max-width: 640px) {
+    .review-item { padding: 10px; gap: 8px; flex-wrap: wrap; }
+    .review-thumb { width: 44px; height: 44px; }
+    .review-beer-name { font-size: 13px; }
+    .review-badges { flex-direction: row; gap: 4px; }
     .review-admin-actions {
         width: 100%;
         justify-content: flex-end;
-        padding-top: 0.5rem;
-        border-top: 1px solid #f0f0f0;
-        margin-top: 0.5rem;
+        padding-top: 6px;
+        border-top: 1px solid #f3f4f6;
+        margin-top: 4px;
     }
+    .btn-icon { width: 28px; height: 28px; font-size: 11px; }
+    .stats-row, .stats-row-ai { grid-template-columns: repeat(3, 1fr); }
+    .search-filters-grid { grid-template-columns: 1fr; }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="admin-container">
-    <div class="page-header" style="margin-bottom: 1.5rem;">
-        <h1 style="font-size: 1.5rem; font-weight: 600; color: #333;">
-            <i class="fas fa-star" style="color: #667eea; margin-right: 0.5rem;"></i>
-            Gestione Recensioni
-        </h1>
-    </div>
-
-    <!-- ===== FILTRI ULTRA COOL ===== -->
-    <div class="filter-section">
-        <div class="filter-header">
-            <div class="filter-header-icon" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">📋</div>
-            <span class="filter-header-title">Moderazione</span>
-        </div>
-        <div class="filter-chips">
-            <button class="filter-chip active" data-filter="all" onclick="filterByStatus('all')">
-                <span class="chip-count">{{ stats.total or 0 }}</span>
-                <span class="chip-label">Tutte</span>
-            </button>
-            <button class="filter-chip" data-filter="pending" onclick="filterByStatus('pending')">
-                <span class="chip-count">{{ stats.pending or 0 }}</span>
-                <span class="chip-label">⏳ Attesa</span>
-            </button>
-            <button class="filter-chip" data-filter="validated" onclick="filterByStatus('validated')">
-                <span class="chip-count">{{ stats.validated or 0 }}</span>
-                <span class="chip-label">✓ Validate</span>
-            </button>
-            <button class="filter-chip" data-filter="completed" onclick="filterByStatus('completed')">
-                <span class="chip-count">{{ stats.completed or 0 }}</span>
-                <span class="chip-label">✔ Complete</span>
-            </button>
-            <button class="filter-chip" data-filter="hidden" onclick="filterByStatus('hidden')">
-                <span class="chip-count">{{ stats.hidden or 0 }}</span>
-                <span class="chip-label">👁‍🗨 Nascoste</span>
-            </button>
-            <button class="filter-chip" data-filter="flagged" onclick="filterByStatus('flagged')">
-                <span class="chip-count">{{ stats.flagged or 0 }}</span>
-                <span class="chip-label">⚠️ Segnalate</span>
-            </button>
-            <button class="filter-chip" data-filter="needs_admin" onclick="filterByStatus('needs_admin')">
-                <span class="chip-count">{{ stats.needsAdmin or 0 }}</span>
-                <span class="chip-label">🔍 Verifica</span>
-            </button>
-            <button class="filter-chip" data-filter="banned_users" onclick="filterByStatus('banned_users')">
-                <span class="chip-count">{{ stats.bannedUsersReviews or 0 }}</span>
-                <span class="chip-label">🚫 Bannati</span>
-            </button>
+<div class="admin-page">
+    <!-- Header - Stile identico a breweries/beers -->
+    <div class="page-head">
+        <div class="page-head-left">
+            <h1><i class="fas fa-star"></i> Gestione Recensioni</h1>
+            <span class="head-count">{{ stats.total or 0 }} recensioni</span>
         </div>
     </div>
 
-    <div class="filter-section">
-        <div class="filter-header">
-            <div class="filter-header-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2); color: white;">🤖</div>
-            <span class="filter-header-title">AI Processing</span>
+    <!-- ===== FILTRI MODERAZIONE - Stats Row ===== -->
+    <div class="filter-section-label">
+        <i class="fas fa-shield-alt"></i> Moderazione
+    </div>
+    <div class="stats-row">
+        <div class="stat-box amber review-filter-card active" data-filter="all">
+            <i class="fas fa-star"></i>
+            <span class="val">{{ stats.total or 0 }}</span><span class="lbl">Tutte</span>
         </div>
-        <div class="filter-chips">
-            <button class="filter-chip active" data-processing-filter="all" onclick="filterByProcessing('')">
-                <span class="chip-count">{{ stats.total or 0 }}</span>
-                <span class="chip-label">Tutte</span>
-            </button>
-            <button class="filter-chip" data-processing-filter="pending_validation" onclick="filterByProcessing('pending_validation')">
-                <span class="chip-count">{{ stats.aiPending or 0 }}</span>
-                <span class="chip-label">📥 Coda</span>
-            </button>
-            <button class="filter-chip" data-processing-filter="processing" onclick="filterByProcessing('processing')">
-                <span class="chip-count">{{ stats.aiProcessing or 0 }}</span>
-                <span class="chip-label">⚙️ Elabora</span>
-            </button>
-            <button class="filter-chip" data-processing-filter="ai_completed" onclick="filterByProcessing('ai_completed')">
-                <span class="chip-count">{{ stats.aiCompleted or 0 }}</span>
-                <span class="chip-label">✅ Completate</span>
-            </button>
-            <button class="filter-chip" data-processing-filter="failed" onclick="filterByProcessing('failed')">
-                <span class="chip-count">{{ stats.aiFailed or 0 }}</span>
-                <span class="chip-label">❌ Fallite</span>
-            </button>
+        <div class="stat-box amber review-filter-card" data-filter="pending">
+            <i class="fas fa-clock"></i>
+            <span class="val">{{ stats.pending or 0 }}</span><span class="lbl">Attesa</span>
+        </div>
+        <div class="stat-box green review-filter-card" data-filter="validated">
+            <i class="fas fa-check"></i>
+            <span class="val">{{ stats.validated or 0 }}</span><span class="lbl">Validate</span>
+        </div>
+        <div class="stat-box blue review-filter-card" data-filter="completed">
+            <i class="fas fa-check-double"></i>
+            <span class="val">{{ stats.completed or 0 }}</span><span class="lbl">Complete</span>
+        </div>
+        <div class="stat-box indigo review-filter-card" data-filter="hidden">
+            <i class="fas fa-eye-slash"></i>
+            <span class="val">{{ stats.hidden or 0 }}</span><span class="lbl">Nascoste</span>
+        </div>
+        <div class="stat-box red review-filter-card" data-filter="flagged">
+            <i class="fas fa-flag"></i>
+            <span class="val">{{ stats.flagged or 0 }}</span><span class="lbl">Segnalate</span>
+        </div>
+        <div class="stat-box purple review-filter-card" data-filter="needs_admin">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span class="val">{{ stats.needsAdmin or 0 }}</span><span class="lbl">Verifica</span>
+        </div>
+        <div class="stat-box red review-filter-card" data-filter="banned_users">
+            <i class="fas fa-ban"></i>
+            <span class="val">{{ stats.bannedUsers or 0 }}</span><span class="lbl">Bannati</span>
         </div>
     </div>
 
-    <!-- ===== FILTRI RICERCA AVANZATA ===== -->
-    <div class="search-filters-section">
-        <div class="search-filters-header">
-            <div class="search-filters-header-icon">🔍</div>
-            <span class="search-filters-title">Ricerca Avanzata</span>
-            <span style="margin-left: auto; font-size: 0.65rem; color: #94a3b8;">Digita almeno 3 caratteri per filtrare</span>
+    <!-- ===== FILTRI AI PROCESSING ===== -->
+    <div class="filter-section-label">
+        <i class="fas fa-robot"></i> Elaborazione
+    </div>
+    <div class="stats-row-ai">
+        <div class="stat-box cyan ai-filter-card" data-processing-filter="pending_validation">
+            <i class="fas fa-inbox"></i>
+            <span class="val">{{ stats.aiPending or 0 }}</span><span class="lbl">Coda</span>
         </div>
-        <div class="search-filters-grid">
-            <div class="search-filter-group">
-                <label class="search-filter-label">
-                    <i class="fas fa-industry" style="color: #f59e0b;"></i> Birrificio
-                </label>
-                <input type="text" 
-                       id="filterBrewery" 
-                       class="search-filter-input" 
-                       placeholder="Es: Peroni, Baladin..."
-                       oninput="applyFilters()">
-                <span class="search-filter-counter" id="counterBrewery"></span>
-                <button type="button" class="search-filter-clear" onclick="clearFilter('filterBrewery')">
-                    <i class="fas fa-times"></i>
-                </button>
-                <div class="search-filter-hint">Filtra per nome birrificio</div>
-            </div>
-            <div class="search-filter-group">
-                <label class="search-filter-label">
-                    <i class="fas fa-beer" style="color: #3b82f6;"></i> Birra
-                </label>
-                <input type="text" 
-                       id="filterBeer" 
-                       class="search-filter-input" 
-                       placeholder="Es: Lager, IPA..."
-                       oninput="applyFilters()">
-                <span class="search-filter-counter" id="counterBeer"></span>
-                <button type="button" class="search-filter-clear" onclick="clearFilter('filterBeer')">
-                    <i class="fas fa-times"></i>
-                </button>
-                <div class="search-filter-hint">Filtra per nome birra</div>
-            </div>
-            <div class="search-filter-group">
-                <label class="search-filter-label">
-                    <i class="fas fa-user" style="color: #8b5cf6;"></i> Utente
-                </label>
-                <input type="text" 
-                       id="filterUser" 
-                       class="search-filter-input" 
-                       placeholder="Es: Mario, Rossi..."
-                       oninput="applyFilters()">
-                <span class="search-filter-counter" id="counterUser"></span>
-                <button type="button" class="search-filter-clear" onclick="clearFilter('filterUser')">
-                    <i class="fas fa-times"></i>
-                </button>
-                <div class="search-filter-hint">Filtra per nome/email utente</div>
-            </div>
+        <div class="stat-box blue ai-filter-card" data-processing-filter="processing">
+            <i class="fas fa-cog fa-spin"></i>
+            <span class="val">{{ stats.aiProcessing or 0 }}</span><span class="lbl">Elabora</span>
         </div>
-        <div class="search-filters-actions">
-            <button type="button" class="btn-reset-all" onclick="resetAllFilters()" id="btnResetFilters" style="display: none;">
-                <i class="fas fa-times-circle"></i> Resetta tutti i filtri
-            </button>
-            <div class="search-active-filters" id="activeFiltersContainer"></div>
+        <div class="stat-box green ai-filter-card" data-processing-filter="ai_completed">
+            <i class="fas fa-check-circle"></i>
+            <span class="val">{{ stats.aiCompleted or 0 }}</span><span class="lbl">OK</span>
+        </div>
+        <div class="stat-box red ai-filter-card" data-processing-filter="failed">
+            <i class="fas fa-times-circle"></i>
+            <span class="val">{{ stats.aiFailed or 0 }}</span><span class="lbl">Fallite</span>
         </div>
     </div>
-    
+
+    <!-- Search Box - Stile identico a breweries -->
+    <div class="review-search-box" id="reviewSearchBox">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" id="reviewSearchInput" placeholder="Cerca birra, birrificio o utente..." autocomplete="off" oninput="handleQuickSearch(this)">
+        <button class="clear-search" onclick="clearQuickSearch()" title="Cancella"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Filter indicator -->
+    <div class="admin-alert info" id="filter-indicator" style="display:none; margin: 0.4rem 1rem;">
+        <i class="fas fa-filter"></i> <span id="filter-message">Filtro attivo</span>
+        <button class="sys-btn small" onclick="resetFilters()" style="margin-left:auto"><i class="fas fa-times"></i> Reset</button>
+    </div>
+
     <!-- No results message -->
     <div class="no-filter-results" id="noFilterResults">
         <i class="fas fa-search"></i>
@@ -1219,8 +1032,8 @@
         <p>Prova a modificare i criteri di ricerca</p>
     </div>
 
-    <!-- Reviews List -->
-    <div class="reviews-list">
+    <!-- Reviews List - Stile card identico a breweries -->
+    <div class="review-list">
         {% if reviews and reviews.length > 0 %}
             {% for review in reviews %}
                 {% set firstRating = review.ratings[0] if review.ratings and review.ratings.length > 0 else null %}
@@ -1233,7 +1046,7 @@
                 {% set userId = review.user._id if review.user else null %}
                 
                 {% set isHiddenReview = review.moderation and review.moderation.isHidden %}
-                <div class="review-card {{ 'is-hidden' if isHiddenReview }}" 
+                <div class="review-item {{ 'is-hidden' if isHiddenReview }}" 
                      data-review-id="{{ review._id }}"
                      data-beer-name="{{ beerName }}"
                      data-brewery-name="{{ breweryName }}"
@@ -1244,36 +1057,27 @@
                      data-processing-status="{{ review.processingStatus or 'completed' }}"
                      data-is-hidden="{{ 'true' if isHiddenReview else 'false' }}"
                      data-date="{{ review.date | date('YYYY-MM-DD') if review.date else '' }}"
-                     {% if review.processingStatus == 'pending_validation' or review.processingStatus == 'processing' %}style="border-left: 3px solid #fcb69f;"{% endif %}>
+                     {% if review.processingStatus == 'pending_validation' or review.processingStatus == 'processing' %}style="border-left: 3px solid #06b6d4;"{% endif %}>
                     
-                    <!-- Hidden Badge -->
-                    {% if isHiddenReview %}
-                    <div class="hidden-badge">
-                        <i class="fas fa-eye-slash"></i> Nascosta
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Thumbnail con bordo gradient ambra/dorato -->
-                    <div class="review-thumbnail-wrapper" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);">
-                        {% if review.imageUrl %}
-                            <img src="{{ review.imageUrl }}" alt="{{ beerName }}" class="review-thumbnail">
+                    <!-- Thumbnail con immagine della recensione -->
+                    <div class="review-thumb">
+                        {% if review.resolvedImageUrl %}
+                            <img src="{{ review.resolvedImageUrl }}" alt="{{ beerName }}" loading="lazy" onerror="this.onerror=null; this.outerHTML='<div class=\'no-photo\'><i class=\'fas fa-beer\'></i></div>';">
                         {% else %}
-                            <div class="review-thumbnail" style="display: flex; align-items: center; justify-content: center; background: #f5f5f5;">
-                                <i class="fas fa-beer" style="font-size: 1.25rem; color: #ccc;"></i>
-                            </div>
+                            <div class="no-photo"><i class="fas fa-beer"></i></div>
                         {% endif %}
                     </div>
                     
                     <!-- Content -->
-                    <div class="review-content">
-                        <div class="review-title">{{ beerName }}</div>
-                        <div class="review-subtitle">{{ breweryName }}</div>
+                    <div class="review-info">
+                        <span class="review-beer-name">{{ beerName }}</span>
+                        <span class="review-brewery-name">{{ breweryName }}</span>
                         <div class="review-meta">
-                            <span class="review-meta-item {% if isBanned %}user-banned{% endif %}">
+                            <span class="review-meta-item user {% if isBanned %}user-banned{% endif %}">
                                 {% if isBanned %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-user"></i>{% endif %}
                                 {{ userName }}
                             </span>
-                            <span class="review-meta-item">
+                            <span class="review-meta-item date">
                                 <i class="fas fa-calendar"></i>
                                 {{ review.date | date('DD/MM/YYYY') if review.date else 'N/D' }}
                             </span>
@@ -1289,46 +1093,53 @@
                             {% endfor %}
                         </div>
                         {% else %}
-                        <span class="rating-value" style="color: #999; font-style: italic;">Non valutata</span>
+                        <span class="rating-value-text">N/V</span>
                         {% endif %}
                     </div>
                     
-                    <!-- Dual Status Badges -->
+                    <!-- Status Badges -->
                     <div class="review-badges">
+                        <!-- Hidden badge -->
+                        {% if isHiddenReview %}
+                        <span class="hidden-badge">
+                            <i class="fas fa-eye-slash"></i> Nascosta
+                        </span>
+                        {% endif %}
+                        
                         <!-- Status Moderazione -->
                         <span class="review-status status-{{ review.status or 'pending' }}" title="Stato moderazione">
                             {% if review.status == 'validated' %}
                                 <i class="fas fa-check"></i> Validata
                             {% elif review.status == 'completed' %}
-                                <i class="fas fa-check-double"></i> Completata
+                                <i class="fas fa-check-double"></i> OK
                             {% elif review.status == 'hidden' %}
                                 <i class="fas fa-eye-slash"></i> Nascosta
                             {% elif review.status == 'flagged' %}
                                 <i class="fas fa-flag"></i> Segnalata
                             {% elif review.status == 'needs_admin' %}
-                                <i class="fas fa-exclamation-triangle"></i> Da verificare
+                                <i class="fas fa-exclamation-triangle"></i> Verifica
                             {% else %}
-                                <i class="fas fa-clock"></i> In attesa
+                                <i class="fas fa-clock"></i> Attesa
                             {% endif %}
                         </span>
                         <!-- Processing Status AI -->
                         {% set isProcessing = review.processingStatus == 'pending_validation' or review.processingStatus == 'processing' %}
-                        <span class="processing-status processing-{{ review.processingStatus or 'completed' }} {{ 'is-processing' if isProcessing }}" title="Elaborazione AI">
+                        <span class="processing-status processing-{{ review.processingStatus or 'completed' }} {{ 'is-processing' if isProcessing }}" title="Stato elaborazione">
                             {% if isProcessing %}
                                 <span class="ai-spinner"></span>
                             {% else %}
                                 <i class="fas fa-robot" style="font-size: 0.55rem;"></i>
                             {% endif %}
                             {% if review.processingStatus == 'pending_validation' %}
-                                In coda
+                                Coda
                             {% elif review.processingStatus == 'processing' %}
-                                Elaborando...
+                                AI...
                             {% elif review.processingStatus == 'completed' %}
                                 AI OK
                             {% elif review.processingStatus == 'failed' %}
-                                AI Fallito
+                                Fallito
                             {% elif review.processingStatus == 'needs_admin_review' %}
-                                AI: Verifica
+                                Verifica
                             {% else %}
                                 AI OK
                             {% endif %}
@@ -1339,6 +1150,9 @@
                     <div class="review-admin-actions">
                         <button class="btn-icon view" onclick="showReviewDetail('{{ review._id }}')" title="Dettagli">
                             <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-icon edit" onclick="showEditReviewModal('{{ review._id }}')" title="Modifica">
+                            <i class="fas fa-edit"></i>
                         </button>
                         {% if review.status != 'validated' and review.status != 'completed' %}
                         <button class="btn-icon validate" onclick="updateReviewStatus('{{ review._id }}', 'validated')" title="Valida">
@@ -1488,6 +1302,25 @@
     </div>
 </div>
 
+<!-- Edit Review Modal -->
+<div class="modal-overlay" id="editReviewModal">
+    <div class="modal-content" style="max-width: 620px;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #3f51b5 0%, #1a237e 100%);">
+            <h3 class="modal-title"><i class="fas fa-edit"></i> Modifica Recensione</h3>
+            <button class="modal-close" onclick="closeModal('editReviewModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="editReviewModalBody">
+            <!-- Popolato via JavaScript -->
+            <div class="text-center p-4">
+                <div class="filter-spinner" style="margin: 0 auto;"></div>
+                <p style="margin-top: 0.5rem; color: #6b7280; font-size: 0.875rem;">Caricamento dati...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Loading Overlay per cambio filtri -->
 <div id="filterLoadingOverlay" class="filter-loading-overlay">
     <div class="filter-spinner"></div>
@@ -1497,23 +1330,60 @@
 
 {% block scripts %}
 <script>
-// Highlight active filter chip on page load
+// ===== STAT BOX FILTRI (stile identico a breweries/beers) =====
 document.addEventListener('DOMContentLoaded', function() {
+    const currentFilter = '{{ filters.filter or "" }}';
     const currentStatus = '{{ filters.status or "" }}';
     const currentProcessing = '{{ filters.processingStatus or "" }}';
     
-    // Reset all chips
-    document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.remove('active'));
+    // Attiva la stat-box del filtro moderazione corrente
+    const activeModFilter = currentStatus || currentFilter || 'all';
+    document.querySelectorAll('.review-filter-card').forEach(card => {
+        card.classList.remove('active');
+        if (card.dataset.filter === activeModFilter) {
+            card.classList.add('active');
+        }
+    });
     
-    // Set active status filter
-    const statusValue = currentStatus || 'all';
-    const activeStatusChip = document.querySelector(`.filter-chip[data-filter="${statusValue}"]`);
-    if (activeStatusChip) activeStatusChip.classList.add('active');
+    // Attiva la stat-box del filtro AI processing corrente
+    if (currentProcessing) {
+        const processingValue = currentProcessing === 'completed' ? 'ai_completed' : currentProcessing;
+        document.querySelectorAll('.ai-filter-card').forEach(card => {
+            card.classList.remove('active');
+            if (card.dataset.processingFilter === processingValue) {
+                card.classList.add('active');
+            }
+        });
+    }
     
-    // Set active processing filter
-    const processingValue = currentProcessing || 'all';
-    const activeProcessingChip = document.querySelector(`.filter-chip[data-processing-filter="${processingValue}"]`);
-    if (activeProcessingChip) activeProcessingChip.classList.add('active');
+    // Mostra indicatore se filtro attivo 
+    if (activeModFilter !== 'all' || currentProcessing) {
+        const indicator = document.getElementById('filter-indicator');
+        const message = document.getElementById('filter-message');
+        if (indicator && message) {
+            indicator.style.display = 'flex';
+            let filterText = [];
+            if (activeModFilter !== 'all') filterText.push('Moderazione: ' + activeModFilter);
+            if (currentProcessing) filterText.push('AI: ' + currentProcessing);
+            message.textContent = filterText.join(' | ');
+        }
+    }
+});
+
+// Click handler per filtri moderazione (stat-box)
+document.querySelectorAll('.review-filter-card').forEach(card => {
+    card.addEventListener('click', function() {
+        const filter = this.dataset.filter;
+        filterByStatus(filter);
+    });
+});
+
+// Click handler per filtri AI processing (stat-box)
+document.querySelectorAll('.ai-filter-card').forEach(card => {
+    card.addEventListener('click', function() {
+        const filter = this.dataset.processingFilter;
+        filterByProcessing(filter);
+    });
 });
 
 // Store reviews data for detail modal
@@ -1543,6 +1413,8 @@ reviewsData['{{ review._id }}'] = {
     userEmail: '{{ review.user.email if review.user and review.user.email else "" }}',
     date: '{{ review.date | date("DD/MM/YYYY HH:mm") if review.date else "N/D" }}',
     status: '{{ review.status or "pending" }}',
+    beerId: '{{ firstRating.beer._id if firstRating and firstRating.beer and firstRating.beer._id else "" }}',
+    breweryId: '{{ firstRating.brewery._id if firstRating and firstRating.brewery and firstRating.brewery._id else "" }}',
     detailedRatings: {
         appearance: {{ appearanceRating if appearanceRating else 0 }},
         aroma: {{ aromaRating if aromaRating else 0 }},
@@ -1564,11 +1436,12 @@ function filterByStatus(status) {
     const url = new URL(window.location.href);
     if (status === 'all') {
         url.searchParams.delete('status');
+        url.searchParams.delete('filter');
     } else {
         url.searchParams.set('status', status);
     }
     url.searchParams.delete('page');
-    url.searchParams.delete('processingStatus'); // Reset filtro AI quando cambio status
+    url.searchParams.delete('processingStatus');
     window.location.href = url.toString();
 }
 
@@ -1576,7 +1449,6 @@ function filterByProcessing(processingStatus) {
     showLoadingOverlay();
     const url = new URL(window.location.href);
     if (processingStatus === 'all' || processingStatus === 'ai_completed') {
-        // 'ai_completed' mostra tutti i completati
         if (processingStatus === 'ai_completed') {
             url.searchParams.set('processingStatus', 'completed');
         } else {
@@ -1586,13 +1458,64 @@ function filterByProcessing(processingStatus) {
         url.searchParams.set('processingStatus', processingStatus);
     }
     url.searchParams.delete('page');
-    url.searchParams.delete('status'); // Reset filtro moderazione quando cambio AI
+    url.searchParams.delete('status');
     window.location.href = url.toString();
 }
 
 function resetFilters() {
     showLoadingOverlay();
     window.location.href = '/administrator/reviews';
+}
+
+// ===== QUICK SEARCH (stile identico a breweries) =====
+function handleQuickSearch(input) {
+    const value = input.value.toLowerCase().trim();
+    const searchBox = document.getElementById('reviewSearchBox');
+    
+    // Toggle classe has-value per mostrare/nascondere pulsante clear
+    if (value.length > 0) {
+        searchBox.classList.add('has-value');
+    } else {
+        searchBox.classList.remove('has-value');
+    }
+    
+    // Filtra le card client-side
+    const items = document.querySelectorAll('.review-item');
+    let visibleCount = 0;
+    
+    items.forEach(item => {
+        if (value.length < 2) {
+            item.style.display = '';
+            visibleCount++;
+            return;
+        }
+        
+        const beerName = (item.dataset.beerName || '').toLowerCase();
+        const breweryName = (item.dataset.breweryName || '').toLowerCase();
+        const userName = (item.dataset.userName || '').toLowerCase();
+        const userEmail = (item.dataset.userEmail || '').toLowerCase();
+        
+        const match = beerName.includes(value) || breweryName.includes(value) || 
+                      userName.includes(value) || userEmail.includes(value);
+        
+        item.style.display = match ? '' : 'none';
+        if (match) visibleCount++;
+    });
+    
+    // Mostra/nascondi messaggio "nessun risultato"
+    const noResults = document.getElementById('noFilterResults');
+    if (value.length >= 2 && visibleCount === 0) {
+        noResults.classList.add('visible');
+    } else {
+        noResults.classList.remove('visible');
+    }
+}
+
+function clearQuickSearch() {
+    const input = document.getElementById('reviewSearchInput');
+    input.value = '';
+    document.getElementById('reviewSearchBox').classList.remove('has-value');
+    handleQuickSearch(input);
 }
 
 function showReviewDetail(reviewId) {
@@ -1680,7 +1603,7 @@ function showReviewDetail(reviewId) {
                 <span class="detail-value"><span class="review-status status-${review.status}">${getStatusLabel(review.status)}</span></span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Stato AI</span>
+                <span class="detail-label">Stato elaborazione</span>
                 <span class="detail-value"><span class="processing-status processing-${review.processingStatus || 'completed'}">${getProcessingLabel(review.processingStatus)}</span></span>
             </div>
         </div>
@@ -1764,7 +1687,7 @@ async function toggleReviewVisibility(reviewId) {
             const isNowHidden = data.message.includes('nascosta');
             
             // Aggiorna la UI della card senza ricaricare
-            const card = document.querySelector(`.review-card[data-review-id="${reviewId}"]`);
+            const card = document.querySelector(`.review-item[data-review-id="${reviewId}"]`);
             if (card) {
                 // Toggle classe is-hidden
                 card.classList.toggle('is-hidden', isNowHidden);
@@ -1885,186 +1808,529 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Highlight active filter card
-const currentStatus = new URLSearchParams(window.location.search).get('status');
-document.querySelectorAll('.stat-card').forEach(card => {
-    if (card.dataset.filter === (currentStatus || 'all')) {
+// Highlight active filter card from URL
+const currentStatusUrl = new URLSearchParams(window.location.search).get('status');
+document.querySelectorAll('.review-filter-card').forEach(card => {
+    if (card.dataset.filter === (currentStatusUrl || 'all')) {
         card.classList.add('active');
     }
 });
 
-// ===== SISTEMA FILTRI RICERCA CLIENT-SIDE =====
-const MIN_CHARS = 3;
-let filterTimeout = null;
+// ============================================
+// MODAL MODIFICA RECENSIONE
+// ============================================
 
-function applyFilters() {
-    // Debounce per evitare troppe operazioni
-    clearTimeout(filterTimeout);
-    filterTimeout = setTimeout(() => {
-        doApplyFilters();
-    }, 150);
+// Cache locale birre e birrifici (caricata una volta sola)
+let cachedBeers = null;
+let cachedBreweries = null;
+let editCurrentReviewId = null;
+
+/**
+ * Carica l'elenco di birre e birrifici dall'API (con cache)
+ */
+async function loadBeersAndBreweries() {
+    if (cachedBeers && cachedBreweries) {
+        return { beers: cachedBeers, breweries: cachedBreweries };
+    }
+    const response = await fetch('/administrator/api/reviews/beers-breweries');
+    if (!response.ok) throw new Error('Errore nel caricamento dati');
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'Errore sconosciuto');
+    cachedBeers = data.beers;
+    cachedBreweries = data.breweries;
+    return { beers: cachedBeers, breweries: cachedBreweries };
 }
 
-function doApplyFilters() {
-    const breweryFilter = document.getElementById('filterBrewery').value.toLowerCase().trim();
-    const beerFilter = document.getElementById('filterBeer').value.toLowerCase().trim();
-    const userFilter = document.getElementById('filterUser').value.toLowerCase().trim();
-    
-    const cards = document.querySelectorAll('.review-card');
-    let visibleCount = 0;
-    let breweryMatches = 0;
-    let beerMatches = 0;
-    let userMatches = 0;
-    
-    cards.forEach(card => {
-        const breweryName = (card.dataset.breweryName || '').toLowerCase();
-        const beerName = (card.dataset.beerName || '').toLowerCase();
-        const userName = (card.dataset.userName || '').toLowerCase();
-        const userEmail = (card.dataset.userEmail || '').toLowerCase();
-        
-        // Verifica match per ogni filtro (solo se >= MIN_CHARS)
-        const breweryMatch = breweryFilter.length < MIN_CHARS || breweryName.includes(breweryFilter);
-        const beerMatch = beerFilter.length < MIN_CHARS || beerName.includes(beerFilter);
-        const userMatch = userFilter.length < MIN_CHARS || userName.includes(userFilter) || userEmail.includes(userFilter);
-        
-        // La card è visibile solo se passa TUTTI i filtri attivi
-        const isVisible = breweryMatch && beerMatch && userMatch;
-        
-        card.style.display = isVisible ? '' : 'none';
-        
-        if (isVisible) {
-            visibleCount++;
-            // Conta i match per ogni filtro per i contatori
-            if (breweryFilter.length >= MIN_CHARS && breweryName.includes(breweryFilter)) breweryMatches++;
-            if (beerFilter.length >= MIN_CHARS && beerName.includes(beerFilter)) beerMatches++;
-            if (userFilter.length >= MIN_CHARS && (userName.includes(userFilter) || userEmail.includes(userFilter))) userMatches++;
+/**
+ * Apre il modal di modifica per una recensione
+ */
+async function showEditReviewModal(reviewId) {
+    const review = reviewsData[reviewId];
+    if (!review) return;
+
+    editCurrentReviewId = reviewId;
+    const modal = document.getElementById('editReviewModal');
+    const body = document.getElementById('editReviewModalBody');
+
+    // Mostra loading
+    body.innerHTML = `
+        <div class="text-center p-4">
+            <div class="filter-spinner" style="margin: 0 auto;"></div>
+            <p style="margin-top: 0.5rem; color: #6b7280; font-size: 0.875rem;">Caricamento dati...</p>
+        </div>
+    `;
+    modal.classList.add('active');
+
+    try {
+        // Carica elenchi birre e birrifici
+        const { beers, breweries } = await loadBeersAndBreweries();
+
+        // Genera stelle per il rating (sola lettura)
+        const ratingStarsHtml = review.rating > 0
+            ? Array.from({length: 5}, (_, i) =>
+                `<i class="fas fa-star ${i >= review.rating ? 'empty' : ''}"></i>`
+              ).join('')
+            : '<span style="color: #999; font-style: italic; font-size: 0.85rem;">Non valutata</span>';
+
+        // Birre filtrate per birrificio corrente
+        const currentBreweryId = review.breweryId;
+
+        body.innerHTML = `
+            <!-- Sezione Rating (sola lettura) -->
+            <div class="edit-form-group">
+                <label><i class="fas fa-star"></i> Valutazione Complessiva</label>
+                <div class="edit-rating-display">
+                    <div class="stars">${ratingStarsHtml}</div>
+                    ${review.rating > 0 ? `<span style="font-weight: 600; color: #f59e0b;">${review.rating}/5</span>` : ''}
+                    <span class="edit-rating-lock"><i class="fas fa-lock"></i> Non modificabile</span>
+                </div>
+            </div>
+
+            <!-- Sezione Birrificio -->
+            <div class="edit-section-divider brewery-section"><i class="fas fa-industry"></i> Birrificio</div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-industry"></i> Birrificio</label>
+                <div class="searchable-select" id="brewerySearchable">
+                    <input type="text" class="searchable-select-input" id="editBreweryInput" placeholder="Cerca birrificio..." autocomplete="off">
+                    <button class="searchable-select-clear" onclick="clearSearchableSelect('brewery')" title="Rimuovi selezione"><i class="fas fa-times"></i></button>
+                    <span class="searchable-select-chevron"><i class="fas fa-chevron-down"></i></span>
+                    <input type="hidden" id="editBreweryValue">
+                    <div class="searchable-select-dropdown" id="breweryDropdown"></div>
+                </div>
+            </div>
+
+            <!-- Sezione Birra -->
+            <div class="edit-section-divider beer-section"><i class="fas fa-beer"></i> Birra</div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-beer"></i> Birra</label>
+                <div class="searchable-select" id="beerSearchable">
+                    <input type="text" class="searchable-select-input" id="editBeerInput" placeholder="Cerca birra..." autocomplete="off">
+                    <button class="searchable-select-clear" onclick="clearSearchableSelect('beer')" title="Rimuovi selezione"><i class="fas fa-times"></i></button>
+                    <span class="searchable-select-chevron"><i class="fas fa-chevron-down"></i></span>
+                    <input type="hidden" id="editBeerValue">
+                    <div class="searchable-select-dropdown" id="beerDropdown"></div>
+                </div>
+                <p style="font-size: 0.65rem; color: #9ca3af; margin-top: 4px;">
+                    <i class="fas fa-info-circle"></i> Seleziona il birrificio per filtrare le birre, oppure cerca tra tutte le birre registrate.
+                </p>
+            </div>
+
+            <div class="edit-form-row">
+                <div class="edit-form-group">
+                    <label><i class="fas fa-tag"></i> Tipo / Stile</label>
+                    <input type="text" id="editBeerType" class="edit-form-input" value="${escapeAttr(review.beerType !== 'N/D' ? review.beerType : '')}" placeholder="Es. IPA, Lager, Stout...">
+                </div>
+                <div class="edit-form-group">
+                    <label><i class="fas fa-percentage"></i> Gradazione (ABV)</label>
+                    <input type="text" id="editAlcoholContent" class="edit-form-input" value="${escapeAttr(review.alcoholContent !== 'N/D' ? review.alcoholContent : '')}" placeholder="Es. 5.5">
+                </div>
+            </div>
+
+            <!-- Sezione Note -->
+            <div class="edit-section-divider notes-section"><i class="fas fa-comment-alt"></i> Note della Recensione</div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-pencil-alt"></i> Note / Impressioni</label>
+                <textarea id="editNotes" class="edit-form-textarea" placeholder="Note e impressioni sulla birra...">${escapeHtmlContent(review.notes)}</textarea>
+            </div>
+
+            <!-- Footer con azioni -->
+            <div class="edit-modal-footer">
+                <button class="btn-edit-cancel" onclick="closeModal('editReviewModal')">Annulla</button>
+                <button class="btn-edit-save" id="editSaveBtn" onclick="submitEditReview()">
+                    <i class="fas fa-save"></i> Salva Modifiche
+                </button>
+            </div>
+        `;
+
+        // Inizializza i searchable select per birrificio e birra
+        initSearchableSelects(review);
+
+    } catch (error) {
+        console.error('Errore apertura modal modifica:', error);
+        body.innerHTML = `
+            <div style="text-align: center; padding: 1rem; color: #dc2626;">
+                <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                <p>Errore nel caricamento: ${error.message}</p>
+            </div>
+            <div class="edit-modal-footer">
+                <button class="btn-edit-cancel" onclick="closeModal('editReviewModal')">Chiudi</button>
+            </div>
+        `;
+    }
+}
+
+// ===== SEARCHABLE SELECT: Birrificio e Birra =====
+
+// Stato corrente del birrificio selezionato (per filtrare le birre)
+let selectedEditBreweryId = '';
+let highlightedBreweryIdx = -1;
+let highlightedBeerIdx = -1;
+
+/**
+ * Inizializza i due searchable select dopo il rendering del modal
+ */
+function initSearchableSelects(review) {
+    const breweryInput = document.getElementById('editBreweryInput');
+    const beerInput = document.getElementById('editBeerInput');
+    const breweryHidden = document.getElementById('editBreweryValue');
+    const beerHidden = document.getElementById('editBeerValue');
+    const breweryWrapper = document.getElementById('brewerySearchable');
+    const beerWrapper = document.getElementById('beerSearchable');
+
+    // Pre-popola con i valori correnti della recensione
+    if (review.breweryId && cachedBreweries) {
+        const br = cachedBreweries.find(b => b._id === review.breweryId);
+        if (br) {
+            breweryInput.value = br.name;
+            breweryHidden.value = br._id;
+            selectedEditBreweryId = br._id;
+            breweryWrapper.classList.add('has-value');
         }
+    }
+    if (review.beerId && cachedBeers) {
+        const be = cachedBeers.find(b => b._id === review.beerId);
+        if (be) {
+            beerInput.value = be.name;
+            beerHidden.value = be._id;
+            beerWrapper.classList.add('has-value');
+        }
+    }
+
+    // === BIRRIFICIO: eventi ===
+    breweryInput.addEventListener('input', () => {
+        highlightedBreweryIdx = -1;
+        renderBreweryDropdown(breweryInput.value.trim());
+        openDropdown('brewery');
+        // Reset selezione birrificio se si modifica il testo
+        breweryHidden.value = '';
+        selectedEditBreweryId = '';
+        breweryWrapper.classList.remove('has-value');
     });
-    
-    // Aggiorna contatori
-    updateCounter('counterBrewery', breweryFilter.length >= MIN_CHARS ? breweryMatches : 0, breweryFilter.length >= MIN_CHARS);
-    updateCounter('counterBeer', beerFilter.length >= MIN_CHARS ? beerMatches : 0, beerFilter.length >= MIN_CHARS);
-    updateCounter('counterUser', userFilter.length >= MIN_CHARS ? userMatches : 0, userFilter.length >= MIN_CHARS);
-    
-    // Aggiorna stato input (has-value class)
-    updateInputState('filterBrewery', breweryFilter);
-    updateInputState('filterBeer', beerFilter);
-    updateInputState('filterUser', userFilter);
-    
-    // Mostra/nascondi pulsante reset
-    const hasActiveFilters = breweryFilter.length >= MIN_CHARS || beerFilter.length >= MIN_CHARS || userFilter.length >= MIN_CHARS;
-    document.getElementById('btnResetFilters').style.display = hasActiveFilters ? '' : 'none';
-    
-    // Aggiorna tag filtri attivi
-    updateActiveFilterTags(breweryFilter, beerFilter, userFilter);
-    
-    // Mostra messaggio "nessun risultato" se necessario
-    const noResults = document.getElementById('noFilterResults');
-    if (hasActiveFilters && visibleCount === 0) {
-        noResults.classList.add('visible');
+    breweryInput.addEventListener('focus', () => {
+        renderBreweryDropdown(breweryInput.value.trim());
+        openDropdown('brewery');
+    });
+    breweryInput.addEventListener('keydown', (e) => handleDropdownKeyboard(e, 'brewery'));
+
+    // === BIRRA: eventi ===
+    beerInput.addEventListener('input', () => {
+        highlightedBeerIdx = -1;
+        renderBeerDropdown(beerInput.value.trim());
+        openDropdown('beer');
+        beerHidden.value = '';
+        beerWrapper.classList.remove('has-value');
+    });
+    beerInput.addEventListener('focus', () => {
+        renderBeerDropdown(beerInput.value.trim());
+        openDropdown('beer');
+    });
+    beerInput.addEventListener('keydown', (e) => handleDropdownKeyboard(e, 'beer'));
+
+    // Chiudi dropdown al click fuori
+    document.addEventListener('click', (e) => {
+        if (!breweryWrapper.contains(e.target)) closeDropdown('brewery');
+        if (!beerWrapper.contains(e.target)) closeDropdown('beer');
+    });
+}
+
+/**
+ * Renderizza il dropdown dei birrifici filtrati per testo
+ */
+function renderBreweryDropdown(query) {
+    const dropdown = document.getElementById('breweryDropdown');
+    if (!dropdown || !cachedBreweries) return;
+
+    const q = query.toLowerCase();
+    const filtered = q.length > 0
+        ? cachedBreweries.filter(b => b.name.toLowerCase().includes(q))
+        : cachedBreweries;
+
+    if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="searchable-select-empty"><i class="fas fa-search"></i> Nessun birrificio trovato</div>';
+        return;
+    }
+
+    dropdown.innerHTML = filtered.map((b, i) => {
+        const displayName = q ? highlightMatch(b.name, q) : escapeHtmlContent(b.name);
+        return `<div class="searchable-select-item ${i === highlightedBreweryIdx ? 'highlighted' : ''} ${b._id === selectedEditBreweryId ? 'selected' : ''}" data-id="${b._id}" data-name="${escapeAttr(b.name)}" onclick="selectBreweryItem(this)">
+            <span class="item-main">${displayName}</span>
+        </div>`;
+    }).join('') + `<div class="searchable-select-count">${filtered.length} di ${cachedBreweries.length} birrifici</div>`;
+}
+
+/**
+ * Renderizza il dropdown delle birre filtrate per testo e birrificio
+ */
+function renderBeerDropdown(query) {
+    const dropdown = document.getElementById('beerDropdown');
+    if (!dropdown || !cachedBeers) return;
+
+    const q = query.toLowerCase();
+
+    // Prima filtra per birrificio selezionato, poi per testo
+    let pool = cachedBeers;
+    let isFiltered = false;
+    if (selectedEditBreweryId) {
+        const byBrewery = cachedBeers.filter(b => b.breweryId === selectedEditBreweryId);
+        if (byBrewery.length > 0) {
+            pool = byBrewery;
+            isFiltered = true;
+        }
+    }
+
+    const filtered = q.length > 0
+        ? pool.filter(b => b.name.toLowerCase().includes(q) || b.breweryName.toLowerCase().includes(q))
+        : pool;
+
+    if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="searchable-select-empty"><i class="fas fa-search"></i> Nessuna birra trovata</div>';
+        return;
+    }
+
+    const beerHidden = document.getElementById('editBeerValue');
+    const currentBeer = beerHidden ? beerHidden.value : '';
+
+    dropdown.innerHTML = filtered.map((b, i) => {
+        const displayName = q ? highlightMatch(b.name, q) : escapeHtmlContent(b.name);
+        return `<div class="searchable-select-item ${i === highlightedBeerIdx ? 'highlighted' : ''} ${b._id === currentBeer ? 'selected' : ''}" data-id="${b._id}" data-name="${escapeAttr(b.name)}" data-brewery-id="${b.breweryId}" data-type="${escapeAttr(b.beerType)}" data-abv="${escapeAttr(b.alcoholContent)}" onclick="selectBeerItem(this)">
+            <span class="item-main">${displayName}</span>
+            <span class="item-sub"><i class="fas fa-industry" style="font-size: 0.55rem;"></i> ${escapeHtmlContent(b.breweryName)}${b.beerType ? ' &middot; ' + escapeHtmlContent(b.beerType) : ''}${b.alcoholContent ? ' &middot; ' + escapeHtmlContent(b.alcoholContent) + '%' : ''}</span>
+        </div>`;
+    }).join('') + `<div class="searchable-select-count">${filtered.length}${isFiltered ? ' del birrificio' : ''} di ${cachedBeers.length} birre totali</div>`;
+}
+
+/**
+ * Seleziona un birrificio dal dropdown
+ */
+function selectBreweryItem(el) {
+    const id = el.dataset.id;
+    const name = el.dataset.name;
+    const input = document.getElementById('editBreweryInput');
+    const hidden = document.getElementById('editBreweryValue');
+    const wrapper = document.getElementById('brewerySearchable');
+
+    input.value = name;
+    hidden.value = id;
+    const previousBreweryId = selectedEditBreweryId;
+    selectedEditBreweryId = id;
+    wrapper.classList.add('has-value');
+    closeDropdown('brewery');
+
+    // Se il birrificio è cambiato, resetta la birra selezionata
+    if (previousBreweryId !== id) {
+        const beerInput = document.getElementById('editBeerInput');
+        const beerHidden = document.getElementById('editBeerValue');
+        const beerWrapper = document.getElementById('beerSearchable');
+        if (beerInput) beerInput.value = '';
+        if (beerHidden) beerHidden.value = '';
+        if (beerWrapper) beerWrapper.classList.remove('has-value');
+
+        // Resetta anche tipo e gradazione
+        const typeInput = document.getElementById('editBeerType');
+        const abvInput = document.getElementById('editAlcoholContent');
+        if (typeInput) typeInput.value = '';
+        if (abvInput) abvInput.value = '';
+    }
+
+    // Aggiorna il dropdown birre per mostrare quelle del birrificio selezionato
+    renderBeerDropdown('');
+}
+
+/**
+ * Seleziona una birra dal dropdown
+ */
+function selectBeerItem(el) {
+    const id = el.dataset.id;
+    const name = el.dataset.name;
+    const breweryId = el.dataset.breweryId;
+    const input = document.getElementById('editBeerInput');
+    const hidden = document.getElementById('editBeerValue');
+    const wrapper = document.getElementById('beerSearchable');
+
+    input.value = name;
+    hidden.value = id;
+    wrapper.classList.add('has-value');
+    closeDropdown('beer');
+
+    // Auto-popola tipo e gradazione dalla birra selezionata
+    const beerType = el.dataset.type || '';
+    const abv = el.dataset.abv || '';
+    if (beerType) {
+        const typeInput = document.getElementById('editBeerType');
+        if (typeInput) typeInput.value = beerType;
+    }
+    if (abv) {
+        const abvInput = document.getElementById('editAlcoholContent');
+        if (abvInput) abvInput.value = abv;
+    }
+
+    // Auto-seleziona il birrificio associato
+    if (breweryId) {
+        const brInput = document.getElementById('editBreweryInput');
+        const brHidden = document.getElementById('editBreweryValue');
+        const brWrapper = document.getElementById('brewerySearchable');
+        if (brHidden && brHidden.value !== breweryId && cachedBreweries) {
+            const br = cachedBreweries.find(b => b._id === breweryId);
+            if (br) {
+                brInput.value = br.name;
+                brHidden.value = br._id;
+                selectedEditBreweryId = br._id;
+                brWrapper.classList.add('has-value');
+            }
+        }
+    }
+}
+
+/**
+ * Pulisce la selezione di un searchable select
+ */
+function clearSearchableSelect(type) {
+    if (type === 'brewery') {
+        document.getElementById('editBreweryInput').value = '';
+        document.getElementById('editBreweryValue').value = '';
+        document.getElementById('brewerySearchable').classList.remove('has-value');
+        selectedEditBreweryId = '';
+        // Aggiorna dropdown birre (mostra tutte)
+        const beerInput = document.getElementById('editBeerInput');
+        renderBeerDropdown(beerInput ? beerInput.value.trim() : '');
     } else {
-        noResults.classList.remove('visible');
+        document.getElementById('editBeerInput').value = '';
+        document.getElementById('editBeerValue').value = '';
+        document.getElementById('beerSearchable').classList.remove('has-value');
     }
 }
 
-function updateCounter(counterId, count, isActive) {
-    const counter = document.getElementById(counterId);
-    if (counter) {
-        counter.textContent = count;
-        counter.classList.toggle('visible', isActive && count > 0);
+/**
+ * Gestione tastiera (frecce, invio, escape) nei dropdown
+ */
+function handleDropdownKeyboard(e, type) {
+    const dropdown = document.getElementById(type === 'brewery' ? 'breweryDropdown' : 'beerDropdown');
+    const items = dropdown ? dropdown.querySelectorAll('.searchable-select-item') : [];
+    if (!items.length) return;
+
+    let idx = type === 'brewery' ? highlightedBreweryIdx : highlightedBeerIdx;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        idx = Math.min(idx + 1, items.length - 1);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        idx = Math.max(idx - 1, 0);
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (idx >= 0 && idx < items.length) {
+            items[idx].click();
+        }
+        return;
+    } else if (e.key === 'Escape') {
+        closeDropdown(type);
+        return;
+    } else {
+        return;
+    }
+
+    if (type === 'brewery') highlightedBreweryIdx = idx;
+    else highlightedBeerIdx = idx;
+
+    items.forEach((it, i) => it.classList.toggle('highlighted', i === idx));
+    // Scroll into view
+    if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
+}
+
+/**
+ * Apre un dropdown
+ */
+function openDropdown(type) {
+    const id = type === 'brewery' ? 'brewerySearchable' : 'beerSearchable';
+    document.getElementById(id)?.classList.add('open');
+}
+
+/**
+ * Chiude un dropdown
+ */
+function closeDropdown(type) {
+    const id = type === 'brewery' ? 'brewerySearchable' : 'beerSearchable';
+    document.getElementById(id)?.classList.remove('open');
+    if (type === 'brewery') highlightedBreweryIdx = -1;
+    else highlightedBeerIdx = -1;
+}
+
+/**
+ * Evidenzia la parte di testo che corrisponde alla query
+ */
+function highlightMatch(text, query) {
+    if (!query) return escapeHtmlContent(text);
+    const escaped = escapeHtmlContent(text);
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escaped.replace(regex, '<mark>$1</mark>');
+}
+
+/**
+ * Invia le modifiche alla recensione
+ */
+async function submitEditReview() {
+    if (!editCurrentReviewId) return;
+
+    const saveBtn = document.getElementById('editSaveBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...';
+
+    try {
+        const breweryId = document.getElementById('editBreweryValue')?.value || '';
+        const beerId = document.getElementById('editBeerValue')?.value || '';
+        const beerType = document.getElementById('editBeerType')?.value?.trim() || '';
+        const alcoholContent = document.getElementById('editAlcoholContent')?.value?.trim() || '';
+        const notes = document.getElementById('editNotes')?.value || '';
+
+        const response = await fetch(`/administrator/api/reviews/${editCurrentReviewId}/edit`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                breweryId,
+                beerId,
+                beerType,
+                alcoholContent,
+                notes
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            closeModal('editReviewModal');
+            // Mostra toast e ricarica
+            if (typeof showToast === 'function') {
+                showToast('success', data.message || 'Recensione aggiornata con successo');
+            }
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert(data.error || 'Errore durante il salvataggio');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    } catch (error) {
+        console.error('Errore salvataggio modifica:', error);
+        alert('Errore di connessione durante il salvataggio');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
     }
 }
 
-function updateInputState(inputId, value) {
-    const input = document.getElementById(inputId);
-    if (input) {
-        input.classList.toggle('has-value', value.length >= MIN_CHARS);
-    }
+/**
+ * Escape attributi HTML per prevenire XSS nei value
+ */
+function escapeAttr(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function updateActiveFilterTags(brewery, beer, user) {
-    const container = document.getElementById('activeFiltersContainer');
-    if (!container) return;
-    
-    let html = '';
-    
-    if (brewery.length >= MIN_CHARS) {
-        html += `<span class="active-filter-tag">
-            <i class="fas fa-industry"></i> Birrificio: "${escapeHtml(brewery)}"
-            <i class="fas fa-times remove-tag" onclick="clearFilter('filterBrewery')"></i>
-        </span>`;
-    }
-    if (beer.length >= MIN_CHARS) {
-        html += `<span class="active-filter-tag">
-            <i class="fas fa-beer"></i> Birra: "${escapeHtml(beer)}"
-            <i class="fas fa-times remove-tag" onclick="clearFilter('filterBeer')"></i>
-        </span>`;
-    }
-    if (user.length >= MIN_CHARS) {
-        html += `<span class="active-filter-tag">
-            <i class="fas fa-user"></i> Utente: "${escapeHtml(user)}"
-            <i class="fas fa-times remove-tag" onclick="clearFilter('filterUser')"></i>
-        </span>`;
-    }
-    
-    container.innerHTML = html;
+/**
+ * Escape contenuto HTML per textarea
+ */
+function escapeHtmlContent(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function clearFilter(inputId) {
-    const input = document.getElementById(inputId);
-    if (input) {
-        input.value = '';
-        input.classList.remove('has-value');
-        applyFilters();
-    }
-}
-
-function resetAllFilters() {
-    document.getElementById('filterBrewery').value = '';
-    document.getElementById('filterBeer').value = '';
-    document.getElementById('filterUser').value = '';
-    
-    // Rimuovi classi has-value
-    document.querySelectorAll('.search-filter-input').forEach(input => {
-        input.classList.remove('has-value');
-    });
-    
-    // Mostra tutte le card
-    document.querySelectorAll('.review-card').forEach(card => {
-        card.style.display = '';
-    });
-    
-    // Nascondi contatori
-    document.querySelectorAll('.search-filter-counter').forEach(counter => {
-        counter.classList.remove('visible');
-    });
-    
-    // Nascondi pulsante reset
-    document.getElementById('btnResetFilters').style.display = 'none';
-    
-    // Pulisci tag filtri attivi
-    document.getElementById('activeFiltersContainer').innerHTML = '';
-    
-    // Nascondi messaggio "nessun risultato"
-    document.getElementById('noFilterResults').classList.remove('visible');
-}
-
-// Inizializza filtri al caricamento (per gestire back button)
-document.addEventListener('DOMContentLoaded', function() {
-    // Se ci sono valori nei campi, applica filtri
-    const breweryVal = document.getElementById('filterBrewery')?.value || '';
-    const beerVal = document.getElementById('filterBeer')?.value || '';
-    const userVal = document.getElementById('filterUser')?.value || '';
-    
-    if (breweryVal || beerVal || userVal) {
-        applyFilters();
-    }
-});
 </script>
 {% endblock %}

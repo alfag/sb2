@@ -1,0 +1,1667 @@
+{% extends "../layout.njk" %}
+
+{% block content %}
+<style>
+    /* ========== EDIT BEER PAGE STYLES - MODERN AMBER THEME ========== */
+    .edit-beer-page {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #1a1510 0%, #2d2319 50%, #3d2f1f 100%);
+        padding: 0;
+        margin: 0;
+        padding-bottom: 3rem;
+    }
+    
+    /* Top Bar con navigazione */
+    .top-bar {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border-bottom: 1px solid #b45309;
+        padding: 0.75rem 0;
+        position: relative;
+        z-index: 50;
+        box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+    }
+    
+    .top-bar .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+    }
+    
+    .top-bar-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .back-links {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .back-separator {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.875rem;
+    }
+    
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: white;
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        padding: 0.4rem 0.75rem;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .back-link:hover {
+        background: rgba(255, 255, 255, 0.25);
+        color: white;
+    }
+    
+    .top-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-view-detail {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1rem;
+        background: white;
+        color: #d97706;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .btn-view-detail:hover {
+        background: #fffbeb;
+        color: #b45309;
+    }
+    
+    /* Header compatto */
+    .edit-header {
+        background: rgba(0,0,0,0.3);
+        padding: 1rem 0;
+        margin-bottom: 1.5rem;
+    }
+    
+    .edit-header::before {
+        content: '🍺';
+        position: absolute;
+        font-size: 120px;
+        opacity: 0.15;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .edit-header .container {
+        position: relative;
+        z-index: 2;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+    }
+    
+    .edit-header h1 {
+        color: white;
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    
+    .edit-header .subtitle {
+        color: rgba(255,255,255,0.7);
+        font-size: 0.9rem;
+        margin-top: 0.15rem;
+        font-weight: 500;
+    }
+    
+    .edit-header .beer-id {
+        background: rgba(255,255,255,0.15);
+        color: rgba(255,255,255,0.8);
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.65rem;
+        font-family: monospace;
+    }
+    
+    /* Flash messages */
+    .flash-message {
+        border-radius: 12px;
+        border: none;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .flash-message.success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+    
+    .flash-message.error {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+    }
+    
+    .flash-message .btn-close {
+        filter: brightness(0) invert(1);
+        opacity: 0.8;
+    }
+    
+    /* Main Layout - Due colonne */
+    .edit-layout {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+    
+    @media (max-width: 1024px) {
+        .edit-layout { grid-template-columns: 1fr; }
+    }
+    
+    /* Sidebar */
+    .sidebar-card {
+        background: rgba(255,255,255,0.98);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+        overflow: hidden;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+        position: sticky;
+        top: 1rem;
+    }
+    
+    /* Quick Info */
+    .quick-info {
+        padding: 1.25rem;
+    }
+    
+    .quick-info-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #78716c;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    
+    /* GSR Section */
+    .gsr-section {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    
+    .btn-gsr-search {
+        width: 100%;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    .btn-gsr-search:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+    }
+    
+    .btn-gsr-search:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+    
+    .btn-gsr-search.loading {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    }
+    
+    .btn-gsr-search.loading i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .gsr-hint {
+        font-size: 0.7rem;
+        color: #1e40af;
+        margin-top: 0.5rem;
+        margin-bottom: 0;
+        text-align: center;
+    }
+    
+    /* GSR Results Modal */
+    .gsr-modal-overlay {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .gsr-modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .gsr-modal {
+        background: white;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 700px;
+        max-height: 85vh;
+        overflow: hidden;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+        transform: scale(0.9) translateY(20px);
+        transition: transform 0.3s ease;
+    }
+    
+    .gsr-modal-overlay.active .gsr-modal {
+        transform: scale(1) translateY(0);
+    }
+    
+    .gsr-modal-header {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .gsr-modal-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .gsr-modal-header .confidence-badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+    
+    .gsr-modal-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+    
+    .gsr-modal-close:hover { opacity: 1; }
+    
+    .gsr-modal-body {
+        padding: 1rem;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    
+    /* GSR Field Items */
+    .gsr-field-item {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+    }
+    
+    .gsr-field-item:last-child { margin-bottom: 0; }
+    
+    .gsr-field-header {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        background: #f1f5f9;
+        border-bottom: 1px solid #e2e8f0;
+        gap: 0.6rem;
+    }
+    
+    .gsr-field-item.status-new .gsr-field-header {
+        background: linear-gradient(90deg, #dcfce7 0%, #f0fdf4 100%);
+        border-bottom-color: #86efac;
+    }
+    
+    .gsr-field-item.status-different .gsr-field-header {
+        background: linear-gradient(90deg, #fef3c7 0%, #fffbeb 100%);
+        border-bottom-color: #fcd34d;
+    }
+    
+    .gsr-field-checkbox {
+        width: 18px; height: 18px;
+        accent-color: #3b82f6;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    
+    .gsr-field-name {
+        flex: 1;
+        font-weight: 600;
+        font-size: 0.8rem;
+        color: #1e293b;
+    }
+    
+    .gsr-status-badge {
+        font-size: 0.6rem;
+        font-weight: 700;
+        padding: 0.15rem 0.5rem;
+        border-radius: 10px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+    }
+    
+    .gsr-status-badge.new { background: #16a34a; color: white; }
+    .gsr-status-badge.different { background: #d97706; color: white; }
+    .gsr-status-badge.same { background: #94a3b8; color: white; }
+    
+    .gsr-field-values {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .gsr-value-col {
+        padding: 0.6rem 0.75rem;
+    }
+    
+    .gsr-value-col:first-child {
+        background: #fafafa;
+        border-right: 1px solid #e2e8f0;
+    }
+    
+    .gsr-value-col:last-child { background: #f0fdf4; }
+    .gsr-field-item.status-different .gsr-value-col:last-child { background: #fefce8; }
+    .gsr-field-item.status-same .gsr-value-col:last-child { background: #fafafa; }
+    
+    .gsr-value-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+        letter-spacing: 0.03em;
+    }
+    
+    .gsr-value-col:last-child .gsr-value-label { color: #16a34a; }
+    .gsr-field-item.status-different .gsr-value-col:last-child .gsr-value-label { color: #d97706; }
+    
+    .gsr-value-text {
+        font-size: 0.85rem;
+        color: #1e293b;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+    
+    .gsr-value-text.empty {
+        color: #94a3b8;
+        font-style: italic;
+    }
+    
+    .gsr-value-col:last-child .gsr-value-text { font-weight: 500; }
+    .gsr-field-item.status-different .gsr-value-col:last-child .gsr-value-text,
+    .gsr-field-item.status-new .gsr-value-col:last-child .gsr-value-text {
+        color: #166534; font-weight: 600;
+    }
+    .gsr-field-item.status-different .gsr-value-col:last-child .gsr-value-text { color: #92400e; }
+    
+    .gsr-no-data {
+        text-align: center;
+        color: #94a3b8;
+        padding: 2rem;
+    }
+    
+    .gsr-selection-summary {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+    
+    .gsr-selection-count { font-weight: 700; color: #3b82f6; }
+    
+    @media (max-width: 480px) {
+        .gsr-field-values { grid-template-columns: 1fr; }
+        .gsr-value-col:first-child { border-right: none; border-bottom: 1px solid #e2e8f0; }
+    }
+    
+    .gsr-modal-footer {
+        background: #f8fafc;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .gsr-btn-select-all {
+        background: none;
+        border: 1px solid #3b82f6;
+        color: #3b82f6;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .gsr-btn-select-all:hover { background: #eff6ff; }
+    
+    .gsr-btn-apply {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    
+    .gsr-btn-apply:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+    
+    .gsr-btn-cancel {
+        background: #e2e8f0;
+        color: #475569;
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .gsr-btn-cancel:hover { background: #cbd5e1; }
+    
+    /* Quick Info Items */
+    .quick-info-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .quick-info-item:last-child { border-bottom: none; }
+    
+    .quick-info-item i {
+        width: 28px; height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        color: white;
+    }
+    
+    .quick-info-item .qi-icon-status { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .quick-info-item .qi-icon-source { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .quick-info-item .qi-icon-date { background: linear-gradient(135deg, #10b981, #059669); }
+    .quick-info-item .qi-icon-brewery { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+    
+    .quick-info-item .qi-content { flex: 1; min-width: 0; }
+    .quick-info-item .qi-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em; }
+    .quick-info-item .qi-value { font-size: 0.85rem; color: #1e293b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    .validation-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    
+    .validation-badge.validated { background: #dcfce7; color: #166534; }
+    .validation-badge.pending { background: #fef3c7; color: #92400e; }
+    .validation-badge.ai { background: #e0e7ff; color: #3730a3; }
+    
+    /* Form Card */
+    .form-card {
+        background: rgba(255,255,255,0.98);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+        overflow: hidden;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    
+    /* Tabs */
+    .form-tabs {
+        display: flex;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        padding: 0.75rem 1rem;
+        gap: 0.5rem;
+        overflow-x: auto;
+        border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    
+    .form-tab {
+        padding: 0.6rem 1rem;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #78716c;
+        cursor: pointer;
+        transition: all 0.3s;
+        white-space: nowrap;
+        background: rgba(255,255,255,0.5);
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    
+    .form-tab:hover { background: rgba(255,255,255,0.8); color: #d97706; }
+    .form-tab.active { background: white; color: #d97706; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .form-tab i { font-size: 0.9rem; }
+    
+    /* Form sections */
+    .form-section {
+        padding: 1.5rem;
+        display: none;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .form-section.active { display: block; }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid;
+        border-image: linear-gradient(90deg, #f59e0b, transparent) 1;
+    }
+    
+    .section-icon {
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        color: white;
+    }
+    
+    .section-icon.info { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .section-icon.tech { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+    .section-icon.sensory { background: linear-gradient(135deg, #ec4899, #be185d); }
+    .section-icon.desc { background: linear-gradient(135deg, #10b981, #059669); }
+    .section-icon.commercial { background: linear-gradient(135deg, #f97316, #ea580c); }
+    
+    .section-title { font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0; }
+    
+    /* Form inputs */
+    .modern-input {
+        border: 2px solid #e7e5e4;
+        border-radius: 10px;
+        padding: 0.65rem 0.9rem;
+        font-size: 0.9rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: #fafaf9;
+        width: 100%;
+    }
+    
+    .modern-input:focus {
+        border-color: #f59e0b;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+        outline: none;
+    }
+    
+    .modern-input:hover:not(:focus) { border-color: #d6d3d1; }
+    
+    .form-label {
+        font-weight: 600;
+        color: #57534e;
+        font-size: 0.85rem;
+        margin-bottom: 0.4rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    
+    .form-label .required { color: #ef4444; font-weight: 700; }
+    .form-label i { color: #a8a29e; font-size: 0.8rem; }
+    
+    .form-text { color: #a8a29e; font-size: 0.75rem; margin-top: 0.3rem; }
+    
+    .modern-textarea {
+        border: 2px solid #e7e5e4;
+        border-radius: 10px;
+        padding: 0.65rem 0.9rem;
+        font-size: 0.9rem;
+        transition: all 0.3s;
+        background: #fafaf9;
+        resize: vertical;
+        min-height: 70px;
+        width: 100%;
+    }
+    
+    .modern-textarea:focus {
+        border-color: #f59e0b;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+        outline: none;
+    }
+    
+    /* Grid form */
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .form-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+    }
+    
+    .form-group { margin-bottom: 0; }
+    .form-group.full-width { grid-column: 1 / -1; }
+    
+    /* Footer azioni */
+    .form-actions {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        border-top: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    
+    .btn-action {
+        padding: 0.65rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .btn-back { background: #78716c; color: white; }
+    .btn-back:hover { background: #57534e; color: white; transform: translateX(-3px); }
+    
+    .btn-view { background: rgba(245, 158, 11, 0.1); color: #d97706; border: 2px solid #f59e0b; }
+    .btn-view:hover { background: #f59e0b; color: white; }
+    
+    .btn-save {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+    }
+    .btn-save:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5); color: white; }
+    .btn-save:active { transform: translateY(0); }
+    
+    /* Alert Dati Incompleti */
+    .incomplete-alert {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 1px solid #f59e0b;
+        border-radius: 14px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .incomplete-alert-icon {
+        width: 36px; height: 36px;
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+    
+    .incomplete-alert-content { flex: 1; min-width: 0; }
+    
+    .incomplete-alert-title {
+        font-weight: 700;
+        color: #92400e;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .incomplete-alert-description {
+        font-size: 0.8rem;
+        color: #a16207;
+        margin-bottom: 0.5rem;
+    }
+    
+    .incomplete-fields-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+    
+    .incomplete-field-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.3rem 0.65rem;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #92400e;
+        transition: all 0.2s;
+    }
+    
+    .incomplete-field-badge:hover {
+        background: #f59e0b;
+        color: white;
+        border-color: #d97706;
+        transform: translateY(-1px);
+    }
+    
+    .incomplete-field-badge i { font-size: 0.7rem; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .form-section { padding: 1rem; }
+        .form-actions { flex-direction: column; padding: 1rem; }
+        .form-actions > * { width: 100%; justify-content: center; }
+        .form-actions .d-flex { flex-direction: column; width: 100%; gap: 0.5rem; }
+        .form-actions .btn-action { width: 100%; justify-content: center; }
+        .sidebar-card { position: static; }
+    }
+</style>
+
+<div class="edit-beer-page">
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="container">
+            <div class="top-bar-content">
+                <div class="back-links">
+                    <a href="javascript:history.back()" class="back-link"><i class="fas fa-arrow-left"></i> Indietro</a>
+                    <span class="back-separator">|</span>
+                    <a href="/administrator/beers" class="back-link"><i class="fas fa-list"></i> Lista Birre</a>
+                </div>
+                <div class="top-actions">
+                    <a href="/administrator/beers/view/{{ beer._id }}" class="btn-view-detail">
+                        <i class="fas fa-eye"></i> Visualizza
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Header -->
+    <div class="edit-header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h1><i class="fas fa-edit me-2"></i>Modifica Birra</h1>
+                    <p class="subtitle mb-0">{{ beer.beerName }}{% if beer.breweryData %} — {{ beer.breweryData.breweryName }}{% endif %}</p>
+                </div>
+                <span class="beer-id">ID: {{ beer._id }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 1rem;">
+        <!-- Flash messages -->
+        {% if message.success %}
+            <div class="flash-message success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle fa-lg"></i>
+                <span>{{ message.success[0] }}</span>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endif %}
+        {% if message.error %}
+            <div class="flash-message error alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle fa-lg"></i>
+                <span>{{ message.error[0] }}</span>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endif %}
+        
+        <!-- Alert Dati Incompleti -->
+        {% if missingFields and missingFields.length > 0 %}
+        <div class="incomplete-alert" id="incompleteAlert">
+            <div class="incomplete-alert-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="incomplete-alert-content">
+                <div class="incomplete-alert-title">
+                    <i class="fas fa-info-circle"></i> Dati Incompleti — {{ missingFields | length }} campi mancanti
+                </div>
+                <div class="incomplete-alert-description">
+                    Completa i seguenti campi per migliorare la scheda della birra:
+                </div>
+                <div class="incomplete-fields-list" id="incompleteFieldsList">
+                    {% for field in missingFields %}
+                    <span class="incomplete-field-badge" data-field-type="{{ field.field }}" data-tab="{{ field.tab }}" onclick="goToMissingField('{{ field.tab }}', '{{ field.field }}')" style="cursor: pointer;">
+                        <i class="fas {{ field.icon }}"></i> {{ field.field }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="incomplete-alert" id="incompleteAlert" style="display: none;">
+            <div class="incomplete-alert-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="incomplete-alert-content">
+                <div class="incomplete-alert-title">
+                    <i class="fas fa-info-circle"></i> Dati Incompleti
+                </div>
+                <div class="incomplete-alert-description">
+                    Completa i seguenti campi per migliorare la scheda della birra:
+                </div>
+                <div class="incomplete-fields-list" id="incompleteFieldsList"></div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <form method="POST" action="/administrator/beers/edit/{{ beer._id }}" id="editBeerForm" novalidate>
+            <div class="edit-layout">
+                
+                <!-- Sidebar -->
+                <div class="sidebar-card">
+                    <div class="quick-info">
+                        <h4 class="quick-info-title"><i class="fas fa-info-circle"></i> Info Rapide</h4>
+                        
+                        <!-- Pulsante GSR per birre -->
+                        <div class="gsr-section">
+                            <button type="button" id="btnGsrSearch" class="btn-gsr-search" onclick="executeGsrSearch()">
+                                <i class="fas fa-search-plus"></i>
+                                <span>Arricchisci con ricerca web</span>
+                            </button>
+                            <p class="gsr-hint">
+                                <i class="fas fa-magic"></i> Cerca dati aggiornati sulla birra
+                            </p>
+                        </div>
+                        
+                        <div class="quick-info-item">
+                            <i class="fas fa-clipboard-check qi-icon-status"></i>
+                            <div class="qi-content">
+                                <div class="qi-label">Stato</div>
+                                <div class="qi-value">
+                                    {% if beer.aiExtracted %}
+                                        <span class="validation-badge ai"><i class="fas fa-robot"></i> Estratta automaticamente</span>
+                                    {% else %}
+                                        <span class="validation-badge pending"><i class="fas fa-clock"></i> Manuale</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="quick-info-item">
+                            <i class="fas fa-database qi-icon-source"></i>
+                            <div class="qi-content">
+                                <div class="qi-label">Fonte Dati</div>
+                                <div class="qi-value">{{ beer.dataSource | capitalize | default('Manuale') }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="quick-info-item">
+                            <i class="fas fa-calendar qi-icon-date"></i>
+                            <div class="qi-content">
+                                <div class="qi-label">Ultimo Aggiornamento</div>
+                                <div class="qi-value">{{ beer.updatedAt | date('DD/MM/YYYY') if beer.updatedAt else 'N/D' }}</div>
+                            </div>
+                        </div>
+                        
+                        {% if beer.breweryData %}
+                        <div class="quick-info-item">
+                            <i class="fas fa-industry qi-icon-brewery"></i>
+                            <div class="qi-content">
+                                <div class="qi-label">Birrificio</div>
+                                <div class="qi-value">
+                                    <a href="/administrator/breweries/view/{{ beer.breweryData._id }}" style="color: #d97706; text-decoration: none;">
+                                        {{ beer.breweryData.breweryName }}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if beer.aiConfidence %}
+                        <div class="quick-info-item">
+                            <i class="fas fa-robot qi-icon-source"></i>
+                            <div class="qi-content">
+                                <div class="qi-label">Confidence</div>
+                                <div class="qi-value">{{ (beer.aiConfidence * 100) | round }}%</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Form principale -->
+                <div class="form-card">
+                    <!-- Tabs -->
+                    <div class="form-tabs">
+                        <button type="button" class="form-tab active" data-tab="info">
+                            <i class="fas fa-info-circle"></i> Base
+                        </button>
+                        <button type="button" class="form-tab" data-tab="tech">
+                            <i class="fas fa-flask"></i> Tecnica
+                        </button>
+                        <button type="button" class="form-tab" data-tab="sensory">
+                            <i class="fas fa-wine-glass-alt"></i> Sensoriale
+                        </button>
+                        <button type="button" class="form-tab" data-tab="desc">
+                            <i class="fas fa-align-left"></i> Descrizioni
+                        </button>
+                        <button type="button" class="form-tab" data-tab="commercial">
+                            <i class="fas fa-shopping-cart"></i> Commerciale
+                        </button>
+                    </div>
+                    
+                    <!-- Sezione: Informazioni Base -->
+                    <div class="form-section active" data-section="info">
+                        <div class="section-header">
+                            <div class="section-icon info"><i class="fas fa-info-circle"></i></div>
+                            <h2 class="section-title">Informazioni Base</h2>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="beerName" class="form-label">
+                                    <i class="fas fa-signature"></i> Nome Birra <span class="required">*</span>
+                                </label>
+                                <input type="text" class="form-control modern-input" id="beerName" name="beerName" 
+                                       value="{{ beer.beerName or '' }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="beerType" class="form-label">
+                                    <i class="fas fa-tag"></i> Stile
+                                </label>
+                                <input type="text" class="form-control modern-input" id="beerType" name="beerType" 
+                                       value="{{ beer.beerType or '' }}" placeholder="IPA, Lager, Stout...">
+                            </div>
+                            <div class="form-group">
+                                <label for="beerSubStyle" class="form-label">
+                                    <i class="fas fa-tags"></i> Sotto-stile
+                                </label>
+                                <input type="text" class="form-control modern-input" id="beerSubStyle" name="beerSubStyle" 
+                                       value="{{ beer.beerSubStyle or '' }}" placeholder="West Coast IPA, Hazy IPA...">
+                            </div>
+                            <div class="form-group">
+                                <label for="alcoholContent" class="form-label">
+                                    <i class="fas fa-percentage"></i> Gradazione Alcolica (%)
+                                </label>
+                                <input type="text" class="form-control modern-input" id="alcoholContent" name="alcoholContent" 
+                                       value="{{ beer.alcoholContent or '' }}" placeholder="5.5">
+                            </div>
+                            <div class="form-group">
+                                <label for="ibu" class="form-label">
+                                    <i class="fas fa-chart-bar"></i> IBU
+                                </label>
+                                <input type="text" class="form-control modern-input" id="ibu" name="ibu" 
+                                       value="{{ beer.ibu or '' }}" placeholder="35">
+                            </div>
+                            <div class="form-group">
+                                <label for="volume" class="form-label">
+                                    <i class="fas fa-flask"></i> Volume
+                                </label>
+                                <input type="text" class="form-control modern-input" id="volume" name="volume" 
+                                       value="{{ beer.volume or '' }}" placeholder="330ml, 500ml...">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sezione: Caratteristiche Tecniche -->
+                    <div class="form-section" data-section="tech">
+                        <div class="section-header">
+                            <div class="section-icon tech"><i class="fas fa-flask"></i></div>
+                            <h2 class="section-title">Caratteristiche Tecniche</h2>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="color" class="form-label">
+                                    <i class="fas fa-palette"></i> Colore
+                                </label>
+                                <input type="text" class="form-control modern-input" id="color" name="color" 
+                                       value="{{ beer.color or '' }}" placeholder="Ambrata, dorata, scura...">
+                            </div>
+                            <div class="form-group">
+                                <label for="fermentation" class="form-label">
+                                    <i class="fas fa-temperature-high"></i> Fermentazione
+                                </label>
+                                <input type="text" class="form-control modern-input" id="fermentation" name="fermentation" 
+                                       value="{{ beer.fermentation or '' }}" placeholder="Alta, Bassa, Spontanea...">
+                            </div>
+                            <div class="form-group">
+                                <label for="servingTemperature" class="form-label">
+                                    <i class="fas fa-thermometer-half"></i> Temperatura Servizio
+                                </label>
+                                <input type="text" class="form-control modern-input" id="servingTemperature" name="servingTemperature" 
+                                       value="{{ beer.servingTemperature or '' }}" placeholder="6-8°C">
+                            </div>
+                            <div class="form-group">
+                                <label for="glassType" class="form-label">
+                                    <i class="fas fa-glass-whiskey"></i> Bicchiere Consigliato
+                                </label>
+                                <input type="text" class="form-control modern-input" id="glassType" name="glassType" 
+                                       value="{{ beer.glassType or '' }}" placeholder="Pinta, Tulip, Calice...">
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="ingredients" class="form-label">
+                                    <i class="fas fa-seedling"></i> Ingredienti
+                                </label>
+                                <textarea class="form-control modern-textarea" id="ingredients" name="ingredients" rows="2" 
+                                          placeholder="Acqua, malto d'orzo, luppolo...">{{ beer.ingredients or '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sezione: Profilo Sensoriale -->
+                    <div class="form-section" data-section="sensory">
+                        <div class="section-header">
+                            <div class="section-icon sensory"><i class="fas fa-wine-glass-alt"></i></div>
+                            <h2 class="section-title">Profilo Sensoriale</h2>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="aroma" class="form-label">
+                                    <i class="fas fa-wind"></i> Aroma
+                                </label>
+                                <textarea class="form-control modern-textarea" id="aroma" name="aroma" rows="2" 
+                                          placeholder="Note aromatiche...">{{ beer.aroma or '' }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="appearance" class="form-label">
+                                    <i class="fas fa-eye"></i> Aspetto
+                                </label>
+                                <textarea class="form-control modern-textarea" id="appearance" name="appearance" rows="2" 
+                                          placeholder="Aspetto visivo...">{{ beer.appearance or '' }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="mouthfeel" class="form-label">
+                                    <i class="fas fa-glass-cheers"></i> Sensazione al Palato
+                                </label>
+                                <textarea class="form-control modern-textarea" id="mouthfeel" name="mouthfeel" rows="2" 
+                                          placeholder="Corpo, texture...">{{ beer.mouthfeel or '' }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="bitterness" class="form-label">
+                                    <i class="fas fa-lemon"></i> Amaro
+                                </label>
+                                <input type="text" class="form-control modern-input" id="bitterness" name="bitterness" 
+                                       value="{{ beer.bitterness or '' }}" placeholder="Moderato, Intenso...">
+                            </div>
+                            <div class="form-group">
+                                <label for="carbonation" class="form-label">
+                                    <i class="fas fa-circle-notch"></i> Carbonazione
+                                </label>
+                                <input type="text" class="form-control modern-input" id="carbonation" name="carbonation" 
+                                       value="{{ beer.carbonation or '' }}" placeholder="Bassa, Media, Alta...">
+                            </div>
+                            <div class="form-group">
+                                <label for="pairing" class="form-label">
+                                    <i class="fas fa-utensils"></i> Abbinamenti
+                                </label>
+                                <textarea class="form-control modern-textarea" id="pairing" name="pairing" rows="2" 
+                                          placeholder="Formaggi, carni, pesce...">{% if beer.pairing %}{{ beer.pairing | join(', ') }}{% endif %}</textarea>
+                                <small class="form-text"><i class="fas fa-info-circle me-1"></i>Separa gli abbinamenti con virgole</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sezione: Descrizioni -->
+                    <div class="form-section" data-section="desc">
+                        <div class="section-header">
+                            <div class="section-icon desc"><i class="fas fa-align-left"></i></div>
+                            <h2 class="section-title">Descrizioni e Note</h2>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="description" class="form-label">
+                                    <i class="fas fa-align-left"></i> Descrizione
+                                </label>
+                                <textarea class="form-control modern-textarea" id="description" name="description" rows="4" 
+                                          placeholder="Descrizione della birra...">{{ beer.description or '' }}</textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="tastingNotes" class="form-label">
+                                    <i class="fas fa-clipboard-list"></i> Note di Degustazione
+                                </label>
+                                <textarea class="form-control modern-textarea" id="tastingNotes" name="tastingNotes" rows="3" 
+                                          placeholder="Note di degustazione dettagliate...">{{ beer.tastingNotes or '' }}</textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="nutritionalInfo" class="form-label">
+                                    <i class="fas fa-heartbeat"></i> Info Nutrizionali
+                                </label>
+                                <textarea class="form-control modern-textarea" id="nutritionalInfo" name="nutritionalInfo" rows="2" 
+                                          placeholder="Calorie, carboidrati...">{{ beer.nutritionalInfo or '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sezione: Commerciale -->
+                    <div class="form-section" data-section="commercial">
+                        <div class="section-header">
+                            <div class="section-icon commercial"><i class="fas fa-shopping-cart"></i></div>
+                            <h2 class="section-title">Info Commerciali</h2>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="price" class="form-label">
+                                    <i class="fas fa-euro-sign"></i> Prezzo
+                                </label>
+                                <input type="text" class="form-control modern-input" id="price" name="price" 
+                                       value="{{ beer.price or '' }}" placeholder="€ 4.50">
+                            </div>
+                            <div class="form-group">
+                                <label for="availability" class="form-label">
+                                    <i class="fas fa-box"></i> Disponibilità
+                                </label>
+                                <input type="text" class="form-control modern-input" id="availability" name="availability" 
+                                       value="{{ beer.availability or '' }}" placeholder="Annuale, Stagionale...">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Footer azioni -->
+                    <div class="form-actions">
+                        <a href="/administrator/beers" class="btn-action btn-back">
+                            <i class="fas fa-arrow-left"></i> Torna alla Lista
+                        </a>
+                        <div class="d-flex gap-2">
+                            <a href="/administrator/beers/view/{{ beer._id }}" class="btn-action btn-view">
+                                <i class="fas fa-eye"></i> Visualizza
+                            </a>
+                            <button type="submit" class="btn-action btn-save">
+                                <i class="fas fa-save"></i> Salva Modifiche
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- GSR Results Modal -->
+<div class="gsr-modal-overlay" id="gsrModalOverlay">
+    <div class="gsr-modal">
+        <div class="gsr-modal-header">
+            <h3>
+                <i class="fas fa-search-plus"></i>
+                Dati trovati dalla ricerca
+                <span class="confidence-badge" id="gsrConfidence">--</span>
+            </h3>
+            <button class="gsr-modal-close" onclick="closeGsrModal()">&times;</button>
+        </div>
+        <div class="gsr-modal-body" id="gsrModalBody"></div>
+        <div class="gsr-modal-footer">
+            <div class="gsr-selection-summary">
+                <i class="fas fa-check-square"></i>
+                <span>Selezionati: <span class="gsr-selection-count" id="gsrSelectionCount">0</span></span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="gsr-btn-select-all" onclick="toggleAllGsrFields()">
+                    <i class="fas fa-check-double"></i> Tutti
+                </button>
+                <button class="gsr-btn-cancel" onclick="closeGsrModal()">Annulla</button>
+                <button class="gsr-btn-apply" onclick="applyGsrData()">
+                    <i class="fas fa-magic"></i> Applica
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ========================================
+// GSR (Google Search Retrieval) per Birre
+// ========================================
+const beerId = '{{ beer._id }}';
+let gsrData = null;
+
+// Mappa dei campi GSR ai campi del form
+const gsrFieldMapping = {
+    beerName: { formId: 'beerName', label: 'Nome Birra' },
+    beerType: { formId: 'beerType', label: 'Stile' },
+    beerSubStyle: { formId: 'beerSubStyle', label: 'Sotto-stile' },
+    alcoholContent: { formId: 'alcoholContent', label: 'Gradazione Alcolica' },
+    ibu: { formId: 'ibu', label: 'IBU' },
+    volume: { formId: 'volume', label: 'Volume' },
+    color: { formId: 'color', label: 'Colore' },
+    fermentation: { formId: 'fermentation', label: 'Fermentazione' },
+    servingTemperature: { formId: 'servingTemperature', label: 'Temperatura Servizio' },
+    glassType: { formId: 'glassType', label: 'Bicchiere' },
+    ingredients: { formId: 'ingredients', label: 'Ingredienti' },
+    description: { formId: 'description', label: 'Descrizione' },
+    tastingNotes: { formId: 'tastingNotes', label: 'Note Degustazione' },
+    aroma: { formId: 'aroma', label: 'Aroma' },
+    appearance: { formId: 'appearance', label: 'Aspetto' },
+    mouthfeel: { formId: 'mouthfeel', label: 'Sensazione al Palato' },
+    bitterness: { formId: 'bitterness', label: 'Amaro' },
+    carbonation: { formId: 'carbonation', label: 'Carbonazione' },
+    price: { formId: 'price', label: 'Prezzo' },
+    availability: { formId: 'availability', label: 'Disponibilità' },
+    nutritionalInfo: { formId: 'nutritionalInfo', label: 'Info Nutrizionali' }
+};
+
+// Esegue la ricerca GSR per birra
+async function executeGsrSearch() {
+    const btn = document.getElementById('btnGsrSearch');
+    const originalContent = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.innerHTML = '<i class="fas fa-spinner"></i><span>Ricerca in corso...</span>';
+    
+    try {
+        const response = await fetch(`/administrator/beers/${beerId}/gsr-search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            gsrData = result.data;
+            showGsrModal(result.data, result.confidence);
+            showToast('Dati trovati! Seleziona quali applicare.', 'success');
+        } else {
+            showToast(result.error || 'Nessun dato trovato dalla ricerca web', 'warning');
+        }
+        
+        if (result.rateLimitStats) {
+            console.log('[GSR Beer] Rate limit:', result.rateLimitStats);
+        }
+    } catch (error) {
+        console.error('[GSR Beer] Errore:', error);
+        showToast('Errore durante la ricerca. Riprova più tardi.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.innerHTML = originalContent;
+    }
+}
+
+// Mostra il modal con i risultati GSR
+function showGsrModal(data, confidence) {
+    const modal = document.getElementById('gsrModalOverlay');
+    const body = document.getElementById('gsrModalBody');
+    const confidenceBadge = document.getElementById('gsrConfidence');
+    
+    confidenceBadge.textContent = `${Math.round((confidence || 0) * 100)}%`;
+    
+    const fields = [];
+    
+    for (const [gsrField, mapping] of Object.entries(gsrFieldMapping)) {
+        let newValue = data[gsrField];
+        
+        if (Array.isArray(newValue)) {
+            newValue = newValue.join(', ');
+        }
+        
+        if (newValue === null || newValue === undefined || newValue === '') continue;
+        
+        const formElement = document.getElementById(mapping.formId);
+        const currentValue = formElement ? formElement.value.trim() : '';
+        
+        let status = 'same';
+        let statusLabel = 'Uguale';
+        
+        if (!currentValue) {
+            status = 'new';
+            statusLabel = 'Nuovo';
+        } else if (currentValue !== String(newValue)) {
+            status = 'different';
+            statusLabel = 'Diverso';
+        }
+        
+        fields.push({ gsrField, formId: mapping.formId, label: mapping.label, currentValue, newValue: String(newValue), status, statusLabel });
+    }
+    
+    // Aggiungi pairing (array)
+    if (data.pairing && Array.isArray(data.pairing) && data.pairing.length > 0) {
+        const newValue = data.pairing.join(', ');
+        const formElement = document.getElementById('pairing');
+        const currentValue = formElement ? formElement.value.trim() : '';
+        const status = !currentValue ? 'new' : (currentValue !== newValue ? 'different' : 'same');
+        fields.push({
+            gsrField: 'pairing', formId: 'pairing', label: 'Abbinamenti',
+            currentValue, newValue, status,
+            statusLabel: status === 'new' ? 'Nuovo' : (status === 'different' ? 'Diverso' : 'Uguale')
+        });
+    }
+    
+    let html = '';
+    
+    if (fields.length === 0) {
+        html = '<div class="gsr-no-data">Nessun dato disponibile.</div>';
+    } else {
+        for (const f of fields) {
+            const checked = f.status !== 'same' ? 'checked' : '';
+            html += `
+                <div class="gsr-field-item status-${f.status}">
+                    <div class="gsr-field-header">
+                        <input type="checkbox" class="gsr-field-checkbox" data-field="${f.gsrField}" data-form-id="${f.formId}" ${checked} onchange="updateSelectionCount()">
+                        <span class="gsr-field-name">${f.label}</span>
+                        <span class="gsr-status-badge ${f.status}">${f.statusLabel}</span>
+                    </div>
+                    <div class="gsr-field-values">
+                        <div class="gsr-value-col">
+                            <div class="gsr-value-label">Attuale</div>
+                            <div class="gsr-value-text ${!f.currentValue ? 'empty' : ''}">${f.currentValue ? escapeHtml(f.currentValue) : '(vuoto)'}</div>
+                        </div>
+                        <div class="gsr-value-col">
+                            <div class="gsr-value-label">Recuperato</div>
+                            <div class="gsr-value-text">${escapeHtml(f.newValue)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    body.innerHTML = html;
+    modal.classList.add('active');
+    updateSelectionCount();
+}
+
+function updateSelectionCount() {
+    const checkboxes = document.querySelectorAll('.gsr-field-checkbox:checked');
+    const countEl = document.getElementById('gsrSelectionCount');
+    if (countEl) countEl.textContent = checkboxes.length;
+}
+
+function closeGsrModal() {
+    document.getElementById('gsrModalOverlay').classList.remove('active');
+}
+
+function toggleAllGsrFields() {
+    const checkboxes = document.querySelectorAll('.gsr-field-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+    updateSelectionCount();
+}
+
+function applyGsrData() {
+    if (!gsrData) { showToast('Nessun dato da applicare', 'error'); return; }
+    
+    const checkboxes = document.querySelectorAll('.gsr-field-checkbox:checked');
+    let appliedCount = 0;
+    
+    checkboxes.forEach(cb => {
+        const gsrField = cb.dataset.field;
+        const formId = cb.dataset.formId;
+        let value = gsrData[gsrField];
+        
+        if (Array.isArray(value)) value = value.join(', ');
+        
+        const formElement = document.getElementById(formId);
+        if (formElement && value !== null && value !== undefined) {
+            formElement.value = value;
+            appliedCount++;
+            
+            formElement.style.transition = 'background-color 0.3s';
+            formElement.style.backgroundColor = '#dcfce7';
+            setTimeout(() => { formElement.style.backgroundColor = ''; }, 1500);
+        }
+    });
+    
+    closeGsrModal();
+    
+    if (appliedCount > 0) {
+        showToast(`${appliedCount} campi aggiornati! Ricorda di salvare.`, 'success');
+    } else {
+        showToast('Nessun campo selezionato da applicare', 'info');
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Chiudi modal cliccando fuori
+document.getElementById('gsrModalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeGsrModal();
+});
+
+// ========================================
+// Tab Navigation System
+// ========================================
+document.addEventListener('DOMContentLoaded', function() {
+    const tabs = document.querySelectorAll('.form-tab');
+    const sections = document.querySelectorAll('.form-section');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetSection = this.getAttribute('data-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            sections.forEach(s => s.classList.remove('active'));
+            const section = document.querySelector(`[data-section="${targetSection}"]`);
+            if (section) section.classList.add('active');
+        });
+    });
+});
+
+// Toast notification helper
+function showToast(message, type = 'info') {
+    const existingToast = document.querySelector('.custom-toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'custom-toast';
+    
+    const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
+    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+    
+    toast.innerHTML = `<i class="fas ${icons[type]} me-2"></i>${message}`;
+    toast.style.cssText = `
+        position: fixed; bottom: 20px; right: 20px;
+        background: ${colors[type]}; color: white;
+        padding: 12px 20px; border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        z-index: 9999; font-size: 0.9rem; font-weight: 500;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+`;
+document.head.appendChild(styleSheet);
+
+// Form submit handler
+document.getElementById('editBeerForm').addEventListener('submit', function(e) {
+    const submitBtn = this.querySelector('.btn-save');
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...';
+    submitBtn.disabled = true;
+});
+
+// ========================================
+// Navigazione ai campi mancanti
+// ========================================
+// Mappa campo → ID input nel form
+const fieldToInputMap = {
+    'Stile': 'beerType',
+    'Gradazione Alcolica': 'alcoholContent',
+    'Descrizione': 'description'
+};
+
+/**
+ * Naviga al tab corretto e mette il focus sull'input del campo mancante
+ */
+function goToMissingField(tab, fieldName) {
+    // Attiva il tab corretto
+    const tabs = document.querySelectorAll('.form-tab');
+    const sections = document.querySelectorAll('.form-section');
+    tabs.forEach(t => t.classList.remove('active'));
+    sections.forEach(s => s.classList.remove('active'));
+    
+    const targetTab = document.querySelector(`.form-tab[data-tab="${tab}"]`);
+    const targetSection = document.querySelector(`[data-section="${tab}"]`);
+    if (targetTab) targetTab.classList.add('active');
+    if (targetSection) targetSection.classList.add('active');
+    
+    // Focus sull'input corrispondente
+    const inputId = fieldToInputMap[fieldName];
+    if (inputId) {
+        const input = document.getElementById(inputId);
+        if (input) {
+            setTimeout(() => {
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                input.focus();
+                // Evidenzia brevemente il campo
+                input.style.transition = 'box-shadow 0.3s, border-color 0.3s';
+                input.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.4)';
+                input.style.borderColor = '#f59e0b';
+                setTimeout(() => {
+                    input.style.boxShadow = '';
+                    input.style.borderColor = '';
+                }, 2000);
+            }, 150);
+        }
+    }
+}
+
+/**
+ * Aggiornamento dinamico dell'alert campi mancanti
+ * Rimuove i badge quando l'utente compila i campi
+ */
+function updateMissingFieldsAlert() {
+    const alert = document.getElementById('incompleteAlert');
+    const fieldsList = document.getElementById('incompleteFieldsList');
+    if (!alert || !fieldsList) return;
+    
+    const badges = fieldsList.querySelectorAll('.incomplete-field-badge');
+    let remaining = 0;
+    
+    badges.forEach(badge => {
+        const fieldName = badge.dataset.fieldType;
+        const inputId = fieldToInputMap[fieldName];
+        if (inputId) {
+            const input = document.getElementById(inputId);
+            if (input && input.value.trim()) {
+                badge.style.display = 'none';
+            } else {
+                badge.style.display = '';
+                remaining++;
+            }
+        }
+    });
+    
+    // Aggiorna titolo con conteggio
+    const title = alert.querySelector('.incomplete-alert-title');
+    if (title) {
+        if (remaining === 0) {
+            alert.style.display = 'none';
+        } else {
+            alert.style.display = '';
+            title.innerHTML = `<i class="fas fa-info-circle"></i> Dati Incompleti — ${remaining} camp${remaining === 1 ? 'o mancante' : 'i mancanti'}`;
+        }
+    }
+}
+
+// Ascolta cambiamenti su tutti gli input del form per aggiornare l'alert in tempo reale
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('editBeerForm');
+    if (form) {
+        form.addEventListener('input', updateMissingFieldsAlert);
+        form.addEventListener('change', updateMissingFieldsAlert);
+    }
+});
+
+// Rimuovi padding dal main-content
+document.addEventListener('DOMContentLoaded', function() {
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.style.paddingTop = '60px';
+        mainContent.style.paddingLeft = '0';
+        mainContent.style.paddingRight = '0';
+        mainContent.style.paddingBottom = '0';
+    }
+});
+</script>
+{% endblock %}

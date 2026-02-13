@@ -361,7 +361,7 @@ class AIModule {
     const stateMessages = {
       'waiting': '⏳ In attesa nella coda...',
       'active': '🔄 Elaborazione in corso...',
-      'ai-analysis': '🤖 Analisi AI dell\'immagine...',
+      'ai-analysis': '🤖 Analisi dell\'immagine in corso...',
       'web-search': '🌐 Ricerca informazioni online...',
       'web-scraping': '🕷️ Estrazione dati dai siti web...',
       'validation': '✅ Validazione dati...',
@@ -952,15 +952,28 @@ class AIModule {
       if (result.success) {
         console.log('[AIModule] ✅ Recensione salvata con successo!');
         
-        // Mostra messaggio successo
-        if (options.showSuccessMessage) {
-          options.showSuccessMessage('Recensione pubblicata con successo!');
+        // Mostra overlay celebrativo con animazione brindisi
+        // Salva flag in sessionStorage per mostrare celebrazione dopo redirect
+        try {
+          sessionStorage.setItem('sb2_celebration', JSON.stringify({ beersCount: 1 }));
+        } catch(e) { /* ignore */ }
+
+        if (window.BeerCelebration) {
+          window.BeerCelebration.show({
+            beersCount: 1,
+            onClose: () => {
+              window.location.href = '/review/my-reviews';
+            }
+          });
+        } else {
+          if (options.showSuccessMessage) {
+            options.showSuccessMessage('Recensione pubblicata con successo!');
+          }
+          // Redirect alla pagina recensioni
+          setTimeout(() => {
+            window.location.href = '/review/my-reviews';
+          }, 2000);
         }
-        
-        // Redirect alla pagina recensioni
-        setTimeout(() => {
-          window.location.href = '/review/my-reviews';
-        }, 2000);
         
       } else {
         console.error('[AIModule] ❌ Errore salvataggio:', result.error);

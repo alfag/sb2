@@ -4,8 +4,8 @@
   "description": "A platform to connect customers and breweries for the sale and distribution of craft beers.",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "redis-cli ping > /dev/null 2>&1 || redis-server --daemonize yes && node src/server.js",
+    "dev": "redis-cli ping > /dev/null 2>&1 || redis-server --daemonize yes && nodemon src/server.js",
     "build:css": "node scripts/build-tailwind.js",
     "build:css:watch": "node scripts/build-tailwind.js --watch",
     "dev:full": "npm run build:css && concurrently \"npm run build:css:watch\" \"npm run dev\"",

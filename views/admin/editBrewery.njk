@@ -1383,7 +1383,7 @@
                         <div class="gsr-section">
                             <button type="button" id="btnGsrSearch" class="btn-gsr-search" onclick="executeGsrSearch()">
                                 <i class="fas fa-search-plus"></i>
-                                <span>Arricchisci con Google</span>
+                                <span>Arricchisci con ricerca web</span>
                             </button>
                             <p class="gsr-hint">
                                 <i class="fas fa-magic"></i> Cerca dati aggiornati online
@@ -1398,7 +1398,7 @@
                                     {% if brewery.validationStatus == 'validated' %}
                                         <span class="validation-badge validated"><i class="fas fa-check"></i> Verificato</span>
                                     {% elif brewery.validationStatus == 'ai_extracted' %}
-                                        <span class="validation-badge ai"><i class="fas fa-robot"></i> Estratto da AI</span>
+                                        <span class="validation-badge ai"><i class="fas fa-robot"></i> Estratto automaticamente</span>
                                     {% else %}
                                         <span class="validation-badge pending"><i class="fas fa-clock"></i> Da verificare</span>
                                     {% endif %}
@@ -1799,7 +1799,7 @@
         <div class="gsr-modal-header">
             <h3>
                 <i class="fas fa-search-plus"></i>
-                Dati trovati da Google
+                Dati trovati dalla ricerca
                 <span class="confidence-badge" id="gsrConfidence">--</span>
             </h3>
             <button class="gsr-modal-close" onclick="closeGsrModal()">&times;</button>
@@ -1883,7 +1883,7 @@ async function executeGsrSearch() {
             showGsrModal(result.data, result.confidence);
             showToast('Dati trovati! Seleziona quali applicare.', 'success');
         } else {
-            showToast(result.error || 'Nessun dato trovato dalla ricerca Google', 'warning');
+            showToast(result.error || 'Nessun dato trovato dalla ricerca web', 'warning');
         }
         
         // Mostra info rate limit se disponibile

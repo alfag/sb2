@@ -95,7 +95,7 @@ const reviewSchema = new mongoose.Schema({
     moderatedAt: { type: Date },
     moderationReason: { type: String }, // Motivo nascondimento/moderazione
     moderationHistory: [{
-      action: { type: String, enum: ['hidden', 'unhidden', 'status_changed', 'warning_sent'] },
+      action: { type: String, enum: ['hidden', 'unhidden', 'status_changed', 'warning_sent', 'edited'] },
       previousStatus: String,
       newStatus: String,
       reason: { type: String },

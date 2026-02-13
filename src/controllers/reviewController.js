@@ -2347,9 +2347,8 @@ exports.createMultipleReviews = async (req, res) => {
     // 🎉 MESSAGGIO DI RINGRAZIAMENTO: Aggiungi messaggio flash per utente
     const totalBeers = ratingsArray.length;
     const beersText = totalBeers === 1 ? '1 birra' : `${totalBeers} birre`;
-    req.flash('success', `🎉 Grazie per il tuo contributo! Hai recensito ${beersText}. Le tue opinioni aiutano la community a scoprire nuove birre artigianali!`);
-    
-    logger.info('[createMultipleReviews] Messaggio di ringraziamento impostato per utente', {
+    // Il messaggio di celebrazione viene mostrato tramite l'overlay BeerCelebration nel frontend
+    logger.info('[createMultipleReviews] Recensioni completate', {
       userId: req.user?._id,
       sessionId: req.sessionID,
       totalBeers: totalBeers

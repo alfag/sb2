@@ -4,15 +4,75 @@
  */
 
 const Bull = require('bull');
+const { execSync } = require('child_process');
+const net = require('net');
 const logWithFileName = require('../utils/logger');
 
 const logger = logWithFileName(__filename);
+
+/**
+ * Verifica se Redis è raggiungibile e tenta di avviarlo se non lo è.
+ * Supporta systemctl (Linux) per avvio automatico del servizio.
+ */
+function ensureRedisRunning() {
+  const host = process.env.REDIS_HOST || 'localhost';
+  const port = parseInt(process.env.REDIS_PORT) || 6379;
+
+  return new Promise((resolve) => {
+    // Tentativo rapido di connessione TCP a Redis
+    const socket = new net.Socket();
+    socket.setTimeout(2000);
+
+    socket.on('connect', () => {
+      socket.destroy();
+      logger.info('✅ Redis è già in esecuzione');
+      resolve(true);
+    });
+
+    socket.on('error', () => {
+      socket.destroy();
+      logger.warn('⚠️ Redis non raggiungibile, tentativo di avvio automatico...');
+      
+      try {
+        // Tenta avvio tramite systemctl (richiede permessi appropriati)
+        execSync('sudo systemctl start redis-server', { timeout: 10000, stdio: 'pipe' });
+        logger.info('🚀 Redis avviato con successo tramite systemctl');
+        resolve(true);
+      } catch (startError) {
+        // Alternativa: tenta avvio diretto redis-server in background
+        try {
+          execSync('redis-server --daemonize yes', { timeout: 5000, stdio: 'pipe' });
+          logger.info('🚀 Redis avviato con successo (modalità daemon)');
+          resolve(true);
+        } catch (directError) {
+          logger.error('❌ Impossibile avviare Redis automaticamente', {
+            systemctl: startError.message,
+            direct: directError.message,
+            hint: 'Avvia Redis manualmente con: sudo systemctl start redis-server'
+          });
+          resolve(false);
+        }
+      }
+    });
+
+    socket.on('timeout', () => {
+      socket.destroy();
+      logger.warn('⚠️ Timeout connessione Redis');
+      resolve(false);
+    });
+
+    socket.connect(port, host);
+  });
+}
+
+// Avvio check Redis all'import del modulo
+ensureRedisRunning();
 
 // Configurazione Redis connection
 const REDIS_CONFIG = {
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
-    port: process.env.REDIS_PORT || 6379,
+    port: parseInt(process.env.REDIS_PORT) || 6379,
     password: process.env.REDIS_PASSWORD || undefined,
     // Per Fly.io con Upstash Redis
     ...(process.env.REDIS_URL && {

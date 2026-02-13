@@ -1,0 +1,370 @@
+{% extends "../layout.njk" %}
+{% block title %}{{ title }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/css/admin-dashboard.css?t=20251229k">
+<style>
+/* Override z-index per modal eliminazione */
+#deleteBeerModal { z-index: 100000 !important; }
+#deleteBeerModal ~ .modal-backdrop { z-index: 99999 !important; }
+
+/* Search box per autocomplete */
+.beer-search-box {
+    position: relative;
+    margin-bottom: 16px;
+}
+.beer-search-box input {
+    width: 100%;
+    padding: 12px 16px 12px 44px;
+    font-size: 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    color: #1f2937;
+    transition: all 0.2s ease;
+}
+.beer-search-box input:focus {
+    outline: none;
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.15);
+}
+.beer-search-box input::placeholder {
+    color: #9ca3af;
+}
+.beer-search-box .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 14px;
+}
+.beer-search-box .clear-search {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+    display: none;
+}
+.beer-search-box .clear-search:hover {
+    color: #ef4444;
+}
+.beer-search-box.has-value .clear-search {
+    display: block;
+}
+
+/* Lista birre - stile card cliccabile */
+.beer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.beer-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.beer-item:hover {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.15);
+}
+.beer-item.active {
+    background: #fef3c7;
+    border-color: #f59e0b;
+}
+
+/* Icona birra */
+.beer-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #d97706;
+    font-size: 18px;
+}
+
+/* Info birra */
+.beer-info {
+    flex: 1;
+    min-width: 0;
+}
+.beer-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+.beer-brewery {
+    font-size: 12px;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    margin-top: 2px;
+}
+
+/* Badge stile birra */
+.beer-style-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #ede9fe;
+    color: #6d28d9;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ABV badge */
+.beer-abv-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #fef3c7;
+    color: #92400e;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Overlay azioni */
+.beer-actions {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(31,41,55,0.4);
+    backdrop-filter: blur(2px);
+    border-radius: 10px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    animation: fadeIn 0.15s ease;
+}
+.beer-item.active .beer-actions {
+    display: flex;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.beer-actions .act-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+.beer-actions .act-btn:hover {
+    transform: scale(1.1);
+}
+.beer-actions .act-btn.view { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.beer-actions .act-btn.edit { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.beer-actions .act-btn.delete { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+/* Responsive */
+@media (max-width: 640px) {
+    .beer-item { padding: 12px; gap: 12px; }
+    .beer-icon { width: 40px; height: 40px; font-size: 16px; }
+    .beer-name { font-size: 14px; }
+    .beer-actions .act-btn { width: 38px; height: 38px; font-size: 14px; }
+    .beer-actions { gap: 8px; }
+    .beer-style-badge, .beer-abv-badge { display: none; }
+}
+</style>
+{% endblock %}
+{% block scripts %}<script src="/js/adminBeerFilters.js"></script>{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <!-- Header -->
+    <div class="page-head">
+        <div class="page-head-left">
+            <h1><i class="fas fa-beer"></i> {{ title }}</h1>
+            <span class="head-count">{{ beers.length }} birre</span>
+        </div>
+    </div>
+
+    {% if message.success %}<div class="admin-alert success"><i class="fas fa-check-circle"></i> {{ message.success[0] }}</div>{% endif %}
+    {% if message.error %}<div class="admin-alert error"><i class="fas fa-times-circle"></i> {{ message.error[0] }}</div>{% endif %}
+
+    {% if beers.length > 0 %}
+    <!-- Stats Pills -->
+    <div class="stats-row">
+        <div class="stat-box amber beer-filter-card active" data-filter="all">
+            <i class="fas fa-beer"></i>
+            <span class="val">{{ stats.totalBeers }}</span><span class="lbl">Totali</span>
+        </div>
+        <div class="stat-box green beer-filter-card" data-filter="with-style">
+            <i class="fas fa-tag"></i>
+            <span class="val">{{ stats.withStyle }}</span><span class="lbl">Con Stile</span>
+        </div>
+        <div class="stat-box blue beer-filter-card" data-filter="with-abv">
+            <i class="fas fa-percentage"></i>
+            <span class="val">{{ stats.withAbv }}</span><span class="lbl">Con ABV</span>
+        </div>
+        <div class="stat-box red beer-filter-card" data-filter="incomplete-data">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span class="val">{{ stats.incompleteData }}</span><span class="lbl">Incompleti</span>
+        </div>
+        <div class="stat-box purple beer-filter-card" data-filter="ai-extracted">
+            <i class="fas fa-robot"></i>
+            <span class="val">{{ stats.aiExtracted }}</span><span class="lbl">Estratte Auto</span>
+        </div>
+    </div>
+
+    <!-- Search Box -->
+    <div class="beer-search-box" id="beerSearchBox">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" id="beerSearchInput" placeholder="Cerca birra o birrificio..." autocomplete="off">
+        <button class="clear-search" onclick="clearBeerSearch()" title="Cancella"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Filter indicator -->
+    <div class="admin-alert info" id="filter-indicator" style="display:none">
+        <i class="fas fa-filter"></i> <span id="filter-message">Filtro attivo</span>
+        <button class="sys-btn small" onclick="clearBeerFilter()" style="margin-left:auto"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Lista Birre -->
+    <div class="beer-list">
+        {% for beer in beers %}
+        <div class="beer-item beer-row" 
+             data-has-style="{{ 'true' if beer.beerType else 'false' }}" 
+             data-has-abv="{{ 'true' if beer.alcoholContent else 'false' }}" 
+             data-complete-data="{{ 'true' if (beer.beerType and beer.alcoholContent and beer.description) else 'false' }}" 
+             data-ai-extracted="{{ 'true' if beer.aiExtracted else 'false' }}"
+             data-beer-id="{{ beer._id }}"
+             data-beer-name="{{ beer.beerName | lower }}"
+             data-brewery-name="{{ beer.brewery.breweryName | lower if beer.brewery and beer.brewery.breweryName else '' }}"
+             onclick="toggleBeerActions(this, event)">
+            
+            <div class="beer-icon">
+                <i class="fas fa-beer"></i>
+            </div>
+            
+            <div class="beer-info">
+                <span class="beer-name">{{ beer.beerName | default('Nome non disponibile') }}</span>
+                <span class="beer-brewery">{{ beer.brewery.breweryName | default('Birrificio sconosciuto') if beer.brewery else 'Birrificio sconosciuto' }}</span>
+            </div>
+            
+            {% if beer.beerType %}
+            <span class="beer-style-badge"><i class="fas fa-tag"></i> {{ beer.beerType }}</span>
+            {% endif %}
+            
+            {% if beer.alcoholContent %}
+            <span class="beer-abv-badge"><i class="fas fa-percentage"></i> {{ beer.alcoholContent }}%</span>
+            {% endif %}
+            
+            <!-- Overlay azioni -->
+            <div class="beer-actions" onclick="closeBeerActions(event)">
+                <a href="/administrator/beers/view/{{ beer._id }}" class="act-btn view" title="Dettagli" onclick="event.stopPropagation()"><i class="fas fa-eye"></i></a>
+                <a href="/administrator/beers/edit/{{ beer._id }}" class="act-btn edit" title="Modifica" onclick="event.stopPropagation()"><i class="fas fa-edit"></i></a>
+                <button class="act-btn delete" onclick="event.stopPropagation(); confirmDeleteBeer('{{ beer._id }}', '{{ beer.beerName | replace("'", "\\'") }}')" title="Elimina"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-beer"></i>
+        <h3>Nessuna Birra</h3>
+        <p>Non ci sono birre registrate</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteBeerModal" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content" style="background:#1a1a2e;border:1px solid #333">
+        <div class="modal-header" style="background:linear-gradient(135deg,#ef4444,#dc2626);border:0">
+            <h5 class="modal-title" style="color:#fff"><i class="fas fa-exclamation-triangle"></i> Conferma Eliminazione</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" style="color:#ccc">
+            <p>Eliminare la birra <strong id="deleteBeerName" style="color:#fff"></strong>?</p>
+            <div class="admin-alert error" style="margin:0"><i class="fas fa-exclamation-triangle"></i> Azione irreversibile. Verranno influenzate le recensioni associate.</div>
+        </div>
+        <div class="modal-footer" style="border-color:#333">
+            <button class="sys-btn" data-bs-dismiss="modal">Annulla</button>
+            <form id="deleteBeerForm" method="post" style="display:inline">
+                <button type="submit" class="sys-btn danger"><i class="fas fa-trash"></i> Elimina</button>
+            </form>
+        </div>
+    </div></div>
+</div>
+
+<script>
+// Toggle azioni birra
+function toggleBeerActions(element, event) {
+    if (element.classList.contains('active')) {
+        element.classList.remove('active');
+        return;
+    }
+    document.querySelectorAll('.beer-item.active').forEach(item => {
+        item.classList.remove('active');
+    });
+    element.classList.add('active');
+}
+
+// Chiude overlay quando si clicca su di esso (non sui pulsanti)
+function closeBeerActions(event) {
+    event.stopPropagation();
+    const item = event.currentTarget.closest('.beer-item');
+    if (item) {
+        item.classList.remove('active');
+    }
+}
+
+// Click fuori chiude le azioni
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.beer-item')) {
+        document.querySelectorAll('.beer-item.active').forEach(item => {
+            item.classList.remove('active');
+        });
+    }
+});
+
+// Conferma eliminazione
+function confirmDeleteBeer(beerId, beerName) {
+    document.getElementById('deleteBeerName').textContent = beerName;
+    document.getElementById('deleteBeerForm').action = '/administrator/beers/delete/' + beerId;
+    new bootstrap.Modal(document.getElementById('deleteBeerModal')).show();
+}
+</script>
+{% endblock %}

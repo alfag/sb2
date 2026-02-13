@@ -905,7 +905,18 @@ class ReviewModule {
         throw new Error(result.message || 'Errore durante la pubblicazione');
       }
 
-      this.showSuccess('Recensioni pubblicate con successo!');
+      // Mostra overlay celebrativo con animazione brindisi
+      // Salva flag in sessionStorage per mostrare celebrazione dopo eventuale redirect
+      const totalBeers = reviewsData.reviews ? reviewsData.reviews.length : 1;
+      try {
+        sessionStorage.setItem('sb2_celebration', JSON.stringify({ beersCount: totalBeers }));
+      } catch(e) { /* ignore */ }
+
+      if (window.BeerCelebration) {
+        window.BeerCelebration.show({ beersCount: totalBeers });
+      } else {
+        this.showSuccess('Recensioni pubblicate con successo!');
+      }
       this.clearPreviousErrors(); // Pulisce eventuali messaggi di errore precedenti
       
       // Rimuovi backup da localStorage dopo pubblicazione riuscita

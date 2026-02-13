@@ -366,6 +366,48 @@ async function updateBrewery(breweryId, updateData) {
             }
         }
         
+        // Rivalutazione flag di validazione dopo aggiornamento
+        // Controlla i 4 campi chiave di completezza: email, sito web, telefono, logo
+        const missingFields = [];
+        if (!brewery.breweryEmail) missingFields.push('Email');
+        if (!brewery.breweryWebsite) missingFields.push('Sito Web');
+        if (!brewery.breweryPhoneNumber) missingFields.push('Telefono');
+        
+        // Verifica logo valido (stessa logica usata nelle statistiche)
+        const hasValidLogo = (() => {
+            if (!brewery.breweryLogo) return false;
+            const logo = brewery.breweryLogo.toLowerCase();
+            const invalidPatterns = [
+                'placeholder', 'default', 'no-logo', 'nologo',
+                'missing', 'blank', 'empty', 'null', 'undefined'
+            ];
+            return !invalidPatterns.some(pattern => logo.includes(pattern));
+        })();
+        if (!hasValidLogo) missingFields.push('Logo');
+
+        if (missingFields.length === 0) {
+            // Tutti i campi chiave presenti → rimuovi flag di validazione/incompletezza
+            if (brewery.needsValidation || brewery.needsManualReview) {
+                brewery.needsValidation = false;
+                brewery.validationReason = '';
+                brewery.needsManualReview = false;
+                brewery.reviewReason = '';
+                brewery.validationStatus = 'validated';
+                brewery.validatedAt = new Date();
+                await brewery.save();
+                logger.info(`✅ Flag validazione rimossi per birrificio ${breweryId} - dati ora completi`);
+            }
+        } else {
+            // Campi ancora mancanti → aggiorna le ragioni di incompletezza
+            const reason = `Dati incompleti: ${missingFields.join(', ')}`;
+            if (brewery.validationReason !== reason) {
+                brewery.needsValidation = true;
+                brewery.validationReason = reason;
+                await brewery.save();
+                logger.info(`⚠️ Flag validazione aggiornati per birrificio ${breweryId} - mancanti: ${missingFields.join(', ')}`);
+            }
+        }
+        
         logger.info(`Brewery aggiornato con successo: ${breweryId}`);
         return brewery;
     } catch (error) {
@@ -1763,6 +1805,12 @@ async function getReviewsDashboard(req, res) {
         const reviews = await reviewsQuery;
         const totalFiltered = await Review.countDocuments(filterQuery);
         const totalPages = Math.ceil(totalFiltered / limit);
+
+        // Risolvi imageUrl per ogni recensione (gestisce placeholder 'stored_in_rawAiData')
+        // Stesso approccio usato in baseRoutes.js per la pagina recensioni pubblica
+        reviews.forEach(review => {
+            review.resolvedImageUrl = extractImageFromReview(review);
+        });
         
         logger.info('[getReviewsDashboard] Dashboard caricata', {
             totalReviews,
@@ -2112,6 +2160,169 @@ async function updateReviewStatus(req, res) {
 }
 
 /**
+ * Modifica i dati di una recensione (birra, birrificio, note)
+ * L'admin NON può modificare il rating, solo i testi e i riferimenti birra/birrificio.
+ * PUT /administrator/api/reviews/:id/edit
+ */
+async function editReview(req, res) {
+    try {
+        const reviewId = req.params.id;
+        const { beerName, breweryId, beerId, notes, beerType, alcoholContent } = req.body;
+
+        // Validazione ID
+        if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+            return res.status(400).json({ success: false, error: 'ID recensione non valido' });
+        }
+
+        // Recupera la recensione con i riferimenti
+        const review = await Review.findById(reviewId)
+            .populate('user', 'username')
+            .populate('ratings.beer', 'beerName')
+            .populate('ratings.brewery', 'breweryName');
+
+        if (!review) {
+            return res.status(404).json({ success: false, error: 'Recensione non trovata' });
+        }
+
+        // Verifica che ci sia almeno un rating
+        if (!review.ratings || review.ratings.length === 0) {
+            return res.status(400).json({ success: false, error: 'Recensione senza dati di valutazione' });
+        }
+
+        const firstRating = review.ratings[0];
+        const changes = [];
+
+        // Aggiorna birrificio se cambiato
+        if (breweryId && mongoose.Types.ObjectId.isValid(breweryId)) {
+            const brewery = await Brewery.findById(breweryId);
+            if (brewery) {
+                if (String(firstRating.brewery) !== breweryId) {
+                    firstRating.brewery = breweryId;
+                    changes.push(`Birrificio cambiato a: ${brewery.breweryName}`);
+                }
+            }
+        }
+
+        // Aggiorna birra se cambiata
+        if (beerId && mongoose.Types.ObjectId.isValid(beerId)) {
+            const beer = await Beer.findById(beerId);
+            if (beer) {
+                if (String(firstRating.beer) !== beerId) {
+                    firstRating.beer = beerId;
+                    firstRating.bottleLabel = beer.beerName;
+                    changes.push(`Birra cambiata a: ${beer.beerName}`);
+                }
+            }
+        } else if (beerName && beerName.trim()) {
+            // Se non c'è beerId ma c'è beerName, aggiorna solo il nome
+            if (firstRating.bottleLabel !== beerName.trim()) {
+                firstRating.bottleLabel = beerName.trim();
+                changes.push(`Nome birra aggiornato a: ${beerName.trim()}`);
+            }
+        }
+
+        // Aggiorna note se cambiate
+        if (notes !== undefined) {
+            if (firstRating.notes !== notes) {
+                firstRating.notes = notes;
+                changes.push('Note aggiornate');
+            }
+        }
+
+        // Aggiorna tipo birra nel modello Beer se fornito e se la birra è associata
+        if (firstRating.beer && (beerType !== undefined || alcoholContent !== undefined)) {
+            const beerDoc = await Beer.findById(firstRating.beer);
+            if (beerDoc) {
+                if (beerType !== undefined && beerDoc.beerType !== beerType) {
+                    beerDoc.beerType = beerType;
+                    changes.push(`Tipo birra aggiornato a: ${beerType}`);
+                }
+                if (alcoholContent !== undefined && beerDoc.alcoholContent !== alcoholContent) {
+                    beerDoc.alcoholContent = alcoholContent;
+                    changes.push(`Gradazione aggiornata a: ${alcoholContent}`);
+                }
+                await beerDoc.save();
+            }
+        }
+
+        // Salva la recensione solo se ci sono modifiche
+        if (changes.length > 0) {
+            // Aggiungi entry nello storico moderazione
+            if (!review.moderation) {
+                review.moderation = {};
+            }
+            if (!review.moderation.moderationHistory) {
+                review.moderation.moderationHistory = [];
+            }
+            review.moderation.moderationHistory.push({
+                action: 'edited',
+                reason: `Modifiche admin: ${changes.join('; ')}`,
+                adminId: req.user._id,
+                date: new Date()
+            });
+
+            await review.save();
+
+            logger.info('[editReview] Recensione modificata dall\'admin', {
+                reviewId,
+                changes,
+                adminId: req.user._id
+            });
+        }
+
+        res.json({
+            success: true,
+            message: changes.length > 0 ? 'Recensione aggiornata con successo' : 'Nessuna modifica effettuata',
+            changes
+        });
+
+    } catch (error) {
+        logger.error('[editReview] Errore:', {
+            error: error.message,
+            reviewId: req.params.id,
+            stack: error.stack
+        });
+        res.status(500).json({ success: false, error: 'Errore nella modifica della recensione' });
+    }
+}
+
+/**
+ * Restituisce l'elenco di birre e birrifici per i select del modal di modifica
+ * GET /administrator/api/reviews/beers-breweries
+ */
+async function getBeersAndBreweriesList(req, res) {
+    try {
+        // Recupera birrifici (nome e ID)
+        const breweries = await Brewery.find({}, 'breweryName')
+            .sort({ breweryName: 1 })
+            .lean();
+
+        // Recupera birre con il birrificio associato
+        const beers = await Beer.find({}, 'beerName brewery beerType alcoholContent')
+            .populate('brewery', 'breweryName')
+            .sort({ beerName: 1 })
+            .lean();
+
+        res.json({
+            success: true,
+            breweries: breweries.map(b => ({ _id: b._id, name: b.breweryName })),
+            beers: beers.map(b => ({
+                _id: b._id,
+                name: b.beerName,
+                breweryId: b.brewery?._id,
+                breweryName: b.brewery?.breweryName || 'N/D',
+                beerType: b.beerType || '',
+                alcoholContent: b.alcoholContent || ''
+            }))
+        });
+
+    } catch (error) {
+        logger.error('[getBeersAndBreweriesList] Errore:', { error: error.message });
+        res.status(500).json({ success: false, error: 'Errore nel caricamento dati' });
+    }
+}
+
+/**
  * Elimina una recensione
  * DELETE /administrator/api/reviews/:id
  */
@@ -2447,6 +2658,173 @@ async function unbanUser(req, res) {
     }
 }
 
+// ==============================================
+// BEER MANAGEMENT - Gestione Birre Admin
+// ==============================================
+
+/**
+ * Recupera tutte le birre con dati birrificio popolati
+ * @returns {Array} Lista birre con brewery popolato
+ */
+async function getAllBeers() {
+    logger.info('Recupero di tutte le birre');
+    try {
+        const beers = await Beer.find()
+            .populate('brewery', 'breweryName breweryLogo')
+            .sort({ createdAt: -1 });
+        logger.info(`Birre recuperate con successo: ${beers.length} birre trovate`);
+        return beers;
+    } catch (error) {
+        logger.error('Errore durante il recupero delle birre', error);
+        throw error;
+    }
+}
+
+/**
+ * Recupera una birra per ID (semplice)
+ * @param {String} beerId - ID della birra
+ * @returns {Object} Birra
+ */
+async function getBeerById(beerId) {
+    logger.info(`Recupero birra con ID: ${beerId}`);
+    try {
+        const beer = await Beer.findById(beerId);
+        if (!beer) {
+            logger.warn(`Birra non trovata: ${beerId}`);
+            return null;
+        }
+        logger.info(`Birra recuperata con successo: ${beerId}`);
+        return beer;
+    } catch (error) {
+        logger.error(`Errore durante il recupero della birra: ${beerId}`, error);
+        throw error;
+    }
+}
+
+/**
+ * Recupera dettagli completi di una birra con dati birrificio
+ * @param {String} beerId - ID della birra
+ * @returns {Object} Birra con dati birrificio e statistiche
+ */
+async function getBeerDetailsById(beerId) {
+    logger.info(`Recupero dettagli birra con ID: ${beerId}`);
+    try {
+        const beer = await Beer.findById(beerId);
+        if (!beer) {
+            logger.warn(`Birra non trovata: ${beerId}`);
+            return null;
+        }
+
+        // Recupera dati birrificio associato
+        let breweryData = null;
+        if (beer.brewery) {
+            breweryData = await Brewery.findById(beer.brewery);
+        }
+
+        // Conta le recensioni per questa birra
+        const reviewCount = await Review.countDocuments({
+            'ratings.beer': beerId
+        });
+
+        const beerDetails = beer.toObject ? beer.toObject() : beer;
+        beerDetails.breweryData = breweryData;
+        beerDetails.stats = {
+            reviewCount
+        };
+
+        logger.info(`Dettagli birra recuperati con successo: ${beerId}`);
+        return beerDetails;
+    } catch (error) {
+        logger.error(`Errore durante il recupero dettagli birra: ${beerId}`, error);
+        throw error;
+    }
+}
+
+/**
+ * Aggiorna una birra con i dati forniti
+ * @param {String} beerId - ID della birra
+ * @param {Object} updateData - Dati da aggiornare
+ * @returns {Object} Birra aggiornata
+ */
+async function updateBeer(beerId, updateData) {
+    try {
+        // Gestione array per pairing (abbinamenti)
+        if (updateData.pairing && typeof updateData.pairing === 'string') {
+            updateData.pairing = updateData.pairing.split(',').map(p => p.trim()).filter(p => p);
+        }
+
+        // Conversione numerica per campi specifici
+        if (updateData.alcoholContent !== undefined && updateData.alcoholContent !== '') {
+            updateData.alcoholContent = parseFloat(updateData.alcoholContent) || updateData.alcoholContent;
+        }
+        if (updateData.ibu !== undefined && updateData.ibu !== '') {
+            updateData.ibu = parseInt(updateData.ibu, 10) || updateData.ibu;
+        }
+
+        const beer = await Beer.findByIdAndUpdate(beerId, updateData, { new: true });
+        if (!beer) {
+            logger.warn(`Birra non trovata: ${beerId}`);
+            return null;
+        }
+
+        // Rivalutazione flag di validazione dopo aggiornamento
+        // Controlla i 3 campi chiave di completezza: stile, gradazione, descrizione
+        const missingFields = [];
+        if (!beer.beerType) missingFields.push('Stile');
+        if (!beer.alcoholContent) missingFields.push('Gradazione Alcolica');
+        if (!beer.description) missingFields.push('Descrizione');
+
+        if (missingFields.length === 0) {
+            // Tutti i campi chiave presenti → rimuovi flag di validazione/incompletezza
+            if (beer.needsValidation || beer.needsManualReview) {
+                beer.needsValidation = false;
+                beer.validationReason = '';
+                beer.needsManualReview = false;
+                beer.reviewReason = '';
+                beer.validationStatus = 'validated';
+                beer.validatedAt = new Date();
+                await beer.save();
+                logger.info(`✅ Flag validazione rimossi per birra ${beerId} - dati ora completi`);
+            }
+        } else {
+            // Campi ancora mancanti → aggiorna le ragioni di incompletezza
+            const reason = `Dati incompleti: ${missingFields.join(', ')}`;
+            if (beer.validationReason !== reason) {
+                beer.needsValidation = true;
+                beer.validationReason = reason;
+                await beer.save();
+                logger.info(`⚠️ Flag validazione aggiornati per birra ${beerId} - mancanti: ${missingFields.join(', ')}`);
+            }
+        }
+
+        logger.info(`Birra aggiornata con successo: ${beerId}`);
+        return beer;
+    } catch (error) {
+        logger.error(`Errore durante l'aggiornamento della birra: ${beerId}`, error);
+        throw error;
+    }
+}
+
+/**
+ * Elimina una birra per ID
+ * @param {String} beerId - ID della birra
+ * @returns {Object} Birra eliminata
+ */
+async function deleteBeer(beerId) {
+    try {
+        const beer = await Beer.findByIdAndDelete(beerId);
+        if (!beer) {
+            logger.warn(`Birra non trovata: ${beerId}`);
+            return null;
+        }
+        logger.info(`Birra eliminata con successo: ${beerId}`);
+        return beer;
+    } catch (error) {
+        logger.error(`Errore durante l'eliminazione della birra: ${beerId}`, error);
+        throw error;
+    }
+}
+
 module.exports = {
     getAllUsers,
     getUserById,
@@ -2459,6 +2837,12 @@ module.exports = {
     getBreweryDetailsById,
     updateBrewery,
     deleteBrewery,
+    // Beer Management
+    getAllBeers,
+    getBeerById,
+    getBeerDetailsById,
+    updateBeer,
+    deleteBeer,
     getAdministratorById,
     updateAdministrator,
     deleteAdministrator,
@@ -2478,6 +2862,8 @@ module.exports = {
     getReviewDetails,
     toggleReviewVisibility,
     updateReviewStatus,
+    editReview,
+    getBeersAndBreweriesList,
     deleteReview,
     banUser,
     unbanUser

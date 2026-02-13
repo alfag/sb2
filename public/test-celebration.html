@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Beer Celebration</title>
+  <link rel="stylesheet" href="/css/beerCelebration.css">
+  <style>
+    body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #1a1a2e; color: white; }
+    button { padding: 16px 32px; font-size: 18px; border: none; border-radius: 12px; background: linear-gradient(135deg, #d97706, #f59e0b); color: white; cursor: pointer; margin: 10px; }
+    #log { margin-top: 20px; padding: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; max-width: 500px; width: 90%; font-size: 13px; max-height: 200px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <h1>🍺 Test Celebrazione</h1>
+  <button onclick="testCelebration()">Mostra Celebrazione</button>
+  <button onclick="testSessionStorage()">Test via SessionStorage</button>
+  <div id="log"></div>
+
+  <script src="/js/modules/beerCelebrationModule.js"></script>
+  <script>
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.innerHTML += msg + '<br>';
+      console.log(msg);
+    }
+
+    log('BeerCelebration disponibile: ' + (typeof window.BeerCelebration !== 'undefined'));
+    log('BeerCelebration.show: ' + (typeof window.BeerCelebration?.show));
+
+    function testCelebration() {
+      log('Chiamata BeerCelebration.show()...');
+      try {
+        window.BeerCelebration.show({ beersCount: 2 });
+        log('✅ show() chiamato con successo');
+      } catch(e) {
+        log('❌ Errore: ' + e.message);
+      }
+    }
+
+    function testSessionStorage() {
+      log('Salvo flag in sessionStorage...');
+      sessionStorage.setItem('sb2_celebration', JSON.stringify({ beersCount: 3 }));
+      log('Flag salvato. Ricarico pagina...');
+      setTimeout(() => location.reload(), 500);
+    }
+
+    // Controlla flag sessionStorage al caricamento
+    try {
+      const data = sessionStorage.getItem('sb2_celebration');
+      if (data) {
+        sessionStorage.removeItem('sb2_celebration');
+        const parsed = JSON.parse(data);
+        log('🎉 Flag trovato in sessionStorage! beersCount=' + parsed.beersCount);
+        setTimeout(() => {
+          window.BeerCelebration.show({ beersCount: parsed.beersCount });
+        }, 300);
+      }
+    } catch(e) {
+      log('Errore sessionStorage: ' + e.message);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+{% extends "../layout.njk" %}
+{% block title %}{{ title }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/admin-dashboard.css?v=5">{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <!-- Header pagina -->
+    <div class="page-head">
+        <h1><i class="fas fa-cogs"></i> Sistema</h1>
+    </div>
+
+    <!-- Strumenti di Sistema -->
+    <section class="dash-section">
+        <h2><i class="fas fa-tools"></i> Strumenti</h2>
+        <div class="sys-cards-grid">
+            <!-- Cache -->
+            <a href="/api/cache" class="sys-card">
+                <div class="sys-card-icon" style="--accent: var(--dash-blue, #3b82f6)">
+                    <i class="fas fa-database"></i>
+                </div>
+                <div class="sys-card-content">
+                    <strong>Cache</strong>
+                    <span>Gestione cache applicativa</span>
+                </div>
+                <em class="sys-card-arrow">→</em>
+            </a>
+
+            <!-- Code (Bull Board) -->
+            <a href="/administrator/queues" class="sys-card">
+                <div class="sys-card-icon" style="--accent: var(--dash-green, #22c55e)">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <div class="sys-card-content">
+                    <strong>Code</strong>
+                    <span>Monitoraggio job queue</span>
+                </div>
+                <em class="sys-card-arrow">→</em>
+            </a>
+
+            <!-- Moderazione Contenuti -->
+            <a href="/content-moderation" class="sys-card">
+                <div class="sys-card-icon" style="--accent: var(--dash-yellow, #f59e0b)">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="sys-card-content">
+                    <strong>Moderazione</strong>
+                    <span>Filtri contenuti e sicurezza</span>
+                </div>
+                <em class="sys-card-arrow">→</em>
+            </a>
+
+            <!-- Test AI Matching -->
+            <a href="/administrator/brewery-matching-test" class="sys-card">
+                <div class="sys-card-icon" style="--accent: var(--dash-purple, #8b5cf6)">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="sys-card-content">
+                    <strong>Test Matching</strong>
+                    <span>Test matching birrifici automatico</span>
+                </div>
+                <em class="sys-card-arrow">→</em>
+            </a>
+        </div>
+    </section>
+</div>
+
+<style>
+/* Stili specifici pagina Sistema */
+.sys-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.sys-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: var(--color-white, #fff);
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    border-radius: var(--radius-lg, 12px);
+    text-decoration: none;
+    color: inherit;
+    transition: all var(--transition-fast, 0.15s) ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.sys-card:hover {
+    border-color: var(--color-primary, #f59e0b);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.sys-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md, 8px);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.sys-card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.sys-card-content strong {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-gray-900, #111);
+}
+
+.sys-card-content span {
+    font-size: 0.8rem;
+    color: var(--color-gray-500, #6b7280);
+}
+
+.sys-card-arrow {
+    font-style: normal;
+    font-size: 1.25rem;
+    color: var(--color-gray-400, #9ca3af);
+    transition: transform var(--transition-fast, 0.15s) ease;
+}
+
+.sys-card:hover .sys-card-arrow {
+    transform: translateX(4px);
+    color: var(--color-primary, #f59e0b);
+}
+
+/* Responsive */
+@media (max-width: 639px) {
+    .sys-cards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .sys-card {
+        padding: 1rem;
+    }
+}
+</style>
+{% endblock %}

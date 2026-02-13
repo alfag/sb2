@@ -6,7 +6,7 @@
 <div class="admin-page">
     <div class="page-head">
         <h1><i class="fas fa-shield-alt"></i> Validazione Birrifici</h1>
-        <a href="/administrator" class="btn-add"><i class="fas fa-arrow-left"></i> Dashboard</a>
+        <a href="/administrator/breweries" class="btn-add"><i class="fas fa-arrow-left"></i> Birrifici</a>
     </div>
 
     <div class="stats-row">
@@ -21,7 +21,7 @@
             <div class="validation-head">
                 <div class="validation-title">
                     <h3>{{ b.breweryName or 'Nome non disponibile' }}</h3>
-                    <span class="role-badge" style="--badge-bg:{% if b.dataSource == 'web_scraped' %}var(--dash-green){% else %}var(--dash-blue){% endif %}">{% if b.dataSource == 'web_scraped' %}Web{% else %}AI{% endif %}</span>
+                    <span class="role-badge" style="--badge-bg:{% if b.dataSource == 'web_scraped' %}var(--dash-green){% else %}var(--dash-blue){% endif %}">{% if b.dataSource == 'web_scraped' %}Web{% else %}Auto{% endif %}</span>
                 </div>
                 <div class="validation-actions">
                     <button class="btn-approve" onclick="approveBrewery('{{ b._id }}')" title="Approva"><i class="fas fa-check"></i></button>
@@ -30,6 +30,12 @@
                 </div>
             </div>
             <div class="validation-details">
+                {% if b.validationReason or b.reviewReason %}
+                <div class="vd-item full" style="background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; border: 1px solid #f59e0b;">
+                    <i class="fas fa-exclamation-triangle" style="color: #d97706;"></i>
+                    <span style="color: #92400e; font-weight: 600; font-size: 0.82rem;">{{ b.validationReason or b.reviewReason }}</span>
+                </div>
+                {% endif %}
                 {% if b.breweryWebsite %}<div class="vd-item"><i class="fas fa-globe"></i><a href="{{ b.breweryWebsite }}" target="_blank">{{ b.breweryWebsite | truncate(40) }}</a></div>{% endif %}
                 {% if b.breweryEmail %}<div class="vd-item"><i class="fas fa-envelope"></i>{{ b.breweryEmail }}</div>{% endif %}
                 {% if b.breweryPhoneNumber %}<div class="vd-item"><i class="fas fa-phone"></i>{{ b.breweryPhoneNumber }}</div>{% endif %}

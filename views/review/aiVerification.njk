@@ -1,6 +1,6 @@
 {% extends "layout.njk" %}
 
-{% block title %}Verifica e Completa Dati AI{% endblock %}
+{% block title %}Verifica e Completa i Dati{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="/css/aiVerification.css">
@@ -341,7 +341,7 @@
     
     <!-- Header -->
     <div class="verification-header">
-        <h1><i class="fas fa-robot"></i> Verifica Dati AI</h1>
+        <h1><i class="fas fa-robot"></i> Verifica i Dati</h1>
         <p class="subtitle">Completa solo i campi OBBLIGATORI mancanti - tutto il resto è opzionale</p>
     </div>
 
@@ -454,7 +454,7 @@
                         <div class="field-help">
                             <i class="fas fa-info-circle"></i>
                             {% if breweryNameValue %}
-                            Recuperato automaticamente dall'AI
+                            Recuperato automaticamente
                             {% else %}
                             Inserisci il nome completo del birrificio come appare sull'etichetta
                             {% endif %}
@@ -593,7 +593,7 @@
                         <div class="field-help">
                             <i class="fas fa-info-circle"></i>
                             {% if beerNameValue %}
-                            Recuperato automaticamente dall'AI
+                            Recuperato automaticamente
                             {% else %}
                             Inserisci il nome della birra come appare sull'etichetta
                             {% endif %}

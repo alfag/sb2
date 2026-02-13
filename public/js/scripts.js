@@ -857,7 +857,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Mostra feedback dell'AI
             const aiFeedback = document.getElementById('ai-feedback');
             if (aiFeedback && aiData.bottles && aiData.bottles.length > 0) {
-                let feedbackHtml = '<h3>Birre riconosciute dall\'AI:</h3><ul>';
+                let feedbackHtml = '<h3>Birre riconosciute:</h3><ul>';
                 aiData.bottles.forEach((bottle, index) => {
                     logDebug(`Dati AI bottiglia ${index}`, {
                         bottleLabel: bottle.bottleLabel,
@@ -1485,19 +1485,30 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             
             if (data.success) {
-                if (window.utils && window.utils.showNotification) {
-                    window.utils.showNotification('Recensioni pubblicate con successo!', 'success', 3000);
-                }
-                
-                // Callback di successo
+                // Chiudi il modal prima di mostrare la celebration
                 if (callbacks.onSuccess) {
                     callbacks.onSuccess();
                 }
                 
-                // Redirect alla pagina di successo o reload
-                setTimeout(() => {
+                // Calcola il numero di birre recensite per la celebration
+                const totalBeers = payload.reviews ? payload.reviews.length : 1;
+                
+                // 🎉 Mostra celebrazione animata, poi redirect alla homepage
+                if (window.BeerCelebration) {
+                    console.log('[Celebration] Mostro overlay celebrativo per', totalBeers, 'birre');
+                    window.BeerCelebration.show({
+                        beersCount: totalBeers,
+                        onClose: () => {
+                            // Redirect solo dopo chiusura della celebration
+                            window.location.href = '/';
+                        }
+                    });
+                } else {
+                    // Fallback: salva in sessionStorage per mostrarla alla homepage
+                    console.warn('[Celebration] BeerCelebration non disponibile, uso sessionStorage');
+                    sessionStorage.setItem('sb2_celebration', JSON.stringify({ beersCount: totalBeers }));
                     window.location.href = '/';
-                }, 1500);
+                }
             } else {
                 // 🔧 FIX: Backend risponde con data.error quando fallisce
                 let errorMessage = data.error || data.message || 'Errore sconosciuto durante il salvataggio';
@@ -1830,8 +1841,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 reviewProcess.style.display = 'none';
             }
             
-            // Mostra messaggio di successo
-            showSuccessMessage('Recensioni pubblicate con successo! Grazie per il tuo contributo.');
+            // Mostra overlay celebrativo con animazione brindisi
+            // Salva flag in sessionStorage per mostrare celebrazione dopo eventuale redirect
+            const totalBeers = result.reviews ? result.reviews.length : 1;
+            try {
+                sessionStorage.setItem('sb2_celebration', JSON.stringify({ beersCount: totalBeers }));
+            } catch(e) { /* ignore */ }
+
+            if (window.BeerCelebration) {
+                window.BeerCelebration.show({ beersCount: totalBeers });
+            } else {
+                showSuccessMessage('Recensioni pubblicate con successo! Grazie per il tuo contributo.');
+            }
             
             // Reset dei dati
             window.currentReviewData = null;
@@ -3161,27 +3182,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 const AI_TIMEOUT_MS = 120000; // Timeout 120 secondi (Gemini può impiegare fino a 60s+)
                 const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
                 
-                // ⏱️ Timer visuale per feedback utente durante attesa AI
+                // Messaggi progressivi per tranquillizzare l'utente durante attesa AI
                 let elapsedSeconds = 0;
-                const timerElement = document.getElementById('ai-loading-timer');
                 const taglineElement = document.querySelector('.loading-tagline');
                 const originalTagline = taglineElement ? taglineElement.textContent : '';
                 
                 const elapsedTimerId = setInterval(() => {
                     elapsedSeconds++;
-                    // Aggiorna timer visuale
-                    if (timerElement) {
-                        timerElement.textContent = `${elapsedSeconds}s`;
-                        timerElement.style.display = 'block';
-                    }
-                    // Messaggi progressivi per tranquillizzare l'utente
                     if (taglineElement) {
                         if (elapsedSeconds >= 45) {
-                            taglineElement.textContent = '⏳ Quasi fatto, Google sta ultimando l\'analisi...';
+                            taglineElement.textContent = '⏳ Quasi fatto, stiamo ultimando il riconoscimento...';
                         } else if (elapsedSeconds >= 30) {
                             taglineElement.textContent = '🔍 L\'immagine è complessa, serve ancora un momento...';
                         } else if (elapsedSeconds >= 15) {
-                            taglineElement.textContent = '🍺 Google sta analizzando l\'etichetta con attenzione...';
+                            taglineElement.textContent = '🍺 Stiamo analizzando l\'etichetta con attenzione...';
                         }
                     }
                 }, 1000);
@@ -3189,7 +3203,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Funzione di cleanup per il timer
                 const cleanupTimer = () => {
                     clearInterval(elapsedTimerId);
-                    if (timerElement) timerElement.style.display = 'none';
                     if (taglineElement) taglineElement.textContent = originalTagline;
                 };
                 
@@ -3506,7 +3519,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     
                     // Personalizza il messaggio in base al tipo di errore (senza dettagli tecnici)
                     if (error.name === 'AbortError') {
-                        errorMessage = `⏳ L'analisi ha superato il tempo massimo (${Math.round(AI_TIMEOUT_MS/1000)}s). Google potrebbe essere sovraccarico in questo momento. Riprova — spesso basta un secondo tentativo!`;
+                        errorMessage = `⏳ L'analisi ha superato il tempo massimo (${Math.round(AI_TIMEOUT_MS/1000)}s). Il servizio di riconoscimento potrebbe essere sovraccarico in questo momento. Riprova — spesso basta un secondo tentativo!`;
                     } else if (error.message.includes('RATE_LIMIT_EXCEEDED')) {
                         // Estrai il messaggio specifico dal server
                         const rateLimitMessage = error.message.replace('RATE_LIMIT_EXCEEDED: ', '');
@@ -4144,7 +4157,7 @@ function restoreInterfaceFromSessionData(aiData) {
             
             // Se è esplicitamente "NO_BEER_DETECTED", mostra un warning
             if (aiData.errorType === 'NO_BEER_DETECTED') {
-                showWarningMessage('L\'AI non ha rilevato bottiglie di birra nell\'ultima immagine analizzata. Carica una nuova immagine per procedere.');
+                showWarningMessage('Non abbiamo rilevato bottiglie di birra nell\'ultima immagine analizzata. Carica una nuova immagine per procedere.');
             }
         }
         

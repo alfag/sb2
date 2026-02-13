@@ -47,10 +47,36 @@ function calculateMissingFields(brewery) {
     return missingFields;
 }
 
-// Rotta per la dashboard amministrativa
+/**
+ * Calcola i campi mancanti per una birra
+ * Usato per mostrare alert dati incompleti nella pagina di modifica
+ */
+function calculateBeerMissingFields(beer) {
+    const missingFields = [];
+    
+    if (!beer.beerType) {
+        missingFields.push({ field: 'Stile', icon: 'fa-tag', tab: 'info' });
+    }
+    if (!beer.alcoholContent) {
+        missingFields.push({ field: 'Gradazione Alcolica', icon: 'fa-percentage', tab: 'info' });
+    }
+    if (!beer.description) {
+        missingFields.push({ field: 'Descrizione', icon: 'fa-align-left', tab: 'desc' });
+    }
+    
+    return missingFields;
+}
+
+// Rotta root: redirect alla home (la dashboard è stata rimossa)
 router.get('/', authMiddleware.isAdmin, (req, res) => {
-    logger.info('Accesso alla dashboard amministrativa'); // Log in italiano
-    res.render('admin/index', { title: 'Dashboard Amministrativa', user: req.user });
+    logger.info('Accesso area amministrativa - redirect a home');
+    res.redirect('/');
+});
+
+// Pagina Sistema (cache, code, moderazione, test AI)
+router.get('/system', authMiddleware.isAdmin, (req, res) => {
+    logger.info('Accesso alla pagina Sistema');
+    res.render('admin/system', { title: 'Sistema', user: req.user });
 });
 
 // Lista tutti gli utenti
@@ -583,7 +609,7 @@ router.post('/breweries/:id/gsr-search', authMiddleware.isAdmin, async (req, res
             logger.warn(`[GSR Admin] Nessun risultato GSR per: ${brewery.breweryName}`);
             return res.json({
                 success: false,
-                error: gsrResult?.reason || 'Nessun risultato trovato dalla ricerca Google',
+                error: gsrResult?.reason || 'Nessun risultato trovato dalla ricerca web',
                 rateLimitStats: googleSearchRetrievalService.getRateLimitStats()
             });
         }
@@ -867,6 +893,17 @@ router.get('/reviews', authMiddleware.isAdmin, async (req, res) => {
     }
 });
 
+// API per ottenere elenco birre e birrifici (per modal modifica recensione)
+// ⚠️ DEVE essere definita PRIMA di /api/reviews/:id per evitare conflitto con parametro dinamico
+router.get('/api/reviews/beers-breweries', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        await adminController.getBeersAndBreweriesList(req, res);
+    } catch (error) {
+        logger.error(`Errore API elenco birre/birrifici: ${error.message}`);
+        res.status(500).json({ success: false, error: 'Errore interno del server' });
+    }
+});
+
 // API per ottenere dettagli singola recensione
 router.get('/api/reviews/:id', authMiddleware.isAdmin, async (req, res) => {
     try {
@@ -911,6 +948,17 @@ router.delete('/api/reviews/:id', authMiddleware.isAdmin, async (req, res) => {
     }
 });
 
+// API per modificare i dati di una recensione (testi, birra, birrificio - NO rating)
+router.put('/api/reviews/:id/edit', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info(`API modifica recensione: ${req.params.id}`);
+        await adminController.editReview(req, res);
+    } catch (error) {
+        logger.error(`Errore API modifica recensione: ${error.message}`);
+        res.status(500).json({ success: false, error: 'Errore interno del server' });
+    }
+});
+
 // API per bannare utente
 router.post('/api/users/:id/ban', authMiddleware.isAdmin, async (req, res) => {
     try {
@@ -930,6 +978,239 @@ router.post('/api/users/:id/unban', authMiddleware.isAdmin, async (req, res) => 
     } catch (error) {
         logger.error(`Errore API unban utente: ${error.message}`);
         res.status(500).json({ success: false, error: 'Errore interno del server' });
+    }
+});
+
+// =====================================================
+// GESTIONE BIRRE ADMIN - Beer Management
+// =====================================================
+
+// Lista tutte le birre
+router.get('/beers', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        logger.info('Accesso alla gestione birre');
+        const beers = await adminController.getAllBeers();
+        
+        // Calcola statistiche per il template
+        const stats = {
+            totalBeers: beers.length,
+            withStyle: beers.filter(b => b.beerType).length,
+            withAbv: beers.filter(b => b.alcoholContent).length,
+            incompleteData: beers.filter(b => !b.beerType || !b.alcoholContent || !b.description).length,
+            aiExtracted: beers.filter(b => b.aiExtracted).length
+        };
+        
+        logger.info(`Statistiche birre calcolate: ${JSON.stringify(stats)}`);
+        
+        res.render('admin/beers', { 
+            title: 'Gestione Birre', 
+            beers,
+            stats,
+            user: req.user,
+            message: req.flash() 
+        });
+    } catch (error) {
+        logger.error(`Errore durante il recupero delle birre: ${error.message}`);
+        req.flash('error', 'Errore durante il recupero delle birre');
+        res.redirect('/administrator');
+    }
+});
+
+// Visualizza dettagli birra (solo lettura)
+router.get('/beers/view/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const beerId = req.params.id;
+        logger.info(`Visualizzazione dettagli birra: ${beerId}`);
+        
+        const beer = await adminController.getBeerDetailsById(beerId);
+        if (!beer) {
+            req.flash('error', 'Birra non trovata');
+            return res.redirect('/administrator/beers');
+        }
+        
+        res.render('admin/viewBeer', { 
+            title: 'Dettagli Birra', 
+            beer,
+            user: req.user,
+            message: req.flash() 
+        });
+    } catch (error) {
+        logger.error(`Errore durante la visualizzazione della birra: ${error.message}`);
+        req.flash('error', 'Errore durante il recupero della birra');
+        res.redirect('/administrator/beers');
+    }
+});
+
+// Form modifica birra
+router.get('/beers/edit/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const beerId = req.params.id;
+        logger.info(`Accesso al form di modifica birra: ${beerId}`);
+        
+        const beer = await adminController.getBeerDetailsById(beerId);
+        if (!beer) {
+            req.flash('error', 'Birra non trovata');
+            return res.redirect('/administrator/beers');
+        }
+        
+        // Calcola campi mancanti per alert dati incompleti
+        const missingFields = calculateBeerMissingFields(beer);
+        
+        res.render('admin/editBeer', { 
+            title: 'Modifica Birra', 
+            beer,
+            missingFields,
+            user: req.user,
+            message: req.flash() 
+        });
+    } catch (error) {
+        logger.error(`Errore durante il recupero della birra per modifica: ${error.message}`);
+        req.flash('error', 'Errore durante il recupero della birra');
+        res.redirect('/administrator/beers');
+    }
+});
+
+// Salva modifiche birra
+router.post('/beers/edit/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const beerId = req.params.id;
+        logger.info(`Aggiornamento birra: ${beerId}`);
+        
+        const updatedBeer = await adminController.updateBeer(beerId, req.body);
+        if (!updatedBeer) {
+            req.flash('error', 'Birra non trovata o non aggiornata');
+            return res.redirect('/administrator/beers');
+        }
+        
+        req.flash('success', 'Birra aggiornata con successo');
+        res.redirect('/administrator/beers');
+    } catch (error) {
+        logger.error(`Errore durante l'aggiornamento della birra: ${error.message}`);
+        req.flash('error', 'Errore durante l\'aggiornamento della birra');
+        res.redirect(`/administrator/beers/edit/${req.params.id}`);
+    }
+});
+
+// Elimina birra
+router.post('/beers/delete/:id', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const beerId = req.params.id;
+        logger.info(`Eliminazione birra: ${beerId}`);
+        
+        const deletedBeer = await adminController.deleteBeer(beerId);
+        if (!deletedBeer) {
+            req.flash('error', 'Birra non trovata o già eliminata');
+            return res.redirect('/administrator/beers');
+        }
+        
+        req.flash('success', 'Birra eliminata con successo');
+        res.redirect('/administrator/beers');
+    } catch (error) {
+        logger.error(`Errore durante l'eliminazione della birra: ${error.message}`);
+        req.flash('error', 'Errore durante l\'eliminazione della birra');
+        res.redirect('/administrator/beers');
+    }
+});
+
+// ========================================
+// API: Ricerca GSR (Google Search Retrieval) per arricchimento dati birra
+// Usa searchBeerInfo per cercare informazioni sulla birra via Google
+// ========================================
+router.post('/beers/:id/gsr-search', authMiddleware.isAdmin, async (req, res) => {
+    try {
+        const beerId = req.params.id;
+        logger.info(`[GSR Beer Admin] Avvio ricerca GSR per birra: ${beerId}`);
+        
+        // Recupera la birra esistente con il birrificio
+        const Beer = require('../models/Beer');
+        const beer = await Beer.findById(beerId).populate('brewery', 'breweryName');
+        if (!beer) {
+            logger.warn(`[GSR Beer Admin] Birra non trovata: ${beerId}`);
+            return res.status(404).json({
+                success: false,
+                error: 'Birra non trovata'
+            });
+        }
+        
+        // Import del servizio GSR
+        const googleSearchRetrievalService = require('../services/googleSearchRetrievalService');
+        
+        // Verifica stato rate limiter
+        const rateLimitStats = googleSearchRetrievalService.getRateLimitStats();
+        logger.info(`[GSR Beer Admin] Rate limiter status: ${rateLimitStats.count}/${rateLimitStats.limit} chiamate oggi`);
+        
+        // Esegui la ricerca GSR per la birra
+        const breweryName = beer.brewery ? beer.brewery.breweryName : null;
+        logger.info(`[GSR Beer Admin] Esecuzione ricerca GSR per: "${beer.beerName}" (birrificio: ${breweryName || 'sconosciuto'})`);
+        
+        const gsrResult = await googleSearchRetrievalService.searchBeerInfo(beer.beerName, breweryName);
+        
+        if (!gsrResult || !gsrResult.success) {
+            logger.warn(`[GSR Beer Admin] Nessun risultato GSR per: ${beer.beerName}`);
+            return res.json({
+                success: false,
+                error: 'Nessun risultato trovato dalla ricerca web per questa birra',
+                rateLimitStats: googleSearchRetrievalService.getRateLimitStats()
+            });
+        }
+        
+        logger.info(`[GSR Beer Admin] ✅ Dati GSR recuperati per: ${beer.beerName}`, {
+            confidence: gsrResult.confidence,
+            beerType: gsrResult.beer?.beerType,
+            abv: gsrResult.beer?.alcoholContent
+        });
+        
+        // Mappa i campi GSR ai campi del form
+        const enrichedData = {};
+        const beerData = gsrResult.beer;
+        
+        if (beerData) {
+            if (beerData.beerName) enrichedData.beerName = beerData.beerName;
+            if (beerData.beerType) enrichedData.beerType = beerData.beerType;
+            if (beerData.beerSubType) enrichedData.beerSubStyle = beerData.beerSubType;
+            if (beerData.alcoholContent !== null && beerData.alcoholContent !== undefined) enrichedData.alcoholContent = String(beerData.alcoholContent);
+            if (beerData.ibu !== null && beerData.ibu !== undefined) enrichedData.ibu = String(beerData.ibu);
+            if (beerData.volume) enrichedData.volume = beerData.volume;
+            if (beerData.description) enrichedData.description = beerData.description;
+            if (beerData.servingTemperature) enrichedData.servingTemperature = beerData.servingTemperature;
+            
+            // Ingredienti (array → stringa)
+            if (beerData.ingredients && Array.isArray(beerData.ingredients) && beerData.ingredients.length > 0) {
+                enrichedData.ingredients = beerData.ingredients.join(', ');
+            }
+            
+            // Note degustazione (oggetto con sotto-campi)
+            if (beerData.tastingNotes) {
+                if (beerData.tastingNotes.aroma) enrichedData.aroma = beerData.tastingNotes.aroma;
+                if (beerData.tastingNotes.appearance) enrichedData.appearance = beerData.tastingNotes.appearance;
+                if (beerData.tastingNotes.taste) enrichedData.tastingNotes = beerData.tastingNotes.taste;
+                // Mouthfeel dalle note degustazione se disponibile
+                if (beerData.tastingNotes.mouthfeel) enrichedData.mouthfeel = beerData.tastingNotes.mouthfeel;
+            }
+            
+            // Abbinamenti (array)
+            if (beerData.pairings && Array.isArray(beerData.pairings) && beerData.pairings.length > 0) {
+                enrichedData.pairing = beerData.pairings;
+            }
+        }
+        
+        return res.json({
+            success: true,
+            data: enrichedData,
+            confidence: gsrResult.confidence,
+            source: 'google_search_retrieval',
+            rateLimitStats: googleSearchRetrievalService.getRateLimitStats()
+        });
+        
+    } catch (error) {
+        logger.error(`[GSR Beer Admin] Errore durante ricerca GSR: ${error.message}`, {
+            beerId: req.params.id,
+            errorStack: error.stack
+        });
+        return res.status(500).json({
+            success: false,
+            error: `Errore durante la ricerca: ${error.message}`
+        });
     }
 });
 
