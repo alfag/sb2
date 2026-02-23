@@ -44,6 +44,22 @@ router.get('/', isAuthenticatedOptional, (req, res) => {
     res.render('welcome.njk', { user: req.user }); // Renderizza il template index.njk
 });
 
+// Pagine legali - Accessibili a tutti senza autenticazione
+router.get('/privacy', isAuthenticatedOptional, (req, res) => {
+    logger.info('Visualizzazione pagina Privacy Policy');
+    res.render('legal/privacy.njk', { user: req.user });
+});
+
+router.get('/terms', isAuthenticatedOptional, (req, res) => {
+    logger.info('Visualizzazione pagina Termini di Servizio');
+    res.render('legal/terms.njk', { user: req.user });
+});
+
+router.get('/cookies', isAuthenticatedOptional, (req, res) => {
+    logger.info('Visualizzazione pagina Cookie Policy');
+    res.render('legal/cookies.njk', { user: req.user });
+});
+
 // 🆕 Pagina tutte le recensioni - Accessibile a tutti
 router.get('/reviews', isAuthenticatedOptional, async (req, res) => {
     try {

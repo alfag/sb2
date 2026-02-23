@@ -1,0 +1,262 @@
+{% extends "layout.njk" %}
+
+{% block title %}Cookie Policy - SharingBeer 2.0{% endblock %}
+
+{% block content %}
+<div class="legal-page">
+  <div class="legal-container">
+
+    {# Header documento #}
+    <div class="legal-header">
+      <h1 class="legal-title">Cookie Policy</h1>
+      <p class="legal-subtitle">Informativa sull'utilizzo dei cookie - aggiornata a Febbraio 2025</p>
+    </div>
+
+    {# Introduzione #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">Cosa sono i Cookie</h2>
+      <p>I cookie sono piccoli file di testo che i siti web visitati inviano al browser dell'Utente, dove vengono memorizzati per essere poi ritrasmessi agli stessi siti alla visita successiva. I cookie sono utilizzati per diverse finalità, tra cui migliorare la navigazione, permettere l'autenticazione e ricordare le preferenze dell'Utente.</p>
+    </div>
+
+    {# Cookie utilizzati #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">Cookie utilizzati dalla Piattaforma</h2>
+      <p>SharingBeer 2.0 utilizza esclusivamente <strong>cookie tecnici</strong>, necessari al funzionamento della Piattaforma. Non vengono utilizzati cookie di profilazione o di marketing di terze parti.</p>
+
+      {# Tabella cookie #}
+      <div class="legal-table-wrapper">
+        <table class="legal-table">
+          <thead>
+            <tr>
+              <th>Cookie</th>
+              <th>Tipo</th>
+              <th>Finalità</th>
+              <th>Durata</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>connect.sid</code></td>
+              <td>Tecnico / Sessione</td>
+              <td>Gestione della sessione di autenticazione dell'Utente. Necessario per mantenere l'accesso alla Piattaforma dopo il login. Memorizzato in modo sicuro su MongoDB tramite MongoStore.</td>
+              <td>Sessione (scade alla chiusura del browser o dopo il periodo di inattività configurato)</td>
+            </tr>
+            <tr>
+              <td><code>disclaimer_accepted</code></td>
+              <td>Tecnico / Preferenza</td>
+              <td>Ricorda l'accettazione del disclaimer sulla maggiore età da parte dell'Utente, evitando di mostrare il popup ad ogni visita.</td>
+              <td>Sessione</td>
+            </tr>
+            <tr>
+              <td><code>__cflb</code>, <code>__cf_bm</code></td>
+              <td>Tecnico / Sicurezza</td>
+              <td>Cookie impostati da Cloudflare per il bilanciamento del carico, la protezione da bot e attacchi DDoS, e per garantire la sicurezza della connessione. Sono strettamente necessari al funzionamento della Piattaforma.</td>
+              <td>Da 30 minuti a 24 ore (a seconda del cookie)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# Cookie di Cloudflare #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">Cookie di Cloudflare</h2>
+      <p>La Piattaforma utilizza <strong>Cloudflare</strong> come servizio di hosting, CDN e protezione. Cloudflare può impostare cookie tecnici strettamente necessari per il funzionamento del servizio (bilanciamento carico, protezione da bot, verifica challenge di sicurezza). Questi cookie non tracciano il comportamento dell'Utente e non contengono dati personali identificativi.</p>
+      <p>Per maggiori dettagli: <a href="https://developers.cloudflare.com/fundamentals/reference/policies-compliances/cloudflare-cookies/" class="legal-link" target="_blank" rel="noopener">Cloudflare Cookie Policy</a></p>
+    </div>
+
+    {# Service Worker e PWA #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">Service Worker e Progressive Web App</h2>
+      <p>La Piattaforma utilizza un <strong>Service Worker</strong> per funzionalità di Progressive Web App (PWA). Il Service Worker può memorizzare nella cache del browser alcune risorse statiche (pagine, immagini, fogli di stile, script) per migliorare le performance e consentire una navigazione limitata in assenza di connessione.</p>
+      <p>Il Service Worker non memorizza dati personali dell'Utente e non traccia il comportamento di navigazione. L'Utente può disabilitare il Service Worker nelle impostazioni del proprio browser.</p>
+    </div>
+
+    {# Cache lato client #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">Cache e Archiviazione Locale</h2>
+      <p>La Piattaforma può utilizzare funzionalità di archiviazione locale del browser (localStorage, sessionStorage) per migliorare l'esperienza utente, ad esempio per memorizzare:</p>
+      <ul class="legal-list">
+        <li>preferenze di visualizzazione (tema, filtri);</li>
+        <li>dati temporanei di form non ancora inviati;</li>
+        <li>stato dell'interfaccia utente.</li>
+      </ul>
+      <p>Questi dati sono memorizzati esclusivamente nel browser dell'Utente e non vengono trasmessi al server.</p>
+    </div>
+
+    {# ETag e caching HTTP #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">Cache HTTP ed ETag</h2>
+      <p>La Piattaforma utilizza meccanismi standard di caching HTTP (ETag, Cache-Control) per ottimizzare i tempi di caricamento delle pagine. Questi meccanismi sono gestiti automaticamente dal browser e dal server e non raccolgono dati personali dell'Utente.</p>
+    </div>
+
+    {# Gestione cookie #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">Come gestire i Cookie</h2>
+      <p>L'Utente può gestire le preferenze relative ai cookie direttamente attraverso le impostazioni del proprio browser. Di seguito i link alle istruzioni per i principali browser:</p>
+      <ul class="legal-list">
+        <li><a href="https://support.google.com/chrome/answer/95647" class="legal-link" target="_blank" rel="noopener">Google Chrome</a></li>
+        <li><a href="https://support.mozilla.org/it/kb/protezione-antitracciamento-avanzata-firefox-desktop" class="legal-link" target="_blank" rel="noopener">Mozilla Firefox</a></li>
+        <li><a href="https://support.apple.com/it-it/guide/safari/sfri11471/mac" class="legal-link" target="_blank" rel="noopener">Apple Safari</a></li>
+        <li><a href="https://support.microsoft.com/it-it/microsoft-edge/eliminare-i-cookie-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" class="legal-link" target="_blank" rel="noopener">Microsoft Edge</a></li>
+      </ul>
+      <p><strong>Attenzione:</strong> la disabilitazione dei cookie tecnici (in particolare il cookie di sessione <code>connect.sid</code>) potrebbe compromettere il funzionamento della Piattaforma e impedire l'accesso alle funzionalità che richiedono autenticazione.</p>
+    </div>
+
+    {# Base giuridica #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">Base Giuridica</h2>
+      <p>I cookie tecnici utilizzati da questa Piattaforma sono installati ai sensi dell'art. 122, comma 1, del Codice Privacy (come modificato dal D.Lgs. 69/2012) e non richiedono il consenso preventivo dell'Utente, in quanto strettamente necessari per la fornitura del servizio esplicitamente richiesto.</p>
+      <p>In conformità al Provvedimento del Garante per la Protezione dei Dati Personali n. 229 dell'8 maggio 2014 e alle successive Linee guida sui cookie e altri strumenti di tracciamento del 10 giugno 2021, l'utilizzo di soli cookie tecnici non necessita di banner informativo con richiesta di consenso.</p>
+    </div>
+
+    {# Titolare #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">Titolare del Trattamento</h2>
+      <p>Il Titolare del Trattamento dei Dati raccolti è <strong>Birrificio Viana Srl</strong> con sede legale in Via Molignati 12, 13878 Candelo (BI), P.IVA 02792790020.</p>
+      <p>Per qualsiasi domanda relativa alla presente Cookie Policy, l'Utente può contattare il Titolare all'indirizzo: <a href="mailto:birrificioviana@gmail.it" class="legal-link">birrificioviana@gmail.it</a></p>
+      <p>Per la gestione completa dei dati personali, consultare l'<a href="/privacy" class="legal-link">Informativa sulla Privacy</a>.</p>
+    </div>
+
+    <div class="legal-footer-note">
+      <p><em>Cookie Policy aggiornata a Febbraio 2025</em></p>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .legal-page {
+    min-height: calc(100vh - 200px);
+    padding: var(--space-8) var(--space-4);
+    background: var(--color-gray-50);
+  }
+  .legal-container {
+    max-width: 860px;
+    margin: 0 auto;
+    background: var(--color-white);
+    border-radius: var(--radius-xl, 1rem);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    padding: var(--space-8) var(--space-6);
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+  .legal-header {
+    text-align: center;
+    margin-bottom: var(--space-8);
+    padding-bottom: var(--space-6);
+    border-bottom: 2px solid var(--color-beer-amber);
+  }
+  .legal-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin-bottom: var(--space-2);
+    background: var(--color-beer-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .legal-subtitle {
+    font-size: 0.95rem;
+    color: var(--color-gray-500);
+    font-style: italic;
+  }
+  .legal-section {
+    margin-bottom: var(--space-6);
+  }
+  .legal-section-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--color-gray-800);
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  .legal-section p {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--color-gray-600);
+    margin-bottom: var(--space-3);
+  }
+  .legal-list {
+    padding-left: var(--space-6);
+    margin-bottom: var(--space-4);
+  }
+  .legal-list li {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--color-gray-600);
+    margin-bottom: var(--space-2);
+  }
+  .legal-link {
+    color: var(--color-primary);
+    text-decoration: underline;
+    transition: color 0.2s ease;
+  }
+  .legal-link:hover {
+    color: var(--color-primary-dark);
+  }
+  .legal-footer-note {
+    text-align: center;
+    margin-top: var(--space-8);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-gray-200);
+  }
+  .legal-footer-note p {
+    font-size: 0.9rem;
+    color: var(--color-gray-500);
+  }
+
+  /* Tabella cookie */
+  .legal-table-wrapper {
+    overflow-x: auto;
+    margin: var(--space-4) 0;
+    border-radius: var(--radius-md, 0.5rem);
+    border: 1px solid var(--color-gray-200);
+  }
+  .legal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .legal-table thead {
+    background: var(--color-gray-50);
+  }
+  .legal-table th {
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-gray-700);
+    border-bottom: 2px solid var(--color-gray-200);
+    white-space: nowrap;
+  }
+  .legal-table td {
+    padding: var(--space-3) var(--space-4);
+    color: var(--color-gray-600);
+    border-bottom: 1px solid var(--color-gray-100);
+    vertical-align: top;
+    line-height: 1.6;
+  }
+  .legal-table code {
+    background: var(--color-gray-100);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--color-gray-800);
+    font-family: 'Courier New', monospace;
+  }
+
+  @media (max-width: 768px) {
+    .legal-page { padding: var(--space-4) var(--space-2); }
+    .legal-container { padding: var(--space-6) var(--space-4); border-radius: var(--radius-lg, 0.75rem); }
+    .legal-title { font-size: 1.6rem; }
+    .legal-section-title { font-size: 1.2rem; }
+    .legal-table th, .legal-table td { padding: var(--space-2) var(--space-3); font-size: 0.85rem; }
+  }
+  @media (max-width: 480px) {
+    .legal-container { padding: var(--space-4) var(--space-3); }
+    .legal-title { font-size: 1.35rem; }
+  }
+</style>
+{% endblock %}

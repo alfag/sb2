@@ -1,0 +1,304 @@
+{% extends "layout.njk" %}
+
+{% block title %}Termini di Servizio - SharingBeer 2.0{% endblock %}
+
+{% block content %}
+<div class="legal-page">
+  <div class="legal-container">
+
+    {# Header documento #}
+    <div class="legal-header">
+      <h1 class="legal-title">Termini di Servizio e Condizioni d'Uso</h1>
+      <p class="legal-subtitle">In vigore da Febbraio 2025</p>
+    </div>
+
+    {# Premessa #}
+    <div class="legal-section">
+      <p>I presenti Termini di Servizio disciplinano l'utilizzo della piattaforma web SharingBeer 2.0 (di seguito "Piattaforma") e le condizioni generali di vendita dei prodotti in essa disponibili.</p>
+      <p>Le parti del contratto sono: <strong>Birrificio Viana Srl</strong> con sede legale in Via Molignati 12, 13878 Candelo (BI), P.IVA 02792790020 (di seguito "Gestore") e l'Utente registrato (di seguito "Utente" o "Cliente").</p>
+      <p>La vendita di birra e alcolici è riservata ai maggiori di anni 18, pertanto l'Utente deve aver compiuto 18 anni al momento dell'acquisto e della registrazione. Il Gestore non è responsabile di qualsiasi uso improprio del prodotto da parte dell'Utente successivo all'acquisto.</p>
+    </div>
+
+    {# 1 - Descrizione del Servizio #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">1. Descrizione del Servizio</h2>
+      <p>SharingBeer 2.0 è una piattaforma per la distribuzione e vendita di birre artigianali italiane con sistema di recensioni basato su intelligenza artificiale. La Piattaforma offre le seguenti funzionalità principali:</p>
+      <ul class="legal-list">
+        <li><strong>Sistema di recensioni AI</strong>: l'Utente può caricare foto di birre che vengono analizzate automaticamente dall'intelligenza artificiale per il riconoscimento del prodotto e la creazione di recensioni;</li>
+        <li><strong>E-commerce</strong>: acquisto di birre artigianali in formato BeerBox (confezioni) attraverso la Piattaforma;</li>
+        <li><strong>Catalogo birrifici</strong>: consultazione di informazioni su birrifici artigianali italiani e i loro prodotti;</li>
+        <li><strong>Sistema multi-ruolo</strong>: l'Utente può operare con diversi ruoli (cliente, birrificio, amministratore) in base ai permessi assegnati.</li>
+      </ul>
+    </div>
+
+    {# 2 - Registrazione e Account #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">2. Registrazione e Account</h2>
+      <p>Per accedere alla Piattaforma è necessario registrarsi inserendo i dati personali richiesti e accettare i presenti Termini di Servizio e l'<a href="/privacy" class="legal-link">Informativa sulla Privacy</a>.</p>
+      <p>L'Utente si impegna a:</p>
+      <ul class="legal-list">
+        <li>fornire dati veritieri, completi e aggiornati durante la registrazione;</li>
+        <li>mantenere la riservatezza delle proprie credenziali di accesso (username e password);</li>
+        <li>notificare tempestivamente al Gestore qualsiasi uso non autorizzato del proprio account;</li>
+        <li>non creare account multipli per la stessa persona fisica.</li>
+      </ul>
+      <p>Il Gestore si riserva il diritto di sospendere o disattivare gli account che violino i presenti Termini.</p>
+    </div>
+
+    {# 3 - Sistema Recensioni e Intelligenza Artificiale #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">3. Sistema Recensioni e Intelligenza Artificiale</h2>
+      <p>La Piattaforma utilizza un sistema di intelligenza artificiale (Google Gemini) per l'analisi delle immagini caricate dagli Utenti. L'Utente prende atto e accetta che:</p>
+      <ul class="legal-list">
+        <li>le foto caricate vengono inviate a servizi di terze parti (Google LLC) per l'analisi automatica;</li>
+        <li>i risultati dell'analisi AI sono orientativi e vengono sottoposti a validazione; l'Utente è responsabile della conferma o correzione delle informazioni generate automaticamente;</li>
+        <li>le immagini vengono ottimizzate (ridimensionate e compresse) prima dell'elaborazione;</li>
+        <li>il processing delle recensioni avviene in modo asincrono in background e può richiedere alcuni minuti per il completamento;</li>
+        <li>l'Utente è soggetto a limiti di utilizzo (rate limiting) per le richieste di analisi AI al fine di garantire la qualità del servizio per tutti gli utenti.</li>
+      </ul>
+      <p>L'Utente si impegna a caricare esclusivamente immagini di prodotti birrari. La Piattaforma filtra automaticamente i contenuti non pertinenti (prodotti non-birra) e i contenuti inappropriati.</p>
+    </div>
+
+    {# 4 - Contenuti Generati dagli Utenti #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">4. Contenuti Generati dagli Utenti</h2>
+      <p>L'Utente è responsabile dei contenuti che carica o pubblica sulla Piattaforma, incluse recensioni, valutazioni, note e immagini. I contenuti devono:</p>
+      <ul class="legal-list">
+        <li>essere veritieri e non ingannevoli;</li>
+        <li>non contenere linguaggio offensivo, discriminatorio, volgare o inappropriato;</li>
+        <li>non violare diritti di proprietà intellettuale di terzi;</li>
+        <li>non contenere dati personali di terzi senza il loro consenso;</li>
+        <li>essere pertinenti al mondo della birra artigianale.</li>
+      </ul>
+      <p>Il Gestore si riserva il diritto di moderare, modificare o rimuovere qualsiasi contenuto che violi i presenti Termini, senza preavviso. La Piattaforma implementa un sistema automatico di moderazione dei contenuti.</p>
+    </div>
+
+    {# 5 - Geolocalizzazione #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">5. Geolocalizzazione</h2>
+      <p>La Piattaforma può richiedere l'accesso alla posizione dell'Utente per associare dati geografici alle recensioni e per la ricerca di birrifici vicini. L'utilizzo della geolocalizzazione è facoltativo e richiede il consenso esplicito dell'Utente. L'Utente può revocare il consenso in qualsiasi momento tramite le impostazioni del browser senza pregiudicare l'accesso alle altre funzionalità.</p>
+    </div>
+
+    {# 6 - Modalità di Acquisto (E-commerce) #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">6. Modalità di Acquisto</h2>
+      <p>La vendita avviene esclusivamente attraverso la Piattaforma SharingBeer 2.0. Il prodotto viene venduto in formato <strong>BeerBox</strong> (confezioni). Per effettuare l'acquisto l'Utente può inserire nel carrello i prodotti desiderati, operazione che non impegna all'acquisto.</p>
+      <p>Nel caso un prodotto non fosse momentaneamente disponibile non sarà possibile procedere con l'ordine.</p>
+      <p>Per procedere con l'acquisto è necessario selezionare il carrello e confermare l'ordine, scegliendo la modalità di ritiro o un indirizzo di consegna. Dopo la conferma comparirà un riepilogo con il prezzo totale e il pulsante per accedere al sistema di pagamento.</p>
+      <p>Successivamente alla conferma del pagamento non sarà più possibile modificare i dati dell'ordine. Il Gestore invierà una email di conferma con il riepilogo dell'ordine. Tutti gli ordini sono visibili nella sezione dedicata della Piattaforma.</p>
+    </div>
+
+    {# 7 - Pagamenti #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">7. Pagamenti</h2>
+      <p>I pagamenti avvengono attraverso il sistema di pagamento sicuro <strong>Stripe</strong>, non gestito direttamente dal Gestore. La Piattaforma non memorizza i dati completi delle carte di credito/debito degli Utenti.</p>
+      <p>Il Gestore si riserva la facoltà di variare, in ogni momento, i mezzi di pagamento utilizzabili dagli Utenti fatto salvo che saranno validi quelli indicati sulla Piattaforma al momento del pagamento.</p>
+      <p>L'addebito avverrà contestualmente all'invio della conferma d'ordine.</p>
+    </div>
+
+    {# 8 - Prezzi #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">8. Prezzi</h2>
+      <p>I prezzi indicati per ogni prodotto sono in euro, IVA compresa.</p>
+      <p>Oltre al prezzo del prodotto potrà essere indicato il prezzo di spedizione che varia a seconda dell'indirizzo di consegna e del quantitativo dei prodotti acquistati. Nel caso di ritiro della merce nella sede del birrificio non sarà aggiunto costo di spedizione.</p>
+      <p>Il costo di spedizione sarà indicato separatamente rispetto al prezzo del prodotto così che l'Utente lo conosca prima della conferma dell'ordine.</p>
+      <p>I prezzi possono essere soggetti a modifica senza preavviso da parte del Gestore, fermo restando che per ogni acquisto si intenderanno validi quelli indicati sulla Piattaforma al momento della conferma d'ordine.</p>
+    </div>
+
+    {# 9 - Ritiro e Consegna #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">9. Ritiro e Consegna</h2>
+      
+      <h3 class="legal-subsection-title">Ritiro in sede</h3>
+      <p>È data possibilità all'Utente di ritirare la merce nella sede del birrificio selezionando l'opzione nella apposita sezione. Per il ritiro l'Utente, o persona incaricata dall'Utente (maggiorenne e munita di documento d'identità), dovrà esibire il riepilogo dell'ordine. La merce deve essere ritirata entro 7 giorni lavorativi dalla data dell'ordine.</p>
+
+      <h3 class="legal-subsection-title">Consegna a domicilio</h3>
+      <p>L'Utente dovrà indicare l'indirizzo completo di consegna e assicurarsi che i dati siano veritieri e aggiornati. L'Utente, o altro soggetto incaricato dall'Utente stesso, è tenuto a verificare al momento della consegna che i prodotti corrispondano a quanto indicato nel documento di acquisto sia per numero che per tipologia, e che l'imballaggio dei prodotti sia integro.</p>
+      <p>Il Gestore farà tutto quanto nelle sue possibilità affinché i prodotti consegnati giungano all'Utente entro i termini indicati. Tali termini non possono, in ogni caso, essere ritenuti vincolanti per il Gestore.</p>
+    </div>
+
+    {# 10 - Diritto di Recesso #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">10. Diritto di Recesso</h2>
+      <p>Qualora gli Utenti siano "consumatori" (ossia una persona fisica che agisce per scopi estranei all'attività imprenditoriale, commerciale, artigianale o professionale eventualmente svolta), hanno diritto, ai sensi e per gli effetti di cui all'art. 64 del D. Lgs. n. 206/2005, di recedere dal contratto di compravendita entro 10 giorni lavorativi dalla data di ricevimento dei prodotti.</p>
+      <p>Il diritto di recesso deve essere esercitato dagli Utenti inviando al Gestore una comunicazione scritta, a mezzo email, contenente la manifestazione di volontà di avvalersi del diritto di recesso e l'indicazione dell'ordine.</p>
+      <p>Gli Utenti si impegnano a restituire i prodotti entro 10 giorni lavorativi dalla data di ricevimento dell'ordine. I costi connessi alla restituzione dei prodotti sono interamente a carico dell'Utente.</p>
+      <p>Il Gestore si impegna a rimborsare il prezzo pagato dall'Utente entro 30 giorni dalla data di ricevimento dei prodotti oggetto del recesso, a condizione che i prodotti restituiti siano in buone condizioni, integri e senza segni di apertura anche nella confezione.</p>
+    </div>
+
+    {# 11 - Limitazioni di Responsabilità #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">11. Limitazioni di Responsabilità</h2>
+      <p>Il Gestore si impegna a fornire un servizio di alta qualità ma non garantisce che la Piattaforma sia esente da errori o interruzioni. In particolare:</p>
+      <ul class="legal-list">
+        <li>i risultati dell'analisi AI sono forniti "così come sono" e possono contenere inesattezze; l'Utente è responsabile della verifica delle informazioni;</li>
+        <li>il Gestore non è responsabile per disservizi causati da terze parti (provider hosting, servizi AI, gateway di pagamento);</li>
+        <li>il Gestore non è responsabile per eventuali perdite di dati dovute a cause di forza maggiore;</li>
+        <li>le informazioni sui birrifici e sulle birre possono essere generate o arricchite automaticamente e potrebbero non essere sempre aggiornate o precise.</li>
+      </ul>
+    </div>
+
+    {# 12 - Proprietà Intellettuale #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">12. Proprietà Intellettuale</h2>
+      <p>Tutti i diritti di proprietà intellettuale connessi alla Piattaforma SharingBeer 2.0 (compresi i contenuti, il design, il codice sorgente e i loghi) sono di titolarità esclusiva del Gestore. Tutti i contenuti non possono essere riprodotti né integralmente né parzialmente, trasferiti con mezzi elettronici o convenzionali, modificati, collegati e utilizzati per qualsivoglia fine senza il previo consenso scritto del Gestore.</p>
+      <p>I marchi, i loghi e le immagini dei birrifici e dei prodotti presenti sulla Piattaforma appartengono ai rispettivi titolari.</p>
+    </div>
+
+    {# 13 - Errori #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">13. Errori</h2>
+      <p>Il Gestore si impegna a verificare costantemente la Piattaforma al fine di evitare errori o inesattezze. Tuttavia si riserva il diritto di correggere gli errori, le inesattezze o le omissioni contenute anche dopo che sia stato inviato un ordine e altresì si riserva di cambiare o aggiornare le informazioni in qualsiasi momento senza preventiva comunicazione agli Utenti.</p>
+    </div>
+
+    {# 14 - Forza Maggiore #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">14. Forza Maggiore</h2>
+      <p>Il Gestore non sarà responsabile per l'impossibilità di completare l'ordine o fornire il servizio, se tale impossibilità dipende da circostanze che non sono sotto il diretto controllo del Gestore tra cui, ma non solo: la modifica di leggi o regolamenti governativi, incendio, furto, sciopero, incidenti, guerre, emergenze nazionali, interruzioni dei servizi di terze parti (cloud, AI, pagamenti), distacchi di corrente.</p>
+    </div>
+
+    {# 15 - Sospensione e Cancellazione Account #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">15. Sospensione e Cancellazione Account</h2>
+      <p>Il Gestore si riserva il diritto di sospendere o cancellare l'account di un Utente che:</p>
+      <ul class="legal-list">
+        <li>violi i presenti Termini di Servizio;</li>
+        <li>utilizzi la Piattaforma in modo fraudolento o abusivo;</li>
+        <li>carichi contenuti inappropriati, offensivi o non pertinenti;</li>
+        <li>tenti di aggirare i sistemi di sicurezza o rate limiting della Piattaforma;</li>
+        <li>crei recensioni false o ingannevoli.</li>
+      </ul>
+      <p>L'Utente può in qualsiasi momento richiedere la cancellazione del proprio account contattando il Gestore all'indirizzo: <a href="mailto:birrificioviana@gmail.it" class="legal-link">birrificioviana@gmail.it</a></p>
+    </div>
+
+    {# 16 - Legge Applicabile #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">16. Legge Applicabile</h2>
+      <p>I presenti Termini di Servizio e i contratti di compravendita sono disciplinati dal diritto italiano (e in particolare dal Decreto Legislativo 206 del 06/09/2005 — che agli art. da 50 a 67 disciplina i contratti a distanza — e dal Decreto Legislativo 70 del 09/04/2003 in materia di commercio elettronico) e alla luce di questo devono essere interpretati.</p>
+      <p>Per qualsiasi controversia che possa sorgere sarà competente in via esclusiva il foro di Biella, ove non diversamente disposto in forma imperativa dalla legge.</p>
+      <p>Il Gestore non si assume responsabilità per eventuali perdite o danni, diretti o indiretti, presenti o futuri, nei confronti di qualsiasi persona fisica o persona giuridica risultanti da un utilizzo scorretto della Piattaforma o dei prodotti.</p>
+    </div>
+
+    {# 17 - Modifiche ai Termini #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">17. Modifiche ai Termini di Servizio</h2>
+      <p>Il Gestore si riserva il diritto di modificare i presenti Termini di Servizio in qualunque momento. Le modifiche saranno pubblicate su questa pagina con indicazione della data di aggiornamento. L'utilizzo continuativo della Piattaforma dopo la pubblicazione delle modifiche costituisce accettazione delle stesse.</p>
+    </div>
+
+    {# 18 - Contatti #}
+    <div class="legal-section">
+      <h2 class="legal-section-title">18. Contatti</h2>
+      <p>Per qualsiasi domanda o comunicazione relativa ai presenti Termini di Servizio, l'Utente può contattare il Gestore all'indirizzo email: <a href="mailto:birrificioviana@gmail.it" class="legal-link">birrificioviana@gmail.it</a></p>
+      <p>Birrificio Viana Srl — Via Molignati 12, 13878 Candelo (BI) — P.IVA 02792790020</p>
+    </div>
+
+    <div class="legal-footer-note">
+      <p><em>Termini di Servizio aggiornati a Febbraio 2025</em></p>
+    </div>
+
+  </div>
+</div>
+
+{# Stili condivisi - riusa gli stessi della privacy page #}
+<style>
+  .legal-page {
+    min-height: calc(100vh - 200px);
+    padding: var(--space-8) var(--space-4);
+    background: var(--color-gray-50);
+  }
+  .legal-container {
+    max-width: 860px;
+    margin: 0 auto;
+    background: var(--color-white);
+    border-radius: var(--radius-xl, 1rem);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    padding: var(--space-8) var(--space-6);
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+  .legal-header {
+    text-align: center;
+    margin-bottom: var(--space-8);
+    padding-bottom: var(--space-6);
+    border-bottom: 2px solid var(--color-beer-amber);
+  }
+  .legal-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin-bottom: var(--space-2);
+    background: var(--color-beer-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .legal-subtitle {
+    font-size: 0.95rem;
+    color: var(--color-gray-500);
+    font-style: italic;
+  }
+  .legal-section {
+    margin-bottom: var(--space-6);
+  }
+  .legal-section-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--color-gray-800);
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  .legal-subsection-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-gray-700);
+    margin-top: var(--space-5);
+    margin-bottom: var(--space-3);
+  }
+  .legal-section p {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--color-gray-600);
+    margin-bottom: var(--space-3);
+  }
+  .legal-list {
+    padding-left: var(--space-6);
+    margin-bottom: var(--space-4);
+  }
+  .legal-list li {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--color-gray-600);
+    margin-bottom: var(--space-2);
+  }
+  .legal-link {
+    color: var(--color-primary);
+    text-decoration: underline;
+    transition: color 0.2s ease;
+  }
+  .legal-link:hover {
+    color: var(--color-primary-dark);
+  }
+  .legal-footer-note {
+    text-align: center;
+    margin-top: var(--space-8);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-gray-200);
+  }
+  .legal-footer-note p {
+    font-size: 0.9rem;
+    color: var(--color-gray-500);
+  }
+
+  @media (max-width: 768px) {
+    .legal-page { padding: var(--space-4) var(--space-2); }
+    .legal-container { padding: var(--space-6) var(--space-4); border-radius: var(--radius-lg, 0.75rem); }
+    .legal-title { font-size: 1.6rem; }
+    .legal-section-title { font-size: 1.2rem; }
+  }
+  @media (max-width: 480px) {
+    .legal-container { padding: var(--space-4) var(--space-3); }
+    .legal-title { font-size: 1.35rem; }
+  }
+</style>
+{% endblock %}

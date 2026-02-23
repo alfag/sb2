@@ -79,7 +79,7 @@
     "chai": "^4.4.1",
     "chai-http": "^5.1.2",
     "concurrently": "^9.2.1",
-    "eslint": "^7.14.0",
+    "eslint": "^10.0.2",
     "mocha": "^11.7.5",
     "nodemon": "^3.1.10",
     "puppeteer": "^24.31.0",
@@ -99,6 +99,8 @@
   "overrides": {
     "mocha": {
       "diff": "^8.0.3"
-    }
+    },
+    "bn.js": "5.2.3",
+    "minimatch": "10.2.2"
   }
 }
